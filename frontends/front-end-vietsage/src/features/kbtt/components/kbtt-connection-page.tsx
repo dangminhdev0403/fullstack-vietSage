@@ -5,6 +5,8 @@ import { HttpError } from "@/core/http/http-error";
 import { showConfirmDialog, showErrorAlert, showSuccessAlert } from "@/libs/swal";
 import { useKbttConnection } from "../hooks/use-kbtt-connection";
 import { useKbttAutoSubmit } from "../hooks/use-kbtt-auto-submit";
+import { useKbttAutoSubmitEnabled } from "../hooks/use-kbtt-auto-submit-enabled";
+import { KbttAutoSubmitSwitch } from "./kbtt-auto-submit-switch";
 import { kbttCredentialsSchema, kbttErrorCode, kbttErrorMessage, type KbttConnection } from "../types/kbtt-contract";
 
 function errorText(error: unknown): string {
@@ -541,7 +543,7 @@ function KbttAutoSubmitSection({
   } = useKbttAutoSubmit(hotelId);
   const data = autoSubmit.data;
 
-  const [enabled, setEnabled] = useState<boolean | null>(null);
+  const { enabled } = useKbttAutoSubmitEnabled(hotelId);
   const [time, setTime] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
@@ -581,7 +583,7 @@ function KbttAutoSubmitSection({
     }
   }
 
-  const isEnabled = enabled ?? (data?.autoSubmitEnabled ?? false);
+  const isEnabled = enabled.data?.autoSubmitEnabled ?? false;
   const currentTime = time ?? (data?.autoSubmitTime ?? "04:30");
   const pendingSchedule = data?.pendingSchedule ?? null;
   const activeRun = data?.activeRun ?? null;
@@ -603,13 +605,10 @@ function KbttAutoSubmitSection({
     if (!canManage || isSaving) return;
     try {
       await updateConfig({
-        autoSubmitEnabled: isEnabled,
-        autoSubmitTime: isEnabled ? currentTime : null,
+        autoSubmitTime: currentTime,
       });
-      await showSuccessAlert(
-        "Lịch nộp tự động",
-        `Đã lưu cấu hình: ${isEnabled ? `Tự động nộp lúc ${currentTime} hàng ngày.` : "Đã tắt tự động nộp."}`,
-      );
+      setTime(null);
+      await showSuccessAlert("Lịch nộp tự động", `Đã lưu giờ nộp: ${currentTime} hàng ngày.`);
     } catch (error) {
       await autoSubmit.refetch();
       await showErrorAlert("Không thể lưu cấu hình", errorText(error));
@@ -661,20 +660,10 @@ function KbttAutoSubmitSection({
           </div>
         </div>
 
-        <div>
-          {isEnabled ? (
-            <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-1.5 text-sm font-bold text-emerald-800">
-              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
-              Đang bật • {currentTime} (UTC+7)
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-100 px-4 py-1.5 text-sm font-bold text-slate-700">
-              <span className="h-2 w-2 rounded-full bg-slate-400" />
-              Đang tắt
-            </span>
-          )}
-        </div>
+
       </div>
+
+      <KbttAutoSubmitSwitch hotelId={hotelId} canManage={canManage} isConnected={isConnected} />
 
       {!isConnected ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-5 text-sm text-amber-900">
@@ -682,21 +671,7 @@ function KbttAutoSubmitSection({
         </div>
       ) : (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-slate-50/70 rounded-2xl p-5 border border-slate-100">
-            <div className="flex items-center justify-between gap-4 p-2">
-              <div>
-                <label className="text-base font-bold text-slate-900">Bật tự động nộp hồ sơ</label>
-                <p className="text-sm text-slate-600">Kích hoạt tác vụ cron quét hồ sơ mỗi ngày</p>
-              </div>
-              <input
-                type="checkbox"
-                disabled={!canManage || isSaving}
-                checked={isEnabled}
-                onChange={(e) => setEnabled(e.target.checked)}
-                className="h-6 w-6 rounded border-slate-300 text-[#0f6756] focus:ring-[#0f6756]"
-              />
-            </div>
-
+          <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-5">
             <div className="p-2">
               <label className="block text-base font-bold text-slate-900 mb-1.5">
                 Giờ nộp định kỳ (Giờ Việt Nam)

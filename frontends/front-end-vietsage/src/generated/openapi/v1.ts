@@ -3870,6 +3870,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/hotels/{hotelId}/kbtt/auto-submit/enabled": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read the hotel automatic BCA delivery switch without contacting BCA */
+        get: operations["KbttController_getAutoSubmitEnabled"];
+        /** Enable or pause hotel automatic BCA delivery without changing its schedule */
+        put: operations["KbttController_updateAutoSubmitEnabled"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/hotels/{hotelId}/kbtt/auto-submit": {
         parameters: {
             query?: never;
@@ -3879,7 +3897,7 @@ export interface paths {
         };
         /** Get KBTT auto-submit schedule configuration and recent runs */
         get: operations["KbttController_getAutoSubmitConfig"];
-        /** Update KBTT auto-submit schedule configuration */
+        /** Update KBTT auto-submit schedule configuration; omitted fields remain unchanged */
         put: operations["KbttController_updateAutoSubmitConfig"];
         post?: never;
         delete?: never;
@@ -13715,6 +13733,134 @@ export interface operations {
             };
         };
     };
+    KbttController_getAutoSubmitEnabled: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example 200 */
+                        status: number;
+                        /** @example null */
+                        error: {
+                            [key: string]: unknown;
+                        } | null;
+                        /** @example Thành công */
+                        message: string;
+                        data: {
+                            autoSubmitEnabled: boolean;
+                        };
+                    };
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Hotel scope or business permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_AUTH_FAILED; sanitized provider authentication failure */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    KbttController_updateAutoSubmitEnabled: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    autoSubmitEnabled: boolean;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example 200 */
+                        status: number;
+                        /** @example null */
+                        error: {
+                            [key: string]: unknown;
+                        } | null;
+                        /** @example Thành công */
+                        message: string;
+                        data: {
+                            autoSubmitEnabled: boolean;
+                        };
+                    };
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Hotel scope or business permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_AUTH_FAILED; sanitized provider authentication failure */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     KbttController_getAutoSubmitConfig: {
         parameters: {
             query?: never;
@@ -13771,7 +13917,14 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": {
+                    autoSubmitEnabled?: boolean;
+                    autoSubmitTime?: string | null;
+                } | unknown | unknown;
+            };
+        };
         responses: {
             200: {
                 headers: {

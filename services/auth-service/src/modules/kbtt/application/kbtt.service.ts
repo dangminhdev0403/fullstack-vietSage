@@ -244,6 +244,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     payload: unknown[],
     accessToken: string,
     csltId: string,
+    requireEnabled = true,
   ): Promise<KbttSubmitOutcome> {
     if (process.env.KBTT_AUTO_SUBMIT_KILL_SWITCH === "true" ||
         process.env.KBTT_AUTO_SUBMIT_LIVE_ENABLED !== "true") {
@@ -265,8 +266,11 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
         return { outcome: "BUSINESS_REJECTION", code: "CONNECTION_SCOPE_CHANGED",
           message: "Kết nối BCA đã thay đổi; cần xác nhận lại cơ sở trước khi gửi." };
       }
+      if (requireEnabled && !connection.autoSubmitEnabled) {
+        return { outcome: "BUSINESS_REJECTION", code: "DELIVERY_PAUSED", message: "Luồng gửi BCA đang tạm dừng." };
+      }
       return this.staySync?.enabled()
-        ? await this.staySync.sendInitial(hotelId, kind, payload, accessToken, declarationId, csltId)
+        ? await this.staySync.sendInitial(hotelId, kind, payload, accessToken, declarationId, csltId, requireEnabled)
         : await this.provider.submitDeclaration(kind, payload, accessToken);
     } catch {
       return { outcome: "AMBIGUOUS", code: "INTERRUPTED_DELIVERY", message: "Lần gửi chưa rõ kết quả; cần đối soát trước khi gửi tiếp." };
@@ -717,7 +721,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     return {
       mode: "BACKGROUND" as const,
       state: !connection ? "NOT_CONFIGURED" as const
-        : connection.status === "CONNECTED" && live ? "RUNNING" as const : "PAUSED" as const,
+        : connection.status === "CONNECTED" && connection.autoSubmitEnabled && live ? "RUNNING" as const : "PAUSED" as const,
       lifecycleEnabled: process.env.KBTT_STAY_LIFECYCLE_ENABLED === "true",
       pendingCount: snapshot.pendingCount,
       sendingCount: snapshot.sendingCount,
@@ -1115,6 +1119,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
 
   private async dispatchQueuedInitial(hotelId: string, occupantId: string) {
     return this.serialize(hotelId, async () => {
+      if (!(await this.repository.find(hotelId))?.autoSubmitEnabled) return;
       const occupant = await this.repository.findOccupant(hotelId, occupantId);
       if (!occupant) return;
       if (occupant.stay.checkedOutAt ||
@@ -1454,6 +1459,22 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     };
   }
 
+  async getAutoSubmitEnabled(userId: string, roleId: string, hotelId: string) {
+    await this.access.assertHotelAccess(userId, roleId, hotelId);
+    const connection = await this.repository.find(hotelId);
+    return { autoSubmitEnabled: connection?.autoSubmitEnabled ?? false };
+  }
+
+  async updateAutoSubmitEnabled(userId: string, roleId: string, hotelId: string, autoSubmitEnabled: boolean) {
+    await this.access.assertHotelAccess(userId, roleId, hotelId);
+    const connection = await this.repository.find(hotelId);
+    if (!connection) {
+      throw new NotFoundException({ code: "KBTT_NOT_CONFIGURED", message: "Khách sạn chưa cấu hình kết nối KBTT." });
+    }
+    const updated = await this.repository.update(connection, { autoSubmitEnabled });
+    return { autoSubmitEnabled: updated.autoSubmitEnabled };
+  }
+
   async getAutoSubmitConfig(userId: string, roleId: string, hotelId: string) {
     await this.access.assertHotelAccess(userId, roleId, hotelId);
     const connection = await this.repository.find(hotelId);
@@ -1502,8 +1523,8 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       });
     }
     const updated = await this.repository.update(connection, {
-      autoSubmitEnabled: body.autoSubmitEnabled,
-      autoSubmitTime: body.autoSubmitTime ?? null,
+      ...(body.autoSubmitEnabled !== undefined ? { autoSubmitEnabled: body.autoSubmitEnabled } : {}),
+      ...(body.autoSubmitTime !== undefined ? { autoSubmitTime: body.autoSubmitTime } : {}),
     });
     return {
       autoSubmitEnabled: updated.autoSubmitEnabled,
@@ -1644,6 +1665,13 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
         });
       }
 
+      if (!isDryRun && !isManualDelayed && !connection.autoSubmitEnabled) {
+        return this.repository.finalizeAutoSubmitRun(run.id, {
+          status: "CANCELLED", totalCount: 0, successCount: 0, failedCount: 0, unknownCount: 0,
+          telegramSent: false, summaryJson: { trigger, reason: "DELIVERY_PAUSED" },
+        });
+      }
+
       let session: KbttSession | null = null;
       if (!isDryRun) {
         try {
@@ -1683,6 +1711,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       let bcaRejectionCount = 0;
       let transientExhaustedCount = 0;
       let leaseFenced = false;
+      let deliveryPaused = false;
       let hasBacklog = false;
 
       while (hasMorePages) {
@@ -1905,6 +1934,10 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
 
         // One transmission per guest. UNKNOWN must never enter another retry wave.
         for (const item of validItems) {
+          if (!isManualDelayed && !(await this.repository.find(hotelId))?.autoSubmitEnabled) {
+            deliveryPaused = true;
+            break;
+          }
           if (!(await this.repository.renewAutoSubmitRunLease(run.id))) {
             leaseFenced = true;
             break;
@@ -1921,12 +1954,19 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
           }
           const outcome = await this.sendInitialDeclaration(
             hotelId, sendingDeclaration.id, sendingDeclaration.declarationKind,
-            item.payload, session!.AccessToken, session!.CsltId,
+            item.payload, session!.AccessToken, session!.CsltId, !isManualDelayed,
           );
           if (outcome.outcome === "SUCCESS") {
             await this.persistDeclarationSubmitted(hotelId, sendingDeclaration,
               item.payload, item.fingerprint, outcome);
             directSuccessCount++;
+          } else if (outcome.outcome === "BUSINESS_REJECTION" && outcome.code === "DELIVERY_PAUSED") {
+            await this.repository.updateDeclaration({
+              id: sendingDeclaration.id, hotelId, expectedVersion: sendingDeclaration.version,
+              data: { status: "READY", providerCode: "LOCAL_QUEUED", providerMessage: "Đang chờ gửi BCA." },
+            });
+            deliveryPaused = true;
+            break;
           } else if (outcome.outcome === "BUSINESS_REJECTION") {
             await this.persistDeclarationFailed(hotelId, sendingDeclaration, item.fingerprint, outcome);
             bcaRejectionCount++;
@@ -1936,7 +1976,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
             transientExhaustedCount++;
           }
         }
-        if (leaseFenced) break;
+        if (leaseFenced || deliveryPaused) break;
 
         if (totalEligibleCount >= MAX_BATCH_ELIGIBLE) {
           while (hasMorePages && !hasBacklog) {
@@ -2040,7 +2080,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
 
       let continuationScheduled = false;
       let nextContinuationAt: string | null = null;
-      if (hasBacklog && !isManualDelayed) {
+      if (hasBacklog && !isManualDelayed && !deliveryPaused) {
         const continuationMinutes = Number(
           process.env.KBTT_AUTO_SUBMIT_CONTINUATION_MINUTES ||
             (process.env.NODE_ENV === "test" ? 30 : 1),
@@ -2070,7 +2110,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       }
 
       const finalRun = await this.repository.finalizeAutoSubmitRun(run.id, {
-        status: "COMPLETED",
+        status: deliveryPaused ? "CANCELLED" : "COMPLETED",
         totalCount: totalEligibleCount,
         successCount,
         failedCount,
@@ -2078,6 +2118,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
         telegramSent,
         summaryJson: {
           trigger,
+          ...(deliveryPaused ? { reason: "DELIVERY_PAUSED" } : {}),
           breakdown: {
             directSuccessCount,
             reconciledSuccessCount,

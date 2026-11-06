@@ -9,6 +9,7 @@ import { kbttRepository } from "../repositories/kbtt-repository";
 import type { PaginatedKbttDeclarations } from "../repositories/kbtt-repository";
 import type {
   KbttAutoSubmitConfig,
+  KbttAutoSubmitEnabled,
   KbttAutoSubmitState,
   KbttBatchSubmitSummary,
   KbttCatalogItem,
@@ -96,6 +97,11 @@ export const kbttResource = createResource<HotelScope>()({
       >): Promise<KbttCatalogItem[]> =>
         kbttRepository.listCatalog(input.kind, input.parentCode, signal),
     }),
+    autoSubmitEnabled: defineQuery({
+      inputKey: () => [],
+      queryFn: ({ scope, signal }: ResourceQueryContext<HotelScope, void>): Promise<KbttAutoSubmitEnabled> =>
+        kbttRepository.getAutoSubmitEnabled(scope.hotelId, signal),
+    }),
     autoSubmitConfig: defineQuery({
       inputKey: () => [],
       queryFn: ({
@@ -180,6 +186,16 @@ export const kbttResource = createResource<HotelScope>()({
         kbttRepository.submit(scope.hotelId, variables.occupantId),
       invalidates: declarationInvalidates,
     }),
+    updateAutoSubmitEnabled: defineMutation({
+      defaults: { retry: false, networkMode: "always" },
+      mutationFn: ({ scope, variables }: ResourceMutationContext<HotelScope, KbttAutoSubmitEnabled>) =>
+        kbttRepository.updateAutoSubmitEnabled(scope.hotelId, variables),
+      invalidates: [
+        { type: "query", operation: "autoSubmitEnabled" },
+        { type: "query", operation: "autoSubmitConfig" },
+        ...declarationInvalidates,
+      ],
+    }),
     updateAutoSubmitConfig: defineMutation({
       defaults: { retry: false, networkMode: "always" },
       mutationFn: ({
@@ -187,7 +203,11 @@ export const kbttResource = createResource<HotelScope>()({
         variables,
       }: ResourceMutationContext<HotelScope, KbttAutoSubmitConfig>) =>
         kbttRepository.updateAutoSubmitConfig(scope.hotelId, variables),
-      invalidates: [{ type: "query", operation: "autoSubmitConfig" }],
+      invalidates: [
+        { type: "query", operation: "autoSubmitConfig" },
+        { type: "query", operation: "autoSubmitEnabled" },
+        ...declarationInvalidates,
+      ],
     }),
     testAutoSubmit: defineMutation({
       defaults: { retry: false, networkMode: "always" },

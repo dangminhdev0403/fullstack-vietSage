@@ -641,13 +641,20 @@ export function sanitizeProviderDetail(value: unknown): string | null {
   return text;
 }
 
-export const kbttAutoSubmitConfigSchema = z.object({
+export const kbttAutoSubmitEnabledSchema = z.object({
   autoSubmitEnabled: z.boolean(),
+}).strict();
+export type KbttAutoSubmitEnabled = z.infer<typeof kbttAutoSubmitEnabledSchema>;
+
+export const kbttAutoSubmitConfigSchema = z.object({
+  autoSubmitEnabled: z.boolean().optional(),
   autoSubmitTime: z
     .string()
     .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Giờ nộp tự động phải có định dạng HH:mm (00:00 - 23:59)")
     .nullable()
     .optional(),
+}).refine((value) => value.autoSubmitEnabled !== undefined || value.autoSubmitTime !== undefined, {
+  message: "Vui lòng chọn cấu hình cần cập nhật.",
 });
 export type KbttAutoSubmitConfig = z.infer<typeof kbttAutoSubmitConfigSchema>;
 

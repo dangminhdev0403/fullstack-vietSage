@@ -15,6 +15,29 @@ const originalGuest = {
   ngayDiDuKienStr: "2026-11-04 14:00:00",
 };
 
+describe("BCA automatic work selection", () => {
+  it("excludes paused hotels before bounded queues are selected", async () => {
+    const declarations = jest.fn().mockResolvedValue([]);
+    const operations = jest.fn().mockResolvedValue([]);
+    const connections = jest.fn().mockResolvedValue([]);
+    const db = { kbttGuestDeclaration: { findMany: declarations }, kbttStayOperation: { findMany: operations },
+      kbttHotelConnection: { findMany: connections } };
+    const repository = new KbttRepository(db as never);
+    await repository.findQueuedInitialDeclarations();
+    await repository.findHotelsWithPendingErrorDeclarations();
+    await new KbttStayRepository(db as never).runnable();
+    expect(declarations).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ hotel: { kbttConnection: { status: "CONNECTED", autoSubmitEnabled: true } } }),
+    }));
+    expect(connections).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ autoSubmitEnabled: true }),
+    }));
+    expect(operations).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ hotel: { kbttConnection: { autoSubmitEnabled: true } } }),
+    }));
+  });
+});
+
 describe("BCA stay synchronization helpers", () => {
   it("qualifies identities by domestic document type and foreign nationality", () => {
     const keys = [
@@ -116,6 +139,7 @@ function fixture() {
     hotelId: stay.hotelId,
     csltId: operation.csltId,
     status: "CONNECTED",
+    autoSubmitEnabled: true,
     hotel: { tenantId: "tenant-1" },
   };
   const repository = {
@@ -176,6 +200,19 @@ describe("BCA stay lifecycle delivery", () => {
       else process.env[name] = value;
     });
     jest.useRealTimers();
+  });
+
+  it.each(["CHECKOUT", "EXTEND", "RECOVER"])("retains %s work without authentication or transmission while the hotel switch is disabled", async (kind) => {
+    const f = fixture();
+    f.connection.autoSubmitEnabled = false;
+    f.operation.kind = kind;
+    f.repository.runnable.mockResolvedValue([f.operation]);
+    await f.service.run(f.resolveSession);
+    expect(f.resolveSession).not.toHaveBeenCalled();
+    expect(f.repository.claim).not.toHaveBeenCalled();
+    expect(f.repository.finish).not.toHaveBeenCalled();
+    expect(f.provider.changeDeparture).not.toHaveBeenCalled();
+    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
   });
 
   it.each([

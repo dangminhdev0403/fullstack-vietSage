@@ -1,5 +1,10 @@
 # Contract Changes
 
+## 2026-11-07 — Shared hotel BCA automatic-delivery switch
+
+- Added private hotel-scoped `GET`/`PUT /hotels/{hotelId}/kbtt/auto-submit/enabled` with `{autoSubmitEnabled:boolean}`. Front desk declaration managers can toggle the same persisted hotel flag as tenant managers without changing credentials or schedule.
+- Auto-submit configuration updates now preserve omitted fields. The switch pauses automatic queued initial, daily/continuation/recovery and lifecycle dispatch; delivery monitoring reports `PAUSED`. Local reads and writes never contact BCA.
+
 ## 2026-10-31 — Front desk arrivals search across all dates
 
 - In `GET /hotels/{hotelId}/arrivals`, query parameters `from` and `to` are made optional when a search keyword `q` is provided. This allows real-time search across all arrival dates for reservations matching customer name, reservation code, group code, room number, or phone number. When `q` is omitted, both `from` and `to` remain required for bounded date queries.

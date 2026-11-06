@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   HttpException,
   NotFoundException,
 } from "@nestjs/common";
@@ -19,6 +20,8 @@ import {
   kbttCatalogKindSchema,
   kbttPaginationQuerySchema,
   kbttCredentialsSchema,
+  kbttAutoSubmitEnabledSchema,
+  kbttAutoSubmitConfigSchema,
   type KbttCatalogKind,
   type KbttSession,
 } from "../domain/schemas/kbtt.schema";
@@ -58,6 +61,11 @@ const primaryOccupant = {
     room: { roomNumber: "101" },
   },
 };
+function enableAutomaticDelivery(f: ReturnType<typeof fixture>) {
+  const connection = f.rows.get("hotel-1");
+  if (connection) connection.autoSubmitEnabled = true;
+}
+
 const originalEnv = { ...process.env };
 const originalFetch = global.fetch;
 
@@ -643,6 +651,109 @@ describe("KBTT secure manual authentication", () => {
     }
   });
 
+  it("shares one hotel switch between owner and front desk without changing schedule or contacting BCA", async () => {
+    const f = fixture();
+    await f.service.connect("owner", "owner-role", "hotel-1", credentials);
+    await f.service.updateAutoSubmitConfig("owner", "owner-role", "hotel-1", { autoSubmitTime: "04:30" });
+    f.provider.login.mockClear();
+    expect(await f.service.updateAutoSubmitEnabled("front-desk", "staff-role", "hotel-1", true))
+      .toEqual({ autoSubmitEnabled: true });
+    expect(await f.service.getAutoSubmitEnabled("owner", "owner-role", "hotel-1"))
+      .toEqual({ autoSubmitEnabled: true });
+    await f.service.updateAutoSubmitConfig("owner", "owner-role", "hotel-1", { autoSubmitTime: "05:00" });
+    expect(f.rows.get("hotel-1")).toMatchObject({ autoSubmitEnabled: true, autoSubmitTime: "05:00" });
+    await f.service.updateAutoSubmitEnabled("owner", "owner-role", "hotel-1", false);
+    expect(await f.service.getAutoSubmitEnabled("front-desk", "staff-role", "hotel-1"))
+      .toEqual({ autoSubmitEnabled: false });
+    expect(f.rows.get("hotel-1")?.autoSubmitTime).toBe("05:00");
+    expect(await f.service.getAutoSubmitEnabled("owner", "owner-role", "hotel-2"))
+      .toEqual({ autoSubmitEnabled: false });
+    expect(f.provider.login).not.toHaveBeenCalled();
+    expect(f.provider.refresh).not.toHaveBeenCalled();
+    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+  });
+
+  it("rejects out-of-scope switch access before persistence and restricts writes to KBTT managers", async () => {
+    const f = fixture();
+    f.access.assertHotelAccess.mockRejectedValue(new ForbiddenException("Outside hotel"));
+    await expect(f.service.getAutoSubmitEnabled("staff", "staff-role", "hotel-2")).rejects.toThrow(ForbiddenException);
+    await expect(f.service.updateAutoSubmitEnabled("staff", "staff-role", "hotel-2", true)).rejects.toThrow(ForbiddenException);
+    expect(f.repository.find).not.toHaveBeenCalled();
+    expect(f.repository.update).not.toHaveBeenCalled();
+    expect(Reflect.getMetadata(REQUIRED_PERMISSION_KEY, KbttController.prototype.updateAutoSubmitEnabled))
+      .toEqual(["hotel.kbtt.manage", "hotel.kbtt.declarations.manage"]);
+    expect(kbttAutoSubmitEnabledSchema.safeParse({ autoSubmitEnabled: "false" }).success).toBe(false);
+    expect(kbttAutoSubmitEnabledSchema.safeParse({ autoSubmitEnabled: false, autoSubmitTime: "09:00" }).success).toBe(false);
+    expect(kbttAutoSubmitConfigSchema.safeParse({}).success).toBe(false);
+  });
+
+  it("keeps queued initial declarations and monitoring paused until either workspace enables the shared switch", async () => {
+    const f = fixture();
+    f.occupants.set(primaryOccupant.id, primaryOccupant);
+    await f.service.connect("owner", "owner-role", "hotel-1", credentials);
+    const queued = await f.service.submit("owner", "owner-role", "hotel-1", primaryOccupant.id);
+    f.provider.login.mockClear();
+    await f.service.processQueuedInitialDeclarations();
+    expect(f.declarations.get(queued.id)).toMatchObject({ status: "READY", providerCode: "LOCAL_QUEUED" });
+    expect((await f.service.listDeclarations("owner", "owner-role", "hotel-1")).delivery.state).toBe("PAUSED");
+    expect(f.provider.login).not.toHaveBeenCalled();
+    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+    await f.service.updateAutoSubmitEnabled("front-desk", "staff-role", "hotel-1", true);
+    await f.service.processQueuedInitialDeclarations();
+    expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
+    expect(f.declarations.get(queued.id)?.status).toBe("SUBMITTED");
+  });
+
+  it("restores a queued initial declaration when the switch is disabled immediately before transmission", async () => {
+    const f = fixture();
+    f.occupants.set(primaryOccupant.id, primaryOccupant);
+    await f.service.connect("owner", "owner-role", "hotel-1", credentials);
+    await f.service.updateAutoSubmitEnabled("owner", "owner-role", "hotel-1", true);
+    const queued = await f.service.submit("owner", "owner-role", "hotel-1", primaryOccupant.id);
+    const current = f.repository.findDeclarationForDispatch.getMockImplementation()!;
+    f.repository.findDeclarationForDispatch.mockImplementationOnce(async (hotelId, declarationId) => {
+      const declaration = await current(hotelId, declarationId);
+      await f.service.updateAutoSubmitEnabled("owner", "owner-role", "hotel-1", false);
+      return declaration;
+    });
+    await f.service.processQueuedInitialDeclarations();
+    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+    expect(f.declarations.get(queued.id)).toMatchObject({ status: "READY", providerCode: "LOCAL_QUEUED" });
+  });
+
+  it("stops the remaining guests in an active automatic run when either workspace pauses delivery", async () => {
+    const f = fixture();
+    f.occupants.set(primaryOccupant.id, primaryOccupant);
+    f.occupants.set("occ-second", { ...primaryOccupant, id: "occ-second", fullName: "Tran Van B", identityNumber: "001090012346" });
+    await f.service.connect("owner", "owner-role", "hotel-1", credentials);
+    await f.service.updateAutoSubmitEnabled("owner", "owner-role", "hotel-1", true);
+    f.provider.submitDeclaration.mockImplementationOnce(async () => {
+      await f.service.updateAutoSubmitEnabled("front-desk", "staff-role", "hotel-1", false);
+      return { outcome: "SUCCESS", code: "200", message: "Thành công" };
+    });
+    await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
+    expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
+    expect([...f.declarations.values()].filter((d) => d.status === "READY")).toHaveLength(1);
+    expect(f.repository.finalizeAutoSubmitRun).toHaveBeenCalledWith("run-auto-1", expect.objectContaining({
+      status: "CANCELLED", successCount: 1, failedCount: 0, unknownCount: 0,
+      summaryJson: expect.objectContaining({ reason: "DELIVERY_PAUSED" }),
+    }));
+  });
+
+  it("skips automatic recovery runs while disabled before authentication or guest dispatch", async () => {
+    const f = fixture();
+    await f.service.connect("owner", "owner-role", "hotel-1", credentials);
+    f.provider.login.mockClear();
+    await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
+    expect(f.repository.finalizeAutoSubmitRun).toHaveBeenCalledWith("run-auto-1", expect.objectContaining({
+      status: "CANCELLED", summaryJson: { trigger: "DAILY", reason: "DELIVERY_PAUSED" },
+    }));
+    expect(f.provider.login).not.toHaveBeenCalled();
+    expect(f.provider.refresh).not.toHaveBeenCalled();
+    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+    expect(f.occupantsReadService.getActiveStayOccupantsPaged).not.toHaveBeenCalled();
+  });
+
   it("initializes auto-submit disabled and protects its settings with the existing KBTT manage permission", async () => {
     const { service, repository } = fixture();
 
@@ -722,6 +833,7 @@ describe("KBTT secure manual authentication", () => {
       f.occupantsReadService as never,
     );
 
+    enableAutomaticDelivery(f);
     await restarted.executeAutoSubmitForHotel("hotel-1", new Date(), false);
 
     expect(f.rows.get("hotel-1")?.status).toBe("AUTH_FAILED");
@@ -834,6 +946,7 @@ describe("KBTT edit and submit", () => {
     await f.service.connect("user-1", "role-1", "hotel-1", credentials);
     await f.service.submit("user-1", "role-1", "hotel-1", vietnamesePassport.id);
     expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+    enableAutomaticDelivery(f);
     await f.service.processQueuedInitialDeclarations();
     expect(f.provider.submitDeclaration).toHaveBeenCalledWith(
       "VIETNAMESE",
@@ -866,6 +979,8 @@ describe("KBTT edit and submit", () => {
     expect(f.declarations.size).toBe(1);
     expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
 
+    enableAutomaticDelivery(f);
+
     await f.service.processQueuedInitialDeclarations();
     expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
     expect(f.provider.submitDeclaration).toHaveBeenCalledWith(
@@ -890,6 +1005,7 @@ describe("KBTT edit and submit", () => {
       if (!current) throw new Error("Missing queued declaration");
       return { ...current, stay: { ...current.stay, plannedCheckOutAt: new Date(departure) } };
     });
+    enableAutomaticDelivery(f);
     await f.service.processQueuedInitialDeclarations();
     expect(f.declarations.get(queued.id)?.status).toBe(expectedStatus);
     expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(expectedStatus === "SUBMITTED" ? 1 : 0);
@@ -907,6 +1023,8 @@ describe("KBTT edit and submit", () => {
     });
     f.provider.login.mockClear();
     f.provider.refresh.mockClear();
+
+    enableAutomaticDelivery(f);
 
     await f.service.processQueuedInitialDeclarations();
 
@@ -938,6 +1056,7 @@ describe("KBTT edit and submit", () => {
     const queued = await f.service.submit("user-1", "role-1", "hotel-1", "occ-vn");
     expect(queued.status).toBe("READY");
     expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+    enableAutomaticDelivery(f);
     await f.service.processQueuedInitialDeclarations();
     const stored = await f.repository.findLatestDeclaration("hotel-1", "occ-vn");
     expect(stored?.status).toBe("FAILED");
@@ -963,6 +1082,7 @@ describe("KBTT edit and submit", () => {
     await f.service.connect("user-1", "role-1", "hotel-1", credentials);
     await f.service.submit("user-1", "role-1", "hotel-1", foreignOccupant.id);
     expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+    enableAutomaticDelivery(f);
     await f.service.processQueuedInitialDeclarations();
 
     expect(f.provider.submitDeclaration).toHaveBeenCalledWith(
@@ -992,6 +1112,7 @@ describe("KBTT edit and submit", () => {
     expect(declaration.draftPayloadJson.ngayDiDuKienStr).toBe("2026-09-15 12:00:00");
     await expect(f.service.submit("user-1", "role-1", "hotel-1", occupant.id))
       .rejects.toMatchObject({ response: { code: "KBTT_PAYLOAD_INVALID", message: expect.stringContaining("Thời hạn tạm trú") } });
+    enableAutomaticDelivery(f);
     await f.service.processQueuedInitialDeclarations();
     expect(f.provider.login).not.toHaveBeenCalled();
     expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
@@ -1118,6 +1239,7 @@ describe("KBTT edit and submit", () => {
     const queued = await f.service.submit("user-1", "role-1", "hotel-1", "occ-vn");
     expect(queued.status).toBe("READY");
     expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+    enableAutomaticDelivery(f);
     await f.service.processQueuedInitialDeclarations();
     const stored = await f.repository.findLatestDeclaration("hotel-1", "occ-vn");
     expect(stored?.status).toBe("FAILED");
@@ -1137,6 +1259,8 @@ describe("KBTT edit and submit", () => {
       });
       return session();
     });
+
+    enableAutomaticDelivery(f);
 
     await f.service.processQueuedInitialDeclarations();
 
@@ -1159,6 +1283,8 @@ describe("KBTT edit and submit", () => {
     f.provider.refresh.mockClear();
     process.env.KBTT_AUTO_SUBMIT_LIVE_ENABLED = liveEnabled;
     process.env.KBTT_AUTO_SUBMIT_KILL_SWITCH = killSwitch;
+
+    enableAutomaticDelivery(f);
 
     await f.service.processQueuedInitialDeclarations();
 
@@ -1211,6 +1337,7 @@ describe("KBTT edit and submit", () => {
       })),
     });
 
+    enableAutomaticDelivery(f);
     const result = await f.service.listDeclarations("user-1", "role-1", "hotel-1");
 
     expect(result.items).toEqual([]);
@@ -2062,6 +2189,8 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
           message: "Gateway Timeout",
         });
 
+      enableAutomaticDelivery(f);
+
       await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
       expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
       expect(f.declarations.get("decl-1")?.status).toBe("UNKNOWN");
@@ -2108,6 +2237,8 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
           "Bản khai báo 1: Số giấy tờ '001090012345' đang tạm trú tại CSLT đến 2026-09-15.",
       });
 
+      enableAutomaticDelivery(f);
+
       await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
       expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
       expect(f.declarations.get("decl-1")?.status).toBe("FAILED");
@@ -2142,6 +2273,8 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
           soGiayTo: "001090012345",
         },
       });
+
+      enableAutomaticDelivery(f);
 
       await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
       await expect(f.service.submit("owner", "owner-role", "hotel-1", "occ-vn"))
@@ -2189,6 +2322,8 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
         code: "400",
         message: "Dữ liệu địa chỉ không tồn tại trong danh mục C06",
       });
+
+      enableAutomaticDelivery(f);
 
       await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
       expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
@@ -2244,6 +2379,8 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
         providerCode: "LOCAL_VALIDATION",
       });
 
+      enableAutomaticDelivery(f);
+
       await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
       expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
       expect(f.repository.finalizeAutoSubmitRun).toHaveBeenCalledWith(
@@ -2281,6 +2418,8 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
         updatedAt: new Date(Date.now() - 15 * 60 * 1000),
       });
 
+      enableAutomaticDelivery(f);
+
       await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
       expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
       expect(f.declarations.get("decl-stale")?.status).toBe("SENDING");
@@ -2289,6 +2428,8 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
       expect(f.repository.markInterruptedDeclarationsUnknown).toHaveBeenCalledTimes(1);
       expect(f.declarations.get("decl-stale")?.status).toBe("UNKNOWN");
       expect(f.declarations.get("decl-stale")?.providerCode).toBe("INTERRUPTED_DELIVERY");
+
+      enableAutomaticDelivery(f);
 
       await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
       expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
@@ -2348,6 +2489,8 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
         code: "200",
         message: "Thành công",
       });
+
+      enableAutomaticDelivery(f);
 
       await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
 
@@ -2432,6 +2575,8 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
         message: "Thành công",
       });
 
+      enableAutomaticDelivery(f);
+
       await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
 
       expect((f.repository as any).renewAutoSubmitRunLease).toHaveBeenCalled();
@@ -2472,6 +2617,7 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
       (f.occupantsReadService as any).getActiveStayOccupantsPaged = pagedMock;
 
       // Run 1: occupant has no declaration yet
+      enableAutomaticDelivery(f);
       await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
 
       expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
@@ -2485,6 +2631,7 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
       expect(createdDecl.submittedPayloadFingerprint).toBeTruthy();
 
       // Run 2: same unchanged occupant should be skipped
+      enableAutomaticDelivery(f);
       await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
       expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
     });
@@ -2517,6 +2664,8 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
         }
         return { outcome: "AMBIGUOUS", code: "HTTP_504", message: "Gateway Timeout" };
       });
+
+      enableAutomaticDelivery(f);
 
       await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
 
@@ -2580,6 +2729,8 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
         return { outcome: "SUCCESS", code: "200", message: "Thành công" };
       });
 
+      enableAutomaticDelivery(f);
+
       await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
 
       expect(sendTelegramMock).toHaveBeenCalledTimes(1);
@@ -2608,6 +2759,8 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
           identityNumber: `001090${String(i).padStart(6, "0")}`,
         });
       }
+
+      enableAutomaticDelivery(f);
 
       await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), true);
 
@@ -2656,6 +2809,8 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
         });
       }
 
+      enableAutomaticDelivery(f);
+
       await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), true);
 
       expect(f.repository.finalizeAutoSubmitRun).toHaveBeenCalledWith(
@@ -2683,6 +2838,7 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
       }
 
       const scheduledDate = new Date("2026-09-16T04:30:00.000Z");
+      enableAutomaticDelivery(f);
       await f.service.executeAutoSubmitForHotel("hotel-1", scheduledDate, true);
 
       expect(f.repository.createScheduledAutoSubmitRun).toHaveBeenCalledTimes(1);
@@ -2706,6 +2862,8 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
           version: 1,
         });
       }
+
+      enableAutomaticDelivery(f);
 
       await f.service.executeAutoSubmitForHotel(
         "hotel-1",
@@ -2738,6 +2896,8 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
         dryRun: true,
         summaryJson: { trigger: "MANUAL_DELAYED" },
       });
+
+      enableAutomaticDelivery(f);
 
       await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), true);
 

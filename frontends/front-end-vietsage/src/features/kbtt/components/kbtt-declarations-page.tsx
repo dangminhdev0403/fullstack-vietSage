@@ -23,6 +23,7 @@ import { kbttResource } from "../resources/kbtt-resource";
 import { useKbttConnection } from "../hooks/use-kbtt-connection";
 import { KbttDailyMovementsPanel } from "./kbtt-daily-movements-panel";
 import { KbttDeliveryStatus } from "./kbtt-delivery-status";
+import { KbttAutoSubmitSwitch } from "./kbtt-auto-submit-switch";
 import {
   canSelectKbttDeclaration,
   getKbttDeclarationDisplayStatus,
@@ -1123,6 +1124,7 @@ export function KbttDeclarationsPage({
             Hồ sơ BCA
           </h1>
         </div>
+        <KbttAutoSubmitSwitch hotelId={hotelId} canManage={canManage} isConnected={isConnected} />
       </header>
 
       {/* Filter Toolbar */}

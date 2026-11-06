@@ -130,7 +130,7 @@ export class KbttStaySyncService {
 
   async sendInitial(
     hotelId: string, kind: DeclarationKind, payload: unknown[], accessToken: string,
-    declarationId: string, csltId: string,
+    declarationId: string, csltId: string, requireEnabled = true,
   ): Promise<KbttSubmitOutcome> {
     const guest = submittedGuest(payload);
     const identity = guest && providerIdentity(kind, guest);
@@ -139,6 +139,9 @@ export class KbttStaySyncService {
       ({ outcome: "BUSINESS_REJECTION", code, message });
     if (!guest || !identity || !connection) {
       return localRejection("LOCAL_VALIDATION", "Chưa đủ dữ liệu xác định hồ sơ khai báo.");
+    }
+    if (requireEnabled && !connection.autoSubmitEnabled) {
+      return localRejection("DELIVERY_PAUSED", "Luồng gửi BCA đang tạm dừng.");
     }
     if (connection.csltId !== csltId) {
       return localRejection("CONNECTION_SCOPE_CHANGED", "Kết nối BCA đã thay đổi; cần xác nhận lại cơ sở trước khi gửi.");
@@ -167,6 +170,9 @@ export class KbttStaySyncService {
       if (!(await this.repository.renew(connection.csltId, token))) {
         return localRejection("DELIVERY_BUSY", "Phiên gửi đã thay đổi; vui lòng thử lại sau.");
       }
+      if (requireEnabled && !(await this.declarations.find(hotelId))?.autoSubmitEnabled) {
+        return localRejection("DELIVERY_PAUSED", "Luồng gửi BCA đang tạm dừng.");
+      }
       return await this.provider.submitDeclaration(kind, payload, accessToken);
     } finally {
       await this.repository.release(connection.csltId, token);
@@ -175,6 +181,7 @@ export class KbttStaySyncService {
 
   private async dispatch(operation: KbttStayOperation, resolveSession: SessionResolver) {
     const connection = await this.declarations.find(operation.hotelId);
+    if (connection && !connection.autoSubmitEnabled) return;
     if (!connection || connection.status !== "CONNECTED" || connection.csltId !== operation.csltId) {
       await this.hold(operation, "CONNECTION_REQUIRED", "Cần khôi phục đúng kết nối của cơ sở đã khai báo.");
       return;
@@ -299,6 +306,7 @@ export class KbttStaySyncService {
         await this.hold(operation, "CONNECTION_SCOPE_CHANGED", "Kết nối BCA đã thay đổi; cần khôi phục đúng cơ sở của hồ sơ gốc.");
         return;
       }
+      if (!latestConnection.autoSubmitEnabled) return;
       const wire = [payload] as Prisma.InputJsonValue[];
       const deliveryOperation = isRecovery && operation.kind !== "RECOVER"
         ? { ...operation, kind: "RECOVER" as const, wasOverdue: true } : operation;

@@ -142,7 +142,7 @@ export class KbttRepository {
   findQueuedInitialDeclarations(take = 100) {
     return this.prisma.kbttGuestDeclaration.findMany({
       where: { status: "READY", providerCode: "LOCAL_QUEUED",
-        hotel: { kbttConnection: { status: "CONNECTED" } } },
+        hotel: { kbttConnection: { status: "CONNECTED", autoSubmitEnabled: true } } },
       select: { hotelId: true, occupantId: true },
       orderBy: [{ updatedAt: "asc" }, { id: "asc" }],
       take,
@@ -546,6 +546,7 @@ export class KbttRepository {
       return await this.prisma.kbttHotelConnection.findMany({
         where: {
           status: "CONNECTED",
+          autoSubmitEnabled: true,
           hotel: {
             kbttGuestDeclarations: {
               some: {

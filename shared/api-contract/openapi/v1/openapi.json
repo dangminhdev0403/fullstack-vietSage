@@ -16862,6 +16862,187 @@
         ]
       }
     },
+    "/hotels/{hotelId}/kbtt/auto-submit/enabled": {
+      "get": {
+        "operationId": "KbttController_getAutoSubmitEnabled",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "error": {
+                      "type": "object",
+                      "nullable": true,
+                      "additionalProperties": true,
+                      "example": null
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Thành công"
+                    },
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "autoSubmitEnabled"
+                      ],
+                      "properties": {
+                        "autoSubmitEnabled": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Hotel scope or business permission denied"
+          },
+          "422": {
+            "description": "KBTT_AUTH_FAILED; sanitized provider authentication failure"
+          },
+          "503": {
+            "description": "KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Read the hotel automatic BCA delivery switch without contacting BCA",
+        "tags": [
+          "hotel-kbtt"
+        ]
+      },
+      "put": {
+        "operationId": "KbttController_updateAutoSubmitEnabled",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "autoSubmitEnabled"
+                ],
+                "properties": {
+                  "autoSubmitEnabled": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "error": {
+                      "type": "object",
+                      "nullable": true,
+                      "additionalProperties": true,
+                      "example": null
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Thành công"
+                    },
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "autoSubmitEnabled"
+                      ],
+                      "properties": {
+                        "autoSubmitEnabled": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Hotel scope or business permission denied"
+          },
+          "422": {
+            "description": "KBTT_AUTH_FAILED; sanitized provider authentication failure"
+          },
+          "503": {
+            "description": "KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Enable or pause hotel automatic BCA delivery without changing its schedule",
+        "tags": [
+          "hotel-kbtt"
+        ]
+      }
+    },
     "/hotels/{hotelId}/kbtt/auto-submit": {
       "get": {
         "operationId": "KbttController_getAutoSubmitConfig",
@@ -16914,6 +17095,38 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "anyOf": [
+                  {
+                    "required": [
+                      "autoSubmitEnabled"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "autoSubmitTime"
+                    ]
+                  }
+                ],
+                "properties": {
+                  "autoSubmitEnabled": {
+                    "type": "boolean"
+                  },
+                  "autoSubmitTime": {
+                    "type": "string",
+                    "nullable": true,
+                    "pattern": "^([01]\\d|2[0-3]):([0-5]\\d)$"
+                  }
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": ""
@@ -16936,7 +17149,7 @@
             "bearer": []
           }
         ],
-        "summary": "Update KBTT auto-submit schedule configuration",
+        "summary": "Update KBTT auto-submit schedule configuration; omitted fields remain unchanged",
         "tags": [
           "hotel-kbtt"
         ]

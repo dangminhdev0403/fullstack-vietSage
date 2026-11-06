@@ -1,6 +1,7 @@
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import {
   kbttAutoSubmitConfigSchema,
+  kbttAutoSubmitEnabledSchema,
   kbttAutoSubmitRunSummarySchema,
   kbttAutoSubmitStateSchema,
   kbttBatchSubmitSummarySchema,
@@ -14,6 +15,7 @@ import {
   kbttOccupantDeclarationDetailSchema,
   saveKbttDraftPayloadSchema,
   type KbttAutoSubmitConfig,
+  type KbttAutoSubmitEnabled,
   type KbttAutoSubmitRunSummary,
   type KbttAutoSubmitState,
   type KbttBatchSubmitSummary,
@@ -209,6 +211,26 @@ export const kbttRepository = {
       method: "POST",
     });
     return kbttDeclarationRecordSchema.parse(payload.data);
+  },
+  async getAutoSubmitEnabled(
+    hotelId: string,
+    signal?: AbortSignal,
+  ): Promise<KbttAutoSubmitEnabled> {
+    const payload = await requestInternalApiEnvelope<unknown>(
+      `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/kbtt/auto-submit/enabled`,
+      { method: "GET", signal },
+    );
+    return kbttAutoSubmitEnabledSchema.parse(payload.data);
+  },
+  async updateAutoSubmitEnabled(
+    hotelId: string,
+    state: KbttAutoSubmitEnabled,
+  ): Promise<KbttAutoSubmitEnabled> {
+    const payload = await requestInternalApiEnvelope<unknown>(
+      `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/kbtt/auto-submit/enabled`,
+      { method: "PUT", body: kbttAutoSubmitEnabledSchema.parse(state) },
+    );
+    return kbttAutoSubmitEnabledSchema.parse(payload.data);
   },
   async getAutoSubmitConfig(
     hotelId: string,

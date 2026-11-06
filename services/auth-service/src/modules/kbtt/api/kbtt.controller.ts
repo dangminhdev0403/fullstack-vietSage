@@ -34,6 +34,7 @@ import { KbttService } from "../application/kbtt.service";
 import {
   hotelIdParamSchema,
   kbttAutoSubmitConfigSchema,
+  kbttAutoSubmitEnabledSchema,
   kbttAutoSubmitScheduleSchema,
   kbttAutoSubmitTestQuerySchema,
   kbttBatchSubmitSummarySchema,
@@ -400,6 +401,41 @@ export class KbttController {
     );
   }
 
+  @Get("auto-submit/enabled")
+  @Header("Cache-Control", "no-store")
+  @RequirePermission(["hotel.kbtt.view", "hotel.kbtt.declarations.view", "hotel.kbtt.manage", "hotel.kbtt.declarations.manage"])
+  @ApiOperation({ summary: "Read the hotel automatic BCA delivery switch without contacting BCA" })
+  @ApiOkResponse({ schema: successEnvelopeSchema({
+    type: "object", additionalProperties: false, required: ["autoSubmitEnabled"],
+    properties: { autoSubmitEnabled: { type: "boolean" } },
+  }, 200, "Thành công") })
+  getAutoSubmitEnabled(@Req() request: RequestWithRequiredUser, @Param("hotelId") hotelId: string) {
+    return this.service.getAutoSubmitEnabled(
+      request.user.userId, request.user.roleId, parseWithZod(hotelIdParamSchema, hotelId),
+    );
+  }
+
+  @Put("auto-submit/enabled")
+  @Header("Cache-Control", "no-store")
+  @RequirePermission(["hotel.kbtt.manage", "hotel.kbtt.declarations.manage"])
+  @ApiOperation({ summary: "Enable or pause hotel automatic BCA delivery without changing its schedule" })
+  @ApiBody({ schema: {
+    type: "object", additionalProperties: false, required: ["autoSubmitEnabled"],
+    properties: { autoSubmitEnabled: { type: "boolean" } },
+  } })
+  @ApiOkResponse({ schema: successEnvelopeSchema({
+    type: "object", additionalProperties: false, required: ["autoSubmitEnabled"],
+    properties: { autoSubmitEnabled: { type: "boolean" } },
+  }, 200, "Thành công") })
+  updateAutoSubmitEnabled(
+    @Req() request: RequestWithRequiredUser, @Param("hotelId") hotelId: string, @Body() body: unknown,
+  ) {
+    const config = parseWithZod(kbttAutoSubmitEnabledSchema, body);
+    return this.service.updateAutoSubmitEnabled(
+      request.user.userId, request.user.roleId, parseWithZod(hotelIdParamSchema, hotelId), config.autoSubmitEnabled,
+    );
+  }
+
   @Get("auto-submit")
   @RequirePermission("hotel.kbtt.manage")
   @ApiOperation({
@@ -416,8 +452,16 @@ export class KbttController {
   @Put("auto-submit")
   @RequirePermission("hotel.kbtt.manage")
   @ApiOperation({
-    summary: "Update KBTT auto-submit schedule configuration",
+    summary: "Update KBTT auto-submit schedule configuration; omitted fields remain unchanged",
   })
+  @ApiBody({ schema: {
+    type: "object",
+    anyOf: [{ required: ["autoSubmitEnabled"] }, { required: ["autoSubmitTime"] }],
+    properties: {
+      autoSubmitEnabled: { type: "boolean" },
+      autoSubmitTime: { type: "string", nullable: true, pattern: "^([01]\\d|2[0-3]):([0-5]\\d)$" },
+    },
+  } })
   updateAutoSubmitConfig(
     @Req() request: RequestWithRequiredUser,
     @Param("hotelId") hotelId: string,
