@@ -2084,15 +2084,33 @@ export function TapeChartView({
     if (!workspace) return;
     const updateHeight = () => {
       const bottomInset = window.innerWidth < 768 ? 96 : 16;
-      setWorkspaceHeight(Math.max(240, window.innerHeight - workspace.getBoundingClientRect().top - bottomInset));
+      const top = Math.max(0, workspace.getBoundingClientRect().top);
+      setWorkspaceHeight(Math.max(240, window.innerHeight - top - bottomInset));
     };
-    const observer = new ResizeObserver(updateHeight);
+    let resizeFrame: number | undefined;
+    const scheduleHeightUpdate = () => {
+      if (resizeFrame !== undefined) return;
+      resizeFrame = window.requestAnimationFrame(() => {
+        resizeFrame = undefined;
+        updateHeight();
+      });
+    };
+    const handleScroll = (event: Event) => {
+      if (event.target instanceof Node && workspace.contains(event.target)) return;
+      scheduleHeightUpdate();
+    };
+    const observer = new ResizeObserver(scheduleHeightUpdate);
     observer.observe(workspace);
-    window.addEventListener("resize", updateHeight);
+    if (workspace.parentElement) observer.observe(workspace.parentElement);
+    window.addEventListener("resize", scheduleHeightUpdate);
+    // Ancestor scrolling changes the chart's top without resizing the chart.
+    window.addEventListener("scroll", handleScroll, { capture: true, passive: true });
     updateHeight();
     return () => {
       observer.disconnect();
-      window.removeEventListener("resize", updateHeight);
+      window.removeEventListener("resize", scheduleHeightUpdate);
+      window.removeEventListener("scroll", handleScroll, true);
+      if (resizeFrame !== undefined) window.cancelAnimationFrame(resizeFrame);
     };
   }, []);
   const [isSecondaryMenuOpen, setIsSecondaryMenuOpen] = useState(false);
