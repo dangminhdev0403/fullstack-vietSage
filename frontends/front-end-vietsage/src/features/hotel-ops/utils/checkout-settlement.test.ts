@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 // @ts-expect-error Node strip-types requires explicit extensions.
-import { settleCheckout, checkoutErrorMessage } from "./checkout-settlement.ts";
+import { settleCheckout, checkoutErrorMessage, checkoutRemainingBalance } from "./checkout-settlement.ts";
 
 function fixture() {
   const calls: string[] = [];
   return {
     calls,
     input: {
-      folioId: "folio", amount: 500000, autoMarkReady: true,
+      folioId: "folio", amount: 500000, expectedBalanceAmount: 500000, autoMarkReady: true,
       issueInvoice: async () => { calls.push("invoice"); return { id: "invoice", balanceAmount: 500000 }; },
       confirmPayment: async (_id: string, _amount?: number) => { calls.push("payment"); return { invoice: { status: "PAID", balanceAmount: 0 } }; },
       checkOutStay: async () => { calls.push("checkout"); },
@@ -35,7 +35,7 @@ test("invoice or payment failure never completes checkout", async () => {
 
 test("changed authoritative balance is rejected before collecting money", async () => {
   const f = fixture();
-  await assert.rejects(settleCheckout({ ...f.input, amount: 1 }), /CHECKOUT_BALANCE_CHANGED/);
+  await assert.rejects(settleCheckout({ ...f.input, issueInvoice: async () => { f.calls.push("invoice"); return { id: "invoice", balanceAmount: 400000 }; } }), /CHECKOUT_BALANCE_CHANGED/);
   assert.deepEqual(f.calls, ["invoice"]);
 });
 
@@ -49,7 +49,7 @@ test("a partial invoice cannot be reported as settled", async () => {
 
 test("zero balance still requires confirmed invoice closure", async () => {
   const f = fixture();
-  await settleCheckout({ ...f.input, amount: 0,
+  await settleCheckout({ ...f.input, amount: 0, expectedBalanceAmount: 0,
     issueInvoice: async () => ({ id: "invoice", balanceAmount: 0 }),
     confirmPayment: async (_id, amount) => {
       assert.equal(amount, undefined);
@@ -71,4 +71,48 @@ test("success requires invoice, payment, then readiness in order", async () => {
   assert.equal((await settleCheckout(f.input)).roomReady, true);
   assert.deepEqual(f.calls, ["invoice", "payment", "ready"]);
   assert.ok(!checkoutErrorMessage(new Error("Prisma internal secret" )).includes("Prisma"));
+});
+
+for (const amount of [0, -1, 500001, 1, NaN, Infinity]) {
+  test(`invalid entered amount ${amount} never issues invoice or changes checkout`, async () => {
+    const f = fixture();
+    await assert.rejects(settleCheckout({ ...f.input, amount }), /CHECKOUT_AMOUNT_MISMATCH/);
+    assert.deepEqual(f.calls, []);
+  });
+}
+
+test("a newly cleared balance still requires reconciliation before collecting stale amount", async () => {
+  const f = fixture();
+  await assert.rejects(settleCheckout({ ...f.input, issueInvoice: async () => {
+    f.calls.push("invoice"); return { id: "invoice", balanceAmount: 0 };
+  } }), /CHECKOUT_BALANCE_CHANGED/);
+  assert.deepEqual(f.calls, ["invoice"]);
+});
+
+
+test("partial invoice balance includes prior deposits and later payments without double deduction", async () => {
+  const f = fixture();
+  const due = checkoutRemainingBalance({ invoice: { balanceAmount: "300000" }, total: 500000, deposits: 100000 });
+  assert.equal(due, 300000);
+  await settleCheckout({ ...f.input, amount: due, expectedBalanceAmount: due,
+    issueInvoice: async () => { f.calls.push("invoice"); return { id: "invoice", balanceAmount: 300000 }; },
+    confirmPayment: async (_id, amount) => { assert.equal(amount, 300000); f.calls.push("payment");
+      return { invoice: { status: "PAID", balanceAmount: 0 } }; },
+  });
+  assert.deepEqual(f.calls, ["invoice", "payment", "ready"]);
+});
+
+test("fully paid invoice uses zero balance even when historical deposits differ from total", () => {
+  assert.equal(checkoutRemainingBalance({ invoice: { balanceAmount: 0 }, total: 500000, deposits: 100000 }), 0);
+});
+
+test("preinvoice estimate remains available before any invoice exists", () => {
+  assert.equal(checkoutRemainingBalance({ invoice: null, total: 500000, deposits: 100000 }), 400000);
+});
+
+test("missing invoice balance fails closed instead of estimating another payment", async () => {
+  const f = fixture();
+  const due = checkoutRemainingBalance({ invoice: {}, total: 500000, deposits: 100000 });
+  await assert.rejects(settleCheckout({ ...f.input, amount: due, expectedBalanceAmount: due }), /CHECKOUT_AMOUNT_MISMATCH/);
+  assert.deepEqual(f.calls, []);
 });

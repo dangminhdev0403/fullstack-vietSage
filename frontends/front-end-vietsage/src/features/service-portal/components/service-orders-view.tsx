@@ -85,7 +85,7 @@ function formatOrderDateTime(isoString: string): string {
 }
 
 export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }>) {
-  const { transition, data: dataQuery } = useServicePortal();
+  const { transition, verifyVoucher, data: dataQuery } = useServicePortal({ queries: ["data"] });
   const isConnected = true;
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -397,27 +397,10 @@ export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }
                 if (!result.isConfirmed || !result.value) return;
                 const code = result.value.trim();
                 try {
-                  const resp = await fetch("/api/service-portal/vouchers/verify", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ code }),
-                  });
-
-                  const resJson = (await resp.json().catch(() => null)) as {
-                    data?: {
-                      valid?: boolean;
-                      order?: MarketplaceOrder;
-                      message?: string;
-                    };
-                    valid?: boolean;
-                    order?: MarketplaceOrder;
-                    message?: string;
-                  } | null;
-
-                  const body = resJson?.data ?? resJson;
+                  const body = await verifyVoucher.mutateAsync({ code });
                   const isValid = Boolean(body?.valid && body?.order);
 
-                  if (!resp.ok || !isValid || !body?.order) {
+                  if (!isValid || !body?.order) {
                     await SwalVietSage.fire({
                       icon: "error",
                       title: "Mã dịch vụ không hợp lệ",

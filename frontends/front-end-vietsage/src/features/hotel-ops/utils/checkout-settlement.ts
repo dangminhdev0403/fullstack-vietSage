@@ -1,18 +1,33 @@
 type InvoiceBalance = { id: string; balanceAmount: number | string };
 
+export function checkoutRemainingBalance(input: {
+  invoice?: { balanceAmount?: number | string } | null;
+  total: number;
+  deposits: number;
+}): number {
+  // An invoice already includes applied deposits and all subsequent payments.
+  if (input.invoice) return Number(input.invoice.balanceAmount);
+  return Math.max(0, input.total - input.deposits);
+}
+
 export async function settleCheckout(input: {
   folioId?: string;
   amount: number;
+  expectedBalanceAmount: number;
   autoMarkReady: boolean;
   issueInvoice: () => Promise<InvoiceBalance>;
   confirmPayment: (invoiceId: string, amount?: number) => Promise<{ invoice: { status: string; balanceAmount: number | string } }>;
   checkOutStay: () => Promise<unknown>;
   markRoomReady: () => Promise<unknown>;
 }) {
+  if (!Number.isFinite(input.expectedBalanceAmount) || input.expectedBalanceAmount < 0 ||
+      !Number.isFinite(input.amount) || input.amount !== input.expectedBalanceAmount) {
+    throw new Error("CHECKOUT_AMOUNT_MISMATCH");
+  }
   if (input.folioId) {
     const invoice = await input.issueInvoice();
     const balance = Number(invoice.balanceAmount);
-    if (!Number.isFinite(balance) || balance < 0 || (balance > 0 && input.amount !== balance)) {
+    if (!Number.isFinite(balance) || balance < 0 || input.amount !== balance) {
       throw new Error("CHECKOUT_BALANCE_CHANGED");
     }
     const result = await input.confirmPayment(invoice.id, balance > 0 ? balance : undefined);
@@ -49,6 +64,7 @@ export function checkoutErrorMessage(error: unknown): string {
     else if (typeof errObj.code === "string") code = errObj.code;
   }
   const messages: Record<string, string> = {
+    CHECKOUT_AMOUNT_MISMATCH: "Số tiền thanh toán phải bằng số tiền còn phải thu.",
     CHECKOUT_BALANCE_CHANGED: "Số dư hóa đơn đã thay đổi. Vui lòng tải lại thông tin thu ngân trước khi thanh toán.",
     CHECKOUT_NOT_SETTLED: "Hóa đơn chưa được tất toán. Vui lòng kiểm tra kết quả thanh toán trước khi thử lại.",
     RECEIVABLE_AMOUNT_MISMATCH: "Số dư công nợ đã thay đổi. Vui lòng tải lại thông tin.",

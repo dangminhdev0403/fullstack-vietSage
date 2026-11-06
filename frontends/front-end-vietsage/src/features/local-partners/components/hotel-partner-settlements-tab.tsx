@@ -1,16 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   showConfirmDialog,
   showErrorAlert,
   showSuccessAlert,
 } from "@/libs/swal";
-import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
-import type {
-  MarketplaceOrder,
-  MarketplaceSettlement,
-} from "@/features/marketplace/types/marketplace-contract";
+import { useHotelPartnerSettlements } from "../queries/use-hotel-partner-settlements";
+import type { HotelPartnerSettlement as SettlementItem } from "../repositories/hotel-partner-settlements-repository";
 
 import {
   CodeCell,
@@ -22,103 +19,33 @@ import {
 } from "@/components/ui/data-table";
 import { getCanonicalOrderItems } from "@/features/marketplace/utils/marketplace-unit";
 
-type SettlementItem = MarketplaceSettlement & { order: MarketplaceOrder };
-type RevenueSummary = { grossAmount: string | number; orderCount: number };
-
 export function HotelPartnerSettlementsTab({
   hotelId,
   canManage = true,
 }: Readonly<{ hotelId: string; canManage?: boolean }>) {
-  const [settlements, setSettlements] = useState<SettlementItem[]>([]);
-  const [revenue, setRevenue] = useState<RevenueSummary | null>(null);
-  const [revenueLoading, setRevenueLoading] = useState(true);
-  const [revenueError, setRevenueError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const queries = useHotelPartnerSettlements(hotelId);
+  const settlements = queries.list.data ?? [];
+  const revenue = queries.revenue.isError ? null : (queries.revenue.data ?? null);
+  const revenueLoading = queries.revenue.isFetching;
+  const revenueError = queries.revenue.error?.message ?? null;
+  const loading = queries.list.isFetching;
   const [statusFilter, setStatusFilter] = useState<
     "ALL" | "UNSETTLED" | "SETTLED"
   >("UNSETTLED");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectionHotelId, setSelectionHotelId] = useState(hotelId);
   const [submitting, setSubmitting] = useState(false);
 
-  const [refreshKey, setRefreshKey] = useState(0);
+  if (selectionHotelId !== hotelId) {
+    setSelectionHotelId(hotelId);
+    setSelectedIds([]);
+  }
 
   const handleStatusFilterChange = (
     filter: "ALL" | "UNSETTLED" | "SETTLED",
   ) => {
     setStatusFilter(filter);
   };
-
-  const refetch = () => {
-    setLoading(true);
-    setRevenueLoading(true);
-    setRevenueError(null);
-    setRefreshKey((prev) => prev + 1);
-  };
-
-  useEffect(() => {
-    let isCancelled = false;
-
-    requestInternalApiEnvelope<SettlementItem[]>(
-      `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/marketplace/settlements`,
-      { method: "GET" },
-    )
-      .then((res) => {
-        if (!isCancelled) {
-          setSettlements(res.data ?? (res as unknown as SettlementItem[]));
-        }
-      })
-      .catch((err) => {
-        if (!isCancelled) {
-          void showErrorAlert(
-            "Lỗi tải dữ liệu",
-            err instanceof Error ? err.message : "Đã có lỗi xảy ra",
-          );
-        }
-      })
-      .finally(() => {
-        if (!isCancelled) {
-          setLoading(false);
-        }
-      });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [hotelId, refreshKey]);
-
-  useEffect(() => {
-    let isCancelled = false;
-
-    requestInternalApiEnvelope<RevenueSummary>(
-      `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/marketplace/revenue`,
-      { method: "GET" },
-    )
-      .then((res) => {
-        if (!isCancelled) {
-          setRevenue(res.data ?? (res as unknown as RevenueSummary));
-          setRevenueError(null);
-        }
-      })
-      .catch((err) => {
-        if (!isCancelled) {
-          setRevenue(null);
-          setRevenueError(
-            err instanceof Error
-              ? err.message
-              : "Không thể tải doanh thu phí dịch vụ",
-          );
-        }
-      })
-      .finally(() => {
-        if (!isCancelled) {
-          setRevenueLoading(false);
-        }
-      });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [hotelId, refreshKey]);
 
   const totalCollected = settlements.reduce((sum, s) => {
     if (
@@ -182,12 +109,7 @@ export function HotelPartnerSettlementsTab({
 
     setSubmitting(true);
     try {
-      await requestInternalApiEnvelope(
-        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/marketplace/settlements/${encodeURIComponent(item.id)}/settle`,
-        {
-          method: "POST",
-        },
-      );
+      await queries.settle.mutateAsync(item.id);
 
       await showSuccessAlert(
         "Quyết toán thành công!",
@@ -195,7 +117,6 @@ export function HotelPartnerSettlementsTab({
       );
 
       setSelectedIds((prev) => prev.filter((id) => id !== item.id));
-      refetch();
     } catch (err) {
       await showErrorAlert(
         "Thất bại",
@@ -230,21 +151,14 @@ export function HotelPartnerSettlementsTab({
 
     setSubmitting(true);
     try {
-      const res = await requestInternalApiEnvelope<{ settledCount?: number }>(
-        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/marketplace/settlements/settle-batch`,
-        {
-          method: "POST",
-          body: { settlementIds: selectedIds },
-        },
-      );
+      const res = await queries.settleBatch.mutateAsync(selectedIds);
 
       await showSuccessAlert(
         "Quyết toán hàng loạt thành công!",
-        `Đã xử lý quyết toán cho ${res.data?.settledCount ?? count} đơn hàng chọn.`,
+        `Đã xử lý quyết toán cho ${res?.settledCount ?? count} đơn hàng chọn.`,
       );
 
       setSelectedIds([]);
-      refetch();
     } catch (err) {
       await showErrorAlert(
         "Quyết toán thất bại",

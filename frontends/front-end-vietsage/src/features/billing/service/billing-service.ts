@@ -12,6 +12,7 @@ export type { IssueInvoiceAdjustment };
 export type IssueInvoiceInput = {
   reconciliations: Array<{ requestId: string; action: "provided" | "cancelled"; cancelReason?: string }>;
   isEarlyDeparture?: boolean;
+  expectedBalanceAmount?: number;
   adjustments?: IssueInvoiceAdjustment[];
 };
 

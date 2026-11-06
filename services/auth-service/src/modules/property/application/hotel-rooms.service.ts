@@ -65,6 +65,11 @@ const MANUAL_ROOM_STATUS_TRANSITIONS: Partial<Record<RoomStatus, ReadonlySet<Roo
     RoomStatus.PROCESSING,
     RoomStatus.BLOCKED,
   ]),
+  [RoomStatus.OUT_OF_SERVICE]: new Set([
+    RoomStatus.AVAILABLE,
+    RoomStatus.PROCESSING,
+    RoomStatus.BLOCKED,
+  ]),
   [RoomStatus.BLOCKED]: new Set([
     RoomStatus.AVAILABLE,
     RoomStatus.PROCESSING,
@@ -90,6 +95,36 @@ export class HotelRoomsService {
   ) {
     this.eventPublisher = eventPublisher ?? NOOP_GUEST_REQUEST_EVENT_PUBLISHER;
   }
+
+  private async emitRoomStatusUpdated(input: {
+    hotelId: string;
+    roomId: string;
+    previousStatus?: RoomStatus | null;
+    onlyIfStatusChanged?: boolean;
+    room?: {
+      roomNumber?: string | null;
+      status: RoomStatus;
+      updatedAt?: Date | string | null;
+    } | null;
+  }) {
+    try {
+      const room = input.room ??
+        await this.hotelRoomsRepository.findRoomInHotel(input.hotelId, input.roomId);
+      if (!room || (input.onlyIfStatusChanged && room.status === input.previousStatus)) return;
+
+      RequestRealtimeEmitter.emitRoomStatusUpdated({
+        hotelId: input.hotelId,
+        roomId: input.roomId,
+        roomNumber: room.roomNumber ?? null,
+        status: room.status,
+        previousStatus: input.previousStatus ?? null,
+        updatedAt: room.updatedAt ?? null,
+      });
+    } catch (emitErr) {
+      this.logger.warn(`[HotelRoomsService] Realtime room status emit failed: ${emitErr}`);
+    }
+  }
+
   async listRoomTypes(actorUserId: string, activeRoleId: string, hotelId: string) {
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
     return { items: await this.hotelRoomsRepository.listRoomTypes(hotelId) };
@@ -608,18 +643,12 @@ export class HotelRoomsService {
       status: room.status,
     });
 
-    try {
-      RequestRealtimeEmitter.emitRoomStatusUpdated({
-        hotelId,
-        roomId: room.id,
-        roomNumber: room.roomNumber,
-        status: room.status,
-        previousStatus: currentRoom.status,
-        updatedAt: room.updatedAt,
-      });
-    } catch (emitErr) {
-      this.logger.warn(`[HotelRoomsService] Realtime room status emit failed: ${emitErr}`);
-    }
+    await this.emitRoomStatusUpdated({
+      hotelId,
+      roomId: room.id,
+      previousStatus: currentRoom.status,
+      room,
+    });
 
     return this.toRoomData(room);
   }
@@ -654,18 +683,12 @@ export class HotelRoomsService {
       newStatus: RoomStatus.AVAILABLE,
     });
 
-    try {
-      RequestRealtimeEmitter.emitRoomStatusUpdated({
-        hotelId,
-        roomId: room.id,
-        roomNumber: room.roomNumber,
-        status: room.status,
-        previousStatus: RoomStatus.PROCESSING,
-        updatedAt: room.updatedAt,
-      });
-    } catch (emitErr) {
-      this.logger.warn(`[HotelRoomsService] Realtime room ready emit failed: ${emitErr}`);
-    }
+    await this.emitRoomStatusUpdated({
+      hotelId,
+      roomId: room.id,
+      previousStatus: RoomStatus.PROCESSING,
+      room,
+    });
 
     return this.toRoomData(room);
   }
@@ -711,6 +734,13 @@ export class HotelRoomsService {
       reservationCode: dto.reservationCode?.trim() || undefined,
       generateReservationCode: (tx) => this.codesService.generateEntityCode("RESERVATION", tx),
       generateFolioNumber: (tx) => this.codesService.generateEntityCode("FOLIO", tx),
+    });
+
+    await this.emitRoomStatusUpdated({
+      hotelId,
+      roomId: dto.roomId,
+      previousStatus: room.status,
+      onlyIfStatusChanged: true,
     });
 
     return this.toStayData(stay);
@@ -760,17 +790,11 @@ export class HotelRoomsService {
       actorUserId,
     });
 
-    try {
-      RequestRealtimeEmitter.emitRoomStatusUpdated({
-        hotelId,
-        roomId: stay.roomId,
-        status: RoomStatus.OCCUPIED,
-        previousStatus: room.status,
-        updatedAt: new Date(),
-      });
-    } catch (emitErr) {
-      this.logger.warn(`[HotelRoomsService] Realtime room checkin emit failed: ${emitErr}`);
-    }
+    await this.emitRoomStatusUpdated({
+      hotelId,
+      roomId: stay.roomId,
+      previousStatus: room.status,
+    });
 
     return {
       stay: this.toStayData(result.stay),
@@ -825,17 +849,11 @@ export class HotelRoomsService {
       throw new NotFoundException("Không tìm thấy lượt lưu trú");
     }
 
-    try {
-      RequestRealtimeEmitter.emitRoomStatusUpdated({
-        hotelId,
-        roomId: stay.roomId,
-        status: RoomStatus.OCCUPIED,
-        previousStatus: RoomStatus.OCCUPIED,
-        updatedAt: new Date(),
-      });
-    } catch {
-      // Non-blocking realtime emission
-    }
+    await this.emitRoomStatusUpdated({
+      hotelId,
+      roomId: stay.roomId,
+      previousStatus: RoomStatus.OCCUPIED,
+    });
 
     return this.toStayData(updated);
   }
@@ -893,17 +911,11 @@ export class HotelRoomsService {
       actorUserId,
     });
 
-    try {
-      RequestRealtimeEmitter.emitRoomStatusUpdated({
-        hotelId,
-        roomId: dto.roomId,
-        status: RoomStatus.OCCUPIED,
-        previousStatus: RoomStatus.AVAILABLE,
-        updatedAt: new Date(),
-      });
-    } catch (emitErr) {
-      this.logger.warn(`[HotelRoomsService] Realtime room checkin emit failed: ${emitErr}`);
-    }
+    await this.emitRoomStatusUpdated({
+      hotelId,
+      roomId: dto.roomId,
+      previousStatus: RoomStatus.AVAILABLE,
+    });
 
     return {
       stay: this.toStayData(result.stay),
@@ -957,17 +969,11 @@ export class HotelRoomsService {
       roomId: stay.roomId,
     });
 
-    try {
-      RequestRealtimeEmitter.emitRoomStatusUpdated({
-        hotelId,
-        roomId: stay.roomId,
-        status: dto.nextRoomStatus ?? RoomStatus.PROCESSING,
-        previousStatus: RoomStatus.OCCUPIED,
-        updatedAt: new Date(),
-      });
-    } catch (emitErr) {
-      this.logger.warn(`[HotelRoomsService] Realtime room checkout emit failed: ${emitErr}`);
-    }
+    await this.emitRoomStatusUpdated({
+      hotelId,
+      roomId: stay.roomId,
+      previousStatus: RoomStatus.OCCUPIED,
+    });
 
     return this.toStayData(checkedOut);
   }

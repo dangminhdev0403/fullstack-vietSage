@@ -23,6 +23,7 @@ type SettlementItem = MarketplaceSettlement & { order?: MarketplaceOrder };
 export function ServiceSettlementsView() {
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const { financialSummary, settlements } = useServicePortal({
+    queries: ["financialSummary", "settlements"],
     settlementStatus: statusFilter === "ALL" ? undefined : statusFilter,
   });
 

@@ -7,10 +7,11 @@ const invalidates = [
   { type: "query", operation: "settlements" },
 ] as const;
 export const servicePortalResource = createResource<Record<string, never>>()({ namespace: ["vietsage"], name: "service-portal", scopeKey: () => [], queries: {
-  data: defineQuery({ inputKey: () => [], queryFn: () => servicePortalRepository.data() }),
-  financialSummary: defineQuery({ inputKey: () => [], queryFn: () => servicePortalRepository.financialSummary() }),
-  settlements: defineQuery({ inputKey: (status?: string) => [status], queryFn: ({ input }) => servicePortalRepository.settlements(input) }),
+  data: defineQuery({ inputKey: () => [], queryFn: ({ signal }) => servicePortalRepository.data(signal) }),
+  financialSummary: defineQuery({ inputKey: () => [], queryFn: ({ signal }) => servicePortalRepository.financialSummary(signal) }),
+  settlements: defineQuery({ inputKey: (status?: string) => [status], queryFn: ({ input, signal }) => servicePortalRepository.settlements(input, signal) }),
 }, mutations: {
+  verifyVoucher: defineMutation({ mutationFn: ({ variables }: { variables: { code: string } }) => servicePortalRepository.verifyVoucher(variables), defaults: { retry: false } }),
   profile: defineMutation({ mutationFn: ({ variables }: { variables: Partial<ServiceProfile> }) => servicePortalRepository.profile(variables), invalidates }),
   create: defineMutation({ mutationFn: ({ variables }: { variables: unknown }) => servicePortalRepository.create(variables), invalidates }),
   update: defineMutation({ mutationFn: ({ variables }: { variables: { serviceId: string; data: unknown } }) => servicePortalRepository.update(variables), invalidates }),

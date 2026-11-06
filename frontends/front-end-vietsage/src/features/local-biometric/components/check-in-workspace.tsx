@@ -12,6 +12,8 @@ import { showConfirmDialog, showErrorAlert, SwalVietSage } from "@/libs/swal";
 import { filterExtraOccupants } from "@/features/hotel-ops/utils/hotel-ops-display";
 import { kbttResource } from "@/features/kbtt/resources/kbtt-resource";
 import { FRONTDESK_HN2N_CCCD_SCANNER, hasHotelFeature } from "@/features/hotel-features/hotel-features";
+import { intakeGuestV2Schema } from "../intake/intake-contract";
+import { checkInBirthDateError, normalizeCheckInBirthDate, toIsoDate } from "../utils/check-in-validation";
 import { matchBcaNationalityCode } from "../utils/identity-document-ocr";
 import type {
   CheckInWorkspaceProps,
@@ -20,6 +22,8 @@ import type {
 import { CccdCheckInPanel, type CccdCheckInCapture } from "./cccd-check-in-panel";
 import { MobileCccdScan } from "./mobile-cccd-scan";
 import { DesktopDocumentOcrUpload } from "./desktop-document-ocr-upload";
+
+export { toIsoDate } from "../utils/check-in-validation";
 
 const cellInputClass =
   "h-10 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm sm:text-base font-semibold text-slate-900 shadow-2xs outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100 placeholder:text-slate-400 placeholder:font-normal placeholder:text-xs sm:placeholder:text-sm";
@@ -106,65 +110,6 @@ export function toDisplayVnDate(str?: string): string {
   return t;
 }
 
-export function toIsoDate(str?: string): string {
-  if (!str) return "";
-  const t = str.trim();
-  if (!t) return "";
-
-  // 1. Standard ISO YYYY-MM-DD or YYYY-MM-DDTHH:mm:ss
-  const isoMatch = /^(\d{4})-(\d{1,2})-(\d{1,2})(?:T.*)?$/.exec(t);
-  if (isoMatch) {
-    const [, y, m, d] = isoMatch;
-    const year = Number(y);
-    const month = Number(m);
-    const day = Number(d);
-    if (year >= 1900 && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
-      return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    }
-  }
-
-  // 2. Formats with separators: DD/MM/YYYY, D/M/YYYY, DD-MM-YYYY, DD.MM.YYYY
-  // Also cleans accidental multi-slashes like 15//05/1995
-  const cleanedSeps = t.replace(/[.\-]/g, "/").replace(/\/+/g, "/");
-  const dmyMatch = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(cleanedSeps);
-  if (dmyMatch) {
-    const [, d, m, y] = dmyMatch;
-    const day = Number(d);
-    const month = Number(m);
-    const year = Number(y);
-    if (year >= 1900 && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
-      return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    }
-  }
-
-  // 3. Raw 8-digit strings: DDMMYYYY or YYYYMMDD
-  const digits = t.replace(/\D/g, "");
-  if (digits.length === 8) {
-    const d = Number(digits.slice(0, 2));
-    const m = Number(digits.slice(2, 4));
-    const y = Number(digits.slice(4, 8));
-    if (y >= 1900 && m >= 1 && m <= 12 && d >= 1 && d <= 31) {
-      return `${String(y).padStart(4, "0")}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-    }
-    const y2 = Number(digits.slice(0, 4));
-    const m2 = Number(digits.slice(4, 6));
-    const d2 = Number(digits.slice(6, 8));
-    if (y2 >= 1900 && m2 >= 1 && m2 <= 12 && d2 >= 1 && d2 <= 31) {
-      return `${String(y2).padStart(4, "0")}-${String(m2).padStart(2, "0")}-${String(d2).padStart(2, "0")}`;
-    }
-  }
-
-  // 4. Year only (4 digits)
-  if (/^\d{4}$/.test(digits)) {
-    const y = Number(digits);
-    if (y >= 1900 && y <= new Date().getFullYear()) {
-      return `${y}-01-01`;
-    }
-  }
-
-  return "";
-}
-
 function VnDateInput({
   id,
   value,
@@ -172,6 +117,8 @@ function VnDateInput({
   className,
   placeholder = "ngày/tháng/năm",
   required,
+  error,
+  allowYearOnly = false,
 }: {
   id?: string;
   value: string;
@@ -179,6 +126,8 @@ function VnDateInput({
   className?: string;
   placeholder?: string;
   required?: boolean;
+  error?: string;
+  allowYearOnly?: boolean;
 }) {
   const [textVal, setTextVal] = useState(() => toDisplayVnDate(value));
   const dateInputRef = useRef<HTMLInputElement>(null);
@@ -190,10 +139,12 @@ function VnDateInput({
   }, [value]);
 
   const handleTextChange = (raw: string) => {
-    const formatted = formatVnDateInput(raw, textVal);
+    const formatted = allowYearOnly && /^\d{0,4}$/.test(raw.trim())
+      ? raw.trim()
+      : formatVnDateInput(raw, textVal);
     setTextVal(formatted);
 
-    const iso = toIsoDate(formatted);
+    const iso = allowYearOnly ? normalizeCheckInBirthDate(formatted) : toIsoDate(formatted);
     if (iso) {
       onChange(iso);
     } else if (!formatted.trim()) {
@@ -204,18 +155,10 @@ function VnDateInput({
   };
 
   const handleBlur = () => {
-    const digitsOnly = textVal.replace(/\D/g, "");
-    if (digitsOnly.length === 4 && Number(digitsOnly) >= 1900 && Number(digitsOnly) <= new Date().getFullYear()) {
-      const year = Number(digitsOnly);
-      const iso = `${year}-01-01`;
-      setTextVal(`01/01/${year}`);
-      onChange(iso);
-      return;
-    }
-    const iso = toIsoDate(textVal);
-    if (iso) {
-      setTextVal(toDisplayVnDate(iso));
-      onChange(iso);
+    const normalized = allowYearOnly ? normalizeCheckInBirthDate(textVal) : toIsoDate(textVal);
+    if (normalized) {
+      setTextVal(toDisplayVnDate(normalized));
+      onChange(normalized);
     } else if (!textVal.trim()) {
       setTextVal("");
       onChange("");
@@ -246,6 +189,8 @@ function VnDateInput({
     <div className="relative flex items-center w-full">
       <input
         id={id}
+        aria-invalid={Boolean(error)}
+        aria-describedby={error ? `${id}-error` : undefined}
         type="text"
         inputMode="numeric"
         required={required}
@@ -319,6 +264,7 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
     guestNationality: initialStayFields?.guestNationality || "Việt Nam",
     guestResidencePlace: initialStayFields?.guestResidencePlace || "",
   });
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [capturesByGuest, setCapturesByGuest] = useState<
     Record<number, CccdCheckInCapture>
   >({});
@@ -1174,39 +1120,46 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
           <form
             data-ui="stay-form"
             id="ciw-form"
+            onInputCapture={(event) => {
+              const id = event.target instanceof HTMLInputElement ? event.target.id : "";
+              if (validationErrors[id]) setValidationErrors((current) => {
+                const next = { ...current };
+                delete next[id];
+                return next;
+              });
+            }}
             onSubmit={async (event) => {
               event.preventDefault();
 
-              // Fallback extraction directly from DOM in case of race condition or pending blur
-              const primaryDobInput = document.getElementById("ciw-dob") as HTMLInputElement | null;
-              const rawPrimaryDob = primaryDobInput?.value?.trim() || fields.guestDateOfBirth?.trim() || "";
-              const normalizedPrimaryDob = toIsoDate(rawPrimaryDob) || rawPrimaryDob;
+              const errors: Record<string, string> = {};
+              const validateGuest = (identity: string | undefined, birthDate: string | undefined, id: string, dobId: string) => {
+                const number = identity?.trim();
+                if (number && !intakeGuestV2Schema.shape.identityNumber.safeParse(number).success) {
+                  errors[id] = "Số giấy tờ chỉ gồm chữ và số, tối đa 32 ký tự.";
+                }
+                const dobError = checkInBirthDateError(birthDate || "", Boolean(number));
+                if (dobError) errors[dobId] = dobError;
+              };
+              validateGuest(fields.guestIdentityNumber, fields.guestDateOfBirth, "ciw-id", "ciw-dob");
+              occupants.forEach((occupant, index) => validateGuest(
+                occupant.identityNumber, occupant.dateOfBirth, `occ-id-${index + 1}`, `occ-dob-${index + 1}`,
+              ));
+              setValidationErrors(errors);
+              if (Object.keys(errors).length) {
+                setSearchQuery("");
+                requestAnimationFrame(() => document.getElementById(Object.keys(errors)[0])?.focus());
+                return;
+              }
 
-              const guestNationality = matchBcaNationalityCode(
-                fields.guestNationality,
-                nationalities,
-              );
-              const normalizedOccupants = filterExtraOccupants(
-                occupants,
-                fields,
-              ).map((occupant, occIdx) => {
-                const occDobInput = document.getElementById(`occ-dob-${occIdx + 1}`) as HTMLInputElement | null;
-                const rawOccDob = occDobInput?.value?.trim() || occupant.dateOfBirth?.trim() || "";
-                const normalizedOccDob = toIsoDate(rawOccDob) || rawOccDob;
-                return {
-                  ...occupant,
-                  identityNumber: occupant.identityNumber?.trim() || undefined,
-                  dateOfBirth: normalizedOccDob || undefined,
-                  nationality: matchBcaNationalityCode(
-                    occupant.nationality,
-                    nationalities,
-                  ),
-                };
-              });
-
-              const missingNationality = normalizedOccupants.findIndex(
-                (occupant) => !occupant.nationality,
-              );
+              const normalizedPrimaryDob = normalizeCheckInBirthDate(fields.guestDateOfBirth);
+              const guestNationality = matchBcaNationalityCode(fields.guestNationality, nationalities);
+              const normalizedOccupants = filterExtraOccupants(occupants, fields).map((occupant) => ({
+                ...occupant,
+                identityNumber: occupant.identityNumber?.trim().toUpperCase() || undefined,
+                dateOfBirth: normalizeCheckInBirthDate(occupant.dateOfBirth) || undefined,
+                nationality: matchBcaNationalityCode(occupant.nationality, nationalities),
+              }));
+              const missingNationality = normalizedOccupants.findIndex((occupant) => !occupant.nationality);
               if (!guestNationality || missingNationality >= 0) {
                 void showErrorAlert(
                   "Chưa xác định quốc tịch",
@@ -1214,29 +1167,6 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                     ? "Vui lòng chọn quốc tịch BCA cho khách 1."
                     : `Vui lòng chọn quốc tịch BCA cho khách ${missingNationality + 2}.`,
                 );
-                return;
-              }
-
-              // Active check: If guest has identityNumber (CCCD/Passport), verify valid date of birth
-              if (fields.guestIdentityNumber?.trim() && !normalizedPrimaryDob) {
-                void SwalVietSage.fire({
-                  icon: "warning",
-                  title: "Chưa có ngày sinh",
-                  text: "Khách 1 có số CCCD/Hộ chiếu nhưng chưa có ngày sinh hợp lệ (ngày/tháng/năm) để khai báo BCA.",
-                  confirmButtonText: "Đã hiểu",
-                });
-                return;
-              }
-              const missingDobOccupant = normalizedOccupants.findIndex(
-                (occ) => occ.identityNumber?.trim() && !occ.dateOfBirth,
-              );
-              if (missingDobOccupant >= 0) {
-                void SwalVietSage.fire({
-                  icon: "warning",
-                  title: "Chưa có ngày sinh",
-                  text: `Khách ${missingDobOccupant + 2} (${normalizedOccupants[missingDobOccupant].fullName || "Đi cùng"}) có CCCD/Hộ chiếu nhưng chưa có ngày sinh hợp lệ (ngày/tháng/năm).`,
-                  confirmButtonText: "Đã hiểu",
-                });
                 return;
               }
 
@@ -1266,7 +1196,8 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
 
               onSubmit({
                 ...fields,
-                guestDateOfBirth: normalizedPrimaryDob,
+                guestIdentityNumber: fields.guestIdentityNumber?.trim().toUpperCase() || undefined,
+                guestDateOfBirth: normalizedPrimaryDob || undefined,
                 guestNationality,
                 occupants: normalizedOccupants,
               });
@@ -1403,6 +1334,8 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                         <div className="flex flex-col sm:flex-row gap-1.5">
                           <input
                             id="ciw-id"
+                            aria-invalid={Boolean(validationErrors["ciw-id"])}
+                            aria-describedby={validationErrors["ciw-id"] ? "ciw-id-error" : undefined}
                             type="text"
                             value={fields.guestIdentityNumber || ""}
                             onChange={(e) =>
@@ -1444,6 +1377,7 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                             ))}
                           </select>
                         </div>
+                        {validationErrors["ciw-id"] ? <p id="ciw-id-error" role="alert" className="mt-1 text-sm text-red-700">{validationErrors["ciw-id"]}</p> : null}
                       </td>
                       <td className="px-2 py-2">
                         <input
@@ -1464,6 +1398,8 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                         <div className="flex items-center gap-1.5">
                           <VnDateInput
                             id="ciw-dob"
+                            allowYearOnly
+                            error={validationErrors["ciw-dob"]}
                             value={fields.guestDateOfBirth || ""}
                             onChange={(val) =>
                               setFields((f) => ({ ...f, guestDateOfBirth: val }))
@@ -1487,6 +1423,7 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                             <option value="Khác">Khác</option>
                           </select>
                         </div>
+                        {validationErrors["ciw-dob"] ? <p id="ciw-dob-error" role="alert" className="mt-1 text-sm text-red-700">{validationErrors["ciw-dob"]}</p> : null}
                       </td>
                       <td className="px-2 py-2 text-center">
                         <button
@@ -1610,6 +1547,8 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                           <div className="flex flex-col sm:flex-row gap-1.5">
                             <input
                               id={`occ-id-${slotIdx}`}
+                              aria-invalid={Boolean(validationErrors[`occ-id-${slotIdx}`])}
+                              aria-describedby={validationErrors[`occ-id-${slotIdx}`] ? `occ-id-${slotIdx}-error` : undefined}
                               type="text"
                               value={occ.identityNumber || ""}
                               onChange={(e) =>
@@ -1653,6 +1592,7 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                               ))}
                             </select>
                           </div>
+                          {validationErrors[`occ-id-${slotIdx}`] ? <p id={`occ-id-${slotIdx}-error`} role="alert" className="mt-1 text-sm text-red-700">{validationErrors[`occ-id-${slotIdx}`]}</p> : null}
                         </td>
                         <td className="px-2 py-2">
                           <input
@@ -1674,6 +1614,8 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                           <div className="flex items-center gap-1.5">
                             <VnDateInput
                               id={`occ-dob-${slotIdx}`}
+                              allowYearOnly
+                              error={validationErrors[`occ-dob-${slotIdx}`]}
                               value={occ.dateOfBirth || ""}
                               onChange={(val) =>
                                 handleOccupantChange(occIdx, "dateOfBirth", val)
@@ -1698,6 +1640,7 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                               <option value="Khác">Khác</option>
                             </select>
                           </div>
+                          {validationErrors[`occ-dob-${slotIdx}`] ? <p id={`occ-dob-${slotIdx}-error`} role="alert" className="mt-1 text-sm text-red-700">{validationErrors[`occ-dob-${slotIdx}`]}</p> : null}
                         </td>
                         <td className="px-2 py-2 text-center">
                           <button

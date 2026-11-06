@@ -96,12 +96,103 @@ test("forwards message and conversation lifecycle events without request unwrapp
 
 test("dedupes tickets, refreshes before reconnect, and ignores stale acquisition", async () => {
   const pending = deferred<{ ticket: string; expiresAt: string }>(); const sockets: any[] = []; let calls = 0;
-  const manager = createOwnerConnectionManager({ enabled: true, getTicket: async () => { calls++; return calls === 1 ? pending.promise : { ticket: "fresh", expiresAt: new Date(Date.now() + 60_000).toISOString() }; }, createSocket: (auth) => { const handlers = new Map<string, Function[]>(); const socket: any = { auth, on: (e: string, h: Function) => handlers.set(e, [...(handlers.get(e) ?? []), h]), connect() {}, disconnect() { this.disconnected = true; }, trigger: (e: string) => handlers.get(e)?.forEach((h) => h()) }; sockets.push(socket); return socket; } });
+  let retry!: () => void;
+  const manager = createOwnerConnectionManager({ enabled: true, getTicket: async () => { calls++; return calls === 1 ? pending.promise : { ticket: "fresh", expiresAt: new Date(Date.now() + 60_000).toISOString() }; }, createSocket: (auth) => { const handlers = new Map<string, Function[]>(); const socket: any = { auth, on: (e: string, h: Function) => handlers.set(e, [...(handlers.get(e) ?? []), h]), connect() {}, disconnect() { this.disconnected = true; }, trigger: (e: string) => handlers.get(e)?.forEach((h) => h()) }; sockets.push(socket); return socket; }, scheduleReconnect: (callback) => { retry = callback; return () => {}; } });
   const off = manager.subscribe("hotel-1", {}); const off2 = manager.subscribe("hotel-1", {}); off(); off2();
   pending.resolve({ ticket: "stale", expiresAt: new Date(Date.now() + 60_000).toISOString() }); await Promise.resolve(); await Promise.resolve();
   assert.equal(sockets.length, 0);
   manager.subscribe("hotel-1", {}); await manager.settled("hotel-1"); assert.equal(sockets[0].auth.ticket, "fresh");
-  sockets[0].trigger("disconnect"); await manager.settled("hotel-1"); assert.equal(sockets[1].auth.ticket, "fresh"); assert.equal(calls, 3);
+  sockets[0].trigger("disconnect"); retry(); await Promise.resolve(); await manager.settled("hotel-1"); assert.equal(sockets[1].auth.ticket, "fresh"); assert.equal(calls, 3);
+});
+
+test("retries a transient ticket failure without requiring another subscription", async () => {
+  let calls = 0;
+  let errors = 0;
+  let retries = 0;
+  let retry!: () => void;
+  const sockets: any[] = [];
+  const manager = createOwnerConnectionManager({
+    enabled: true,
+    getTicket: async () => {
+      if (++calls === 1) throw Object.assign(new Error("temporarily unavailable"), { status: 503 });
+      return { ticket: "fresh", expiresAt: "future" };
+    },
+    createSocket: (auth) => {
+      const socket = { auth, on() {}, connect() {}, disconnect() {} };
+      sockets.push(socket);
+      return socket;
+    },
+    scheduleReconnect: (callback) => {
+      retries++;
+      retry = callback;
+      return () => {};
+    },
+  });
+  const off = manager.subscribe("hotel-1", { onError: () => errors++ });
+  await manager.settled("hotel-1");
+  assert.equal(errors, 1);
+  assert.equal(retries, 1);
+  assert.equal(sockets.length, 0);
+  manager.subscribe("hotel-1", {});
+  assert.equal(calls, 1);
+  retry();
+  retry();
+  await Promise.resolve();
+  await manager.settled("hotel-1");
+  assert.equal(calls, 2);
+  assert.equal(sockets.length, 1);
+  assert.equal(sockets[0].auth.ticket, "fresh");
+  off();
+});
+
+test("unsubscribe cancels ticket retry and ignores its callback after resubscribe", async () => {
+  let calls = 0;
+  let cancelled = 0;
+  let retry!: () => void;
+  const sockets: any[] = [];
+  const manager = createOwnerConnectionManager({
+    enabled: true,
+    getTicket: async () => {
+      if (++calls === 1) throw new Error("offline");
+      return { ticket: "fresh", expiresAt: "future" };
+    },
+    createSocket: (auth) => {
+      const socket = { auth, on() {}, connect() {}, disconnect() {} };
+      sockets.push(socket);
+      return socket;
+    },
+    scheduleReconnect: (callback) => {
+      retry = callback;
+      return () => { cancelled++; };
+    },
+  });
+  const off = manager.subscribe("hotel-1", {});
+  await manager.settled("hotel-1");
+  off();
+  assert.equal(cancelled, 1);
+  const offNew = manager.subscribe("hotel-1", {});
+  retry();
+  await Promise.resolve();
+  await manager.settled("hotel-1");
+  assert.equal(calls, 2);
+  assert.equal(sockets.length, 1);
+  offNew();
+});
+
+test("terminal ticket failures do not schedule automatic retries", async () => {
+  for (const error of [{ retryable: false }, { status: 401 }, { status: 403 }]) {
+    let retries = 0;
+    const manager = createOwnerConnectionManager({
+      enabled: true,
+      getTicket: async () => { throw error; },
+      createSocket: () => { throw new Error("must not create a socket"); },
+      scheduleReconnect: () => { retries++; return () => {}; },
+    });
+    const off = manager.subscribe("hotel-1", {});
+    await manager.settled("hotel-1");
+    assert.equal(retries, 0);
+    off();
+  }
 });
 
 test("disabled manager creates neither ticket nor socket", async () => {
@@ -139,6 +230,8 @@ test("terminal authentication errors do not start an automatic reconnect loop", 
 
 test("connect errors reacquire a fresh owner ticket", async () => {
   let tickets = 0;
+  let retries = 0;
+  let retry!: () => void;
   const sockets: any[] = [];
   const manager = createOwnerConnectionManager({
     enabled: true,
@@ -155,10 +248,19 @@ test("connect errors reacquire a fresh owner ticket", async () => {
       sockets.push(socket);
       return socket;
     },
+    scheduleReconnect: (callback) => {
+      retries++;
+      retry = callback;
+      return () => {};
+    },
   });
   manager.subscribe("hotel-1", {});
   await manager.settled("hotel-1");
   sockets[0].trigger("connect_error", new Error("offline"));
+  sockets[0].trigger("disconnect");
+  assert.equal(retries, 1);
+  retry();
+  await Promise.resolve();
   await manager.settled("hotel-1");
   assert.equal(tickets, 2);
   assert.equal(sockets.length, 2);
@@ -332,8 +434,9 @@ test("dedupes housekeeping task events by eventId", async () => {
   assert.equal(count, 1);
 });
 
-test("reconnect triggers subscriber onReconnect callback for safe invalidation", async () => {
+test("a replacement socket triggers onReconnect once after a real disconnect", async () => {
   const sockets: any[] = [];
+  let retry!: () => void;
   const manager = createOwnerConnectionManager({
     enabled: true,
     getTicket: async () => ({ ticket: "ticket", expiresAt: "future" }),
@@ -348,6 +451,10 @@ test("reconnect triggers subscriber onReconnect callback for safe invalidation",
       sockets.push(socket);
       return socket;
     },
+    scheduleReconnect: (callback) => {
+      retry = callback;
+      return () => {};
+    },
   });
 
   let reconnected = 0;
@@ -356,12 +463,18 @@ test("reconnect triggers subscriber onReconnect callback for safe invalidation",
   });
   await manager.settled("hotel-1");
 
-  // Initial connect: wasConnected becomes true, onReconnect should NOT fire yet
   sockets[0].trigger("connect");
   assert.equal(reconnected, 0);
 
-  // Subsequent connect (reconnect): onReconnect fires
+  sockets[0].trigger("disconnect");
+  retry();
+  await Promise.resolve();
+  await manager.settled("hotel-1");
+  assert.equal(sockets.length, 2);
+  // Late events from the disconnected socket must not count as a reconnect.
   sockets[0].trigger("connect");
+  assert.equal(reconnected, 0);
+  sockets[1].trigger("connect");
   assert.equal(reconnected, 1);
 });
 

@@ -12,7 +12,7 @@ import type {
 } from "@/features/hotel-ops/types/hotel-ops-contract";
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
 import { showConfirmDialog, showErrorAlert, showSuccessAlert, showWarningAlert } from "@/libs/swal";
-import { settleCheckout, checkoutErrorMessage } from "@/features/hotel-ops/utils/checkout-settlement";
+import { settleCheckout, checkoutErrorMessage, checkoutRemainingBalance } from "@/features/hotel-ops/utils/checkout-settlement";
 
 export type RoomCheckoutSettlementModalProps = {
   isOpen: boolean;
@@ -76,7 +76,6 @@ function CheckoutSettlementForm({
   // Form states for Payment
   const [paymentMethod, setPaymentMethod] = useState<"CASH" | "BANK_TRANSFER" | "CARD">("BANK_TRANSFER");
   const [paymentAmount, setPaymentAmount] = useState<string | undefined>(undefined);
-  const [paymentReference, setPaymentReference] = useState("");
   const [paymentNote, setPaymentNote] = useState("");
 
   // Form states for Receivable
@@ -138,8 +137,11 @@ function CheckoutSettlementForm({
     );
   }, [bookingPayments]);
 
+  const currentInvoice = effectiveFolioContext?.summary?.invoice;
+
   // Total charges from folio
   const folioTotal = useMemo(() => {
+    if (currentInvoice?.totalAmount != null) return Number(currentInvoice.totalAmount);
     if (effectiveFolioContext?.summary?.total != null) {
       return Number(effectiveFolioContext.summary.total);
     }
@@ -147,10 +149,12 @@ function CheckoutSettlementForm({
       return effectiveFolioContext.items.reduce((sum, item) => sum + Number(item.totalSnapshot || 0), 0);
     }
     return Number(stay.nightlyRateSnapshot || 0);
-  }, [effectiveFolioContext, stay]);
+  }, [currentInvoice, effectiveFolioContext, stay]);
 
   // Remaining balance
-  const remainingDue = Math.max(0, folioTotal - paidDepositsSummary.total);
+  const remainingDue = checkoutRemainingBalance({
+    invoice: currentInvoice, total: folioTotal, deposits: paidDepositsSummary.total,
+  });
 
   // Focus trap and Escape key listener
   useEffect(() => {
@@ -177,11 +181,12 @@ function CheckoutSettlementForm({
       const result = await settleCheckout({
         folioId: effectiveFolioContext.folio?.id,
         amount: Number(paymentAmount ?? remainingDue),
+        expectedBalanceAmount: remainingDue,
         autoMarkReady,
-        issueInvoice: () => staffRoomsRepository.issueCheckoutInvoice(hotelId, effectiveFolioContext.folio!.id),
+        issueInvoice: () => staffRoomsRepository.issueCheckoutInvoice(hotelId, effectiveFolioContext.folio!.id, remainingDue),
         confirmPayment: (invoiceId, amount) => staffRoomsRepository.confirmCheckoutPayment(hotelId, invoiceId, {
           method: paymentMethod, amount, cashReceived: amount,
-          note: [paymentNote.trim(), paymentReference.trim()].filter(Boolean).join(" - ") || "Thanh toán trả phòng tại quầy",
+          note: paymentNote.trim() || "Thanh toán trả phòng tại quầy",
           clientRequestId: paymentAttempt.current!,
         }),
         checkOutStay: () => stay.status === "CHECKED_OUT" ? Promise.resolve() :
@@ -333,12 +338,12 @@ function CheckoutSettlementForm({
 
             <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 space-y-1">
               <span className="text-xs font-bold text-emerald-800 uppercase tracking-wider block">
-                Đã đặt cọc / Trả trước
+                {currentInvoice ? "Đã thanh toán" : "Đã đặt cọc / Trả trước"}
               </span>
               <div className="text-2xl font-black text-emerald-700 tabular-nums">
-                {formatVnd(paidDepositsSummary.total)}
+                {formatVnd(currentInvoice ? currentInvoice.paidAmount : paidDepositsSummary.total)}
               </div>
-              <div className="flex flex-wrap items-center gap-1.5 pt-0.5 text-xs font-semibold text-emerald-900">
+              {!currentInvoice ? <div className="flex flex-wrap items-center gap-1.5 pt-0.5 text-xs font-semibold text-emerald-900">
                 <span className="bg-emerald-100/90 px-2 py-0.5 rounded text-emerald-800 whitespace-nowrap">
                   TM: {formatVnd(paidDepositsSummary.cash)}
                 </span>
@@ -350,7 +355,7 @@ function CheckoutSettlementForm({
                     Thẻ: {formatVnd(paidDepositsSummary.card)}
                   </span>
                 ) : null}
-              </div>
+              </div> : null}
             </div>
 
             <div className={`rounded-2xl border p-4 space-y-1 ${
@@ -464,7 +469,7 @@ function CheckoutSettlementForm({
                   <span>Khách đã thanh toán đủ 100% tiền cọc/trả trước. Không còn số dư nợ cần thu thêm.</span>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1">
                       Nguồn tiền thu <span className="text-rose-600">*</span>
@@ -495,20 +500,7 @@ function CheckoutSettlementForm({
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      Mã tham chiếu GD (CK / POS)
-                    </label>
-                    <input
-                      type="text"
-                      value={paymentReference}
-                      onChange={(e) => setPaymentReference(e.target.value)}
-                      placeholder="Mã ngân hàng / bill POS"
-                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 focus:border-blue-600 focus:outline-hidden"
-                    />
-                  </div>
-
-                  <div className="sm:col-span-3">
+                  <div className="sm:col-span-2">
                     <label className="block text-xs font-bold text-slate-700 mb-1">
                       Ghi chú thanh toán
                     </label>

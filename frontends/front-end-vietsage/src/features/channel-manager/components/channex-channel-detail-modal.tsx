@@ -462,12 +462,13 @@ function ChannelDetailBody({
         </h3>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--on-surface-variant)] mb-1">
+            <p className="block text-xs font-semibold uppercase tracking-wider text-[var(--on-surface-variant)] mb-1">
               Tên kết nối hiển thị
-            </label>
+            </p>
             {canManage ? (
               <div className="flex gap-2">
                 <input
+                  aria-label="Tên kết nối hiển thị"
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
@@ -484,25 +485,19 @@ function ChannelDetailBody({
                 </button>
               </div>
             ) : (
-              <input
-                type="text"
-                readOnly
-                value={title}
-                className="min-h-10 w-full rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)] px-3 text-sm text-[var(--on-surface)]"
-              />
+              <p className="text-base text-[var(--on-surface)] break-words">
+                {title}
+              </p>
             )}
           </div>
 
           <div>
             <span className="block text-xs font-semibold uppercase tracking-wider text-[var(--on-surface-variant)] mb-1">
-              Mã định danh Channel ID (Channex)
+              Mã kênh Channex
             </span>
-            <input
-              type="text"
-              readOnly
-              value={channel.id}
-              className="min-h-10 w-full rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)] px-3 text-sm font-mono text-[var(--on-surface-variant)]"
-            />
+            <p className="select-text break-all font-mono text-sm text-[var(--on-surface-variant)]">
+              {channel.id}
+            </p>
           </div>
         </div>
       </div>

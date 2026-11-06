@@ -960,12 +960,9 @@ function EditBookingSubModal({
   onClose: () => void;
   onSuccess: () => Promise<void>;
 }) {
-  const [guestName, setGuestName] = useState(arrival.guestDisplayName || "");
-  const [guestPhone, setGuestPhone] = useState(arrival.guestPhone || "");
   const [checkInAt, setCheckInAt] = useState(() => toLocalDatetimeInput(arrival.plannedCheckInAt));
   const [checkOutAt, setCheckOutAt] = useState(() => toLocalDatetimeInput(arrival.plannedCheckOutAt));
   const [rate, setRate] = useState(String(arrival.rate || arrival.nightlyRateSnapshot || ""));
-  const [notes, setNotes] = useState(arrival.notes || "");
   const [saving, setSaving] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -1044,17 +1041,10 @@ function EditBookingSubModal({
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-3.5">
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">
-              Khách hàng
-            </label>
-            <input
-              type="text"
-              value={guestName}
-              onChange={(e) => setGuestName(e.target.value)}
-              className="h-10 w-full rounded-xl border border-slate-300 px-3 text-xs sm:text-sm font-semibold text-slate-800 focus:border-sky-600 focus:outline-none"
-              disabled
-              title="Tên người đại diện đặt phòng"
-            />
+            <p className="text-sm font-semibold text-slate-700">Khách hàng</p>
+            <p className="mt-1 text-base font-semibold text-slate-900">
+              {arrival.guestDisplayName || "Chưa có tên khách"}
+            </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

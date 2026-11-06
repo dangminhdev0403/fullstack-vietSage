@@ -38,18 +38,20 @@ type Entry = {
   pending?: Promise<void>;
   cancelReconnect?: () => void;
   consecutiveFailures: number;
+  everConnected: boolean;
   lastFailureAt?: number;
   lastReconnectAt?: number;
 };
 
-type RealtimeError = { retryable?: unknown };
+type RealtimeError = { retryable?: unknown; status?: unknown };
 
 function isTerminalRealtimeError(value: unknown): boolean {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "retryable" in value &&
-    (value as RealtimeError).retryable === false
+  if (typeof value !== "object" || value === null) return false;
+  const error = value as RealtimeError;
+  return error.retryable === false || (
+    typeof error.status === "number" &&
+    error.status >= 400 && error.status < 500 &&
+    error.status !== 408 && error.status !== 429
   );
 }
 
@@ -71,9 +73,35 @@ export function createOwnerConnectionManager(deps: {
 }) {
   const entries = new Map<string, Entry>();
 
+  function scheduleRetry(hotelId: string, entry: Entry) {
+    if (entry.cancelReconnect || entry.subscribers.size === 0) return;
+    const generation = entry.generation;
+    let cancelled = false;
+    const retry = async () => {
+      // Also handles schedulers that invoke immediately while acquisition is pending.
+      await entry.pending;
+      if (cancelled || entry.generation !== generation || entries.get(hotelId) !== entry || entry.subscribers.size === 0) return;
+      cancelled = true;
+      entry.cancelReconnect = undefined;
+      entry.lastFailureAt = undefined;
+      void acquire(hotelId, entry);
+    };
+    const cancel = deps.scheduleReconnect
+      ? deps.scheduleReconnect(() => void retry(), entry.consecutiveFailures)
+      : (() => {
+          const timer = setTimeout(() => void retry(), Math.min(300_000, Math.pow(2, entry.consecutiveFailures) * 2_000));
+          return () => clearTimeout(timer);
+        })();
+    entry.cancelReconnect = () => {
+      cancelled = true;
+      cancel();
+    };
+  }
+
   function acquire(hotelId: string, entry: Entry): Promise<void> {
     if (!deps.enabled || entry.subscribers.size === 0 || entry.socket) return Promise.resolve();
     if (entry.pending) return entry.pending;
+    if (entry.cancelReconnect) return Promise.resolve();
 
     // Cooldown check: if failed recently with consecutive failures, enforce backoff
     const now = Date.now();
@@ -92,7 +120,6 @@ export function createOwnerConnectionManager(deps: {
 
         const socket = deps.createSocket({ mode: "owner", ticket });
         let terminal = false;
-        let wasConnected = false;
         entry.socket = socket;
 
         const seenEventIds = new Set<string>();
@@ -126,16 +153,17 @@ export function createOwnerConnectionManager(deps: {
         };
 
         socket.on("connect", () => {
+          if (entry.socket !== socket) return;
           entry.consecutiveFailures = 0;
           entry.lastFailureAt = undefined;
-          if (wasConnected) {
+          if (entry.everConnected) {
             const now = Date.now();
             if (!entry.lastReconnectAt || now - entry.lastReconnectAt >= 5_000) {
               entry.lastReconnectAt = now;
               entry.subscribers.forEach((subscriber) => subscriber.onReconnect?.());
             }
           }
-          wasConnected = true;
+          entry.everConnected = true;
         });
 
         socket.on("request_realtime.ready", fanout("onReady"));
@@ -171,13 +199,7 @@ export function createOwnerConnectionManager(deps: {
           if (terminal) return;
 
           entry.generation += 1;
-          const currentAttempt = entry.consecutiveFailures;
-          const retry = () => {
-            entry.cancelReconnect = undefined;
-            entry.lastFailureAt = undefined;
-            void acquire(hotelId, entry);
-          };
-          entry.cancelReconnect = deps.scheduleReconnect?.(retry, currentAttempt) ?? (retry(), () => undefined);
+          scheduleRetry(hotelId, entry);
         };
         socket.on("connect_error", reconnect);
         socket.on("disconnect", reconnect);
@@ -188,6 +210,7 @@ export function createOwnerConnectionManager(deps: {
         entry.consecutiveFailures += 1;
         entry.lastFailureAt = Date.now();
         entry.subscribers.forEach((subscriber) => subscriber.onError?.(error));
+        if (!isTerminalRealtimeError(error)) scheduleRetry(hotelId, entry);
       })
       .finally(() => {
         if (entry.pending === acquisition) entry.pending = undefined;
@@ -201,7 +224,7 @@ export function createOwnerConnectionManager(deps: {
     subscribe(hotelId: string, handlers: OwnerRealtimeHandlers) {
       let entry = entries.get(hotelId);
       if (!entry) {
-        entry = { subscribers: new Set(), generation: 0, consecutiveFailures: 0 };
+        entry = { subscribers: new Set(), generation: 0, consecutiveFailures: 0, everConnected: false };
         entries.set(hotelId, entry);
       }
       entry.subscribers.add(handlers);

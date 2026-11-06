@@ -84,6 +84,7 @@ export const issueInvoiceBodySchema = z
       )
       .default([]),
     isEarlyDeparture: z.boolean().optional(),
+    expectedBalanceAmount: z.number().finite().nonnegative().optional(),
     adjustments: z.array(invoiceAdjustmentSchema).optional(),
   })
   .strict();

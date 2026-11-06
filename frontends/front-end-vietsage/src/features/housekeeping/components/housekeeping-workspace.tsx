@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
+import { useHousekeepingStore } from "../store/housekeeping-store";
 import { useHousekeeping } from "../hooks/use-housekeeping";
 import type { HotelOpsPage, HotelRoomSummary } from "../types/housekeeping-contract";
 import { HousekeepingFilterBar } from "./housekeeping-filter-bar";
@@ -18,6 +19,9 @@ type HousekeepingWorkspaceProps = {
 
 export function HousekeepingWorkspace({ hotelId, initialRoomsPage, currentUser }: HousekeepingWorkspaceProps) {
   const [activeTab, setActiveTab] = useState<"rooms" | "notifications">("rooms");
+  useEffect(() => {
+    void useHousekeepingStore.persist.rehydrate();
+  }, []);
   const {
     assignmentScope, allRooms, filter, setFilter, summaryMetrics, availableFloors, taskCards, taskCardsByFloor,
     roomNotifications, cleaningRequests, isLoading, isNotificationsLoading, hasRoomsError, hasRequestsError,

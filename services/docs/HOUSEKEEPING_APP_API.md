@@ -331,6 +331,8 @@ socket.connect();
 | `housekeeping_task.completed` | Hoàn tất |
 | `housekeeping_task.reopened` | Mở lại |
 
+`room_status.updated` cũng được phát sau khi admin thực hiện reset vận hành phòng thành công; payload giữ nguyên hợp đồng ở trên. Event và notification là hậu xử lý best-effort: nếu gửi thất bại, mutation đã commit không bị rollback. Khi socket mất kết nối hoặc bỏ lỡ event, reconnect/foreground phải tải lại HTTP để khôi phục trạng thái chuẩn.
+
 Task events là object trực tiếp, **không có HTTP envelope**:
 
 ```json

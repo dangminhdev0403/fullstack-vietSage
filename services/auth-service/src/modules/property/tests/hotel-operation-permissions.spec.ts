@@ -146,6 +146,32 @@ describe("Hotel operation permissions and command boundary enforcement", () => {
   });
 
   describe("Schema separation and strict boundary validation", () => {
+    it.each(Object.values(RoomStatus))("preserves canonical room status %s at the command boundary", (status) => {
+      const expectedUpdatedAt = new Date("2026-10-15T00:00:00.000Z");
+
+      expect(parseWithZod(updateRoomStatusBodySchema, { status, expectedUpdatedAt })).toEqual({
+        status,
+        expectedUpdatedAt,
+      });
+    });
+
+    it.each([
+      [" bảo trì ", RoomStatus.MAINTENANCE],
+      ["khóa", RoomStatus.BLOCKED],
+      ["đã khóa", RoomStatus.BLOCKED],
+      ["out_of_service", RoomStatus.OUT_OF_SERVICE],
+      ["dirty", RoomStatus.PROCESSING],
+      ["chờ dọn", RoomStatus.PROCESSING],
+      ["cleaning", RoomStatus.PROCESSING],
+    ])("normalizes room status alias %s without confusing maintenance and locked states", (alias, status) => {
+      const expectedUpdatedAt = new Date("2026-10-15T00:00:00.000Z");
+
+      expect(parseWithZod(updateRoomStatusBodySchema, { status: alias, expectedUpdatedAt })).toEqual({
+        status,
+        expectedUpdatedAt,
+      });
+    });
+
     it("updateRoomBodySchema accepts metadata fields and rejects status", () => {
       const validMetadata = parseWithZod(updateRoomBodySchema, {
         roomNumber: "201",
@@ -286,6 +312,42 @@ describe("Hotel operation permissions and command boundary enforcement", () => {
         }),
       );
       expect(result.status).toBe(RoomStatus.PROCESSING);
+    });
+
+    it.each([RoomStatus.PROCESSING, RoomStatus.AVAILABLE, RoomStatus.BLOCKED])(
+      "allows a legacy OUT_OF_SERVICE room to leave maintenance for %s using its observed version",
+      async (targetStatus) => {
+        const repository = createMockRepository({ status: RoomStatus.OUT_OF_SERVICE });
+        const service = createService(repository);
+        const expectedUpdatedAt = new Date("2026-10-15T00:00:00.000Z");
+
+        const result = await service.updateRoomStatus(
+          "user-frontdesk", "role-frontdesk", "hotel-1", "room-1",
+          { status: targetStatus, expectedUpdatedAt },
+        );
+
+        expect(repository.updateRoomInHotel).toHaveBeenCalledWith(
+          "hotel-1", "room-1", { status: targetStatus },
+          { status: RoomStatus.OUT_OF_SERVICE, updatedAt: expectedUpdatedAt },
+        );
+        expect(result.status).toBe(targetStatus);
+      },
+    );
+
+    it("refuses to manually release an OCCUPIED room instead of checking out its stay", async () => {
+      const repository = createMockRepository({
+        status: RoomStatus.OCCUPIED,
+        guestStays: [{ id: "stay-1", status: "ACTIVE" }],
+      });
+      const service = createService(repository);
+
+      await expect(
+        service.updateRoomStatus("user-frontdesk", "role-frontdesk", "hotel-1", "room-1", {
+          status: RoomStatus.AVAILABLE,
+          expectedUpdatedAt: new Date("2026-10-15T00:00:00.000Z"),
+        }),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(repository.updateRoomInHotel).not.toHaveBeenCalled();
     });
 
     it("refuses to block a room that has an active guest stay", async () => {

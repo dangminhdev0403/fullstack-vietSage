@@ -827,7 +827,7 @@ export function StaffRoomsClient({
   const [roomQrPreview, setRoomQrPreview] = useState<RoomQrPreview | null>(
     null,
   );
-  const [selectedContextRoom, setSelectedContextRoom] =
+  const [selectedContextRoomSnapshot, setSelectedContextRoom] =
     useState<HotelRoomSummary | null>(null);
   const cardTriggerRefMap = useRef<Map<string, HTMLElement>>(new Map());
   const activeTriggerRef = useRef<HTMLElement | null>(null);
@@ -1875,7 +1875,7 @@ export function StaffRoomsClient({
 
   const {
     data: roomsPage,
-    isFetching,
+    isFetching: isRoomsFetching,
     refetch,
     isError,
     error,
@@ -1918,6 +1918,9 @@ export function StaffRoomsClient({
         : undefined,
   });
 
+  // Match the server's loading presentation until the first client hydration completes.
+  const isFetching = roomViewHydrated && isRoomsFetching;
+
   const isUnassigned =
     isError &&
     (Boolean(error?.message?.includes("chưa được gán phòng")) ||
@@ -1925,6 +1928,9 @@ export function StaffRoomsClient({
       (error as { status?: number })?.status === 403);
 
   const rooms = roomsPage?.items ?? [];
+  const selectedContextRoom = selectedContextRoomSnapshot
+    ? rooms.find((room) => room.id === selectedContextRoomSnapshot.id) ?? selectedContextRoomSnapshot
+    : null;
 
   // Auto-adjust operational businessDate when filtering by booking/reservation/group code
   const lastAutoAdjustedQueryRef = useRef<string>("");
@@ -4628,8 +4634,14 @@ export function StaffRoomsClient({
   async function handleExtendStayModal(room: HotelRoomSummary) {
     const stay = room.activeStay;
     if (!stay?.id) return;
+    const currentDeparture = new Date(stay.plannedCheckOutAt ?? "").getTime();
+    if (!Number.isFinite(currentDeparture)) {
+      await showErrorAlert("Không thể gia hạn phòng", "Chưa xác định được hạn trả phòng hiện tại.");
+      return;
+    }
     const roomNum = getRoomNumber(room);
-    const defaultNewCheckOut = localDateTime(1, 12);
+    const defaultDeparture = new Date(Math.max(new Date(localDateTime(1, 12)).getTime(), currentDeparture + 24 * 60 * 60_000));
+    const defaultNewCheckOut = new Date(defaultDeparture.getTime() - defaultDeparture.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
 
     const { value: newCheckOut } = await SwalVietSage.fire({
       title: `Gia hạn lưu trú phòng ${roomNum}`,
@@ -4655,6 +4667,11 @@ export function StaffRoomsClient({
           SwalVietSage.showValidationMessage(
             "Vui lòng chọn thời gian check-out mới",
           );
+          return false;
+        }
+        const desired = new Date(input.value).getTime();
+        if (!Number.isFinite(desired) || desired <= currentDeparture || desired <= Date.now()) {
+          SwalVietSage.showValidationMessage("Thời gian gia hạn phải sau hạn trả phòng hiện tại và ở tương lai");
           return false;
         }
         return input.value;
@@ -8112,6 +8129,7 @@ export function StaffRoomsClient({
                       </select>
                     </div>
 
+                    {reservationSourceCategory !== "DIRECT" ? (
                     <div>
                       <div className="flex items-center justify-between mb-1">
                         <label className="block text-xs font-bold text-slate-700">
@@ -8123,7 +8141,7 @@ export function StaffRoomsClient({
                                 ? "Công ty / Doanh nghiệp đối tác"
                                 : "Đối tác / Ghi chú nguồn"}
                         </label>
-                        {reservationSourceCategory !== "DIRECT" && !reservationIsAddingNewPartner ? (
+                        {!reservationIsAddingNewPartner ? (
                           <button
                             type="button"
                             onClick={() => {
@@ -8137,14 +8155,7 @@ export function StaffRoomsClient({
                         ) : null}
                       </div>
 
-                      {reservationSourceCategory === "DIRECT" ? (
-                        <input
-                          type="text"
-                          disabled
-                          value="Khách đặt trực tiếp tại quầy / Hotline"
-                          className="w-full h-10 rounded-xl border border-slate-200 bg-slate-100 px-3 text-xs text-slate-500 font-medium cursor-not-allowed"
-                        />
-                      ) : reservationIsAddingNewPartner ? (
+                      {reservationIsAddingNewPartner ? (
                         <div className="flex items-center gap-1.5">
                           <input
                             type="text"
@@ -8201,6 +8212,7 @@ export function StaffRoomsClient({
                         </select>
                       )}
                     </div>
+                    ) : null}
                   </div>
 
                   {/* Nightly Rates for Different Nights */}
@@ -8451,6 +8463,7 @@ export function StaffRoomsClient({
                       </select>
                     </div>
 
+                    {bulkSourceCategory !== "DIRECT" ? (
                     <div>
                       <div className="flex items-center justify-between mb-1">
                         <label className="block text-xs font-bold text-slate-700">
@@ -8462,7 +8475,7 @@ export function StaffRoomsClient({
                                 ? "Công ty / Doanh nghiệp đối tác"
                                 : "Đối tác / Ghi chú nguồn"}
                         </label>
-                        {bulkSourceCategory !== "DIRECT" && !bulkIsAddingNewPartner ? (
+                        {!bulkIsAddingNewPartner ? (
                           <button
                             type="button"
                             onClick={() => {
@@ -8476,14 +8489,7 @@ export function StaffRoomsClient({
                         ) : null}
                       </div>
 
-                      {bulkSourceCategory === "DIRECT" ? (
-                        <input
-                          type="text"
-                          disabled
-                          value="Khách đặt trực tiếp tại quầy / Hotline"
-                          className="w-full h-10 rounded-xl border border-slate-200 bg-slate-100 px-3 text-xs text-slate-500 font-medium cursor-not-allowed"
-                        />
-                      ) : bulkIsAddingNewPartner ? (
+                      {bulkIsAddingNewPartner ? (
                         <div className="flex items-center gap-1.5">
                           <input
                             type="text"
@@ -8540,6 +8546,7 @@ export function StaffRoomsClient({
                         </select>
                       )}
                     </div>
+                    ) : null}
                   </div>
 
                   {/* Mode Selector Tabs */}

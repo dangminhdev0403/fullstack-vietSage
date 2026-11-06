@@ -257,7 +257,7 @@ describe("Billing Receivables & Deposits Suite", () => {
         .mockResolvedValue({ id: folioId, status: FolioStatus.CLOSED });
       const mockUpdateStay = jest
         .fn()
-        .mockResolvedValue({ id: stayId, status: GuestStayStatus.CHECKED_OUT });
+        .mockResolvedValue({ count: 1 });
       const mockUpdateSessions = jest.fn().mockResolvedValue({ count: 1 });
       const mockUpdateRoom = jest.fn().mockResolvedValue({ count: 1 });
       const mockPaymentCreate = jest.fn();
@@ -269,8 +269,19 @@ describe("Billing Receivables & Deposits Suite", () => {
         user: { findFirst: jest.fn().mockResolvedValue({ id: "accountant-1" }) },
         guestStay: {
           findFirst: jest.fn().mockResolvedValue(stayRecord),
-          update: mockUpdateStay,
+          updateMany: mockUpdateStay,
         },
+        hotel: { findUniqueOrThrow: jest.fn().mockResolvedValue({ tenantId: "tenant-pms-1" }) },
+        domainEvent: { create: jest.fn().mockResolvedValue({ id: "checkout-event" }) },
+        housekeepingTask: {
+          findFirst: jest.fn().mockResolvedValue(null),
+          create: jest.fn().mockImplementation(({ data }) => Promise.resolve({
+            id: "checkout-task", ...data, room: { roomNumber: "101" },
+            createdAt: new Date(), updatedAt: new Date(),
+          })),
+        },
+        housekeepingTaskHistory: { create: jest.fn().mockResolvedValue({}) },
+        housekeepingNotification: { create: jest.fn().mockResolvedValue({}) },
         folio: {
           findFirst: jest.fn().mockResolvedValue(folioRecord),
           update: mockUpdateFolio,
@@ -344,7 +355,7 @@ describe("Billing Receivables & Deposits Suite", () => {
       );
       expect(mockUpdateStay).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: stayId },
+          where: { id: stayId, hotelId, status: { not: GuestStayStatus.CHECKED_OUT } },
           data: expect.objectContaining({ status: GuestStayStatus.CHECKED_OUT }),
         }),
       );
@@ -354,6 +365,9 @@ describe("Billing Receivables & Deposits Suite", () => {
         where: { id: roomId, hotelId, status: RoomStatus.OCCUPIED },
         data: { status: RoomStatus.PROCESSING },
       });
+      expect(txMock.housekeepingTask.create).toHaveBeenCalledTimes(1);
+      expect(txMock.housekeepingTaskHistory.create).toHaveBeenCalledTimes(1);
+      expect(txMock.housekeepingNotification.create).toHaveBeenCalledTimes(1);
 
       // 4. BẤT BIẾN AN TOÀN TUYỆT ĐỐI:
       // Không ghi nhận Payment tiền mặt đã thu (không tăng collected cash revenue)

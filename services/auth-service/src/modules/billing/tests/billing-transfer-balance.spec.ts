@@ -3,7 +3,7 @@ jest.mock("../../../prisma/prisma.service", () => ({
 }));
 
 import { BadRequestException, ConflictException, ForbiddenException } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
+import { GuestStayStatus, Prisma } from "@prisma/client";
 import { BillingService } from "../application/billing.service";
 
 const money = (amount: number) => new Prisma.Decimal(amount);
@@ -19,11 +19,13 @@ function fixture() {
         reservationId: "reservation",
         status: "ACTIVE",
       }),
-      update: jest.fn().mockImplementation(() => {
+      updateMany: jest.fn().mockImplementation(() => {
         state.stay = "CHECKED_OUT";
-        return {};
+        return { count: 1 };
       }),
     },
+    hotel: { findUniqueOrThrow: jest.fn().mockResolvedValue({ tenantId: "tenant" }) },
+    domainEvent: { create: jest.fn().mockResolvedValue({ id: "checkout-event" }) },
     folio: {
       findFirst: jest
         .fn()
@@ -106,6 +108,12 @@ describe("F1 authoritative receivable balance", () => {
       expect(f.tx.$queryRaw).toHaveBeenCalledTimes(3);
       expect(f.tx.payment.create).not.toHaveBeenCalled();
       expect(f.tx.invoice.update).not.toHaveBeenCalled();
+      expect(f.tx.guestStay.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: { id: "stay", hotelId: "hotel", status: { not: GuestStayStatus.CHECKED_OUT } },
+      }));
+      expect(f.tx.domainEvent.create).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({ eventType: "GUEST_CHECKED_OUT", aggregateId: "stay" }),
+      }));
     },
   );
 
@@ -210,7 +218,7 @@ describe("F1 authoritative receivable balance", () => {
 
   it("rolls back receivable and folio when stay closure fails, with no post-commit event", async () => {
     const f = fixture();
-    f.tx.guestStay.update.mockRejectedValue(new Error("closure failed"));
+    f.tx.guestStay.updateMany.mockRejectedValue(new Error("closure failed"));
     await expect(f.transfer()).rejects.toThrow("closure failed");
     expect(f.tx.hotelReceivable.create).toHaveBeenCalledTimes(1);
     expect(f.tx.folio.update).toHaveBeenCalledTimes(1);

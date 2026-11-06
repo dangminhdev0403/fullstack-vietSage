@@ -32,6 +32,8 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
   const handlers = useMemo(
     () => ({
       onReady: () => {
+        // Resync changes missed while the socket was connecting.
+        void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
         toast.dismiss(`owner-realtime-error-${hotelId}`);
         toast.success("Realtime đã kết nối", {
           id: `hotel-ops-realtime-ready-${hotelId}`,

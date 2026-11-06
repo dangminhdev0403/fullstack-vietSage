@@ -13,6 +13,8 @@ import {
   formatKbttDraftForDisplay,
   formatKbttDraftForProvider,
   getKbttListState,
+  getKbttDeclarationDisplayStatus,
+  isKbttDeclarationQueued,
   getRowPartitionTab,
   KBTT_FORBIDDEN_KEYS,
   kbttAutoSubmitConfigSchema,
@@ -23,6 +25,7 @@ import {
   kbttCredentialsSchema,
   kbttDeclarationListItemSchema,
   kbttDeclarationListSchema,
+  kbttDeliverySchema,
   kbttDeclarationRecordSchema,
   kbttDeclarationStatusSchema,
   kbttDerivedStatusSchema,
@@ -61,6 +64,7 @@ test("KBTT validates write-only credentials, strips secret fields, preserves pas
   const connection = kbttConnectionSchema.parse({
     configured: true,
     status: "CONNECTED",
+    username: "owner",
     maskedUsername: "o***r",
     csltId: "123",
     lastCheckedAt: null,
@@ -72,6 +76,9 @@ test("KBTT validates write-only credentials, strips secret fields, preserves pas
     refreshToken: "must-not-return",
     ciphertext: "must-not-return",
   });
+  assert.equal(connection.username, "owner");
+  const { username: _username, ...legacyConnection } = connection;
+  assert.equal(kbttConnectionSchema.parse(legacyConnection).username, null);
   for (const field of [
     "password",
     "accessToken",
@@ -430,7 +437,7 @@ test("KBTT list never infers submission success from errors, cached rows, empty 
   const pageSource = readFileSync(new URL("./components/kbtt-declarations-page.tsx", import.meta.url), "utf8");
   const parsedPage = ts.createSourceFile("kbtt-declarations-page.tsx", pageSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   assert.deepEqual(parsedPage.parseDiagnostics, [], "KBTT page must remain valid TSX");
-  assert.match(pageSource, /getKbttListState\(allRows, declarationsQuery\.status\)/);
+  assert.match(pageSource, /<KbttDeliveryStatus/);
   assert.match(pageSource, /isListReady = declarationsQuery\.isSuccess && !declarationsQuery\.isFetching/);
   assert.match(pageSource, /canEdit=\{isSelectable\}/);
   assert.match(pageSource, /isReadOnly = !detailQuery\.isSuccess \|\| detailQuery\.isFetching \|\| !canSelectKbttDeclaration/);
@@ -506,16 +513,16 @@ test("KBTT UI exposes one edit-to-submit action and no local status workflow", (
     pageSource,
     /await saveInlineRow\(row\);[\s\S]*submitMutation\.mutateAsync/,
   );
-  assert.match(pageSource, /aria-label="Giới tính bắt buộc"/);
-  assert.match(pageSource, /aria-label="Ngày sinh bắt buộc"/);
-  assert.match(pageSource, /aria-label="Loại giấy tờ bắt buộc"/);
-  assert.match(pageSource, /Tên khách phòng/);
+  assert.match(pageSource, /htmlFor="gioiTinh"[\s\S]*?id="gioiTinh"/);
+  assert.match(pageSource, /htmlFor="ngayThangNamSinhStr"[\s\S]*?id="ngayThangNamSinhStr"/);
+  assert.match(pageSource, /htmlFor="loaiGiayTo"[\s\S]*?id="loaiGiayTo"/);
+  assert.match(pageSource, /row\.fullName/);
   assert.doesNotMatch(pageSource, /Trường bắt buộc để gửi BCA/);
   assert.doesNotMatch(
     pageSource,
     /Chỉnh sửa hàng loạt|Bấm để chỉnh sửa chi tiết/,
   );
-  assert.match(pageSource, /Gửi (?:lên Bộ Công an|BCA)/);
+  assert.match(pageSource, /Xếp hàng gửi BCA/);
   assert.match(pageSource, /Hồ sơ của lần lưu trú này đã gửi BCA/);
   assert.match(pageSource, /[" >]Xem(?: chi tiết)?[" <]/);
   assert.match(pageSource, /handleSubmitAll/);
@@ -523,7 +530,7 @@ test("KBTT UI exposes one edit-to-submit action and no local status workflow", (
     pageSource,
     /type="checkbox"|selectedOccupantIds|handleSubmitSelected|Upload BCA đã chọn/,
   );
-  assert.match(pageSource, /disabled=\{!isSelectable \|\| isSubmittingBatch\}/);
+  assert.match(pageSource, /const isSelectable = canManage && isListReady && canSelectKbttDeclaration\(row\)/);
   assert.match(pageSource, /formatStayDateTimeForForm/);
   assert.match(pageSource, /HH:mm:ss DD\/MM\/YYYY/);
   const tableSource = pageSource.slice(
@@ -767,49 +774,34 @@ test("KBTT declarations table provides Sửa button to open DeclarationModal for
   );
 });
 
-test("KBTT declarations page stops countdown and auto-push when hotel is not logged in to BCA", () => {
-  const pageSource = readFileSync(
-    new URL("./components/kbtt-declarations-page.tsx", import.meta.url),
-    "utf8",
-  );
+test("KBTT background delivery contract retains bounded issues and queued declarations remain locked", () => {
+  const issue = { id: "op-1", kind: "CHECKOUT", status: "UNKNOWN", roomNumber: "101",
+    fullName: "Nguyễn Văn An", message: "Cần đối soát trước khi gửi tiếp.", updatedAt: "2026-11-05T08:00:00.000Z" };
+  const delivery = { mode: "BACKGROUND", state: "RUNNING", lifecycleEnabled: false,
+    pendingCount: 1, sendingCount: 0, reviewCount: 1, lastSucceededAt: null, recentIssues: [issue] };
+  assert.deepEqual(kbttDeliverySchema.parse(delivery), delivery);
+  assert.equal(kbttDeliverySchema.safeParse({ ...delivery, reviewCount: -1 }).success, false);
+  assert.equal(kbttDeliverySchema.safeParse({ ...delivery, recentIssues: Array(21).fill(issue) }).success, false);
+  assert.equal(kbttDeliverySchema.safeParse({ ...delivery, state: "SUCCESS" }).success, false);
+  const queued = { status: "READY", providerCode: "LOCAL_QUEUED" };
+  assert.equal(isKbttDeclarationQueued(queued), true);
+  assert.equal(canSelectKbttDeclaration({ derivedStatus: "READY", declaration: queued }), false);
+  assert.equal(canSelectKbttDeclaration({ derivedStatus: "READY", declaration: { ...queued, providerCode: null } }), true);
+  assert.equal(isKbttDeclarationQueued({ ...queued, status: "SUBMITTED" }), false);
+});
 
-  // Must consume useKbttConnection and derive isConnected
-  assert.match(
-    pageSource,
-    /useKbttConnection\s*\(\s*hotelId\s*\)/,
-    "Must invoke useKbttConnection with hotelId",
-  );
-  assert.match(
-    pageSource,
-    /isConnected\s*=\s*connectionData\?\.status\s*===\s*"CONNECTED"/,
-    "Must derive isConnected from connection status",
-  );
-
-  // Countdown synchronization must reset/pause when not connected
-  assert.match(
-    pageSource,
-    /!IS_AUTO_SUBMIT_ENABLED\s*\|\|\s*!isConnected/,
-    "Countdown must reset when not connected",
-  );
-
-  // executeAutoSubmitNow must guard against execution when not connected
-  assert.match(
-    pageSource,
-    /const executeAutoSubmitNow = useCallback\(async \(\) => {[\s\S]*?if \(!isConnected \|\| !isListReady \|\| isSubmittingBatch\) return;/,
-    "executeAutoSubmitNow must stop while disconnected, fetching, failed or already submitting",
-  );
-
-  // Banner must render warning when not connected
-  assert.match(
-    pageSource,
-    /Chưa đăng nhập Cổng BCA/,
-    "Must render notice badge when not connected to BCA",
-  );
-  assert.match(
-    pageSource,
-    /Tự động gửi BCA đang tắt/,
-    "Must state auto-submit is turned off when not logged in",
-  );
+test("KBTT declarations page monitors local delivery and never drives automatic BCA writes", () => {
+  const pageSource = readFileSync(new URL("./components/kbtt-declarations-page.tsx", import.meta.url), "utf8");
+  const statusSource = readFileSync(new URL("./components/kbtt-delivery-status.tsx", import.meta.url), "utf8");
+  const resourceSource = readFileSync(new URL("./resources/kbtt-resource.ts", import.meta.url), "utf8");
+  assert.doesNotMatch(pageSource, /countdownSeconds|executeAutoSubmitNow|NEXT_PUBLIC_KBTT_AUTO_SUBMIT|sendBatchSummaryMutation/);
+  assert.match(pageSource, /refetchIntervalInBackground: false/);
+  assert.match(resourceSource, /declarations: defineQuery\(\{[\s\S]*?structuralSharing: false/);
+  assert.match(statusSource, /hasError \|\| !delivery/);
+  assert.match(statusSource, /!delivery.lifecycleEnabled/);
+  assert.match(statusSource, /Đồng bộ gia hạn và trả phòng đang tạm dừng/);
+  assert.doesNotMatch(statusSource, /showSuccessAlert|showErrorAlert|useMutation|fetch\(/);
+  assert.doesNotMatch(pageSource, /Bộ Công an đã tiếp nhận hồ sơ|Nộp khai báo thành công/);
 });
 
 test("T08B — KBTT daily movements contract, BFF route, query-resource, and section switch", () => {
@@ -943,3 +935,41 @@ test("T08B — KBTT daily movements contract, BFF route, query-resource, and sec
 });
 
 
+
+
+test("local validation failures are distinct from provider rejection and uncertain delivery", () => {
+  const row = { derivedStatus: "FAILED", declaration: { status: "FAILED", providerCode: "LOCAL_VALIDATION" } };
+  assert.equal(getKbttDeclarationDisplayStatus(row), "LOCAL_ERROR");
+  for (const providerCode of ["LOCAL_STATE_CHANGED","CONNECTION_SCOPE_CHANGED","DELIVERY_BUSY","RECONCILIATION_REQUIRED","LOCAL_PREPARATION","LOCAL_STAY_ENDED","DELIVERY_PAUSED"]) {
+    assert.equal(getKbttDeclarationDisplayStatus({ ...row, declaration: { ...row.declaration, providerCode } }), "LOCAL_ERROR");
+  }
+  assert.equal(getKbttDeclarationDisplayStatus({ ...row, declaration: { ...row.declaration, providerCode: "400" } }), "REJECTED");
+  assert.equal(getKbttDeclarationDisplayStatus({ ...row, declaration: { ...row.declaration, status: "UNKNOWN" } }), "UNKNOWN");
+  assert.equal(getKbttDeclarationDisplayStatus({ ...row, declaration: { ...row.declaration, status: "READY", providerCode: "LOCAL_QUEUED" } }), "QUEUED");
+  assert.equal(getKbttDeclarationDisplayStatus({ derivedStatus: "DRAFT", declaration: null }), "UNSENT");
+});
+
+
+test("catalog inference only adds fields accepted by the selected citizenship schema", () => {
+  const source = readFileSync(new URL("./components/kbtt-declarations-page.tsx", import.meta.url), "utf8");
+  for (const field of ["loaiGiayTo", "lyDoCuTru", "maTT", "maPX", "noiCuTru"]) {
+    assert.ok(source.includes('citizenshipKind === "VIETNAMESE" && baseFormData.' + field + ' === undefined &&'), field + " must stay domestic-only even when its disabled query has cached data");
+  }
+  assert.ok(source.includes('citizenshipKind === "FOREIGN" && baseFormData.quocTich === undefined &&'), "Nationality catalog must not add quocTich to the strict domestic draft");
+});
+
+
+test("draft payload keeps only the selected citizenship fields while retaining unknown keys for server validation", () => {
+  const mixed = { hoTen: "BCA DEMO", soGiayTo: "001090550510", loaiGiayTo: 1, lyDoCuTru: 1, diaChi: "Synthetic address", soDienThoai: "0900000000", quocTich: "USA", soHoChieu: "VSLD0511", loaiNgayThangNamSinh: "Y", thoiHanTamTruStr: "23:59:59 30/11/2026", unexpectedField: "invalid" };
+  const domestic = formatKbttDraftForProvider(mixed, "VIETNAMESE");
+  for (const key of ["quocTich", "soHoChieu", "loaiNgayThangNamSinh", "thoiHanTamTruStr"]) assert.equal(Object.hasOwn(domestic, key), false);
+  assert.equal(domestic.soGiayTo, mixed.soGiayTo);
+  const foreign = formatKbttDraftForProvider(mixed, "FOREIGN");
+  for (const key of ["soGiayTo", "loaiGiayTo", "lyDoCuTru", "diaChi", "soDienThoai"]) assert.equal(Object.hasOwn(foreign, key), false);
+  assert.equal(foreign.quocTich, "USA");
+  assert.equal(foreign.loaiNgayThangNamSinh, "Y");
+  assert.equal(foreign.thoiHanTamTruStr, "2026-11-30 23:59:59");
+  assert.equal(foreign.unexpectedField, "invalid");
+  assert.equal(domestic.unexpectedField, "invalid");
+  assert.equal(mixed.diaChi, "Synthetic address");
+});

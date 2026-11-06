@@ -9,6 +9,7 @@ import {
   kbttDailyMovementsQuerySchema,
   kbttDailyMovementsResponseSchema,
   kbttDeclarationListSchema,
+  kbttDeliverySchema,
   kbttDeclarationRecordSchema,
   kbttOccupantDeclarationDetailSchema,
   saveKbttDraftPayloadSchema,
@@ -24,6 +25,8 @@ import {
   type KbttDailyMovementsQuery,
   type KbttDailyMovementsResponse,
   type KbttDeclarationListItem,
+  type KbttPaginationQuery,
+  type KbttDelivery,
   type KbttDeclarationRecord,
   type KbttDevOccupantUpdateItem,
   type KbttOccupantDeclarationDetail,
@@ -35,6 +38,7 @@ export type PaginatedKbttDeclarations = KbttDeclarationListItem[] & {
   totalPages?: number;
   page?: number;
   limit?: number;
+  delivery?: KbttDelivery;
 };
 
 type DevResetResult = {
@@ -124,17 +128,25 @@ export const kbttRepository = {
   },
   async listDeclarations(
     hotelId: string,
-    params?: { page?: number; limit?: number },
+    params?: Partial<KbttPaginationQuery>,
     signal?: AbortSignal,
   ): Promise<PaginatedKbttDeclarations> {
     const page = params?.page ?? 1;
     const limit = params?.limit ?? 50;
-    const url = `${declarationsPath(hotelId)}?page=${page}&limit=${limit}`;
+    const query = new URLSearchParams({ page: String(page), limit: String(limit) });
+    if (params?.q?.trim()) query.set("q", params.q.trim());
+    if (params?.status) query.set("status", params.status);
+    if (params?.nationality) query.set("nationality", params.nationality);
+    if (params?.checkInDate) query.set("checkInDate", params.checkInDate);
+    const url = `${declarationsPath(hotelId)}?${query}`;
     const payload = await requestInternalApiEnvelope<unknown>(url, {
       method: "GET",
       signal,
     });
     const parsed = kbttDeclarationListSchema.parse(payload.data);
+    if ("delivery" in payload && payload.delivery !== undefined) {
+      Object.assign(parsed, { delivery: kbttDeliverySchema.parse(payload.delivery) });
+    }
     const total =
       "total" in payload && typeof payload.total === "number"
         ? payload.total

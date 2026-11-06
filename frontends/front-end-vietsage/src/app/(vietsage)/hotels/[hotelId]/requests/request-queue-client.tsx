@@ -10,7 +10,7 @@ import {
 } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useOwnerRequestRealtime } from "@/features/request-realtime/use-owner-request-realtime";
 import { invalidateHotelRequestRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
@@ -24,7 +24,7 @@ import {
   type DataTableSortDirection,
 } from "@/components/ui/data-table";
 import { HttpError } from "@/core/http/http-error";
-import { requestInternalApi } from "@/core/http/internal-api-client";
+import { useRequestQueueActions } from "@/features/hotel-ops/hooks/use-request-queue-actions";
 import type { GuestRequestStatus } from "@/features/guest-os/types/guest-os-contract";
 import type {
   HotelGuestRequest,
@@ -54,8 +54,6 @@ import { printMarketplaceVoucherTicket } from "@/features/marketplace/utils/prin
 import {
   SwalVietSage,
   showConfirmDialog,
-  showErrorAlert,
-  showSuccessAlert,
 } from "@/libs/swal";
 
 type RequestQueueLabels = {
@@ -477,13 +475,7 @@ export function RequestQueueClient({
     isLoading: isDetailLoading,
     error: detailError,
   } = useQuery({
-    ...requestQueueResource
-      .bind({
-        basePath:
-          ownerApiBasePath ||
-          `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/requests`,
-      })
-      .queries.detail.options({ requestId: activeDetailRequestId ?? "" }),
+    ...requestQueue.queries.detail.options({ requestId: activeDetailRequestId ?? "" }),
     enabled: Boolean(activeDetailRequestId),
   });
 
@@ -785,35 +777,11 @@ export function RequestQueueClient({
 
   }
 
-  const statusMutation = useMutation(
-    requestQueue.mutations.status.options({
-      onSuccess: ({ data: updated }) => {
-        syncUpdatedRequest(updated);
-        toast.success("Đã cập nhật trạng thái yêu cầu thành công");
-      },
-      onError: (error) => {
-        const message = getHttpErrorMessage(error, mergedLabels.operationError);
-        toast.error(message);
-      },
-    }),
+  const { status: statusMutation, acknowledgeOrder, cancelOrder } = useRequestQueueActions(
+    ownerApiBasePath || `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/requests`,
+    hotelId,
   );
-
-  const assignmentMutation = useMutation(
-    requestQueue.mutations.assignment.options({
-      onSuccess: ({ data: updated }) => {
-        syncUpdatedRequest(updated);
-        void showSuccessAlert(
-          "Đã cập nhật phân công",
-          "Phân công đã được cập nhật thành công.",
-        );
-      },
-      onError: (error) => {
-        const message = getHttpErrorMessage(error, mergedLabels.operationError);
-        void showErrorAlert("Không thể cập nhật phân công", message);
-      },
-    }),
-  );
-  const isMutating = statusMutation.isPending || assignmentMutation.isPending;
+  const isMutating = statusMutation.isPending;
 
   function updateFilter(key: string, value: string) {
     const nextFilters = { ...filters, [key]: value };
@@ -914,16 +882,11 @@ export function RequestQueueClient({
     if (!confirmation.isConfirmed) return;
 
     try {
-      const updated = await requestInternalApi<HotelGuestRequest>(
-        `${ownerApiBasePath}/${encodeURIComponent(targetRow.id)}/status`,
-        {
-          method: "PATCH",
-          body: {
-            status: meta.status,
-            note,
-          },
-        },
-      );
+      const updated = await statusMutation.mutateAsync({
+        requestId: targetRow.id,
+        status: meta.status,
+        note,
+      });
       syncUpdatedRequest(updated);
       toast.success(
         `Đã ${meta.label.toLowerCase()} yêu cầu phòng ${targetRow.roomNumber}`,
@@ -1202,16 +1165,10 @@ export function RequestQueueClient({
     if (!isConfirmed.isConfirmed) return;
 
     try {
-      await requestInternalApi(
-        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/local-partners/providers/orders/${encodeURIComponent(order.id)}/acknowledge`,
-        {
-          method: "POST",
-        },
-      );
+      await acknowledgeOrder.mutateAsync({ orderId: order.id });
       toast.success(
         `Đã tiếp nhận đơn dịch vụ #${order.orderNumber}! Mã phiếu dịch vụ đã tạo thành công.`,
       );
-      void externalOrdersQuery.refetch();
     } catch (error) {
       toast.error(getHttpErrorMessage(error, "Không thể tiếp nhận đơn hàng"));
     }
@@ -1244,14 +1201,8 @@ export function RequestQueueClient({
     if (!isConfirmed.isConfirmed) return;
 
     try {
-      await requestInternalApi(
-        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/local-partners/providers/orders/${encodeURIComponent(order.id)}/cancel`,
-        {
-          method: "POST",
-        },
-      );
+      await cancelOrder.mutateAsync({ orderId: order.id });
       toast.success(`Đã hủy đơn dịch vụ #${order.orderNumber}`);
-      void externalOrdersQuery.refetch();
     } catch (error) {
       toast.error(getHttpErrorMessage(error, "Không thể hủy đơn hàng"));
     }

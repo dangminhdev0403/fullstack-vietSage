@@ -5,7 +5,7 @@ import test from "node:test";
 import { calculateHousekeepingMetrics, buildHousekeepingTaskCards, buildHousekeepingRoomNotifications, getActiveHousekeepingRequests, normalizeStatus, getFloorName } from "../utils/housekeeping-helpers.ts";
 // @ts-expect-error Node strip-types requires explicit extension.
 import { buildWorkspaceNavigation, getWorkspaceDefinition, resolveWorkspacePersona } from "../../workspace/config/workspace-registry.ts";
-import type { HotelRoomSummary, HousekeepingTask, StaffRequestListItem } from "../types/housekeeping-contract";
+import type { ClaimedRoomInfo, HotelRoomSummary, HousekeepingTask, StaffRequestListItem } from "../types/housekeeping-contract";
 
 function makeTask(roomId: string, patch: Partial<HousekeepingTask> = {}): HousekeepingTask {
   return {
@@ -161,7 +161,7 @@ test("buildHousekeepingTaskCards maps room fields and applies status, floor, and
 test("room notifications contain only waiting rooms and prioritize urgent work before older normal tasks", () => {
   const rooms: HotelRoomSummary[] = [
     { id: "normal", roomNumber: "101", floor: "1", status: "PROCESSING" },
-    { id: "urgent-new", roomNumber: "202", floor: "2", status: "AVAILABLE" },
+    { id: "urgent-new", roomNumber: "202", floor: "2", status: "PROCESSING" },
     { id: "assigned", roomNumber: "103", floor: "1", status: "PROCESSING" },
     { id: "blocked", roomNumber: "104", floor: "1", status: "PROCESSING" },
     { id: "urgent-old", roomNumber: "305", floor: "3", status: "PROCESSING" },
@@ -184,6 +184,53 @@ test("room notifications contain only waiting rooms and prioritize urgent work b
   assert.equal(metrics.cleaningRoomsCount, 1);
   assert.equal(metrics.maintenanceRoomsCount, 1);
   assert.equal(metrics.cleanRoomsCount, 1);
+});
+
+test("physical room status excludes stale tasks and claims from cleaning counts and notifications", () => {
+  const roomStates = [
+    ["MAINTENANCE", "maintenance"], ["BLOCKED", "maintenance"],
+    ["OUT_OF_SERVICE", "maintenance"], ["OCCUPIED", "occupied"],
+    ["RESERVED", "reserved"], ["AVAILABLE", "available"],
+  ] as const;
+  for (const [status, expected] of roomStates) {
+    for (const taskStatus of ["QUEUED", "CLAIMED", "IN_PROGRESS", "BLOCKED"] as const) {
+      for (const claimed of [false, true]) {
+        const rooms = [{ id: "room-1", roomNumber: "101", status }];
+        const tasks = { "room-1": makeTask("room-1", { status: taskStatus }) };
+        const claims: Record<string, ClaimedRoomInfo> = claimed ? { "room-1": { staffId: "user-1", staffName: "A", claimedAt: "2026-11-06T00:00:00Z" } } : {};
+        const cards = buildHousekeepingTaskCards(rooms, claims, "user-1", [], { status: "all", floor: "all", search: "" }, tasks);
+        const metrics = calculateHousekeepingMetrics(rooms, claims, [], tasks);
+        const scenario = `${status}/${taskStatus}/claimed=${claimed}`;
+
+        assert.equal(cards[0].effectiveStatus, expected, scenario);
+        assert.equal(metrics.dirtyRoomsCount, 0, scenario);
+        assert.equal(metrics.cleaningRoomsCount, 0, scenario);
+        assert.equal(buildHousekeepingRoomNotifications(cards).length, 0, scenario);
+        assert.equal(buildHousekeepingTaskCards(rooms, claims, "user-1", [], { status: "processing", floor: "all", search: "" }, tasks).length, 0, scenario);
+      }
+    }
+  }
+});
+
+test("processing rooms retain queued, claimed, in-progress, and blocked task states", () => {
+  const rooms: HotelRoomSummary[] = [
+    { id: "queued", roomNumber: "101", status: "PROCESSING" },
+    { id: "claimed", roomNumber: "102", status: "PROCESSING" },
+    { id: "started", roomNumber: "103", status: "PROCESSING" },
+    { id: "blocked", roomNumber: "104", status: "PROCESSING" },
+  ];
+  const tasks = {
+    queued: makeTask("queued"), claimed: makeTask("claimed", { status: "CLAIMED" }),
+    started: makeTask("started", { status: "IN_PROGRESS" }), blocked: makeTask("blocked", { status: "BLOCKED" }),
+  };
+  const cards = buildHousekeepingTaskCards(rooms, {}, "user-1", [], { status: "all", floor: "all", search: "" }, tasks);
+  const metrics = calculateHousekeepingMetrics(rooms, {}, [], tasks);
+
+  assert.deepEqual(cards.map((card) => card.effectiveStatus), ["processing", "cleaning", "cleaning", "blocked"]);
+  assert.equal(metrics.dirtyRoomsCount, 3);
+  assert.equal(metrics.cleaningRoomsCount, 2);
+  assert.equal(metrics.maintenanceRoomsCount, 1);
+  assert.deepEqual(buildHousekeepingRoomNotifications(cards).map((card) => card.roomNumber), ["101"]);
 });
 
 test("active housekeeping requests retain accepted work until completion and exclude unrelated or closed requests", () => {

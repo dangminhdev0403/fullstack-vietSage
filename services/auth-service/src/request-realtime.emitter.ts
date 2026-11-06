@@ -426,9 +426,9 @@ export class RequestRealtimeEmitter {
       eventId,
       hotelId: input.hotelId,
       roomId: input.roomId,
-      roomNumber: input.roomNumber,
+      roomNumber: input.roomNumber ?? null,
       status: input.status,
-      previousStatus: input.previousStatus,
+      previousStatus: input.previousStatus ?? null,
       updatedAt: formattedUpdatedAt,
     };
 

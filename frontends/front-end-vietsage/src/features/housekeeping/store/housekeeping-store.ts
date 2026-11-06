@@ -185,6 +185,9 @@ export const useHousekeepingStore = create<HousekeepingState>()(
     {
       name: "vietsage-housekeeping-store",
       storage: createJSONStorage(() => safeStorage),
+      // Keep the first client render identical to the server render. The
+      // persisted filter is restored by HousekeepingWorkspace after mount.
+      skipHydration: true,
       merge: (persistedState, currentState) => {
         const persisted = persistedState as Partial<HousekeepingState> | undefined;
         return {

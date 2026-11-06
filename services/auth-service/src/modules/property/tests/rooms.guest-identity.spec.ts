@@ -1,3 +1,4 @@
+import { checkInReservationBodySchema } from "../domain/schemas/reservations.schema";
 import { createStayBodySchema } from "../domain/schemas/rooms.schema";
 import { HotelRoomsRepository } from "../infrastructure/repositories/hotel-rooms.repository";
 import { inferCitizenshipKind } from "../domain/infer-citizenship-kind";
@@ -294,4 +295,21 @@ describe("guest stay CCCD identity", () => {
     expect(parsed.occupants?.[0].dateOfBirth).toBe("1990-01-01");
     expect(parsed.occupants?.[1].dateOfBirth).toBe("2000-12-31");
   });
+  it.each(["31/02/1990", "1990-02-31", "29/02/1900", "1990-13-01", "abc1990", "not a date", "2999-01-01", "2999", "1899", "0000"])("rejects invalid or future DOB for all check-in guests: %s", (dateOfBirth) => {
+    expect(createStayBodySchema.safeParse({ ...stayInput, guestDateOfBirth: dateOfBirth }).success).toBe(false);
+    expect(createStayBodySchema.safeParse({ ...stayInput, occupants: [{ fullName: "Anna Eriksson", dateOfBirth }] }).success).toBe(false);
+    expect(checkInReservationBodySchema.safeParse({ guestDateOfBirth: dateOfBirth }).success).toBe(false);
+    expect(checkInReservationBodySchema.safeParse({ occupants: [{ fullName: "Anna Eriksson", dateOfBirth }] }).success).toBe(false);
+  });
+
+  it.each([["29/02/2000", "2000-02-29"], ["29022000", "2000-02-29"], ["20000229", "2000-02-29"], ["1990", "1990"]])("accepts valid DOB formats: %s", (value, expected) => {
+    expect(createStayBodySchema.parse({ ...stayInput, guestDateOfBirth: value }).guestDateOfBirth).toBe(expected);
+    expect(checkInReservationBodySchema.parse({ guestDateOfBirth: value }).guestDateOfBirth).toBe(expected);
+  });
+
+  it("keeps blank optional DOB absent", () => {
+    expect(createStayBodySchema.parse({ ...stayInput, guestDateOfBirth: " " }).guestDateOfBirth).toBeUndefined();
+    expect(checkInReservationBodySchema.parse({}).guestDateOfBirth).toBeUndefined();
+  });
+
 });

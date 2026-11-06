@@ -139,6 +139,93 @@ export class KbttRepository {
     }
   }
 
+  findQueuedInitialDeclarations(take = 100) {
+    return this.prisma.kbttGuestDeclaration.findMany({
+      where: { status: "READY", providerCode: "LOCAL_QUEUED",
+        hotel: { kbttConnection: { status: "CONNECTED" } } },
+      select: { hotelId: true, occupantId: true },
+      orderBy: [{ updatedAt: "asc" }, { id: "asc" }],
+      take,
+    });
+  }
+
+  async getDeliverySnapshot(hotelId: string, allowedRoomId: string | null) {
+    const [summary] = await this.prisma.$queryRaw<Array<{
+      pendingCount: number; sendingCount: number; reviewCount: number; lastSucceededAt: Date | null;
+      recentIssues: Array<{ id: string; kind: "INITIAL" | "EXTEND" | "CHECKOUT" | "RECOVER";
+        status: "FAILED" | "REJECTED" | "UNKNOWN" | "BLOCKED"; providerCode: string | null;
+        roomNumber: string; fullName: string; updatedAt: string }>;
+    }>>`WITH scoped_declarations AS (
+      SELECT d.*, o."fullName", r."roomNumber"
+      FROM "KbttGuestDeclaration" d
+      JOIN "GuestStay" s ON s.id = d."stayId"
+      JOIN "GuestStayOccupant" o ON o.id = d."occupantId"
+      JOIN "Room" r ON r.id = s."roomId"
+      WHERE d."hotelId" = ${hotelId} AND
+        (${allowedRoomId}::text IS NULL OR s."roomId" = ${allowedRoomId})
+    ), latest_declarations AS (
+      SELECT DISTINCT ON ("occupantId") * FROM scoped_declarations
+      ORDER BY "occupantId", revision DESC, "createdAt" DESC, id DESC
+    ), scoped_operations AS (
+      SELECT p.*, o."fullName", r."roomNumber"
+      FROM "KbttStayOperation" p
+      JOIN "GuestStay" s ON s.id = p."stayId"
+      JOIN "GuestStayOccupant" o ON o.id = p."occupantId"
+      JOIN "Room" r ON r.id = s."roomId"
+      WHERE p."hotelId" = ${hotelId} AND
+        (${allowedRoomId}::text IS NULL OR s."roomId" = ${allowedRoomId})
+    ), latest_operations AS (
+      SELECT DISTINCT ON (p."occupantId", p.kind) p.* FROM scoped_operations p
+      JOIN latest_declarations d ON d.id = p."declarationId"
+      ORDER BY p."occupantId", p.kind,
+        CASE WHEN p.status IN ('UNKNOWN', 'SENDING') THEN 0 ELSE 1 END,
+        p."createdAt" DESC, p.id DESC
+    ), current_operations AS (
+      SELECT p.* FROM latest_operations p WHERE p.status <> 'SUPERSEDED'
+      AND NOT EXISTS (SELECT 1 FROM latest_operations c WHERE c."occupantId" = p."occupantId"
+        AND c."declarationId" = p."declarationId" AND c.kind = 'CHECKOUT'
+        AND c.status = 'SUCCEEDED' AND p.kind <> 'CHECKOUT'
+        AND p.status NOT IN ('UNKNOWN', 'SENDING'))
+      AND NOT EXISTS (SELECT 1 FROM latest_operations c WHERE c."occupantId" = p."occupantId"
+        AND c."declarationId" = p."declarationId" AND c.kind = 'RECOVER'
+        AND c.status = 'SUCCEEDED' AND p.kind = 'EXTEND' AND p.status = 'REJECTED'
+        AND c."createdAt" >= p."createdAt" AND c."desiredDepartureAt" >= p."desiredDepartureAt")
+    ), issues AS (
+      SELECT id, 'INITIAL'::text AS kind, status::text, "providerCode", "roomNumber", "fullName", "updatedAt"
+      FROM latest_declarations WHERE status IN ('FAILED', 'UNKNOWN')
+      UNION ALL
+      SELECT id, kind::text, status::text, "providerCode", "roomNumber", "fullName", "updatedAt"
+      FROM current_operations WHERE status IN ('REJECTED', 'UNKNOWN', 'BLOCKED')
+    ) SELECT
+      ((SELECT count(*) FROM latest_declarations WHERE status = 'READY' AND "providerCode" = 'LOCAL_QUEUED') +
+       (SELECT count(*) FROM current_operations WHERE status = 'PENDING'))::int AS "pendingCount",
+      ((SELECT count(*) FROM latest_declarations WHERE status = 'SENDING') +
+       (SELECT count(*) FROM current_operations WHERE status = 'SENDING'))::int AS "sendingCount",
+      (SELECT count(*)::int FROM issues) AS "reviewCount",
+      (SELECT max(success.at) FROM (
+        SELECT "submittedAt" AS at FROM scoped_declarations WHERE status = 'SUBMITTED'
+        UNION ALL SELECT "resolvedAt" AS at FROM scoped_operations WHERE status = 'SUCCEEDED'
+      ) success) AS "lastSucceededAt",
+      COALESCE((SELECT jsonb_agg(to_jsonb(recent) ORDER BY recent."updatedAt" DESC, recent.id DESC)
+        FROM (SELECT * FROM issues ORDER BY "updatedAt" DESC, id DESC LIMIT 20) recent), '[]'::jsonb)
+        AS "recentIssues"`;
+    return summary;
+  }
+
+  findDeclarationForDispatch(hotelId: string, id: string) {
+    return this.prisma.kbttGuestDeclaration.findFirst({
+      where: { id, hotelId }, include: { stay: true },
+    });
+  }
+
+  async markInterruptedDeclarationsUnknown() {
+    await this.prisma.kbttGuestDeclaration.updateMany({
+      where: { status: "SENDING", updatedAt: { lt: new Date(Date.now() - 5 * 60_000) } },
+      data: { status: "UNKNOWN", version: { increment: 1 }, providerCode: "INTERRUPTED_DELIVERY",
+        providerMessage: "Lần gửi bị gián đoạn; cần đối soát trước khi gửi tiếp." },
+    });
+  }
+
   async findOccupantsByStay(hotelId: string, stayId: string) {
     try {
       return await this.prisma.guestStayOccupant.findMany({
@@ -462,7 +549,7 @@ export class KbttRepository {
           hotel: {
             kbttGuestDeclarations: {
               some: {
-                status: { in: ["FAILED", "UNKNOWN"] },
+                status: "FAILED",
                 stay: {
                   status: { in: ["ACTIVE", "CHECKED_IN", "CHECKOUT_PENDING"] },
                   checkedOutAt: null,

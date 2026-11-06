@@ -57,6 +57,10 @@ export const stayIdParamSchema = z.string().trim().min(1).max(128);
 export const kbttPaginationQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(50),
+  q: z.string().trim().max(200).optional(),
+  status: z.enum(["UNSENT", "QUEUED", "SUBMITTED", "LOCAL_ERROR", "REJECTED", "SENDING", "UNKNOWN", "CANCELLED"]).optional(),
+  nationality: z.enum(["VNM", "FOREIGN"]).optional(),
+  checkInDate: z.string().refine(isValidCalendarDate, "Ngày nhận phòng không hợp lệ.").optional(),
 });
 export type KbttPaginationQuery = z.infer<typeof kbttPaginationQuerySchema>;
 

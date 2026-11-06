@@ -62,14 +62,24 @@ Backend API
 - GET reads stored status only. Provider authentication/checks happen only after an explicit connect, check, or re-login action; no polling, background reconnect, or guest submission.
 - Read capability: `hotel.kbtt.view`; write capability: `hotel.kbtt.manage`. Navigation also accepts `hotel.dashboard.view` for active-session compatibility; this does not grant API access.
 - PUT accepts only username (trimmed, 1–120 characters) and password (1–256 characters, whitespace preserved). Password is never prefilled, persisted to browser storage, or returned; completed mutation variables are scrubbed.
+- Connection responses include the saved `username` for display and copying; `maskedUsername` remains for older clients. A missing or unreadable username is `null`; never display or copy the mask as the account. Passwords, tokens and encrypted credential fields are never returned.
 - Responses contain only the confirmed KBTT status/CSLT metadata contract. Unknown fields are stripped; provider errors are translated through an allowlist; BFF responses use `Cache-Control: no-store`.
 - Focused contract check: `node --test src/features/kbtt/kbtt-contract.test.mjs`.
 
 ## KBTT Declaration States
 
+- Declaration submit acknowledges a local queue entry: `READY` with `providerCode: LOCAL_QUEUED`. Render “Đã xếp hàng” and prevent duplicate queue actions; this response does not confirm BCA acceptance. The backend worker owns transmission and Telegram delivery summaries.
+- GET declarations optionally includes room-scoped `delivery` status with local queue counters and at most 20 recent issues, including departed stays. Preserve it through the BFF, validation, repository and query cache. The configured declarations tab refreshes this local GET while visible; it does not submit from a countdown or poll the provider. Missing or failed status reads never imply successful synchronization; `lifecycleEnabled: false` shows extension/checkout synchronization paused.
 - Declaration status preserves `DRAFT`, `READY`, `SENDING`, `SUBMITTED`, `FAILED`, `UNKNOWN`, and `CANCELLED`; derived status additionally supports `MISSING_PROFILE`. List and detail contracts must accept the same backend states without coercing failures into drafts or success.
 - Normal UI submission allows only missing profiles, drafts, ready declarations, or corrected failures. Public draft-save and submit operations reject `SENDING`, `UNKNOWN`, and `CANCELLED` with HTTP 409 / `KBTT_DECLARATION_LOCKED`, before changing data or contacting BCA. Unknown outcomes require reconciliation, not blind resubmission.
 - Loading, failed reads, empty pages, and empty filtered results never imply successful submission. Success banners describe only the loaded page and require every row on that page to be `SUBMITTED`; filters must not change that conclusion. Client submission pauses while list data is unavailable or refreshing.
+
+## Front desk validation and settlement
+
+- KBTT search/status/nationality/check-in-date filters are sent through the existing resource/repository/BFF to the local declarations endpoint; filtering precedes pagination and totals match the filtered set. Changing a filter resets page 1. LOCAL_VALIDATION renders “Cần sửa dữ liệu”, separately from a provider rejection.
+- Check-in validates entered document and birth-date values before confirmation and preserves values on error. Backend calendar/future-date validation also applies to primary/co-guests and reservation check-in. Year-only DOB remains YYYY locally and is mapped to BCA Y encoding only at the provider boundary; missing foreign residence validity is not filled from hotel departure.
+- Settlement uses the existing folio summary invoice balance once issued (including prior invoice payments); only a pre-invoice view estimates from deposits. It compares entered amount with loaded remaining balance before issuing an invoice. It passes optional expectedBalanceAmount to the invoice endpoint for authoritative transactional checking, then rechecks the returned balance before payment. A mismatch must not be reported as successful checkout.
+- Open room details resolve current room data after query invalidation. Extension UI requires a future departure later than the current one; the backend rejects shortening under its stay lock.
 
 ## Public LocalMate chat
 

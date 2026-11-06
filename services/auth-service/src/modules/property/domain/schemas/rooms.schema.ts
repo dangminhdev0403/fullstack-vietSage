@@ -1,5 +1,6 @@
 import { RoomQRCodeStatus, RoomStatus } from "@prisma/client";
 import { z } from "zod";
+import { todayYmd } from "../../../../common/time/vietnam-temporal";
 
 function preprocessRoomStatus(val: unknown): unknown {
   if (typeof val !== "string" || !val.trim()) return val;
@@ -14,54 +15,39 @@ function preprocessRoomStatus(val: unknown): unknown {
     return RoomStatus.AVAILABLE;
   if (upper === "DIRTY" || upper === "CHỜ DỌN" || upper === "CLEANING" || upper === "PROCESSING")
     return RoomStatus.PROCESSING;
-  if (
-    upper === "BẢO TRÌ" ||
-    upper === "MAINTENANCE" ||
-    upper === "KHÓA" ||
-    upper === "ĐÃ KHÓA" ||
-    upper === "BLOCKED"
-  )
+  if (upper === "BẢO TRÌ" || upper === "MAINTENANCE") return RoomStatus.MAINTENANCE;
+  if (upper === "KHÓA" || upper === "ĐÃ KHÓA" || upper === "BLOCKED")
     return RoomStatus.BLOCKED;
   if (upper === "OUT_OF_SERVICE") return RoomStatus.OUT_OF_SERVICE;
   return upper;
 }
 
 export function normalizeDateStringToIso(str?: string | null): string | undefined {
-  if (!str) return undefined;
-  const t = str.trim();
-  if (!t) return undefined;
-  if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t;
-
-  const isoMatch = /^(\d{4})-(\d{1,2})-(\d{1,2})(?:T.*)?$/.exec(t);
-  if (isoMatch) {
-    const [, y, m, d] = isoMatch;
-    return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+  const value = str?.trim();
+  if (!value) return undefined;
+  const candidates: string[] = [];
+  const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})(?:T.*)?$/.exec(value);
+  const dmy = /^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{4})$/.exec(value);
+  if (iso) candidates.push(`${iso[1]}-${iso[2].padStart(2, "0")}-${iso[3].padStart(2, "0")}`);
+  if (dmy) candidates.push(`${dmy[3]}-${dmy[2].padStart(2, "0")}-${dmy[1].padStart(2, "0")}`);
+  if (/^\d{8}$/.test(value)) {
+    candidates.push(`${value.slice(4)}-${value.slice(2, 4)}-${value.slice(0, 2)}`);
+    candidates.push(`${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6)}`);
   }
-
-  const cleaned = t.replace(/[.-]/g, "/").replace(/\/+/g, "/");
-  const dmyMatch = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(cleaned);
-  if (dmyMatch) {
-    const [, d, m, y] = dmyMatch;
-    return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
-  }
-
-  const digits = t.replace(/\D/g, "");
-  if (digits.length === 8) {
-    const d = digits.slice(0, 2);
-    const m = digits.slice(2, 4);
-    const y = digits.slice(4, 8);
-    return `${y}-${m}-${d}`;
-  }
-
-  if (/^\d{4}$/.test(digits)) {
-    const y = Number(digits);
-    if (y >= 1900 && y <= new Date().getFullYear()) {
-      return `${y}-01-01`;
-    }
-  }
-
-  return undefined;
+  return candidates.find((candidate) => z.string().date().safeParse(candidate).success);
 }
+
+export const birthDateSchema = z.string().trim().max(20, "Ngày sinh tối đa 20 ký tự")
+  .optional()
+  .transform((value) => value
+    ? (/^\d{4}$/.test(value) ? value : (normalizeDateStringToIso(value) ?? value))
+    : undefined)
+  .pipe(z.union([
+    z.string().date("Ngày sinh không hợp lệ"),
+    z.string().regex(/^\d{4}$/, "Năm sinh không hợp lệ").refine((value) => Number(value) >= 1900, "Năm sinh không hợp lệ"),
+  ])
+    .refine((value) => value <= (value.length === 4 ? todayYmd().slice(0, 4) : todayYmd()), "Ngày sinh không được ở tương lai")
+    .optional());
 
 export const roomStatusSchema = z.preprocess(
   preprocessRoomStatus,
@@ -256,12 +242,7 @@ export const stayOccupantInputSchema = z.object({
     .max(120, "Họ tên khách tối đa 120 ký tự"),
   phone: z.string().trim().max(40, "Số điện thoại tối đa 40 ký tự").optional(),
   identityNumber: identityNumberSchema.optional(),
-  dateOfBirth: z
-    .string()
-    .trim()
-    .max(20, "Ngày sinh tối đa 20 ký tự")
-    .optional()
-    .transform((v) => (v ? (normalizeDateStringToIso(v) ?? v) : v)),
+  dateOfBirth: birthDateSchema,
   gender: z.string().trim().max(20, "Giới tính tối đa 20 ký tự").optional(),
   nationality: z.string().trim().max(80, "Quốc tịch tối đa 80 ký tự").optional(),
   residencePlace: z.string().trim().max(500, "Địa chỉ tối đa 500 ký tự").optional(),
@@ -281,12 +262,7 @@ export const createStayBodySchema = z
       .max(120, "Tên khách hàng tối đa 120 ký tự"),
     guestPhone: z.string().trim().max(40, "Số điện thoại tối đa 40 ký tự").optional(),
     guestIdentityNumber: identityNumberSchema.optional(),
-    guestDateOfBirth: z
-      .string()
-      .trim()
-      .max(20, "Ngày sinh tối đa 20 ký tự")
-      .optional()
-      .transform((v) => (v ? (normalizeDateStringToIso(v) ?? v) : v)),
+    guestDateOfBirth: birthDateSchema,
     guestGender: z.string().trim().max(20, "Giới tính tối đa 20 ký tự").optional(),
     guestNationality: z.string().trim().max(80, "Quốc tịch tối đa 80 ký tự").optional(),
     guestResidencePlace: z.string().trim().max(500, "Địa chỉ tối đa 500 ký tự").optional(),

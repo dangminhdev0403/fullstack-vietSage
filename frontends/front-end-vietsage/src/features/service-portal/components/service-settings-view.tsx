@@ -24,7 +24,7 @@ const inputClass =
 const labelClass = "block text-xs sm:text-sm font-semibold text-[#3d4942] mb-1.5";
 
 export function ServiceSettingsView({ data }: Readonly<{ data: ServicePortalData }>) {
-  const { profile } = useServicePortal();
+  const { profile } = useServicePortal({ queries: [] });
   const [location, setLocation] = useState(() => locationFrom(data));
   const [isLocating, setIsLocating] = useState<boolean>(false);
 

@@ -118,6 +118,7 @@ export class FolioController {
           },
         },
         isEarlyDeparture: { type: "boolean" },
+        expectedBalanceAmount: { type: "number", minimum: 0, description: "Số dư còn phải thu được xác nhận; sai lệch sẽ hủy toàn bộ phát hành hóa đơn." },
         adjustments: {
           type: "array",
           items: {

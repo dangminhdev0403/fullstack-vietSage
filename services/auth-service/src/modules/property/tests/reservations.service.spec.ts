@@ -10,7 +10,8 @@ process.env.JWT_ACCESS_TTL = process.env.JWT_ACCESS_TTL || "15m";
 process.env.JWT_REFRESH_TTL = process.env.JWT_REFRESH_TTL || "30d";
 
 import { ConflictException, NotFoundException } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
+import { Prisma, RoomStatus } from "@prisma/client";
+import { RequestRealtimeEmitter } from "../../../request-realtime.emitter";
 import { ReservationsService } from "../application/reservations.service";
 
 function createRepository(overrides: Record<string, jest.Mock> = {}) {
@@ -1322,6 +1323,66 @@ describe("ReservationsService front-desk lifecycle", () => {
         service.getReservation("actor-1", "active-role", "hotel-1", "res-nonexistent"),
       ).rejects.toThrow(NotFoundException);
     });
+  });
+});
+
+describe("reservation realtime post-commit safety", () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it("keeps a committed check-in successful when the room reload fails", async () => {
+    const emit = jest.spyOn(RequestRealtimeEmitter, "emitRoomStatusUpdated").mockImplementation(() => {});
+    const findRoomStatusInHotel = jest.fn()
+      .mockResolvedValueOnce({ status: RoomStatus.RESERVED })
+      .mockRejectedValueOnce(new Error("post-commit room reload unavailable"));
+    const checkInReservation = jest.fn().mockResolvedValue({
+      idempotent: false,
+      reservation: { id: "reservation-1", status: "CHECKED_IN" },
+      stay: { id: "stay-1", roomId: "room-1", status: "ACTIVE" },
+      folio: { id: "folio-1", status: "OPEN" },
+    });
+    const { service } = createService(createRepository({ findRoomStatusInHotel, checkInReservation }));
+
+    await expect(service.checkIn("actor-1", "active-role", "hotel-1", "reservation-1"))
+      .resolves.toMatchObject({ stay: { id: "stay-1", status: "ACTIVE" }, idempotent: false });
+    expect(checkInReservation).toHaveBeenCalledTimes(1);
+    expect(findRoomStatusInHotel).toHaveBeenCalledTimes(2);
+    expect(emit).not.toHaveBeenCalled();
+  });
+
+  it("uses persisted status and timestamp while tolerating a failed realtime emit", async () => {
+    const updatedAt = new Date("2026-11-06T05:00:00.000Z");
+    const emit = jest.spyOn(RequestRealtimeEmitter, "emitRoomStatusUpdated")
+      .mockImplementation(() => { throw new Error("socket unavailable"); });
+    const result = { id: "reservation-1", roomId: "room-2" };
+    const { service } = createService(createRepository({
+      updateReservationPlacement: jest.fn().mockResolvedValue(result),
+      findRoomStatusInHotel: jest.fn().mockResolvedValue({
+        roomNumber: "202", status: RoomStatus.AVAILABLE, updatedAt,
+      }),
+    }));
+
+    await expect(service.updateReservationPlacement("actor-1", "active-role", "hotel-1", "reservation-1", {
+      targetRoomId: "room-2", expectedUpdatedAt: "2026-11-06T04:00:00.000Z",
+    })).resolves.toEqual(result);
+    expect(emit).toHaveBeenCalledWith({
+      hotelId: "hotel-1", roomId: "room-2", roomNumber: "202",
+      status: RoomStatus.AVAILABLE, previousStatus: RoomStatus.RESERVED, updatedAt,
+    });
+  });
+
+  it("does not hide a reservation mutation failure behind realtime protection", async () => {
+    const emit = jest.spyOn(RequestRealtimeEmitter, "emitRoomStatusUpdated").mockImplementation(() => {});
+    const findRoomStatusInHotel = jest.fn();
+    const conflict = new ConflictException("ROOM_NOT_AVAILABLE");
+    const { service } = createService(createRepository({
+      updateReservationPlacement: jest.fn().mockRejectedValue(conflict), findRoomStatusInHotel,
+    }));
+
+    await expect(service.updateReservationPlacement("actor-1", "active-role", "hotel-1", "reservation-1", {
+      targetRoomId: "room-2", expectedUpdatedAt: "2026-11-06T04:00:00.000Z",
+    })).rejects.toBe(conflict);
+    expect(findRoomStatusInHotel).not.toHaveBeenCalled();
+    expect(emit).not.toHaveBeenCalled();
   });
 });
 

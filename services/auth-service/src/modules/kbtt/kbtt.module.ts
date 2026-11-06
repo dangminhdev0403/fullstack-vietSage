@@ -8,6 +8,8 @@ import { KbttService } from "./application/kbtt.service";
 import { KbttCredentialCipher } from "./infrastructure/kbtt-credential-cipher";
 import { KbttProviderClient } from "./infrastructure/kbtt-provider.client";
 import { KbttRepository } from "./infrastructure/kbtt.repository";
+import { KbttStayRepository } from "./infrastructure/kbtt-stay.repository";
+import { KbttStaySyncService } from "./application/kbtt-stay-sync.service";
 
 @Module({
   imports: [PrismaModule, PropertyModule, NotificationsModule],
@@ -18,6 +20,8 @@ import { KbttRepository } from "./infrastructure/kbtt.repository";
     KbttCredentialCipher,
     KbttProviderClient,
     KbttAutoSubmitSchedulerService,
+    KbttStayRepository,
+    KbttStaySyncService,
   ],
 })
 export class KbttModule {}

@@ -10,6 +10,7 @@ import {
   BookingPaymentIntent,
   BookingPaymentMode,
   BookingPaymentStatus,
+  DomainEventStatus,
   FolioItemSourceType,
   FolioItemType,
   FolioStatus,
@@ -18,6 +19,9 @@ import {
   GuestRequestStatus,
   GuestSessionStatus,
   GuestStayStatus,
+  HousekeepingNotificationStatus,
+  HousekeepingTaskPriority,
+  HousekeepingTaskStatus,
   Invoice,
   InvoiceStatus,
   PaymentMethod,
@@ -47,6 +51,7 @@ import {
   VIETNAM_TIME_ZONE,
 } from "../../../common/time/vietnam-temporal";
 import { calculateReservationChargeTotal } from "../../../common/pricing/reservation-charge-total";
+import { RequestRealtimeEmitter, type HousekeepingTaskPayload } from "../../../request-realtime.emitter";
 import {
   CollectReceivableInput,
   CreateBookingPaymentInput,
@@ -180,6 +185,103 @@ export class BillingService {
   ) {
     this.eventPublisher = eventPublisher ?? NOOP_GUEST_REQUEST_EVENT_PUBLISHER;
     this.stayConversationCloser = this.eventPublisher;
+  }
+
+  private async emitRoomStatusUpdatedAfterCheckout(hotelId: string, roomId?: string | null) {
+    if (!roomId) return;
+    try {
+      const room = await this.prisma.room.findFirst({
+        where: { id: roomId, hotelId },
+        select: { roomNumber: true, status: true, updatedAt: true },
+      });
+      if (!room || room.status !== RoomStatus.PROCESSING) return;
+      RequestRealtimeEmitter.emitRoomStatusUpdated({
+        hotelId,
+        roomId,
+        roomNumber: room.roomNumber,
+        status: room.status,
+        previousStatus: RoomStatus.OCCUPIED,
+        updatedAt: room.updatedAt,
+      });
+    } catch {
+      // Realtime delivery must not fail a committed checkout.
+    }
+  }
+
+  private async ensureCheckoutHousekeepingTask(
+    tx: Prisma.TransactionClient,
+    input: { hotelId: string; roomId: string; stayId: string; actorUserId?: string },
+    createdTasks: HousekeepingTaskPayload[],
+  ) {
+    const existingTask = await tx.housekeepingTask.findFirst({
+      where: {
+        hotelId: input.hotelId,
+        roomId: input.roomId,
+        status: { in: [
+          HousekeepingTaskStatus.QUEUED,
+          HousekeepingTaskStatus.CLAIMED,
+          HousekeepingTaskStatus.IN_PROGRESS,
+          HousekeepingTaskStatus.BLOCKED,
+        ] },
+      },
+      select: { id: true },
+    });
+    if (existingTask) return;
+
+    const task = await tx.housekeepingTask.create({
+      data: {
+        hotelId: input.hotelId,
+        roomId: input.roomId,
+        stayId: input.stayId,
+        status: HousekeepingTaskStatus.QUEUED,
+        priority: HousekeepingTaskPriority.NORMAL,
+        notes: null,
+        version: 1,
+      },
+      include: { room: { select: { roomNumber: true } } },
+    });
+    await tx.housekeepingTaskHistory.create({
+      data: {
+        taskId: task.id,
+        fromStatus: null,
+        toStatus: HousekeepingTaskStatus.QUEUED,
+        actorUserId: input.actorUserId ?? null,
+        reason: "CHECKOUT",
+        notes: null,
+      },
+    });
+    await tx.housekeepingNotification.create({
+      data: {
+        hotelId: input.hotelId,
+        taskId: task.id,
+        title: "Yêu cầu dọn phòng mới",
+        message: `Phòng ${task.room.roomNumber} vừa check-out, cần dọn dẹp`,
+        status: HousekeepingNotificationStatus.UNREAD,
+      },
+    });
+    createdTasks.push({
+      hotelId: input.hotelId,
+      taskId: task.id,
+      roomId: task.roomId,
+      roomNumber: task.room.roomNumber,
+      status: task.status,
+      previousStatus: null,
+      priority: task.priority,
+      notes: task.notes,
+      reason: "CHECKOUT",
+      createdAt: task.createdAt,
+      updatedAt: task.updatedAt,
+    });
+  }
+
+  private emitCheckoutHousekeepingTasks(createdTasks: HousekeepingTaskPayload[]) {
+    for (const task of createdTasks) {
+      try {
+        RequestRealtimeEmitter.emitHousekeepingTaskCreated(task);
+      } catch {
+        // Durable task and notification were committed before realtime delivery.
+      }
+    }
   }
 
   async listFolios(
@@ -855,6 +957,7 @@ export class BillingService {
         cancelReason?: string;
       }>;
       isEarlyDeparture?: boolean;
+      expectedBalanceAmount?: number;
       adjustments?: Array<{
         clientRequestId: string;
         itemType: "MANUAL_CHARGE" | "DISCOUNT";
@@ -884,7 +987,7 @@ export class BillingService {
     const existingBeforeValidation = await this.prisma.invoice.findFirst({
       where: { hotelId, folioId },
     });
-    if (existingBeforeValidation) {
+    if (existingBeforeValidation && options?.expectedBalanceAmount === undefined) {
       if (options?.adjustments && options.adjustments.length > 0) {
         const existingItems = await this.prisma.folioItem.findMany({
           where: { hotelId, folioId, voidedAt: null },
@@ -916,7 +1019,8 @@ export class BillingService {
       return existingBeforeValidation;
     }
 
-    return this.prisma.$transaction(
+    const createdHousekeepingTasks: HousekeepingTaskPayload[] = [];
+    const issuedInvoice = await this.prisma.$transaction(
       async (tx) => {
         await tx.$queryRawUnsafe(
           'SELECT id FROM "Folio" WHERE id = $1 AND "hotelId" = $2 FOR UPDATE',
@@ -939,6 +1043,10 @@ export class BillingService {
 
         const existingInvoice = await tx.invoice.findFirst({ where: { hotelId, folioId } });
         if (existingInvoice) {
+          if (options?.expectedBalanceAmount !== undefined &&
+              !new Prisma.Decimal(existingInvoice.balanceAmount).equals(options.expectedBalanceAmount)) {
+            throw new ConflictException("CHECKOUT_BALANCE_CHANGED");
+          }
           if (options?.adjustments && options.adjustments.length > 0) {
             const existingItems = await tx.folioItem.findMany({
               where: { hotelId, folioId, voidedAt: null },
@@ -1081,7 +1189,13 @@ export class BillingService {
           invoice,
           folio,
           actorUserId,
+          createdHousekeepingTasks,
         );
+
+        if (options?.expectedBalanceAmount !== undefined &&
+            !new Prisma.Decimal(settledInvoice.balanceAmount).equals(options.expectedBalanceAmount)) {
+          throw new ConflictException("CHECKOUT_BALANCE_CHANGED");
+        }
 
         if (settledInvoice.status !== InvoiceStatus.PAID) {
           await tx.folio.update({
@@ -1114,6 +1228,15 @@ export class BillingService {
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
+
+    this.emitCheckoutHousekeepingTasks(createdHousekeepingTasks);
+    if (issuedInvoice.status === InvoiceStatus.PAID) {
+      await this.emitRoomStatusUpdatedAfterCheckout(
+        hotelId,
+        (issuedInvoice as { stay?: { roomId?: string | null } }).stay?.roomId,
+      );
+    }
+    return issuedInvoice;
   }
 
   private async applyBookingDepositsToInvoice(
@@ -1124,6 +1247,7 @@ export class BillingService {
       include: { room: true; stay: true; hotel: { select: { id: true; name: true } } };
     }>,
     actorUserId: string,
+    createdHousekeepingTasks: HousekeepingTaskPayload[],
   ): Promise<Invoice> {
     if (!tx.bookingPaymentAllocation || !tx.bookingPayment || !tx.payment) {
       return invoice;
@@ -1343,7 +1467,7 @@ export class BillingService {
       });
 
       if (isFull) {
-        await this.closeCheckoutEntities(tx, hotelId, updatedInvoice);
+        await this.closeCheckoutEntities(tx, hotelId, updatedInvoice, createdHousekeepingTasks, actorUserId);
       }
 
       return updatedInvoice;
@@ -1506,6 +1630,7 @@ export class BillingService {
         ? PaymentProvider.BANK_TRANSFER
         : PaymentProvider.MANUAL;
 
+    const createdHousekeepingTasks: HousekeepingTaskPayload[] = [];
     let result: {
       payment: any;
       invoice: any;
@@ -1636,7 +1761,7 @@ export class BillingService {
               },
             });
 
-            await this.closeCheckoutEntities(tx, hotelId, invoice);
+            await this.closeCheckoutEntities(tx, hotelId, invoice, createdHousekeepingTasks, actorUserId);
 
             return {
               payment,
@@ -1755,7 +1880,7 @@ export class BillingService {
                 paidByUserId: actorUserId,
               },
             });
-            await this.closeCheckoutEntities(tx, hotelId, invoice);
+            await this.closeCheckoutEntities(tx, hotelId, invoice, createdHousekeepingTasks, actorUserId);
             conversation = { hotelId, stayId: invoice.stayId, roomId: invoice.stay.roomId };
           } else {
             updatedInvoice = await tx.invoice.update({
@@ -1823,6 +1948,8 @@ export class BillingService {
     }
 
     if (result.conversation) {
+      this.emitCheckoutHousekeepingTasks(createdHousekeepingTasks);
+      await this.emitRoomStatusUpdatedAfterCheckout(hotelId, result.conversation.roomId);
       this.eventPublisher?.publishConversationClosed?.(result.conversation);
     }
 
@@ -1854,24 +1981,81 @@ export class BillingService {
     return fields.some((field) => field.includes("providerEventId"));
   }
 
+  private async closeStayWithEvent(
+    tx: Prisma.TransactionClient,
+    input: {
+      hotelId: string;
+      stayId: string;
+      roomId: string;
+      checkedOutAt: Date;
+      actorUserId?: string;
+    },
+  ) {
+    const transition = await tx.guestStay.updateMany({
+      where: {
+        id: input.stayId,
+        hotelId: input.hotelId,
+        status: { not: GuestStayStatus.CHECKED_OUT },
+      },
+      data: {
+        status: GuestStayStatus.CHECKED_OUT,
+        checkedOutAt: input.checkedOutAt,
+        accessCodeHash: null,
+        accessCodeExpiresAt: null,
+      },
+    });
+    if (transition.count !== 1) {
+      const stay = await tx.guestStay.findFirst({
+        where: { id: input.stayId, hotelId: input.hotelId },
+        select: { id: true },
+      });
+      if (!stay) throw new NotFoundException("Không tìm thấy lượt lưu trú trong khách sạn.");
+      return;
+    }
+
+    const hotel = await tx.hotel.findUniqueOrThrow({
+      where: { id: input.hotelId },
+      select: { tenantId: true },
+    });
+    await tx.domainEvent.create({
+      data: {
+        eventType: "GUEST_CHECKED_OUT",
+        aggregateType: "GuestStay",
+        aggregateId: input.stayId,
+        hotelId: input.hotelId,
+        tenantId: hotel.tenantId,
+        occurredAt: input.checkedOutAt,
+        payload: {
+          version: 1,
+          stayId: input.stayId,
+          roomId: input.roomId,
+          checkedOutAt: input.checkedOutAt.toISOString(),
+          ...(input.actorUserId ? { actorUserId: input.actorUserId } : {}),
+          closureReason: "CHECKOUT",
+        },
+        status: DomainEventStatus.PENDING,
+      },
+    });
+  }
+
   private async closeCheckoutEntities(
     tx: Prisma.TransactionClient,
     hotelId: string,
     invoice: { folioId: string; stayId: string; stay: { roomId: string } },
+    createdHousekeepingTasks: HousekeepingTaskPayload[],
+    actorUserId?: string,
   ) {
     await tx.folio.update({
       where: { id: invoice.folioId },
       data: { status: FolioStatus.CLOSED, closedAt: new Date() },
     });
     const checkedOutAt = new Date();
-    await tx.guestStay.update({
-      where: { id: invoice.stayId },
-      data: {
-        status: GuestStayStatus.CHECKED_OUT,
-        checkedOutAt,
-        accessCodeHash: null,
-        accessCodeExpiresAt: null,
-      },
+    await this.closeStayWithEvent(tx, {
+      hotelId,
+      stayId: invoice.stayId,
+      roomId: invoice.stay.roomId,
+      checkedOutAt,
+      actorUserId,
     });
     await tx.guestSession.updateMany({
       where: {
@@ -1909,6 +2093,10 @@ export class BillingService {
       if (!isAlreadyProcessed) {
         throw new ConflictException("ROOM_CHECKOUT_STATUS_CONFLICT");
       }
+    } else {
+      await this.ensureCheckoutHousekeepingTask(tx, {
+        hotelId, roomId: invoice.stay.roomId, stayId: invoice.stayId, actorUserId,
+      }, createdHousekeepingTasks);
     }
   }
 
@@ -1937,6 +2125,7 @@ export class BillingService {
       return { received: true, idempotent: true, matched: true, transaction: existing };
     }
 
+    const createdHousekeepingTasks: HousekeepingTaskPayload[] = [];
     try {
       const result = await this.prisma.$transaction(
         async (tx) => {
@@ -2064,14 +2253,12 @@ export class BillingService {
             data: { status: FolioStatus.CLOSED, closedAt: new Date() },
           });
           const checkedOutAt = new Date();
-          await tx.guestStay.update({
-            where: { id: lockedPayment.stayId },
-            data: {
-              status: GuestStayStatus.CHECKED_OUT,
-              checkedOutAt,
-              accessCodeHash: null,
-              accessCodeExpiresAt: null,
-            },
+          await this.closeStayWithEvent(tx, {
+            hotelId: lockedPayment.hotelId,
+            stayId: lockedPayment.stayId,
+            roomId: lockedPayment.invoice.stay.roomId,
+            checkedOutAt,
+            actorUserId: typeof body.actorUserId === "string" ? body.actorUserId : undefined,
           });
 
           await tx.guestSession.updateMany({
@@ -2115,6 +2302,14 @@ export class BillingService {
               throw new ConflictException("ROOM_CHECKOUT_STATUS_CONFLICT");
             }
           }
+          if (roomTransition.count === 1) {
+            await this.ensureCheckoutHousekeepingTask(tx, {
+              hotelId: lockedPayment.hotelId,
+              roomId: lockedPayment.invoice.stay.roomId,
+              stayId: lockedPayment.stayId,
+              actorUserId: typeof body.actorUserId === "string" ? body.actorUserId : undefined,
+            }, createdHousekeepingTasks);
+          }
           return {
             received: true,
             idempotent: false,
@@ -2132,6 +2327,11 @@ export class BillingService {
       );
       if ("conversation" in result) {
         if (result.conversation) {
+          this.emitCheckoutHousekeepingTasks(createdHousekeepingTasks);
+          await this.emitRoomStatusUpdatedAfterCheckout(
+            result.conversation.hotelId,
+            result.conversation.roomId,
+          );
           this.eventPublisher.publishConversationClosed(result.conversation);
         }
         return {
@@ -3467,6 +3667,7 @@ export class BillingService {
     );
 
     const now = new Date();
+    const createdHousekeepingTasks: HousekeepingTaskPayload[] = [];
     const result = await this.prisma.$transaction(
       async (tx) => {
         const lockedStayRows =
@@ -3660,14 +3861,12 @@ export class BillingService {
           data: { status: FolioStatus.CLOSED, closedAt: now },
         });
 
-        await tx.guestStay.update({
-          where: { id: stay.id },
-          data: {
-            status: GuestStayStatus.CHECKED_OUT,
-            checkedOutAt: now,
-            accessCodeHash: null,
-            accessCodeExpiresAt: null,
-          },
+        await this.closeStayWithEvent(tx, {
+          hotelId,
+          stayId: stay.id,
+          roomId: stay.roomId,
+          checkedOutAt: now,
+          actorUserId,
         });
 
         await tx.guestSession.updateMany({
@@ -3693,7 +3892,7 @@ export class BillingService {
         });
 
         if (stay.roomId) {
-          await tx.room.updateMany({
+          const roomTransition = await tx.room.updateMany({
             where: {
               id: stay.roomId,
               hotelId,
@@ -3701,6 +3900,11 @@ export class BillingService {
             },
             data: { status: RoomStatus.PROCESSING },
           });
+          if (roomTransition.count === 1) {
+            await this.ensureCheckoutHousekeepingTask(tx, {
+              hotelId, roomId: stay.roomId, stayId: stay.id, actorUserId,
+            }, createdHousekeepingTasks);
+          }
         }
 
         if ((tx as any).auditLog?.create) {
@@ -3737,6 +3941,17 @@ export class BillingService {
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
+
+    this.emitCheckoutHousekeepingTasks(createdHousekeepingTasks);
+    try {
+      const transferredStay = await this.prisma.guestStay.findFirst({
+        where: { id: stayId, hotelId },
+        select: { roomId: true },
+      });
+      await this.emitRoomStatusUpdatedAfterCheckout(hotelId, transferredStay?.roomId);
+    } catch {
+      // Realtime lookup must not fail a committed receivable transfer.
+    }
 
     try {
       await this.stayConversationCloser?.publishConversationClosed?.({

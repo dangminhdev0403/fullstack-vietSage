@@ -473,9 +473,7 @@ describe("ReservationsRepository transactional lifecycle", () => {
       },
       guestStay: {
         findMany: jest.fn().mockResolvedValue([pastOverdueStay]),
-        update: jest
-          .fn()
-          .mockResolvedValue({ ...pastOverdueStay, status: GuestStayStatus.CHECKED_OUT }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
         create: jest.fn().mockResolvedValue(newStay),
       },
       folio: {
@@ -502,12 +500,20 @@ describe("ReservationsRepository transactional lifecycle", () => {
     });
 
     expect(result.stay).toEqual(newStay);
-    expect(tx.guestStay.update).toHaveBeenCalledWith({
-      where: { id: "stay-past-overdue" },
+    expect(tx.guestStay.updateMany).toHaveBeenCalledWith({
+      where: { id: "stay-past-overdue", hotelId: "hotel-1", status: { in: expect.arrayContaining([
+        GuestStayStatus.ACTIVE, GuestStayStatus.CHECKED_IN, GuestStayStatus.CHECKOUT_PENDING,
+      ]) } },
       data: expect.objectContaining({
         status: GuestStayStatus.CHECKED_OUT,
       }),
     });
+    expect(tx.domainEvent.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        eventType: "GUEST_CHECKED_OUT", aggregateId: "stay-past-overdue",
+        payload: expect.objectContaining({ roomId: "room-1", closureReason: "OVERDUE_REPLACED" }),
+      }),
+    }));
     expect(tx.folio.updateMany).toHaveBeenCalledWith({
       where: {
         stayId: "stay-past-overdue",

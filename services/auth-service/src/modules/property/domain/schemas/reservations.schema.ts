@@ -1,7 +1,7 @@
 import { z } from "zod";
 import {
   identityNumberSchema,
-  normalizeDateStringToIso,
+  birthDateSchema,
   stayOccupantInputSchema,
 } from "./rooms.schema";
 
@@ -123,12 +123,7 @@ export const checkInReservationBodySchema = z
     guestDisplayName: z.string().trim().min(2).max(120).optional(),
     guestPhone: z.string().trim().max(40).optional(),
     guestIdentityNumber: identityNumberSchema.optional(),
-    guestDateOfBirth: z
-      .string()
-      .trim()
-      .max(20)
-      .transform((v) => (v ? (normalizeDateStringToIso(v) ?? v) : v))
-      .optional(),
+    guestDateOfBirth: birthDateSchema,
     guestGender: z.string().trim().max(20).optional(),
     guestNationality: z.string().trim().max(80).optional(),
     guestResidencePlace: z.string().trim().max(500).optional(),

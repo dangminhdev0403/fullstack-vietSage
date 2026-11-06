@@ -14,6 +14,7 @@ export const kbttCredentialsSchema = z
 export const kbttConnectionSchema = z.object({
   configured: z.boolean(),
   status: z.enum(["CONNECTED", "AUTH_FAILED", "DISCONNECTED"]),
+  username: z.string().nullable().default(null),
   maskedUsername: z.string().nullable(),
   csltId: z.string().nullable(),
   lastCheckedAt: z.string().nullable(),
@@ -71,6 +72,10 @@ export type KbttDerivedStatus = z.infer<typeof kbttDerivedStatusSchema>;
 export const kbttPaginationQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(50),
+  q: z.string().trim().max(200).optional(),
+  status: z.enum(["UNSENT", "QUEUED", "SUBMITTED", "LOCAL_ERROR", "REJECTED", "SENDING", "UNKNOWN", "CANCELLED"]).optional(),
+  nationality: z.enum(["VNM", "FOREIGN"]).optional(),
+  checkInDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 });
 export type KbttPaginationQuery = z.infer<typeof kbttPaginationQuerySchema>;
 
@@ -117,6 +122,39 @@ export type KbttDeclarationListItem = z.infer<
   typeof kbttDeclarationListItemSchema
 >;
 export const kbttDeclarationListSchema = z.array(kbttDeclarationListItemSchema);
+
+const KBTT_LOCAL_FAILURE_CODES = new Set(["LOCAL_VALIDATION","LOCAL_STATE_CHANGED","CONNECTION_SCOPE_CHANGED","DELIVERY_BUSY","RECONCILIATION_REQUIRED","LOCAL_PREPARATION","LOCAL_STAY_ENDED","DELIVERY_PAUSED"]);
+
+export function getKbttDeclarationDisplayStatus(
+  row: Pick<KbttDeclarationListItem, "declaration" | "derivedStatus">,
+): NonNullable<KbttPaginationQuery["status"]> {
+  const declaration = row.declaration;
+  const status = declaration?.status ?? row.derivedStatus;
+  if (isKbttDeclarationQueued(declaration)) return "QUEUED";
+  if (status === "FAILED") return KBTT_LOCAL_FAILURE_CODES.has(declaration?.providerCode ?? "") ? "LOCAL_ERROR" : "REJECTED";
+  if (status === "SUBMITTED" || status === "SENDING" || status === "UNKNOWN" || status === "CANCELLED") return status;
+  return "UNSENT";
+}
+
+export const kbttDeliverySchema = z.object({
+  mode: z.literal("BACKGROUND"),
+  state: z.enum(["RUNNING", "PAUSED", "NOT_CONFIGURED"]),
+  lifecycleEnabled: z.boolean(),
+  pendingCount: z.number().int().nonnegative(),
+  sendingCount: z.number().int().nonnegative(),
+  reviewCount: z.number().int().nonnegative(),
+  lastSucceededAt: z.string().nullable(),
+  recentIssues: z.array(z.object({
+    id: z.string(),
+    kind: z.enum(["INITIAL", "EXTEND", "CHECKOUT", "RECOVER"]),
+    status: z.enum(["FAILED", "REJECTED", "UNKNOWN", "BLOCKED"]),
+    roomNumber: z.string(),
+    fullName: z.string(),
+    message: z.string().nullable(),
+    updatedAt: z.string(),
+  })).max(20),
+});
+export type KbttDelivery = z.infer<typeof kbttDeliverySchema>;
 
 export const kbttOccupantDetailSchema = z.object({
   id: z.string(),
@@ -353,8 +391,15 @@ export function formatKbttDraftForDisplay(
 
 export function formatKbttDraftForProvider(
   data: Record<string, unknown>,
+  citizenshipKind?: CitizenshipKind,
 ): Record<string, unknown> {
   const formatted = { ...data };
+  const oppositeFields = citizenshipKind === "FOREIGN"
+    ? ["soGiayTo", "loaiGiayTo", "lyDoCuTru", "lyDoChiTiet", "soDienThoai", "diaChi", "maTT", "maPX", "noiCuTru", "ghiChu"]
+    : citizenshipKind === "VIETNAMESE"
+      ? ["quocTich", "soHoChieu", "loaiNgayThangNamSinh", "thoiHanTamTruStr"]
+      : [];
+  for (const field of oppositeFields) delete formatted[field];
   for (const field of KBTT_DATE_FIELDS) {
     const match =
       typeof formatted[field] === "string"
@@ -379,9 +424,17 @@ export type KbttTabKey =
   "vietnamese" | "foreign" | "needs_completion" | "submitted_or_error";
 
 export function canSelectKbttDeclaration(
-  row: Pick<KbttDeclarationListItem, "derivedStatus">,
+  row: Pick<KbttDeclarationListItem, "derivedStatus"> &
+    Partial<Pick<KbttDeclarationListItem, "declaration">>,
 ): boolean {
-  return ["MISSING_PROFILE", "DRAFT", "READY", "FAILED"].includes(row.derivedStatus);
+  return !isKbttDeclarationQueued(row.declaration) &&
+    ["MISSING_PROFILE", "DRAFT", "READY", "FAILED"].includes(row.derivedStatus);
+}
+
+export function isKbttDeclarationQueued(
+  declaration: Pick<KbttDeclarationSummary, "status" | "providerCode"> | null | undefined,
+): boolean {
+  return declaration?.status === "READY" && declaration.providerCode === "LOCAL_QUEUED";
 }
 
 export function getKbttListState(

@@ -10,10 +10,14 @@ import {
   UserRoleStatus,
 } from "@prisma/client";
 import { PrismaService } from "../../../../prisma/prisma.service";
+import { AppLogger } from "../../../../common/logging/app-logger.service";
+import { RequestRealtimeEmitter } from "../../../../request-realtime.emitter";
 import { hotelDetailInclude } from "./hotel-repository.types";
 
 @Injectable()
 export class HotelCoreRepository {
+  private readonly logger = new AppLogger();
+
   constructor(private readonly prisma: PrismaService) {}
   async findHousekeepingAssignment(userId: string, hotelId: string) {
     return this.prisma.hotelStaffAssignment.findFirst({
@@ -192,7 +196,7 @@ export class HotelCoreRepository {
     hotelId: string,
     options: { unlimited?: boolean; tenantIds?: string[] } = {},
   ): Promise<{ operationalResetCount: number; remainingResets: number }> {
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM "Hotel" WHERE id = ${hotelId} FOR UPDATE`;
       const currentHotel = await tx.hotel.findFirst({
         where: {
@@ -246,6 +250,7 @@ export class HotelCoreRepository {
       await tx.guestMessageThread.deleteMany({ where: { hotelId } });
 
       // 6. Delete KBTT declarations and auto submit runs
+      await tx.kbttStayOperation.deleteMany({ where: { hotelId } });
       await tx.kbttGuestDeclaration.deleteMany({ where: { hotelId } });
       await tx.kbttAutoSubmitRun.deleteMany({ where: { hotelId } });
 
@@ -271,6 +276,7 @@ export class HotelCoreRepository {
       await tx.biometricWorkstation.deleteMany({ where: { hotelId } });
 
       // 10. Delete Domain Events queued for this hotel
+      await tx.kbttStayEventReceipt.deleteMany({ where: { event: { hotelId } } });
       await tx.domainEvent.deleteMany({ where: { hotelId } });
 
       // 12. Delete Guest Sessions, Stays, and Occupants
@@ -289,6 +295,11 @@ export class HotelCoreRepository {
       // 14. Reset all Rooms to AVAILABLE status (keeping rooms and QR codes intact!)
       // BẢO TOÀN NGUYÊN VẸN: Không xoá phòng, không xoá QR Code, không đổi cấu hình phòng!
       // BẢO TOÀN NGUYÊN VẸN: Tuyệt đối không xoá tài khoản nhân viên, không xoá cấu hình phân công nhân viên!
+      await tx.$queryRaw`SELECT id FROM "Room" WHERE "hotelId" = ${hotelId} FOR UPDATE`;
+      const changedRooms = await tx.room.findMany({
+        where: { hotelId, status: { not: RoomStatus.AVAILABLE } },
+        select: { id: true, status: true },
+      });
       await tx.room.updateMany({
         where: { hotelId },
         data: { status: RoomStatus.AVAILABLE },
@@ -311,8 +322,42 @@ export class HotelCoreRepository {
       return {
         operationalResetCount: nextCount,
         remainingResets: Math.max(0, 2 - nextCount),
+        changedRooms,
       };
     });
+
+    // A notification failure must not turn a committed reset into a failed response.
+    if (result.changedRooms.length) {
+      try {
+        const rooms = await this.prisma.room.findMany({
+          where: { hotelId, id: { in: result.changedRooms.map((room) => room.id) } },
+          select: { id: true, roomNumber: true, status: true, updatedAt: true },
+        });
+        const previousStatuses = new Map(result.changedRooms.map((room) => [room.id, room.status]));
+        for (const room of rooms) {
+          try {
+            RequestRealtimeEmitter.emitRoomStatusUpdated({
+              hotelId,
+              roomId: room.id,
+              roomNumber: room.roomNumber,
+              status: room.status,
+              previousStatus: room.status === RoomStatus.AVAILABLE
+                ? previousStatuses.get(room.id)
+                : undefined,
+              updatedAt: room.updatedAt,
+            });
+          } catch (error) {
+            this.logger.warn(`[HotelCoreRepository] Reset room status emit failed: ${error}`);
+          }
+        }
+      } catch (error) {
+        this.logger.warn(`[HotelCoreRepository] Reset room status read failed: ${error}`);
+      }
+    }
+    return {
+      operationalResetCount: result.operationalResetCount,
+      remainingResets: result.remainingResets,
+    };
   }
 
   async findHotelFeatureEntitlements(hotelId: string) {

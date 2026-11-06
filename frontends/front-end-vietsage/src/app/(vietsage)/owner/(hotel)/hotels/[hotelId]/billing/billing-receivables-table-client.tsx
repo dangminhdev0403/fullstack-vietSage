@@ -318,7 +318,6 @@ function CollectReceivableModal({
 
   const [collectedAmount, setCollectedAmount] = useState<string>(String(outstanding));
   const [paymentMethod, setPaymentMethod] = useState<"CASH" | "BANK_TRANSFER" | "CARD">("BANK_TRANSFER");
-  const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -340,8 +339,6 @@ function CollectReceivableModal({
         amount: num,
         collectedAmount: num,
         paymentMethod,
-        referenceCode: reference.trim() || undefined,
-        reference: reference.trim() || undefined,
         notes: notes.trim() || undefined,
       });
 
@@ -438,19 +435,6 @@ function CollectReceivableModal({
                 <option value="CASH">💵 Tiền mặt (TM)</option>
                 <option value="CARD">💳 Quẹt thẻ (POS)</option>
               </select>
-            </div>
-
-            <div className="sm:col-span-2">
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Mã tham chiếu ngân hàng / Số biên lai
-              </label>
-              <input
-                type="text"
-                value={reference}
-                onChange={(e) => setReference(e.target.value)}
-                placeholder="VD: FT2429019283 / POS-0091"
-                className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-900 focus:border-blue-700 focus:outline-hidden"
-              />
             </div>
 
             <div className="sm:col-span-2">

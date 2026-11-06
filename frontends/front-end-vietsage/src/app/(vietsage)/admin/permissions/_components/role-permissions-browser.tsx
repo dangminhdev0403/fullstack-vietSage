@@ -1,9 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { HttpError } from "@/core/http/http-error";
-import { requestInternalApi } from "@/core/http/internal-api-client";
-import type { RbacRole } from "@/features/rbac/types/rbac-contract";
+import { useRolePermissions } from "@/features/rbac/queries/use-role-permissions";
 import { showConfirmDialog, showErrorAlert, showSuccessAlert } from "@/libs/swal";
 import { VsIcon } from "../../../_components/vs-icon";
 import type {
@@ -57,36 +56,6 @@ function getErrorMessage(payload: unknown, fallback: string): string {
   return fallback;
 }
 
-function parseRolePermissions(
-  payload: unknown,
-): RolePermissionsBrowserPermission[] {
-  if (!isRecord(payload) || !Array.isArray(payload.data)) {
-    throw new Error("Phản hồi danh sách quyền không đúng định dạng");
-  }
-  const mapped: RolePermissionsBrowserPermission[] = [];
-  for (const item of payload.data) {
-    if (!isRecord(item)) continue;
-    if (
-      typeof item.id !== "string" ||
-      typeof item.method !== "string" ||
-      typeof item.path !== "string"
-    ) {
-      continue;
-    }
-    const description =
-      typeof item.description === "string" && item.description.trim().length > 0
-        ? item.description.trim()
-        : "Quyền thao tác hệ thống";
-    mapped.push({
-      id: item.id,
-      method: item.method,
-      path: item.path,
-      description,
-    });
-  }
-  return mapped;
-}
-
 function formatDate(value: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "Không có";
@@ -97,62 +66,6 @@ function formatDate(value: string): string {
   }).format(date);
 }
 
-/* ────────────── BFF fetch helper (GET only) ────────────── */
-
-async function fetchRolePermissions(
-  roleId: string,
-): Promise<RolePermissionsBrowserPermission[]> {
-  try {
-    const permissions = await requestInternalApi<
-      RolePermissionsBrowserPermission[]
-    >(`/api/rbac/roles/${encodeURIComponent(roleId)}/capabilities`, {
-      method: "GET",
-    });
-    return parseRolePermissions({ data: permissions });
-  } catch (error) {
-    if (error instanceof HttpError) {
-      throw new Error(
-        getErrorMessage(error.data, "Không thể tải danh sách quyền của vai trò. Vui lòng thử lại sau."),
-      );
-    }
-    throw error;
-  }
-}
-
-async function createCustomRoleApi(body: {
-  code: string;
-  name: string;
-  description?: string | null;
-  baseRoleId: string;
-  permissionIds: string[];
-}): Promise<RbacRole> {
-  return requestInternalApi<RbacRole>("/api/rbac/roles", {
-    method: "POST",
-    body,
-  });
-}
-
-async function updateCustomRoleApi(
-  roleId: string,
-  body: {
-    name?: string;
-    description?: string | null;
-    baseRoleId?: string;
-    permissionIds?: string[];
-  },
-): Promise<RbacRole> {
-  return requestInternalApi<RbacRole>(`/api/rbac/roles/${encodeURIComponent(roleId)}`, {
-    method: "PATCH",
-    body,
-  });
-}
-
-async function deleteCustomRoleApi(roleId: string): Promise<{ deleted: boolean }> {
-  return requestInternalApi<{ deleted: boolean }>(`/api/rbac/roles/${encodeURIComponent(roleId)}`, {
-    method: "DELETE",
-  });
-}
-
 /* ────────────── URL sync helper ────────────── */
 
 function replaceUrlParams(roleId: string | null): void {
@@ -161,10 +74,6 @@ function replaceUrlParams(roleId: string | null): void {
   const url = `${window.location.pathname}?${params.toString()}`;
   window.history.replaceState(null, "", url);
 }
-
-type PermissionsByRoleId = Record<string, RolePermissionsBrowserPermission[]>;
-type LoadingByRoleId = Record<string, boolean>;
-type ErrorByRoleId = Record<string, string | null>;
 
 type RoleTab = "DEFAULT" | "CUSTOM";
 
@@ -222,72 +131,15 @@ export function RolePermissionsBrowser({
 
   const [detailTab, setDetailTab] = useState<DetailTab>("PERMISSIONS");
 
-  const [permissionsByRoleId, setPermissionsByRoleId] =
-    useState<PermissionsByRoleId>(initialPermissionsByRoleId);
-  const [loadingByRoleId, setLoadingByRoleId] = useState<LoadingByRoleId>({});
-  const [errorByRoleId, setErrorByRoleId] = useState<ErrorByRoleId>({});
-
+  const rolePermissions = useRolePermissions(selectedRoleId, initialPermissionsByRoleId);
+  const loadRolePermissions = rolePermissions.load;
   const selectedRole = currentRoles.find((r) => r.id === selectedRoleId) ?? null;
-
-  const selectedRolePermissions = useMemo(
-    () => (selectedRoleId ? (permissionsByRoleId[selectedRoleId] ?? []) : []),
-    [permissionsByRoleId, selectedRoleId],
-  );
-
-  const selectedRoleLoading = selectedRoleId
-    ? loadingByRoleId[selectedRoleId] === true
-    : false;
-  const selectedRoleError = selectedRoleId
-    ? (errorByRoleId[selectedRoleId] ?? null)
-    : null;
-
-  const selectedRoleTotalPermissions =
-    selectedRoleId && permissionsByRoleId[selectedRoleId]
-      ? selectedRolePermissions.length
-      : (selectedRole?.enabledCount ?? 0);
-
-  const loadingRef = useRef<Set<string>>(new Set());
-
-  const loadRolePermissions = useCallback(
-    async (roleId: string): Promise<RolePermissionsBrowserPermission[]> => {
-      if (permissionsByRoleId[roleId]) {
-        return permissionsByRoleId[roleId];
-      }
-      if (loadingRef.current.has(roleId)) {
-        return [];
-      }
-      loadingRef.current.add(roleId);
-      setLoadingByRoleId((prev) => ({ ...prev, [roleId]: true }));
-      setErrorByRoleId((prev) => ({ ...prev, [roleId]: null }));
-      try {
-        const permissions = await fetchRolePermissions(roleId);
-        setPermissionsByRoleId((prev) => ({ ...prev, [roleId]: permissions }));
-        return permissions;
-      } catch (error) {
-        const message =
-          error instanceof Error
-            ? error.message
-            : "Không tải được quyền của vai trò";
-        setErrorByRoleId((prev) => ({ ...prev, [roleId]: message }));
-        return [];
-      } finally {
-        loadingRef.current.delete(roleId);
-        setLoadingByRoleId((prev) => ({ ...prev, [roleId]: false }));
-      }
-    },
-    [permissionsByRoleId],
-  );
-
-  const didInitialLoad = useRef(false);
-  useEffect(() => {
-    if (didInitialLoad.current) return;
-    didInitialLoad.current = true;
-    if (selectedRoleId && !permissionsByRoleId[selectedRoleId]) {
-      queueMicrotask(() => {
-        void loadRolePermissions(selectedRoleId);
-      });
-    }
-  }, [loadRolePermissions, permissionsByRoleId, selectedRoleId]);
+  const selectedRolePermissions = rolePermissions.permissions.data ?? [];
+  const selectedRoleLoading = Boolean(selectedRoleId) && rolePermissions.permissions.isFetching;
+  const selectedRoleError = rolePermissions.permissions.error?.message ?? null;
+  const selectedRoleTotalPermissions = rolePermissions.permissions.data !== undefined
+    ? selectedRolePermissions.length
+    : (selectedRole?.enabledCount ?? 0);
 
   const handleSelectRole = useCallback(
     (roleId: string) => {
@@ -508,7 +360,7 @@ export function RolePermissionsBrowser({
 
     try {
       if (modalState.mode === "create") {
-        const created = await createCustomRoleApi({
+        const created = await rolePermissions.create.mutateAsync({
           code: trimmedCode,
           name: trimmedName,
           description: trimmedDesc.length > 0 ? trimmedDesc : null,
@@ -533,10 +385,7 @@ export function RolePermissionsBrowser({
         );
 
         setCurrentRoles((prev) => [...prev, newBrowserRole]);
-        setPermissionsByRoleId((prev) => ({
-          ...prev,
-          [newBrowserRole.id]: chosenPermissions,
-        }));
+        rolePermissions.set(newBrowserRole.id, chosenPermissions);
 
         setActiveRoleTab("CUSTOM");
         setSelectedRoleId(newBrowserRole.id);
@@ -546,12 +395,12 @@ export function RolePermissionsBrowser({
         void showSuccessAlert("Thành công", "Tạo vai trò tùy chỉnh thành công");
       } else {
         const roleId = modalState.roleId!;
-        const updated = await updateCustomRoleApi(roleId, {
+        const updated = await rolePermissions.update.mutateAsync({ roleId, body: {
           name: trimmedName,
           description: trimmedDesc.length > 0 ? trimmedDesc : null,
           baseRoleId: modalState.baseRoleId,
           permissionIds: selectedIds,
-        });
+        } });
 
         setCurrentRoles((prev) =>
           prev.map((r) =>
@@ -571,10 +420,7 @@ export function RolePermissionsBrowser({
           modalState.selectedPermissionIds.has(p.id),
         );
 
-        setPermissionsByRoleId((prev) => ({
-          ...prev,
-          [roleId]: chosenPermissions,
-        }));
+        rolePermissions.set(roleId, chosenPermissions);
 
         setModalState((prev) => ({ ...prev, isOpen: false, submitting: false }));
         void showSuccessAlert("Thành công", "Cập nhật vai trò tùy chỉnh thành công");
@@ -609,14 +455,10 @@ export function RolePermissionsBrowser({
     if (!result.isConfirmed) return;
 
     try {
-      await deleteCustomRoleApi(role.id);
+      await rolePermissions.remove.mutateAsync(role.id);
 
       setCurrentRoles((prev) => prev.filter((r) => r.id !== role.id));
-      setPermissionsByRoleId((prev) => {
-        const next = { ...prev };
-        delete next[role.id];
-        return next;
-      });
+      rolePermissions.removeCached(role.id);
 
       const remainingCustom = customRoles.filter((r) => r.id !== role.id);
       const nextSelectedId = remainingCustom[0]?.id ?? null;
@@ -910,12 +752,7 @@ export function RolePermissionsBrowser({
                 <button
                   type="button"
                   onClick={() => {
-                    setPermissionsByRoleId((prev) => {
-                      const next = { ...prev };
-                      delete next[selectedRoleId];
-                      return next;
-                    });
-                    void loadRolePermissions(selectedRoleId);
+                    void rolePermissions.permissions.refetch();
                   }}
                   className="flex min-h-11 items-center justify-center rounded-lg bg-red-600 px-4 font-semibold text-white transition hover:bg-red-700"
                 >

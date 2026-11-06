@@ -9,17 +9,21 @@
       "coverVersion": "1.5",
       "coverDate": "2026-10",
       "pages": 23,
-      "sha256": "fee9fcd523e7e963326cc93e94fe26f0c9e68b4ac42d7fd60eb4000cdc24d195"
-    }
+      "sha256": "ac02fc97c8e48b7f62d28e91570d73fa9ecfc9de95cfc737ae6b6b0e7a8ec8f2"
+    },
+    "x-integration-notes": [
+      "The supplied GET endpoints expose reference catalogs only; no declaration lookup endpoint or provider idempotency key is documented.",
+      "The provider document defines no 30-minute declaration TTL. Disappearance from a website list does not establish declaration deletion or checkout."
+    ]
   },
   "servers": [
     {
-      "url": "https://api-tbltkbtt.bocongan.gov.vn",
-      "description": "Production"
+      "url": "https://api-kbtt.ai-vlab.com",
+      "description": "Provider demo (default)"
     },
     {
-      "url": "https://api-kbtt.ai-vlab.com",
-      "description": "Provider demo"
+      "url": "https://api-tbltkbtt.bocongan.gov.vn",
+      "description": "Production reference (explicit user authorization required)"
     }
   ],
   "tags": [
@@ -492,8 +496,7 @@
               }
             }
           }
-        },
-        "x-source-ambiguity": "Section endpoint uses /kbtt-vn/... while its curl example uses /kbtt/...; this normalization follows the section endpoint and requires provider confirmation before production."
+        }
       }
     },
     "/client-service/kbtt/kbtt-3th/doi-ngay-tra-phong": {
@@ -1008,7 +1011,8 @@
             "maximum": 8
           },
           "thoiGianStr": {
-            "$ref": "#/components/schemas/LocalDateTime"
+            "$ref": "#/components/schemas/LocalDateTime",
+            "description": "New expected departure for GH; must be strictly later than the departure currently registered with the provider."
           }
         },
         "allOf": [
@@ -1032,6 +1036,7 @@
         ],
         "x-validation-notes": [
           "No duplicate document numbers in one request.",
+          "For GH, thoiGianStr must be strictly later than the departure currently registered with the provider.",
           "For GH, the new date cannot exceed 30 days from arrival.",
           "Document-number rules match DomesticGuestDeclaration."
         ]
@@ -1247,11 +1252,11 @@
           },
           "thoiGianStr": {
             "$ref": "#/components/schemas/LocalDateTime",
-            "description": "New expected departure date (required for GH)."
+            "description": "New expected departure date, required for GH and strictly later than the departure currently registered with the provider."
           },
           "thoiHanTamTruVnStr": {
             "$ref": "#/components/schemas/LocalDateTime",
-            "description": "Temporary residence duration in Vietnam (for Visa extension)."
+            "description": "Temporary residence duration in Vietnam (YYYY-MM-DD HH:mm:ss). For GH this is required when the existing provider declaration has no temporary-residence duration in Vietnam; otherwise omission retains the existing value."
           }
         },
         "allOf": [
@@ -1272,6 +1277,10 @@
               ]
             }
           }
+        ],
+        "x-validation-notes": [
+          "For GH, thoiGianStr must be strictly later than the departure currently registered with the provider.",
+          "For GH, thoiHanTamTruVnStr is conditionally required when the existing provider declaration has no temporary-residence duration in Vietnam. This depends on provider state and cannot be expressed solely from the request body."
         ]
       }
     }

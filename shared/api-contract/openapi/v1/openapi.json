@@ -7284,7 +7284,7 @@
           },
           {
             "name": "to",
-            "required": false,
+            "required": true,
             "in": "query",
             "schema": {
               "type": "string"
@@ -7292,7 +7292,7 @@
           },
           {
             "name": "from",
-            "required": false,
+            "required": true,
             "in": "query",
             "schema": {
               "type": "string"
@@ -8501,7 +8501,7 @@
           },
           {
             "name": "to",
-            "required": false,
+            "required": true,
             "in": "query",
             "schema": {
               "type": "string"
@@ -8509,7 +8509,7 @@
           },
           {
             "name": "from",
-            "required": false,
+            "required": true,
             "in": "query",
             "schema": {
               "type": "string"
@@ -8640,6 +8640,66 @@
             }
           }
         },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "hotel-reservations"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/reservations/{reservationId}": {
+      "patch": {
+        "operationId": "ReservationsController_updateReservation",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "reservationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "hotel-reservations"
+        ]
+      },
+      "get": {
+        "operationId": "ReservationsController_getReservation",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "reservationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -9811,6 +9871,76 @@
         ]
       }
     },
+    "/hotels/{hotelId}/staff-assignments/{userId}/housekeeping-scope": {
+      "put": {
+        "operationId": "HotelStaffAssignmentsController_updateHousekeepingScope",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "mode"
+                ],
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "ALL",
+                      "FLOORS",
+                      "ROOMS"
+                    ]
+                  },
+                  "floors": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "roomIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "label": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Phân công buồng phòng đã lưu"
+          }
+        },
+        "tags": [
+          "hotel-staff"
+        ]
+      }
+    },
     "/hotels/{hotelId}/staff-assignments": {
       "get": {
         "operationId": "HotelStaffAssignmentsController_list",
@@ -9924,6 +10054,42 @@
                                 "type": "string",
                                 "nullable": true
                               },
+                              "housekeepingScope": {
+                                "type": "object",
+                                "nullable": true,
+                                "properties": {
+                                  "mode": {
+                                    "type": "string",
+                                    "enum": [
+                                      "ALL",
+                                      "FLOORS",
+                                      "ROOMS"
+                                    ]
+                                  },
+                                  "floors": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "roomIds": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "label": {
+                                    "type": "string",
+                                    "nullable": true
+                                  }
+                                },
+                                "required": [
+                                  "mode",
+                                  "floors",
+                                  "roomIds",
+                                  "label"
+                                ]
+                              },
                               "user": {
                                 "type": "object",
                                 "properties": {
@@ -9990,42 +10156,6 @@
                                   "roomId",
                                   "roomNumber",
                                   "assignedAt"
-                                ]
-                              },
-                              "housekeepingScope": {
-                                "type": "object",
-                                "nullable": true,
-                                "properties": {
-                                  "mode": {
-                                    "type": "string",
-                                    "enum": [
-                                      "ALL",
-                                      "FLOORS",
-                                      "ROOMS"
-                                    ]
-                                  },
-                                  "floors": {
-                                    "type": "array",
-                                    "items": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "roomIds": {
-                                    "type": "array",
-                                    "items": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "label": {
-                                    "type": "string",
-                                    "nullable": true
-                                  }
-                                },
-                                "required": [
-                                  "mode",
-                                  "floors",
-                                  "roomIds",
-                                  "label"
                                 ]
                               }
                             },
@@ -10146,6 +10276,42 @@
                           "type": "string",
                           "nullable": true
                         },
+                        "housekeepingScope": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "mode": {
+                              "type": "string",
+                              "enum": [
+                                "ALL",
+                                "FLOORS",
+                                "ROOMS"
+                              ]
+                            },
+                            "floors": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "roomIds": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "label": {
+                              "type": "string",
+                              "nullable": true
+                            }
+                          },
+                          "required": [
+                            "mode",
+                            "floors",
+                            "roomIds",
+                            "label"
+                          ]
+                        },
                         "user": {
                           "type": "object",
                           "properties": {
@@ -10212,42 +10378,6 @@
                             "roomId",
                             "roomNumber",
                             "assignedAt"
-                          ]
-                        },
-                        "housekeepingScope": {
-                          "type": "object",
-                          "nullable": true,
-                          "properties": {
-                            "mode": {
-                              "type": "string",
-                              "enum": [
-                                "ALL",
-                                "FLOORS",
-                                "ROOMS"
-                              ]
-                            },
-                            "floors": {
-                              "type": "array",
-                              "items": {
-                                "type": "string"
-                              }
-                            },
-                            "roomIds": {
-                              "type": "array",
-                              "items": {
-                                "type": "string"
-                              }
-                            },
-                            "label": {
-                              "type": "string",
-                              "nullable": true
-                            }
-                          },
-                          "required": [
-                            "mode",
-                            "floors",
-                            "roomIds",
-                            "label"
                           ]
                         }
                       },
@@ -10691,6 +10821,11 @@
                   },
                   "isEarlyDeparture": {
                     "type": "boolean"
+                  },
+                  "expectedBalanceAmount": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "Số dư còn phải thu được xác nhận; sai lệch sẽ hủy toàn bộ phát hành hóa đơn."
                   },
                   "adjustments": {
                     "type": "array",
@@ -14718,7 +14853,7 @@
           }
         },
         "tags": [
-          "StripeWebhook"
+          "stripe-webhook"
         ]
       }
     },
@@ -14732,7 +14867,7 @@
           }
         },
         "tags": [
-          "StripeWebhook"
+          "stripe-webhook"
         ]
       }
     },
@@ -16279,6 +16414,73 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "checkInDate",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "name": "nationality",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "VNM",
+                "FOREIGN"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "UNSENT",
+                "QUEUED",
+                "SUBMITTED",
+                "LOCAL_ERROR",
+                "REJECTED",
+                "SENDING",
+                "UNKNOWN",
+                "CANCELLED"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 200,
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "type": "number"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "type": "number"
+            }
           }
         ],
         "responses": {
@@ -16303,7 +16505,7 @@
             "bearer": []
           }
         ],
-        "summary": "List active occupants combined with KBTT declaration status",
+        "summary": "List active occupants and local background delivery status",
         "tags": [
           "hotel-kbtt"
         ]
@@ -16450,7 +16652,7 @@
             "bearer": []
           }
         ],
-        "summary": "Submit validated declaration to KBTT provider (API 4/5)",
+        "summary": "Queue validated declaration for background BCA delivery",
         "tags": [
           "hotel-kbtt"
         ]
@@ -18575,6 +18777,83 @@
         ]
       }
     },
+    "/hotels/{hotelId}/housekeeping/scope": {
+      "get": {
+        "operationId": "HousekeepingController_getScope",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Phạm vi buồng phòng hiệu lực"
+          }
+        },
+        "tags": [
+          "housekeeping"
+        ]
+      }
+    },
+    "/hotels/housekeeping/rooms/by-qr/{qrCode}": {
+      "get": {
+        "operationId": "HousekeepingController_getRoomByQr",
+        "parameters": [
+          {
+            "name": "qrCode",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Trạng thái phòng"
+          }
+        },
+        "tags": [
+          "housekeeping"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/housekeeping/rooms/{roomId}": {
+      "get": {
+        "operationId": "HousekeepingController_getRoom",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "roomId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Trạng thái phòng"
+          }
+        },
+        "tags": [
+          "housekeeping"
+        ]
+      }
+    },
     "/hotels/{hotelId}/housekeeping/tasks": {
       "get": {
         "operationId": "HousekeepingController_listTasks",
@@ -19059,153 +19338,6 @@
         "responses": {
           "200": {
             "description": "Đã đánh dấu thông báo đã đọc"
-          }
-        },
-        "tags": [
-          "housekeeping"
-        ]
-      }
-    },
-    "/hotels/{hotelId}/staff-assignments/{userId}/housekeeping-scope": {
-      "put": {
-        "operationId": "HotelStaffAssignmentsController_updateHousekeepingScope",
-        "parameters": [
-          {
-            "name": "hotelId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "userId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "mode"
-                ],
-                "properties": {
-                  "mode": {
-                    "type": "string",
-                    "enum": [
-                      "ALL",
-                      "FLOORS",
-                      "ROOMS"
-                    ]
-                  },
-                  "floors": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  },
-                  "roomIds": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  },
-                  "label": {
-                    "type": "string",
-                    "nullable": true
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Phân công buồng phòng đã lưu"
-          }
-        },
-        "tags": [
-          "hotel-staff"
-        ]
-      }
-    },
-    "/hotels/{hotelId}/housekeeping/scope": {
-      "get": {
-        "operationId": "HousekeepingController_getScope",
-        "parameters": [
-          {
-            "name": "hotelId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Phạm vi buồng phòng hiệu lực"
-          }
-        },
-        "tags": [
-          "housekeeping"
-        ]
-      }
-    },
-    "/hotels/housekeeping/rooms/by-qr/{qrCode}": {
-      "get": {
-        "operationId": "HousekeepingController_getRoomByQr",
-        "parameters": [
-          {
-            "name": "qrCode",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Trạng thái phòng"
-          }
-        },
-        "tags": [
-          "housekeeping"
-        ]
-      }
-    },
-    "/hotels/{hotelId}/housekeeping/rooms/{roomId}": {
-      "get": {
-        "operationId": "HousekeepingController_getRoom",
-        "parameters": [
-          {
-            "name": "hotelId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "roomId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Trạng thái phòng"
           }
         },
         "tags": [

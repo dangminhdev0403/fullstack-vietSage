@@ -1,14 +1,10 @@
 "use client";
 
 import { type FormEvent, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { HttpError } from "@/core/http/http-error";
-import {
-  requestInternalApi,
-  requestInternalApiEnvelope,
-} from "@/core/http/internal-api-client";
+import { useServiceCatalog } from "@/features/hotel-ops/hooks/use-service-catalog";
 import type {
   HotelServiceCategory,
   HotelServiceItem,
@@ -43,7 +39,6 @@ type SortState<TKey extends string> = {
   direction: SortDirection;
 };
 type PageSize = 10 | 25 | 50;
-type CatalogPage<TItem> = { items: TItem[] };
 
 type BaseLocale = "vi";
 type TranslationLocale = "en" | "zh" | "ko" | "ru" | "hi";
@@ -527,12 +522,11 @@ export function OwnerServiceCatalogClient({
   hasGoogleSheetConfig,
   canManage = true,
 }: Props) {
-  const router = useRouter();
   const previewMutation = useOwnerServiceCatalogPreview(hotelId);
   const commitMutation = useOwnerServiceCatalogCommit(hotelId);
   const [tab, setTab] = useState<"categories" | "items">("categories");
-  const [categories, setCategories] = useState(initialCategories);
-  const [items, setItems] = useState(initialItems);
+  const catalog = useServiceCatalog({ hotelId, surface: "owner" }, initialCategories, initialItems);
+  const { categories, items } = catalog;
   const [query, setQuery] = useState("");
   const [categoryForm, setCategoryForm] = useState<CategoryFormState | null>(
     null,
@@ -1028,24 +1022,8 @@ export function OwnerServiceCatalogClient({
         status: categoryForm.status,
         translations: translationsFromForm(categoryForm.translations),
       };
-      const path = categoryForm.id
-        ? `/api/owner/hotels/${encodeURIComponent(hotelId)}/service-categories/${encodeURIComponent(categoryForm.id)}`
-        : `/api/owner/hotels/${encodeURIComponent(hotelId)}/service-categories`;
-      const saved = (
-        await requestInternalApiEnvelope<HotelServiceCategory>(path, {
-          method: categoryForm.id ? "PATCH" : "POST",
-          body,
-        })
-      ).data;
-
-      setCategories((current) =>
-        current.some((category) => category.id === saved.id)
-          ? current.map((category) =>
-              category.id === saved.id ? saved : category,
-            )
-          : [saved, ...current],
-      );
-      setItems((current) =>
+      const saved = await catalog.saveCategory.mutateAsync({ id: categoryForm.id, input: body });
+      catalog.updateItems((current) =>
         syncItemsForCategoryUpdate(
           current,
           saved,
@@ -1068,20 +1046,7 @@ export function OwnerServiceCatalogClient({
   }
 
   async function refreshServiceCatalog() {
-    const encodedHotelId = encodeURIComponent(hotelId);
-    const [categoriesPage, itemsPage] = await Promise.all([
-      requestInternalApi<CatalogPage<HotelServiceCategory>>(
-        `/api/owner/hotels/${encodedHotelId}/service-categories`,
-        { method: "GET" },
-      ),
-      requestInternalApi<CatalogPage<HotelServiceItem>>(
-        `/api/owner/hotels/${encodedHotelId}/service-items`,
-        { method: "GET" },
-      ),
-    ]);
-
-    setCategories(categoriesPage.items);
-    setItems(itemsPage.items);
+    await catalog.refresh();
     setCategoryPage(1);
     setItemPage(1);
   }
@@ -1235,21 +1200,7 @@ export function OwnerServiceCatalogClient({
         status: itemForm.status,
         translations: translationsFromForm(itemForm.translations),
       };
-      const path = itemForm.id
-        ? `/api/owner/hotels/${encodeURIComponent(hotelId)}/service-items/${encodeURIComponent(itemForm.id)}`
-        : `/api/owner/hotels/${encodeURIComponent(hotelId)}/service-items`;
-      const saved = (
-        await requestInternalApiEnvelope<HotelServiceItem>(path, {
-          method: itemForm.id ? "PATCH" : "POST",
-          body,
-        })
-      ).data;
-
-      setItems((current) =>
-        current.some((item) => item.id === saved.id)
-          ? current.map((item) => (item.id === saved.id ? saved : item))
-          : [saved, ...current],
-      );
+      const saved = await catalog.saveItem.mutateAsync({ id: itemForm.id, input: body });
       setItemForm(null);
       await showSuccessAlert(
         "Đã lưu dịch vụ",

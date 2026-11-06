@@ -12,6 +12,8 @@ export const localPartnersResource = createResource<{ hotelId: string }>()({
     categories: defineQuery({ inputKey: () => [], queryFn: ({ scope, signal }) => localPartnersRepository.categories(scope.hotelId, signal) }),
   },
   mutations: {
+    acknowledgeOrder: defineMutation({ mutationFn: ({ scope, variables }: { scope: { hotelId: string }; variables: { orderId: string } }) => localPartnersRepository.acknowledgeOrder(scope.hotelId, variables.orderId), invalidates: [{ type: "query", operation: "marketplaceOrders" }] }),
+    cancelOrder: defineMutation({ mutationFn: ({ scope, variables }: { scope: { hotelId: string }; variables: { orderId: string } }) => localPartnersRepository.cancelOrder(scope.hotelId, variables.orderId), invalidates: [{ type: "query", operation: "marketplaceOrders" }] }),
     setProviderLink: defineMutation({ mutationFn: ({ scope, variables }: { scope: { hotelId: string }; variables: { providerId: string; linked: boolean } }) => localPartnersRepository.setProviderLink(scope.hotelId, variables.providerId, variables.linked), invalidates: [{ type: "query", operation: "providers" }] }),
     create: defineMutation({ mutationFn: ({ scope, variables }: { scope: { hotelId: string }; variables: LocalPartnerInput }) => localPartnersRepository.create(scope.hotelId, variables), invalidates }),
     update: defineMutation({ mutationFn: ({ scope, variables }: { scope: { hotelId: string }; variables: { partnerId: string; input: Partial<LocalPartnerInput> } }) => localPartnersRepository.update(scope.hotelId, variables.partnerId, variables.input), invalidates }),

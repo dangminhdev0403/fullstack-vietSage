@@ -1,5 +1,6 @@
 import { getBrowserBackendApiBaseUrl, resolveBrowserReachableBackendUrl } from "@/core/http/backend-api-config";
 import { io, type Socket } from "socket.io-client";
+import { resolveRequestRealtimeAddTrailingSlash } from "./request-realtime-transport";
 
 const SOCKET_NAMESPACE = "/request-realtime";
 
@@ -23,8 +24,10 @@ export type RequestRealtimeAuth =
 
 export function createRequestRealtimeSocket(auth: RequestRealtimeAuth): Socket {
   const socketUrl = getRequestRealtimeUrl();
+  const browserOrigin = typeof window === "undefined" ? undefined : window.location.origin;
   return io(`${socketUrl}${SOCKET_NAMESPACE}`, {
     transports: ["polling", "websocket"],
+    addTrailingSlash: resolveRequestRealtimeAddTrailingSlash(socketUrl, browserOrigin, process.env.NODE_ENV === "development"),
     autoConnect: false,
     withCredentials: true,
     reconnection: false,

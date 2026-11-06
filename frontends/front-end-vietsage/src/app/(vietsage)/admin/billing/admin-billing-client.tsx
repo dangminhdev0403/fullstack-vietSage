@@ -240,7 +240,6 @@ export function AdminBillingClient({
   const [settlementForm, setSettlementForm] = useState({
     amount: "",
     method: "BANK_TRANSFER",
-    reference: "",
   });
   const [settlementIdempotencyKey, setSettlementIdempotencyKey] = useState("");
   const [settlementError, setSettlementError] = useState<string | null>(null);
@@ -451,7 +450,6 @@ export function AdminBillingClient({
     setSettlementForm({
       amount: String(outstanding),
       method: "BANK_TRANSFER",
-      reference: `REF_${period.id.substring(0, 8).toUpperCase()}`,
     });
     setSettlementIdempotencyKey(key);
     setSettlementError(null);
@@ -501,7 +499,6 @@ export function AdminBillingClient({
           body: {
             amount: numAmount,
             method: settlementForm.method,
-            reference: settlementForm.reference,
             idempotencyKey: settlementIdempotencyKey,
           },
         },
@@ -2416,25 +2413,6 @@ export function AdminBillingClient({
                   <option value="CASH">Tiền mặt</option>
                   <option value="CREDIT_CARD">Thẻ tín dụng</option>
                 </select>
-              </div>
-
-              <div>
-                <label htmlFor="settle-reference" className="block text-sm font-semibold text-slate-800 dark:text-slate-200 mb-1.5">
-                  Mã giao dịch / Ghi chú đối soát
-                </label>
-                <input
-                  id="settle-reference"
-                  type="text"
-                  placeholder="VD: FT2608039912"
-                  value={settlementForm.reference}
-                  onChange={(e) =>
-                    setSettlementForm({
-                      ...settlementForm,
-                      reference: e.target.value,
-                    })
-                  }
-                  className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-medium text-slate-900 shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                />
               </div>
 
               <div className="flex justify-end gap-3 pt-4 border-t border-slate-200/80 dark:border-slate-800">

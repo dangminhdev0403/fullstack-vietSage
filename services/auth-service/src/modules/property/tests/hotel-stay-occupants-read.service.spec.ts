@@ -423,14 +423,19 @@ describe("HotelStayOccupantsReadService & Repository (AGY-10/AGY-11 KBTT Foundat
       const existingStay = {
         id: "stay-update-1",
         hotelId: mockHotelId,
+        plannedCheckOutAt: new Date("2099-09-17T10:00:00.000Z"),
+        hotel: { tenantId: "tenant-1" },
         guestDisplayName: "Original Primary",
         guestPhone: "0900000001",
       };
 
       const mockTx = {
+        $queryRaw: jest.fn().mockResolvedValue([{ id: "stay-update-1" }]),
+        domainEvent: { create: jest.fn() },
         guestStay: {
           findFirst: jest.fn().mockResolvedValue(existingStay),
-          update: jest.fn().mockResolvedValue({ id: "stay-update-1" }),
+          update: jest.fn().mockResolvedValue({ id: "stay-update-1",
+            plannedCheckOutAt: new Date("2099-09-18T10:00:00.000Z") }),
         },
         guestStayOccupant: {
           updateMany: jest.fn(),
@@ -449,14 +454,14 @@ describe("HotelStayOccupantsReadService & Repository (AGY-10/AGY-11 KBTT Foundat
       const repository = new HotelRoomsRepository(mockPrisma as any);
 
       await repository.updateStay(mockHotelId, "stay-update-1", {
-        plannedCheckOutAt: new Date("2026-09-18T10:00:00.000Z"),
+        plannedCheckOutAt: new Date("2099-09-18T10:00:00.000Z"),
       });
 
       expect(mockTx.guestStay.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: "stay-update-1" },
           data: {
-            plannedCheckOutAt: new Date("2026-09-18T10:00:00.000Z"),
+            plannedCheckOutAt: new Date("2099-09-18T10:00:00.000Z"),
           },
         }),
       );
@@ -479,6 +484,7 @@ describe("HotelStayOccupantsReadService & Repository (AGY-10/AGY-11 KBTT Foundat
       };
 
       const mockTx = {
+        $queryRaw: jest.fn().mockResolvedValue([{ id: "stay-update-2" }]),
         guestStay: {
           findFirst: jest.fn().mockResolvedValue(existingStay),
           update: jest.fn().mockResolvedValue({ id: "stay-update-2" }),

@@ -20,9 +20,10 @@ function getNextStatus(order: MarketplaceOrder): { label: string; status: Market
 }
 
 export function ServiceDashboardView({ data }: Readonly<{ data: ServicePortalData }>) {
-  const { transition, financialSummary } = useServicePortal();
-  const pendingOrders = data.orders.filter((o) => o.status === "PENDING");
-  const activeOrders = data.orders.filter((o) => !isTerminalOrderStatus(o.status));
+  const { transition, financialSummary, data: dataQuery } = useServicePortal({ queries: ["data", "financialSummary"] });
+  const currentData = dataQuery.data ?? data;
+  const pendingOrders = currentData.orders.filter((o) => o.status === "PENDING");
+  const activeOrders = currentData.orders.filter((o) => !isTerminalOrderStatus(o.status));
 
 
   const financial = financialSummary.data;
@@ -39,11 +40,11 @@ export function ServiceDashboardView({ data }: Readonly<{ data: ServicePortalDat
               Cổng đối tác dịch vụ
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#1a1c1c] text-balance">
-              {data.profile.displayName}
+              {currentData.profile.displayName}
             </h1>
-            {data.profile.address && (
+            {currentData.profile.address && (
               <p className="text-sm font-medium text-slate-600 flex items-center gap-2">
-                <span>📍</span> {data.profile.address}
+                <span>📍</span> {currentData.profile.address}
               </p>
             )}
           </div>
@@ -144,7 +145,7 @@ export function ServiceDashboardView({ data }: Readonly<{ data: ServicePortalDat
             </div>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-[#17201b]">{data.services.length}</span>
+            <span className="text-3xl font-extrabold text-[#17201b]">{currentData.services.length}</span>
             <span className="text-xs font-medium text-[#5a6760]">dịch vụ đang mở</span>
           </div>
           <Link href="/service/catalog" prefetch={true} className="inline-block text-xs font-bold text-[#8c6d29] hover:underline">
@@ -161,7 +162,7 @@ export function ServiceDashboardView({ data }: Readonly<{ data: ServicePortalDat
             </div>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-[#17201b]">{data.orders.length}</span>
+            <span className="text-3xl font-extrabold text-[#17201b]">{currentData.orders.length}</span>
             <span className="text-xs font-medium text-[#5a6760]">lượt đặt hàng</span>
           </div>
           <Link href="/service/orders" prefetch={true} className="inline-block text-xs font-bold text-[#1c553f] hover:underline">
@@ -192,16 +193,16 @@ export function ServiceDashboardView({ data }: Readonly<{ data: ServicePortalDat
         <div className="rounded-2xl border border-[#e5ddcd] bg-[#fffcf7] p-5 shadow-xs space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-[#5a6760]">Vị trí trên nền tảng</span>
-            <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${data.profile.locationVerifiedAt ? "bg-[#e8f2ee] text-[#1c553f]" : "bg-[#fbebee] text-[#aa2d41]"}`}>
+            <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${currentData.profile.locationVerifiedAt ? "bg-[#e8f2ee] text-[#1c553f]" : "bg-[#fbebee] text-[#aa2d41]"}`}>
               <VsIcon name="verified_user" className="text-xl" />
             </div>
           </div>
           <div className="space-y-0.5">
             <span className="text-sm font-bold text-[#17201b] block">
-              {data.profile.locationVerifiedAt ? "Đã xác minh GPS" : "Chưa cập nhật vị trí"}
+              {currentData.profile.locationVerifiedAt ? "Đã xác minh GPS" : "Chưa cập nhật vị trí"}
             </span>
             <span className="text-xs text-[#5a6760] block truncate">
-              {data.profile.googleMapsUrl ? "Maps URL khả dụng" : "Vui lòng cập nhật tọa độ"}
+              {currentData.profile.googleMapsUrl ? "Maps URL khả dụng" : "Vui lòng cập nhật tọa độ"}
             </span>
           </div>
           <Link href="/service/settings" prefetch={true} className="inline-block text-xs font-bold text-[#8c6d29] hover:underline">
@@ -231,7 +232,7 @@ export function ServiceDashboardView({ data }: Readonly<{ data: ServicePortalDat
               {activeOrders.slice(0, 5).map((order) => {
                 const next = getNextStatus(order);
                 const isSettled = order.settlement?.status === "SETTLED";
-                const authorizedItems = getPartnerAuthorizedOrderItems(order, data.profile);
+                const authorizedItems = getPartnerAuthorizedOrderItems(order, currentData.profile);
                 const financials = calculateOrderFinancials(order, authorizedItems);
                 const firstItem = authorizedItems[0];
                 const serviceLabel = firstItem
@@ -308,9 +309,9 @@ export function ServiceDashboardView({ data }: Readonly<{ data: ServicePortalDat
             </Link>
           </div>
 
-          {data.services.length > 0 ? (
+          {currentData.services.length > 0 ? (
             <div className="space-y-3">
-              {data.services.slice(0, 4).map((item) => (
+              {currentData.services.slice(0, 4).map((item) => (
                 <div key={item.id} className="rounded-xl border border-[#eae3d5] bg-[#f9f6f0] p-3.5 space-y-1">
                   <div className="font-bold text-[#17201b] text-sm">{item.name}</div>
                   <div className="flex items-center justify-between text-xs text-[#46534b] font-semibold">

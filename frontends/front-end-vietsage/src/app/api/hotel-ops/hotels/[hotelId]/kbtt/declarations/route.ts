@@ -11,6 +11,7 @@ import { HttpError } from "@/core/http/http-error";
 import { httpServer } from "@/core/http/http-server";
 import {
   kbttDeclarationListSchema,
+  kbttDeliverySchema,
   kbttPaginationQuerySchema,
 } from "@/features/kbtt/types/kbtt-contract";
 
@@ -36,13 +37,18 @@ export async function GET(request: Request, context: RouteContext) {
   if (!queryResult.success) {
     return validationErrorResponse("Tham số phân trang không hợp lệ.");
   }
-  const { page, limit } = queryResult.data;
+  const { page, limit, q, status, nationality, checkInDate } = queryResult.data;
+  const backendQuery = new URLSearchParams({ page: String(page), limit: String(limit) });
+  if (q) backendQuery.set("q", q);
+  if (status) backendQuery.set("status", status);
+  if (nationality) backendQuery.set("nationality", nationality);
+  if (checkInDate) backendQuery.set("checkInDate", checkInDate);
 
   try {
     const result = await executeHotelOpsBackendRequest("list kbtt declarations", async (accessToken) => {
       const response = await httpServer.request<unknown>(
         "GET",
-        `/hotels/${encodeURIComponent(hotelId)}/kbtt/declarations?page=${page}&limit=${limit}`,
+        `/hotels/${encodeURIComponent(hotelId)}/kbtt/declarations?${backendQuery}`,
         undefined,
         { accessToken, headers: { "Cache-Control": "no-store" } },
       );
@@ -54,11 +60,13 @@ export async function GET(request: Request, context: RouteContext) {
       let itemsData: unknown = rawData;
       let total: number | undefined;
       let totalPages: number | undefined;
+      let delivery: unknown;
 
       if (rawData && typeof rawData === "object" && !Array.isArray(rawData) && "items" in rawData) {
         itemsData = (rawData as { items: unknown }).items;
         total = (rawData as { total?: number }).total;
         totalPages = (rawData as { totalPages?: number }).totalPages;
+        delivery = "delivery" in rawData ? rawData.delivery : undefined;
       }
 
       const items = kbttDeclarationListSchema.parse(itemsData);
@@ -66,6 +74,7 @@ export async function GET(request: Request, context: RouteContext) {
         items,
         total: typeof total === "number" ? total : items.length,
         totalPages: typeof totalPages === "number" ? totalPages : 1,
+        delivery: delivery === undefined ? undefined : kbttDeliverySchema.parse(delivery),
       };
     });
 
@@ -82,6 +91,7 @@ export async function GET(request: Request, context: RouteContext) {
         data: result.items,
         total: result.total,
         totalPages: result.totalPages,
+        delivery: result.delivery,
       },
       { headers: { "Cache-Control": "no-store" } },
     );

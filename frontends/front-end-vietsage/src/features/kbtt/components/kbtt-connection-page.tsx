@@ -55,12 +55,11 @@ export function KbttConnectionPage({
   const [confirming, setConfirming] = useState(false);
 
   const data = connection.data;
-  const isConnected = data?.status === "CONNECTED";
+  const isConnected = connection.isSuccess && data?.status === "CONNECTED";
   const isConfigured = Boolean(data?.configured);
   const disabled = busy || confirming || connection.isFetching;
 
-  const username = usernameEdit ??
-    (data?.maskedUsername && data.maskedUsername !== "••••••" ? data.maskedUsername : "");
+  const username = usernameEdit ?? data?.username ?? "";
 
   async function copyToClipboard(text: string | null | undefined, field: string) {
     if (!text) return;
@@ -131,10 +130,15 @@ export function KbttConnectionPage({
 
   const isAuthFailed = data?.status === "AUTH_FAILED";
 
-  const statusBadge = isConnected ? (
+  const statusBadge = connection.isPending || connection.isError || !data ? (
+    <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-100 px-3.5 py-1 text-sm font-bold text-slate-700">
+      <span className="h-2 w-2 rounded-full bg-slate-400" />
+      {connection.isPending ? "Đang tải trạng thái" : "Chưa xác định kết nối"}
+    </span>
+  ) : isConnected ? (
     <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3.5 py-1 text-sm font-bold text-emerald-700">
       <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-      Đã kết nối trực tuyến
+      Đã kết nối
     </span>
   ) : isAuthFailed ? (
     <span className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-3.5 py-1 text-sm font-bold text-red-700">
@@ -153,13 +157,17 @@ export function KbttConnectionPage({
     </span>
   );
 
-  const statusSubtext = isConnected
-    ? "Hệ thống hoạt động ổn định"
-    : isAuthFailed
-      ? "Tài khoản hoặc mật khẩu không chính xác"
-      : data?.configured
-        ? "Đã ngắt kết nối tài khoản"
-        : "Chưa cấu hình tài khoản khai báo";
+  const statusSubtext = connection.isPending
+    ? "Đang đọc thông tin kết nối"
+    : connection.isError || !data
+      ? "Chưa đọc được trạng thái kết nối BCA"
+      : isConnected
+        ? "Tài khoản đã kết nối"
+        : isAuthFailed
+          ? "Tài khoản hoặc mật khẩu không chính xác"
+          : data?.configured
+            ? "Đã ngắt kết nối tài khoản"
+            : "Chưa cấu hình tài khoản khai báo";
 
   return (
     <section className="mx-auto w-full max-w-6xl space-y-6 text-slate-900" aria-labelledby="kbtt-title">
@@ -223,12 +231,12 @@ export function KbttConnectionPage({
                   <p className="text-xs font-semibold text-slate-500">Tài khoản đăng nhập</p>
                   <div className="mt-0.5 flex items-center justify-between gap-1.5">
                     <span className="text-sm font-bold text-slate-900 break-all sm:text-base">
-                      {data.maskedUsername ?? "Chưa cấu hình"}
+                      {data.username ?? (isConfigured ? "Không đọc được tài khoản" : "Chưa cấu hình")}
                     </span>
-                    {data.maskedUsername ? (
+                    {data.username ? (
                       <button
                         type="button"
-                        onClick={() => void copyToClipboard(data.maskedUsername, "username")}
+                        onClick={() => void copyToClipboard(data.username, "username")}
                         title="Sao chép tài khoản"
                         aria-label="Sao chép tài khoản đăng nhập"
                         className="rounded-lg p-1 text-slate-400 hover:bg-slate-200/60 hover:text-slate-700 transition-colors shrink-0"
@@ -352,7 +360,7 @@ export function KbttConnectionPage({
 
               {/* Warning and actions (Kiểm tra kết nối + Ngắt kết nối) */}
               {canManage && isConfigured ? (
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-amber-200 bg-amber-50/80 p-5 text-slate-800 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-amber-200 bg-amber-50/80 p-5 text-amber-950 shadow-sm">
                   <div className="flex items-start gap-3">
                     <svg className="h-6 w-6 shrink-0 text-amber-600 mt-0.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" aria-hidden="true">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -414,7 +422,7 @@ export function KbttConnectionPage({
                           autoComplete="off"
                           autoCapitalize="none"
                           spellCheck={false}
-                          placeholder={data.maskedUsername || "Nhập tài khoản cơ sở lưu trú"}
+                          placeholder="Nhập tài khoản cơ sở lưu trú"
                           aria-describedby="kbtt-credentials-help"
                           className="min-h-[52px] w-full rounded-xl border border-slate-200 bg-white py-3 pr-4 pl-12 text-base text-slate-900 placeholder:text-slate-400 focus:border-[#0f6756] focus:outline-none focus:ring-2 focus:ring-[#0f6756]/20 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
                         />
@@ -501,7 +509,7 @@ export function KbttConnectionPage({
           </div>
         ) : null}
 
-        {data && isConfigured && canManageAutoSubmit ? (
+        {connection.isSuccess && data && isConfigured && canManageAutoSubmit ? (
           <KbttAutoSubmitSection hotelId={hotelId} canManage={canManage} isConnected={isConnected} />
         ) : null}
       </div>

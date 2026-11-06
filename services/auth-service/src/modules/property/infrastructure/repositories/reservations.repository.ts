@@ -65,6 +65,13 @@ const NON_SELLABLE_ROOM_STATUSES: RoomStatus[] = [
 export class ReservationsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  async findRoomStatusInHotel(hotelId: string, roomId: string) {
+    return this.prisma.room.findFirst({
+      where: { id: roomId, hotelId },
+      select: { id: true, roomNumber: true, status: true, updatedAt: true },
+    });
+  }
+
   async createBulkReservations(input: {
     hotelId: string;
     groupCode: string;
@@ -1326,13 +1333,36 @@ export class ReservationsRepository {
 
           if (isPastOverdue) {
             // Auto-complete overdue past stay and close associated open folios
-            if (typeof tx.guestStay.update === "function") {
-              await tx.guestStay.update({
-                where: { id: existingStay.id },
+            const closedStay = await tx.guestStay.updateMany({
+              where: {
+                id: existingStay.id,
+                hotelId: input.hotelId,
+                status: { in: ACTIVE_STAY_STATUSES },
+              },
+              data: {
+                status: GuestStayStatus.CHECKED_OUT,
+                checkedOutAt: now,
+                closedByUserId: input.actorUserId,
+              },
+            });
+            if (closedStay.count === 1) {
+              await tx.domainEvent.create({
                 data: {
-                  status: GuestStayStatus.CHECKED_OUT,
-                  checkedOutAt: now,
-                  closedByUserId: input.actorUserId,
+                  eventType: "GUEST_CHECKED_OUT",
+                  aggregateType: "GuestStay",
+                  aggregateId: existingStay.id,
+                  hotelId: input.hotelId,
+                  tenantId: input.tenantId,
+                  occurredAt: now,
+                  payload: {
+                    version: 1,
+                    stayId: existingStay.id,
+                    roomId: room.id,
+                    checkedOutAt: now.toISOString(),
+                    actorUserId: input.actorUserId,
+                    closureReason: "OVERDUE_REPLACED",
+                  },
+                  status: DomainEventStatus.PENDING,
                 },
               });
             }

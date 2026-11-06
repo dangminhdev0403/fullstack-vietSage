@@ -5,6 +5,8 @@ const path = (hotelId: string, suffix = "") => `/api/hotel-ops/hotels/${encodeUR
 export const localPartnersRepository = {
   providers: async (hotelId: string, signal?: AbortSignal) => (await requestInternalApiEnvelope<NearbyServiceProvider[]>(path(hotelId, "/providers"), { method: "GET", signal })).data,
   marketplaceOrders: async (hotelId: string, signal?: AbortSignal) => (await requestInternalApiEnvelope<HotelMarketplaceOrder[]>(path(hotelId, "/providers/orders"), { method: "GET", signal })).data,
+  acknowledgeOrder: async (hotelId: string, orderId: string) => (await requestInternalApiEnvelope(path(hotelId, `/providers/orders/${encodeURIComponent(orderId)}/acknowledge`), { method: "POST" })).data,
+  cancelOrder: async (hotelId: string, orderId: string) => (await requestInternalApiEnvelope(path(hotelId, `/providers/orders/${encodeURIComponent(orderId)}/cancel`), { method: "POST" })).data,
   setProviderLink: async (hotelId: string, providerId: string, linked: boolean) => (await requestInternalApiEnvelope(path(hotelId, `/providers/${encodeURIComponent(providerId)}`), { method: linked ? "PUT" : "DELETE", ...(linked ? { body: { status: "ACTIVE", sortOrder: 0 } } : {}) })).data,
   list: async (hotelId: string, signal?: AbortSignal) => (await requestInternalApiEnvelope<LocalPartner[]>(path(hotelId), { method: "GET", signal })).data,
   categories: async (hotelId: string, signal?: AbortSignal) => (await requestInternalApiEnvelope<LocalPartnerCategory[]>(path(hotelId, "/categories"), { method: "GET", signal })).data,

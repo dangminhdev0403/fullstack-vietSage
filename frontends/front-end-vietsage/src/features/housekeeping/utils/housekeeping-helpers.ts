@@ -51,9 +51,12 @@ function getEffectiveRoomStatus(
   task?: HousekeepingTask,
 ): HousekeepingTaskCardModel["effectiveStatus"] {
   const rawStatus = normalizeStatus(room.status);
-  if (task?.status === "BLOCKED") return "blocked";
-  if (task?.status === "CLAIMED" || task?.status === "IN_PROGRESS" || isClaimed) return "cleaning";
-  if (task?.status === "QUEUED" || rawStatus === "PROCESSING") return "processing";
+  // A task can outlive a room transition. Only dirty rooms accept a cleaning overlay.
+  if (rawStatus === "PROCESSING") {
+    if (task?.status === "BLOCKED") return "blocked";
+    if (task?.status === "CLAIMED" || task?.status === "IN_PROGRESS" || isClaimed) return "cleaning";
+    return "processing";
+  }
   if (rawStatus === "OCCUPIED") return "occupied";
   if (rawStatus === "MAINTENANCE" || rawStatus === "BLOCKED" || rawStatus === "OUT_OF_SERVICE") return "maintenance";
   if (rawStatus === "RESERVED") return "reserved";

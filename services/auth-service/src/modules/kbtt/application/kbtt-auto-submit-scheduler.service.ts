@@ -38,10 +38,12 @@ export class KbttAutoSubmitSchedulerService {
     const currentHHmm = formatLocalDateTime(now, VIETNAM_TIME_ZONE).slice(11, 16);
 
     try {
+      // Independent from arrival scans: departed stays still have pending TS work.
+      await this.kbttService.processStayLifecycleEvents();
       const dueHotels = (await this.repository.findDueHotelsForAutoSubmit(currentHHmm)) ?? [];
       const dueScheduledRuns = (await this.repository.findDueScheduledRuns(now)) ?? [];
 
-      // Periodic error recovery: retry hotels with active FAILED/UNKNOWN declarations every 15 minutes
+      // UNKNOWN is deliberately excluded: a timed-out write may already have succeeded.
       const minute = Number(currentHHmm.split(":")[1] || "0");
       let errorRecoveryHotels: Array<{ hotelId: string }> = [];
       if (minute % 15 === 0) {

@@ -1,4 +1,5 @@
 import type { QueryClient } from "@tanstack/react-query";
+import { requestQueueResource } from "../resources/request-queue-resource";
 import { staffRoomsResource } from "../resources/staff-rooms-resource";
 import { ownerRoomsResource } from "../resources/owner-rooms-resource";
 import { ownerRoomTypesResource } from "../resources/owner-room-types-resource";
@@ -28,10 +29,9 @@ export async function invalidateHotelRequestRealtimeQueries(
   const messagesBound = hotelMessagesResource.bind({ hotelId });
 
   await Promise.allSettled([
-    queryClient.invalidateQueries({
-      queryKey: ["vietsage", "request-queue"],
-      refetchType: "active",
-    }),
+    requestQueueResource.bind({
+      basePath: `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/requests`,
+    }).queries.detail.invalidateAll(queryClient),
     localPartnersBound.queries.marketplaceOrders.invalidateAll(queryClient),
     messagesBound.invalidate(queryClient),
   ]);
@@ -53,10 +53,9 @@ export async function invalidateHotelHousekeepingRealtimeQueries(
     staffBound.queries.allRooms.invalidateAll(queryClient),
     ownerBound.queries.list.invalidateAll(queryClient),
     roomPlanBound.queries.plan.invalidateAll(queryClient),
-    queryClient.invalidateQueries({
-      queryKey: ["vietsage", "request-queue"],
-      refetchType: "active",
-    }),
+    requestQueueResource.bind({
+      basePath: `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/requests`,
+    }).queries.detail.invalidateAll(queryClient),
     queryClient.invalidateQueries({
       queryKey: ["housekeeping"],
       refetchType: "active",
@@ -104,10 +103,9 @@ export async function invalidateHotelRealtimeQueries(
     cmOwnerBound.queries.inventoryGrid.invalidateAll(queryClient),
     cmAdminBound.queries.simulatedBookings.invalidateAll(queryClient),
     cmOwnerBound.queries.simulatedBookings.invalidateAll(queryClient),
-    queryClient.invalidateQueries({
-      queryKey: ["vietsage", "request-queue"],
-      refetchType: "active",
-    }),
+    requestQueueResource.bind({
+      basePath: `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/requests`,
+    }).queries.detail.invalidateAll(queryClient),
     queryClient.invalidateQueries({
       queryKey: ["housekeeping"],
       refetchType: "active",

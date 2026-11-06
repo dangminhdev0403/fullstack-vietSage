@@ -17,6 +17,7 @@ import { KbttController } from "../api/kbtt.controller";
 import { KbttService, isBcaDuplicateConflict } from "../application/kbtt.service";
 import {
   kbttCatalogKindSchema,
+  kbttPaginationQuerySchema,
   kbttCredentialsSchema,
   type KbttCatalogKind,
   type KbttSession,
@@ -49,6 +50,8 @@ const primaryOccupant = {
   plannedCheckInAt: new Date("2026-09-14T03:00:00.000Z"),
   plannedCheckOutAt: new Date("2026-09-15T05:00:00.000Z"),
   stay: {
+    status: "ACTIVE",
+    checkedOutAt: null,
     checkedInAt: new Date("2026-09-14T03:00:00.000Z"),
     plannedCheckInAt: new Date("2026-09-14T03:00:00.000Z"),
     plannedCheckOutAt: new Date("2026-09-15T05:00:00.000Z"),
@@ -94,6 +97,21 @@ function fixture() {
       rows.delete(hotelId);
     }),
     findPendingScheduledAutoSubmitRuns: jest.fn(async () => []),
+    findQueuedInitialDeclarations: jest.fn(async () =>
+      [...declarations.values()]
+        .filter((declaration) => declaration.status === "READY" && declaration.providerCode === "LOCAL_QUEUED")
+        .map(({ hotelId, occupantId }) => ({ hotelId, occupantId })),
+    ),
+    getDeliverySnapshot: jest.fn(async (_hotelId: string, _allowedRoomId: string | null): Promise<{
+      pendingCount: number; sendingCount: number; reviewCount: number;
+      lastSucceededAt: Date | null; recentIssues: any[];
+    }> => ({
+      pendingCount: 0,
+      sendingCount: 0,
+      reviewCount: 0,
+      lastSucceededAt: null,
+      recentIssues: [],
+    })),
     findDeclarationsByHotel: jest.fn(async (hotelId: string) => {
       return [...declarations.values()].filter((d) => d.hotelId === hotelId);
     }),
@@ -107,6 +125,34 @@ function fixture() {
       const occ = occupants.get(occupantId);
       if (occ && occ.hotelId === hotelId) return occ;
       return null;
+    }),
+    findDeclarationForDispatch: jest.fn(async (hotelId: string, declarationId: string) => {
+      const declaration = declarations.get(declarationId);
+      const occupant = declaration ? occupants.get(declaration.occupantId) : null;
+      if (!declaration || declaration.hotelId !== hotelId || !occupant || occupant.hotelId !== hotelId) {
+        return null;
+      }
+      return {
+        ...declaration,
+        stay: occupant.stay ?? {
+          status: occupant.stayStatus,
+          checkedOutAt: occupant.checkedOutAt ?? null,
+          plannedCheckOutAt: occupant.plannedCheckOutAt,
+        },
+      };
+    }),
+    markInterruptedDeclarationsUnknown: jest.fn(async () => {
+      for (const declaration of declarations.values()) {
+        if (declaration.status === "SENDING" &&
+            declaration.updatedAt < new Date(Date.now() - 5 * 60_000)) {
+          Object.assign(declaration, {
+            status: "UNKNOWN",
+            version: declaration.version + 1,
+            providerCode: "INTERRUPTED_DELIVERY",
+            providerMessage: "Lần gửi bị gián đoạn; cần đối soát trước khi gửi tiếp.",
+          });
+        }
+      }
     }),
     findActiveSubmittedOccupantByIdentity: jest.fn<Promise<any>, any[]>(async () => null),
     prepareStaySubmissionBatch: jest.fn(async (params: any) => {
@@ -177,6 +223,7 @@ function fixture() {
         status: data.status ?? "DRAFT",
         submittedPayloadJson: null,
         submittedPayloadFingerprint: null,
+        submittedCsltId: null,
         providerCode: null,
         providerMessage: null,
         providerResponseJson: null,
@@ -275,7 +322,8 @@ function fixture() {
     ),
     updateOccupantDetails: jest.fn(async (occupantId: string, hotelId: string, data: any) => {
       const occ = occupants.get(occupantId);
-      if (occ && occ.hotelId === hotelId) Object.assign(occ, data);
+      if (occ && occ.hotelId === hotelId) Object.assign(occ,
+        Object.fromEntries(Object.entries(data).filter(([, value]) => value !== undefined)));
     }),
     resetAllDeclarationsToDraft: jest.fn(async (hotelId: string) => {
       let count = 0;
@@ -440,6 +488,8 @@ function fixture() {
 }
 
 beforeEach(() => {
+  process.env.KBTT_AUTO_SUBMIT_LIVE_ENABLED = "true";
+  process.env.KBTT_AUTO_SUBMIT_KILL_SWITCH = "false";
   process.env.KBTT_BASE_URL = "https://api-kbtt.example.test";
   process.env.KBTT_LOGIN_BASIC_AUTH_VALUE = randomBytes(24).toString("base64");
   process.env.KBTT_TOKEN_BASIC_AUTH_VALUE = randomBytes(24).toString("base64");
@@ -564,9 +614,11 @@ describe("KBTT secure manual authentication", () => {
     provider.login.mockRejectedValueOnce(kbttAuthFailed());
     await expect(service.connect("owner", "owner-role", "hotel-1", credentials)).rejects.toThrow();
     expect(rows.get("hotel-1")).toEqual(stored);
-    expect(connected).toMatchObject({ configured: true, status: "CONNECTED", csltId: "1000227" });
+    expect(connected).toMatchObject({
+      configured: true, status: "CONNECTED", csltId: "1000227", username: credentials.username,
+    });
     for (const value of [
-      ...Object.values(credentials),
+      credentials.password,
       stored!.ciphertext,
       stored!.iv,
       stored!.authTag,
@@ -574,6 +626,21 @@ describe("KBTT secure manual authentication", () => {
       expect(JSON.stringify(connected)).not.toContain(value);
     expect(stored).not.toHaveProperty("AccessToken");
     expect(stored).not.toHaveProperty("RefreshToken");
+  });
+
+  it("keeps connection metadata readable without exposing secrets when saved credentials cannot be decrypted", async () => {
+    const { service, provider, rows } = fixture();
+    await service.connect("owner", "owner-role", "hotel-1", credentials);
+    const stored = rows.get("hotel-1")!;
+    rows.set("hotel-1", { ...stored, ciphertext: "unreadable" });
+    provider.login.mockClear();
+
+    const result = await service.get("owner", "owner-role", "hotel-1");
+    expect(result).toMatchObject({ configured: true, status: "CONNECTED", username: null });
+    expect(provider.login).not.toHaveBeenCalled();
+    for (const field of ["password", "AccessToken", "RefreshToken", "ciphertext", "iv", "authTag"]) {
+      expect(result).not.toHaveProperty(field);
+    }
   });
 
   it("initializes auto-submit disabled and protects its settings with the existing KBTT manage permission", async () => {
@@ -597,7 +664,9 @@ describe("KBTT secure manual authentication", () => {
     await service.connect("owner", "owner-role", "hotel-1", credentials);
     const ciphertext = rows.get("hotel-1")!.ciphertext;
     provider.login.mockClear();
-    await service.get("owner", "owner-role", "hotel-1");
+    expect(await service.get("owner", "owner-role", "hotel-1")).toMatchObject({
+      username: credentials.username,
+    });
     expect(provider.login).not.toHaveBeenCalled();
     provider.login.mockRejectedValueOnce(new Error(credentials.password));
     await expect(service.check("owner", "owner-role", "hotel-1")).rejects.toMatchObject({
@@ -764,6 +833,8 @@ describe("KBTT edit and submit", () => {
     f.occupants.set(vietnamesePassport.id, vietnamesePassport);
     await f.service.connect("user-1", "role-1", "hotel-1", credentials);
     await f.service.submit("user-1", "role-1", "hotel-1", vietnamesePassport.id);
+    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+    await f.service.processQueuedInitialDeclarations();
     expect(f.provider.submitDeclaration).toHaveBeenCalledWith(
       "VIETNAMESE",
       [expect.objectContaining({ loaiGiayTo: 4, lyDoCuTru: 1, gioiTinh: "F" })],
@@ -771,7 +842,7 @@ describe("KBTT edit and submit", () => {
     );
   });
 
-  it("validates the current draft then submits directly to provider API 5", async () => {
+  it("validates and queues the current draft without provider or authentication calls", async () => {
     const f = fixture();
     f.occupants.set("occ-vn", primaryOccupant);
     await f.service.connect("user-1", "role-1", "hotel-1", credentials);
@@ -780,16 +851,74 @@ describe("KBTT edit and submit", () => {
       data: { lyDoCuTru: 1, loaiGiayTo: 1, soGiayTo: "001090012345" },
     });
 
+    f.provider.login.mockClear();
+    f.provider.refresh.mockClear();
     const result = await f.service.submit("user-1", "role-1", "hotel-1", "occ-vn");
-    expect(result.status).toBe("SUBMITTED");
+    expect(result.status).toBe("READY");
+    expect(result.providerCode).toBe("LOCAL_QUEUED");
+    expect(result.submittedAt).toBeNull();
+    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+    expect(f.provider.login).not.toHaveBeenCalled();
+    expect(f.provider.refresh).not.toHaveBeenCalled();
+
+    const repeated = await f.service.submit("user-1", "role-1", "hotel-1", "occ-vn");
+    expect(repeated.id).toBe(result.id);
+    expect(f.declarations.size).toBe(1);
+    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+
+    await f.service.processQueuedInitialDeclarations();
+    expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
     expect(f.provider.submitDeclaration).toHaveBeenCalledWith(
       "VIETNAMESE",
       [expect.objectContaining({ loaiGiayTo: 1, lyDoCuTru: 1 })],
       expect.any(String),
     );
+    expect(f.declarations.get(result.id)?.status).toBe("SUBMITTED");
   });
 
-  it("reconciles BCA duplicate conflict rejection as SUBMITTED when identity or dates match", async () => {
+  it.each([
+    ["2026-09-15T16:59:59Z", "SUBMITTED"],
+    ["2026-09-15T17:00:00Z", "FAILED"],
+  ])("rechecks the initial BCA calendar day at dispatch for %s", async (departure, expectedStatus) => {
+    const f = fixture();
+    f.occupants.set("occ-vn", primaryOccupant);
+    await f.service.connect("user-1", "role-1", "hotel-1", credentials);
+    const queued = await f.service.submit("user-1", "role-1", "hotel-1", "occ-vn");
+    const readCurrent = f.repository.findDeclarationForDispatch.getMockImplementation();
+    f.repository.findDeclarationForDispatch.mockImplementationOnce(async (hotelId, declarationId) => {
+      const current = await readCurrent?.(hotelId, declarationId);
+      if (!current) throw new Error("Missing queued declaration");
+      return { ...current, stay: { ...current.stay, plannedCheckOutAt: new Date(departure) } };
+    });
+    await f.service.processQueuedInitialDeclarations();
+    expect(f.declarations.get(queued.id)?.status).toBe(expectedStatus);
+    expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(expectedStatus === "SUBMITTED" ? 1 : 0);
+    if (expectedStatus === "FAILED") expect(f.declarations.get(queued.id)?.providerCode).toBe("LOCAL_STATE_CHANGED");
+  });
+
+  it("stops queued initial delivery when the guest checks out before dispatch", async () => {
+    const f = fixture();
+    f.occupants.set("occ-vn", primaryOccupant);
+    await f.service.connect("user-1", "role-1", "hotel-1", credentials);
+    const queued = await f.service.submit("user-1", "role-1", "hotel-1", "occ-vn");
+    f.occupants.set("occ-vn", {
+      ...primaryOccupant,
+      stay: { ...primaryOccupant.stay, status: "CHECKED_OUT", checkedOutAt: new Date() },
+    });
+    f.provider.login.mockClear();
+    f.provider.refresh.mockClear();
+
+    await f.service.processQueuedInitialDeclarations();
+
+    expect(f.declarations.get(queued.id)).toMatchObject({
+      status: "FAILED", providerCode: "LOCAL_STAY_ENDED", submittedAt: null,
+    });
+    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+    expect(f.provider.login).not.toHaveBeenCalled();
+    expect(f.provider.refresh).not.toHaveBeenCalled();
+  });
+
+  it("keeps matching BCA duplicate rejection FAILED without inferring success", async () => {
     const f = fixture();
     f.occupants.set("occ-vn", primaryOccupant);
     await f.service.connect("user-1", "role-1", "hotel-1", credentials);
@@ -806,13 +935,18 @@ describe("KBTT edit and submit", () => {
       data: null,
     });
 
-    const result = await f.service.submit("user-1", "role-1", "hotel-1", "occ-vn");
-    expect(result.status).toBe("SUBMITTED");
-    expect(result.providerCode).toBe("200");
-    expect(result.providerMessage).toContain("Tự động đối soát");
+    const queued = await f.service.submit("user-1", "role-1", "hotel-1", "occ-vn");
+    expect(queued.status).toBe("READY");
+    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+    await f.service.processQueuedInitialDeclarations();
+    const stored = await f.repository.findLatestDeclaration("hotel-1", "occ-vn");
+    expect(stored?.status).toBe("FAILED");
+    expect(stored?.providerCode).toBe("400");
+    expect(stored?.submittedAt).toBeNull();
+    expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
   });
 
-  it("creates a missing draft and fills stay timestamps before bulk-style submit", async () => {
+  it("fills stay timestamps while preserving genuine foreign residence validity before background submit", async () => {
     jest.useFakeTimers().setSystemTime(new Date("2026-09-15T03:00:00.000Z"));
     const f = fixture();
     const foreignOccupant = {
@@ -823,8 +957,13 @@ describe("KBTT edit and submit", () => {
       identityNumber: "TESTPASSPORT1",
     };
     f.occupants.set(foreignOccupant.id, foreignOccupant);
+    await f.service.saveDraft("user-1", "role-1", "hotel-1", foreignOccupant.id, {
+      citizenshipKind: "FOREIGN", data: { thoiHanTamTruStr: "2026-10-15 23:59:59" },
+    });
     await f.service.connect("user-1", "role-1", "hotel-1", credentials);
     await f.service.submit("user-1", "role-1", "hotel-1", foreignOccupant.id);
+    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+    await f.service.processQueuedInitialDeclarations();
 
     expect(f.provider.submitDeclaration).toHaveBeenCalledWith(
       "FOREIGN",
@@ -832,12 +971,62 @@ describe("KBTT edit and submit", () => {
         expect.objectContaining({
           ngayDenCsltStr: "2026-09-14 10:00:00",
           ngayDiDuKienStr: "2026-09-15 12:00:00",
-          thoiHanTamTruStr: "2026-09-15 12:00:00",
+          thoiHanTamTruStr: "2026-10-15 23:59:59",
         }),
       ],
       expect.any(String),
     );
     jest.useRealTimers();
+  });
+
+  it("keeps missing foreign residence validity invalid instead of copying hotel departure", async () => {
+    const f = fixture();
+    const occupant = { ...primaryOccupant, id: "foreign-no-validity", citizenshipKind: "FOREIGN",
+      nationality: "KOR", identityNumber: "M1234567" };
+    f.occupants.set(occupant.id, occupant);
+    (f.repository as any).findOccupantsByStay = jest.fn(async () => [occupant]);
+    await f.service.triggerCheckInBcaPush("hotel-1", occupant.stayId);
+    const declaration = await f.repository.findLatestDeclaration("hotel-1", occupant.id);
+    expect(declaration).toMatchObject({ status: "FAILED", providerCode: "LOCAL_VALIDATION" });
+    expect(declaration.draftPayloadJson.thoiHanTamTruStr).toBeUndefined();
+    expect(declaration.draftPayloadJson.ngayDiDuKienStr).toBe("2026-09-15 12:00:00");
+    await expect(f.service.submit("user-1", "role-1", "hotel-1", occupant.id))
+      .rejects.toMatchObject({ response: { code: "KBTT_PAYLOAD_INVALID", message: expect.stringContaining("Thời hạn tạm trú") } });
+    await f.service.processQueuedInitialDeclarations();
+    expect(f.provider.login).not.toHaveBeenCalled();
+    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+  });
+
+  it("maps foreign birth year to Y and leaves domestic year-only DOB incomplete", async () => {
+    const f = fixture();
+    for (const kind of ["FOREIGN", "VIETNAMESE"] as const) {
+      const occupant = { ...primaryOccupant, id: "year-" + kind, dateOfBirth: "1990", citizenshipKind: kind };
+      f.occupants.set(occupant.id, occupant);
+      await f.service.saveDraft("user-1", "role-1", "hotel-1", occupant.id, { citizenshipKind: kind, data: {} });
+      const declaration = await f.repository.findLatestDeclaration("hotel-1", occupant.id);
+      if (kind === "FOREIGN") expect(declaration.draftPayloadJson).toMatchObject({
+        loaiNgayThangNamSinh: "Y", ngayThangNamSinhStr: "1990-01-01",
+      });
+      else expect(declaration.draftPayloadJson.ngayThangNamSinhStr).toBeUndefined();
+      expect(f.occupants.get(occupant.id).dateOfBirth).toBe("1990");
+    }
+    const listed = await f.service.listDeclarations("user-1", "role-1", "hotel-1");
+    expect(listed.items.find((row) => row.occupantId === "year-VIETNAMESE")?.dateOfBirth).toBe("1990");
+    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+  });
+
+  it("preserves operator-supplied birth precision and residence validity", async () => {
+    const f = fixture();
+    const occupant = { ...primaryOccupant, id: "operator-foreign", dateOfBirth: "1990", citizenshipKind: "FOREIGN" };
+    f.occupants.set(occupant.id, occupant);
+    await f.service.saveDraft("user-1", "role-1", "hotel-1", occupant.id, { citizenshipKind: "FOREIGN", data: {
+      loaiNgayThangNamSinh: "D", ngayThangNamSinhStr: "1990-04-06", thoiHanTamTruStr: "2026-12-31 23:59:59",
+    } });
+    const declaration = await f.repository.findLatestDeclaration("hotel-1", occupant.id);
+    expect(declaration.draftPayloadJson).toMatchObject({
+      loaiNgayThangNamSinh: "D", ngayThangNamSinhStr: "1990-04-06", thoiHanTamTruStr: "2026-12-31 23:59:59",
+    });
+    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
   });
 
   it("reports missing fields by Vietnamese label without calling BCA", async () => {
@@ -911,7 +1100,7 @@ describe("KBTT edit and submit", () => {
     expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
   });
 
-  it("keeps the form editable and returns provider code/message when BCA rejects it", async () => {
+  it("stores provider rejection for monitoring after background dispatch", async () => {
     const f = fixture();
     f.occupants.set("occ-vn", primaryOccupant);
     await f.service.connect("user-1", "role-1", "hotel-1", credentials);
@@ -926,15 +1115,192 @@ describe("KBTT edit and submit", () => {
       data: null,
     });
 
-    await expect(f.service.submit("user-1", "role-1", "hotel-1", "occ-vn")).rejects.toMatchObject({
-      status: 422,
-      response: {
-        code: "400",
-        message: "Bản khai báo 1: Khách đang tạm trú tại CSLT.",
-      },
-    });
+    const queued = await f.service.submit("user-1", "role-1", "hotel-1", "occ-vn");
+    expect(queued.status).toBe("READY");
+    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+    await f.service.processQueuedInitialDeclarations();
     const stored = await f.repository.findLatestDeclaration("hotel-1", "occ-vn");
-    expect(stored?.status).toBe("DRAFT");
+    expect(stored?.status).toBe("FAILED");
+    expect(stored?.providerCode).toBe("400");
+    expect(stored?.providerMessage).toBe("Bản khai báo 1: Khách đang tạm trú tại CSLT.");
+  });
+
+  it("preserves a draft edit made after queue preparation and fences the stale provider send", async () => {
+    const f = fixture();
+    f.occupants.set("occ-vn", { ...primaryOccupant });
+    await f.service.connect("user-1", "role-1", "hotel-1", credentials);
+    const queued = await f.service.submit("user-1", "role-1", "hotel-1", "occ-vn");
+    (f.service as any).sessions.clear();
+    f.provider.login.mockImplementationOnce(async () => {
+      await f.service.saveDraft("user-1", "role-1", "hotel-1", "occ-vn", {
+        citizenshipKind: "VIETNAMESE", data: { hoTen: "Updated Guest" },
+      });
+      return session();
+    });
+
+    await f.service.processQueuedInitialDeclarations();
+
+    const current = f.declarations.get(queued.id);
+    expect(current.status).toBe("DRAFT");
+    expect(current.providerCode).toBeNull();
+    expect(current.draftPayloadJson.hoTen).toBe("Updated Guest");
+    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["live delivery is disabled", "false", "false"],
+    ["the kill switch is active", "true", "true"],
+  ])("keeps queued initials pending when %s", async (_name, liveEnabled, killSwitch) => {
+    const f = fixture();
+    f.occupants.set("occ-vn", primaryOccupant);
+    await f.service.connect("user-1", "role-1", "hotel-1", credentials);
+    const queued = await f.service.submit("user-1", "role-1", "hotel-1", "occ-vn");
+    f.provider.login.mockClear();
+    f.provider.refresh.mockClear();
+    process.env.KBTT_AUTO_SUBMIT_LIVE_ENABLED = liveEnabled;
+    process.env.KBTT_AUTO_SUBMIT_KILL_SWITCH = killSwitch;
+
+    await f.service.processQueuedInitialDeclarations();
+
+    expect(f.declarations.get(queued.id)?.status).toBe("READY");
+    expect(f.repository.findQueuedInitialDeclarations).not.toHaveBeenCalled();
+    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+    expect(f.provider.login).not.toHaveBeenCalled();
+    expect(f.provider.refresh).not.toHaveBeenCalled();
+  });
+
+  it("schedules the live test action without provider or authentication calls", async () => {
+    const f = fixture();
+    await f.service.connect("user-1", "role-1", "hotel-1", credentials);
+    f.provider.login.mockClear();
+    f.provider.refresh.mockClear();
+
+    try {
+      const result = await f.service.testAutoSubmit("user-1", "role-1", "hotel-1", false);
+      expect(result).toMatchObject({ status: "RUNNING", dryRun: false });
+      expect(f.repository.createScheduledAutoSubmitRun).toHaveBeenCalledWith(
+        "hotel-1", expect.any(Date), false, "MANUAL_DELAYED",
+      );
+      expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+      expect(f.provider.login).not.toHaveBeenCalled();
+      expect(f.provider.refresh).not.toHaveBeenCalled();
+    } finally {
+      f.service.onModuleDestroy();
+    }
+  });
+
+  it("reads scoped local delivery projection without provider calls or private messages", async () => {
+    const f = fixture();
+    await f.service.connect("user-1", "role-1", "hotel-1", credentials);
+    f.provider.login.mockClear();
+    f.provider.refresh.mockClear();
+    (f.access as any).resolveRoomScope = jest.fn(async () => ({
+      hotel: {}, mode: "ROOM_EXCLUSIVE", allowedRoomId: "room-1",
+    }));
+    const successDate = new Date("2026-11-05T02:00:00.000Z");
+    const reviewDate = new Date("2026-11-05T03:00:00.000Z");
+    f.repository.getDeliverySnapshot.mockResolvedValueOnce({
+      pendingCount: 1,
+      sendingCount: 0,
+      reviewCount: 25,
+      lastSucceededAt: successDate,
+      recentIssues: Array.from({ length: 20 }, (_, index) => ({
+        id: "op-review-" + index, kind: "EXTEND", status: "UNKNOWN", providerCode: "HTTP_504",
+        roomNumber: "101", fullName: "Le Thi C", updatedAt: reviewDate.toISOString(),
+        providerMessage: "Giấy tờ 001090012345; bearer fixture-secret-token",
+      })),
+    });
+
+    const result = await f.service.listDeclarations("user-1", "role-1", "hotel-1");
+
+    expect(result.items).toEqual([]);
+    expect(f.repository.getDeliverySnapshot).toHaveBeenCalledWith("hotel-1", "room-1");
+    expect(result.delivery).toMatchObject({
+      mode: "BACKGROUND", state: "RUNNING", pendingCount: 1, sendingCount: 0, reviewCount: 25,
+      lastSucceededAt: successDate.toISOString(),
+    });
+    expect(result.delivery.recentIssues).toHaveLength(20);
+    expect(JSON.stringify(result.delivery)).not.toContain("001090012345");
+    expect(JSON.stringify(result.delivery)).not.toContain("fixture-secret-token");
+    expect(result.delivery.recentIssues.every((issue) => issue.kind === "EXTEND" && issue.status === "UNKNOWN"))
+      .toBe(true);
+    expect(f.provider.login).not.toHaveBeenCalled();
+    expect(f.provider.refresh).not.toHaveBeenCalled();
+    expect(f.provider.fetchCatalog).not.toHaveBeenCalled();
+    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+  });
+});
+
+describe("KBTT declaration list filters", () => {
+  it("finds projected draft fields beyond the old page before paginating and preserves scoped totals", async () => {
+    const f = fixture();
+    for (let index = 0; index < 12; index += 1) {
+      f.occupants.set("search-" + index, { ...primaryOccupant, id: "search-" + index,
+        roomId: index === 11 ? "other-room" : "room-1", fullName: "Guest " + index });
+    }
+    const now = new Date();
+    for (const index of [10, 11]) f.declarations.set("draft-" + index, {
+      id: "draft-" + index, hotelId: "hotel-1", occupantId: "search-" + index, revision: 1,
+      declarationKind: "VIETNAMESE", status: "FAILED", providerCode: "LOCAL_VALIDATION",
+      providerMessage: "Cần sửa ngày sinh", submittedAt: null, createdAt: now, updatedAt: now,
+      draftPayloadJson: { hoTen: "Tên đã sửa", soGiayTo: "001090999999" },
+    });
+    (f.access as any).resolveRoomScope = jest.fn(async () => ({
+      hotel: {}, mode: "ROOM_EXCLUSIVE", allowedRoomId: "room-1",
+    }));
+    const query = { page: 1, limit: 1, q: "  TÊN ĐÃ SỬA  ", status: "LOCAL_ERROR" as const,
+      nationality: "VNM" as const, checkInDate: "2026-09-14" };
+    const result = await f.service.listDeclarations("user-1", "role-1", "hotel-1", query);
+    expect(result.items.map((row) => row.occupantId)).toEqual(["search-10"]);
+    expect(result.total).toBe(1);
+    expect(result.totalPages).toBe(1);
+    const byDocument = await f.service.listDeclarations("user-1", "role-1", "hotel-1", { q: "001090999999" });
+    expect(byDocument.items.map((row) => row.occupantId)).toEqual(["search-10"]);
+    const rejected = await f.service.listDeclarations("user-1", "role-1", "hotel-1", { status: "REJECTED" });
+    expect(rejected.total).toBe(0);
+    expect(rejected.items).toEqual([]);
+    expect(f.provider.login).not.toHaveBeenCalled();
+    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+  });
+
+  it("keeps local dispatch denials out of the provider-rejected filter", async () => {
+    const f = fixture();
+    const now = new Date();
+    const localCodes = ["LOCAL_VALIDATION", "LOCAL_STATE_CHANGED", "CONNECTION_SCOPE_CHANGED", "DELIVERY_BUSY",
+      "RECONCILIATION_REQUIRED", "LOCAL_PREPARATION", "LOCAL_STAY_ENDED", "DELIVERY_PAUSED"];
+    for (const providerCode of [...localCodes, "400"]) {
+      const id = "failure-" + providerCode;
+      f.occupants.set(id, { ...primaryOccupant, id });
+      f.declarations.set(id, { id, occupantId: id, hotelId: "hotel-1", status: "FAILED", providerCode,
+        revision: 1, declarationKind: "VIETNAMESE", providerMessage: "Cần kiểm tra",
+        submittedAt: null, createdAt: now, updatedAt: now, draftPayloadJson: {} });
+    }
+    const local = await f.service.listDeclarations("user-1", "role-1", "hotel-1", { status: "LOCAL_ERROR" });
+    expect(local.total).toBe(localCodes.length);
+    expect(local.items.map((row) => row.declaration?.providerCode).sort()).toEqual([...localCodes].sort());
+    const rejected = await f.service.listDeclarations("user-1", "role-1", "hotel-1", { status: "REJECTED" });
+    expect(rejected.total).toBe(1);
+    expect(rejected.items[0].declaration?.providerCode).toBe("400");
+    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+  });
+
+  it("filters check-in by Vietnam calendar date across UTC midnight", async () => {
+    const f = fixture();
+    f.occupants.set("foreign", { ...primaryOccupant, id: "foreign", citizenshipKind: "FOREIGN",
+      nationality: "FRA", identityNumber: "A123456", checkedInAt: new Date("2026-09-13T18:30:00Z") });
+    const result = await f.service.listDeclarations("user-1", "role-1", "hotel-1",
+      { nationality: "FOREIGN", checkInDate: "2026-09-14" });
+    expect(result.items.map((row) => row.occupantId)).toEqual(["foreign"]);
+    expect(result.total).toBe(1);
+    expect((await f.service.listDeclarations("user-1", "role-1", "hotel-1",
+      { checkInDate: "2026-09-13" })).total).toBe(0);
+  });
+
+  it("rejects malformed list filters at the query boundary", () => {
+    expect(kbttPaginationQuerySchema.safeParse({ checkInDate: "2026-02-30" }).success).toBe(false);
+    expect(kbttPaginationQuerySchema.safeParse({ status: "FAILED" }).success).toBe(false);
+    expect(kbttPaginationQuerySchema.safeParse({ nationality: "raw-country" }).success).toBe(false);
+    expect(kbttPaginationQuerySchema.safeParse({ q: "x".repeat(201) }).success).toBe(false);
   });
 });
 
@@ -1551,7 +1917,7 @@ describe("KBTT dev tools intervention", () => {
     expect(declarations.get("decl-test-1")?.status).toBe("DRAFT");
   });
 
-  it("allows editing a SUBMITTED declaration when allowSubmittedEdit is true", async () => {
+  it("denies editing a SUBMITTED declaration even when allowSubmittedEdit is true", async () => {
     const { service, occupants, declarations } = fixture();
     occupants.set("occ-sub-edit", {
       id: "occ-sub-edit",
@@ -1582,22 +1948,23 @@ describe("KBTT dev tools intervention", () => {
       }),
     ).rejects.toThrow();
 
-    // With allowSubmittedEdit, succeeds and resets status to DRAFT
-    const saved = await service.saveDraft("user-1", "role-1", "hotel-1", "occ-sub-edit", {
-      citizenshipKind: "VIETNAMESE",
-      allowSubmittedEdit: true,
-      soGiayTo: "001095222222",
-    });
+    await expect(
+      service.saveDraft("user-1", "role-1", "hotel-1", "occ-sub-edit", {
+        citizenshipKind: "VIETNAMESE",
+        allowSubmittedEdit: true,
+        soGiayTo: "001095222222",
+      }),
+    ).rejects.toMatchObject({ status: 409 });
 
-    expect(saved.status).toBe("DRAFT");
-    expect(declarations.get("decl-sub-edit")?.status).toBe("DRAFT");
-    expect(occupants.get("occ-sub-edit")?.identityNumber).toBe("001095222222");
+    expect(declarations.get("decl-sub-edit")?.status).toBe("SUBMITTED");
+    expect(declarations.get("decl-sub-edit")?.draftPayloadJson?.soGiayTo).toBe("001095111111");
+    expect(occupants.get("occ-sub-edit")?.identityNumber).toBe("001095111111");
   });
 });
 
 describe("KBTT Reliability Slice (2026-09-16)", () => {
   describe("isBcaDuplicateConflict", () => {
-    it("reconciles when normalized identity and departure date match BCA message", () => {
+    it("detects a conflict when normalized identity and departure date match BCA message", () => {
       const draft = {
         soGiayTo: "001090012345",
         ngayDiDuKienStr: "2026-09-15 12:00:00",
@@ -1607,7 +1974,7 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
       expect(isBcaDuplicateConflict(message, draft)).toBe(true);
     });
 
-    it("reconciles with no arrival-date requirement even if arrival date in message differs or is absent", () => {
+    it("detects conflict wording even if arrival date in message differs or is absent", () => {
       const draft = {
         soGiayTo: "001090012345",
         ngayDenCsltStr: "2026-09-10 10:00:00",
@@ -1663,8 +2030,8 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
     });
   });
 
-  describe("bulk auto-submit reliability and retries", () => {
-    it("retries transient outcome up to 3 attempts and succeeds on second attempt", async () => {
+  describe("bulk auto-submit delivery safety", () => {
+    it("marks the first ambiguous transmission UNKNOWN without retrying it", async () => {
       const f = fixture();
       f.occupants.set("occ-vn", primaryOccupant);
       await f.service.connect("owner", "owner-role", "hotel-1", credentials);
@@ -1693,105 +2060,10 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
           outcome: "AMBIGUOUS",
           code: "HTTP_504",
           message: "Gateway Timeout",
-        })
-        .mockResolvedValueOnce({
-          outcome: "SUCCESS",
-          code: "200",
-          message: "Thành công",
-          data: { id: "bca-123" },
         });
 
       await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
-      expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(2);
-      expect(f.declarations.get("decl-1")?.status).toBe("SUBMITTED");
-      expect(f.repository.finalizeAutoSubmitRun).toHaveBeenCalledWith(
-        "run-auto-1",
-        expect.objectContaining({
-          status: "COMPLETED",
-          totalCount: 1,
-          successCount: 1,
-          failedCount: 0,
-          unknownCount: 0,
-        }),
-      );
-    });
-
-    it("reconciles duplicate conflict on retry attempt without double-counting", async () => {
-      const f = fixture();
-      f.occupants.set("occ-vn", primaryOccupant);
-      await f.service.connect("owner", "owner-role", "hotel-1", credentials);
-      f.declarations.set("decl-1", {
-        id: "decl-1",
-        hotelId: "hotel-1",
-        occupantId: "occ-vn",
-        version: 1,
-        declarationKind: "VIETNAMESE",
-        status: "DRAFT",
-        draftPayloadJson: {
-          hoTen: "Nguyen Van A",
-          gioiTinh: "M",
-          ngayThangNamSinhStr: "1990-01-01",
-          ngayDenCsltStr: "2026-09-14 10:00:00",
-          ngayDiDuKienStr: "2026-09-15 12:00:00",
-          soPhong: "101",
-          lyDoCuTru: 1,
-          loaiGiayTo: 1,
-          soGiayTo: "001090012345",
-        },
-      });
-
-      f.provider.submitDeclaration
-        .mockResolvedValueOnce({
-          outcome: "AMBIGUOUS",
-          code: "HTTP_504",
-          message: "Gateway Timeout",
-        })
-        .mockResolvedValueOnce({
-          outcome: "BUSINESS_REJECTION",
-          code: "400",
-          message:
-            "Bản khai báo 1: Số giấy tờ '001090012345' đang tạm trú tại CSLT đến 2026-09-15.",
-        });
-
-      await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
-      expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(2);
-      expect(f.declarations.get("decl-1")?.status).toBe("SUBMITTED");
-      expect(f.declarations.get("decl-1")?.providerCode).toBe("200");
-      expect(f.declarations.get("decl-1")?.providerMessage).toContain("Tự động đối soát");
-    });
-
-    it("stops after 3 transient attempts without calling a 4th time and marks UNKNOWN", async () => {
-      const f = fixture();
-      f.occupants.set("occ-vn", primaryOccupant);
-      await f.service.connect("owner", "owner-role", "hotel-1", credentials);
-      f.declarations.set("decl-1", {
-        id: "decl-1",
-        hotelId: "hotel-1",
-        occupantId: "occ-vn",
-        version: 1,
-        declarationKind: "VIETNAMESE",
-        status: "DRAFT",
-        draftPayloadJson: {
-          hoTen: "Nguyen Van A",
-          gioiTinh: "M",
-          ngayThangNamSinhStr: "1990-01-01",
-          ngayDenCsltStr: "2026-09-14 10:00:00",
-          ngayDiDuKienStr: "2026-09-15 12:00:00",
-          soPhong: "101",
-          lyDoCuTru: 1,
-          loaiGiayTo: 1,
-          soGiayTo: "001090012345",
-        },
-      });
-
-      f.provider.submitDeclaration.mockResolvedValue({
-        outcome: "AMBIGUOUS",
-        code: "HTTP_500",
-        message: "Internal server error",
-      });
-
-      await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
-      expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(3);
+      expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
       expect(f.declarations.get("decl-1")?.status).toBe("UNKNOWN");
       expect(f.repository.finalizeAutoSubmitRun).toHaveBeenCalledWith(
         "run-auto-1",
@@ -1801,6 +2073,89 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
           successCount: 0,
           failedCount: 0,
           unknownCount: 1,
+        }),
+      );
+    });
+
+    it("keeps duplicate rejection FAILED without manufacturing an acknowledgement", async () => {
+      const f = fixture();
+      f.occupants.set("occ-vn", primaryOccupant);
+      await f.service.connect("owner", "owner-role", "hotel-1", credentials);
+      f.declarations.set("decl-1", {
+        id: "decl-1",
+        hotelId: "hotel-1",
+        occupantId: "occ-vn",
+        version: 1,
+        declarationKind: "VIETNAMESE",
+        status: "DRAFT",
+        draftPayloadJson: {
+          hoTen: "Nguyen Van A",
+          gioiTinh: "M",
+          ngayThangNamSinhStr: "1990-01-01",
+          ngayDenCsltStr: "2026-09-14 10:00:00",
+          ngayDiDuKienStr: "2026-09-15 12:00:00",
+          soPhong: "101",
+          lyDoCuTru: 1,
+          loaiGiayTo: 1,
+          soGiayTo: "001090012345",
+        },
+      });
+
+      f.provider.submitDeclaration.mockResolvedValueOnce({
+        outcome: "BUSINESS_REJECTION",
+        code: "400",
+        message:
+          "Bản khai báo 1: Số giấy tờ '001090012345' đang tạm trú tại CSLT đến 2026-09-15.",
+      });
+
+      await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
+      expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
+      expect(f.declarations.get("decl-1")?.status).toBe("FAILED");
+      expect(f.declarations.get("decl-1")?.providerCode).toBe("400");
+      expect(f.declarations.get("decl-1")?.submittedAt).toBeNull();
+      expect(f.repository.finalizeAutoSubmitRun).toHaveBeenCalledWith(
+        "run-auto-1",
+        expect.objectContaining({ successCount: 0, failedCount: 1, unknownCount: 0 }),
+      );
+    });
+
+    it("blocks UNKNOWN declarations in both manual and automatic submission", async () => {
+      const f = fixture();
+      f.occupants.set("occ-vn", primaryOccupant);
+      await f.service.connect("owner", "owner-role", "hotel-1", credentials);
+      f.declarations.set("decl-1", {
+        id: "decl-1",
+        hotelId: "hotel-1",
+        occupantId: "occ-vn",
+        version: 1,
+        declarationKind: "VIETNAMESE",
+        status: "UNKNOWN",
+        draftPayloadJson: {
+          hoTen: "Nguyen Van A",
+          gioiTinh: "M",
+          ngayThangNamSinhStr: "1990-01-01",
+          ngayDenCsltStr: "2026-09-14 10:00:00",
+          ngayDiDuKienStr: "2026-09-15 12:00:00",
+          soPhong: "101",
+          lyDoCuTru: 1,
+          loaiGiayTo: 1,
+          soGiayTo: "001090012345",
+        },
+      });
+
+      await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
+      await expect(f.service.submit("owner", "owner-role", "hotel-1", "occ-vn"))
+        .rejects.toMatchObject({ status: 409 });
+      expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+      expect(f.declarations.get("decl-1")?.status).toBe("UNKNOWN");
+      expect(f.repository.finalizeAutoSubmitRun).toHaveBeenCalledWith(
+        "run-auto-1",
+        expect.objectContaining({
+          status: "COMPLETED",
+          totalCount: 0,
+          successCount: 0,
+          failedCount: 0,
+          unknownCount: 0,
         }),
       );
     });
@@ -1900,7 +2255,7 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
       );
     });
 
-    it("recovers stale SENDING declarations", async () => {
+    it("moves stale SENDING to UNKNOWN during lifecycle recovery without resending", async () => {
       const f = fixture();
       f.occupants.set("occ-vn", primaryOccupant);
       await f.service.connect("owner", "owner-role", "hotel-1", credentials);
@@ -1926,15 +2281,17 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
         updatedAt: new Date(Date.now() - 15 * 60 * 1000),
       });
 
-      f.provider.submitDeclaration.mockResolvedValueOnce({
-        outcome: "SUCCESS",
-        code: "200",
-        message: "Thành công",
-      });
+      await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
+      expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+      expect(f.declarations.get("decl-stale")?.status).toBe("SENDING");
+
+      await f.service.processStayLifecycleEvents();
+      expect(f.repository.markInterruptedDeclarationsUnknown).toHaveBeenCalledTimes(1);
+      expect(f.declarations.get("decl-stale")?.status).toBe("UNKNOWN");
+      expect(f.declarations.get("decl-stale")?.providerCode).toBe("INTERRUPTED_DELIVERY");
 
       await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
-      expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
-      expect(f.declarations.get("decl-stale")?.status).toBe("SUBMITTED");
+      expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
     });
 
     it("proves auto-submit reads occupants via bounded paged path and never calls unbounded getActiveStayOccupants", async () => {
@@ -1942,6 +2299,19 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
       const credentials = { username: "owner", password: "password" };
       await f.service.connect("owner", "owner-role", "hotel-1", credentials);
 
+      f.occupants.set("occ-page-1", {
+        ...primaryOccupant,
+        id: "occ-page-1",
+        checkedInAt: new Date("2026-09-14T10:00:00Z"),
+        plannedCheckInAt: new Date("2026-09-14T10:00:00Z"),
+        plannedCheckOutAt: new Date("2026-09-15T12:00:00Z"),
+        stay: {
+          ...primaryOccupant.stay,
+          checkedInAt: new Date("2026-09-14T10:00:00Z"),
+          plannedCheckInAt: new Date("2026-09-14T10:00:00Z"),
+          plannedCheckOutAt: new Date("2026-09-15T12:00:00Z"),
+        },
+      });
       const pagedMock = jest.fn().mockResolvedValue({
         items: [
           {
@@ -1993,6 +2363,17 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
       const credentials = { username: "owner", password: "password" };
       await f.service.connect("owner", "owner-role", "hotel-1", credentials);
 
+      f.occupants.set("occ-1", {
+        ...primaryOccupant,
+        id: "occ-1",
+        plannedCheckInAt: new Date("2026-09-14T10:00:00Z"),
+        plannedCheckOutAt: new Date("2026-09-15T12:00:00Z"),
+        stay: {
+          ...primaryOccupant.stay,
+          plannedCheckInAt: new Date("2026-09-14T10:00:00Z"),
+          plannedCheckOutAt: new Date("2026-09-15T12:00:00Z"),
+        },
+      });
       const pagedMock = jest
         .fn()
         .mockResolvedValueOnce({
@@ -2042,7 +2423,7 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
       let renewCount = 0;
       (f.repository as any).renewAutoSubmitRunLease = jest.fn(async () => {
         renewCount++;
-        return renewCount === 1; // fails on second page renewal
+        return renewCount < 3; // page and first item renew; second page fails
       });
 
       f.provider.submitDeclaration.mockResolvedValue({
@@ -2108,108 +2489,56 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
       expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
     });
 
-    it("processes bulk declarations in parallel waves, retries only transient failures up to 3 waves, and never retries permanent errors", async () => {
+    it("sends each guest once in sequence and preserves success, rejection and UNKNOWN outcomes", async () => {
       const f = fixture();
-      const occ1 = {
-        ...primaryOccupant,
-        id: "occ-1",
-        fullName: "Guest One",
-        identityNumber: "001090000001",
-      };
-      const occ2 = {
-        ...primaryOccupant,
-        id: "occ-2",
-        fullName: "Guest Two",
-        identityNumber: "001090000002",
-      };
-      const occ3 = {
-        ...primaryOccupant,
-        id: "occ-3",
-        fullName: "Guest Three",
-        identityNumber: "001090000003",
-      };
-      f.occupants.set(occ1.id, occ1);
-      f.occupants.set(occ2.id, occ2);
-      f.occupants.set(occ3.id, occ3);
+      const guests = [
+        { ...primaryOccupant, id: "occ-1", fullName: "Guest One", identityNumber: "001090000001" },
+        { ...primaryOccupant, id: "occ-2", fullName: "Guest Two", identityNumber: "001090000002" },
+        { ...primaryOccupant, id: "occ-3", fullName: "Guest Three", identityNumber: "001090000003" },
+      ];
+      for (const guest of guests) f.occupants.set(guest.id, guest);
       await f.service.connect("owner", "owner-role", "hotel-1", credentials);
 
-      const pagedMock = jest.fn().mockResolvedValue({
-        items: [occ1, occ2, occ3],
-        nextCursor: null,
-      });
-      (f.occupantsReadService as any).getActiveStayOccupantsPaged = pagedMock;
-
-      const callsPerOccupant: Record<string, number> = { "occ-1": 0, "occ-2": 0, "occ-3": 0 };
-      let initialCallsCount = 0;
-      let wave1Completed = false;
-
-      f.provider.submitDeclaration.mockImplementation(
-        async (_kind: any, payload: any, _token: any) => {
-          const item = (payload as any[])[0];
-          const occId =
-            item.hoTen === "Guest One" ? "occ-1" : item.hoTen === "Guest Two" ? "occ-2" : "occ-3";
-          callsPerOccupant[occId]++;
-
-          // Check wave boundary: retries must only happen after wave 1 finished for all declarations
-          if (callsPerOccupant[occId] > 1 && !wave1Completed) {
-            throw new Error(
-              "Violation: retry initiated before Wave 1 completed for all declarations in the page",
-            );
-          }
-
-          // Simulate small delay on initial wave to test concurrent wave barrier
-          if (callsPerOccupant[occId] === 1) {
-            await new Promise((r) => setTimeout(r, 20));
-            initialCallsCount++;
-            if (initialCallsCount === 3) {
-              wave1Completed = true;
-            }
-          }
-
-          if (occId === "occ-1") {
-            return { outcome: "SUCCESS", code: "200", message: "Thành công" };
-          }
-          if (occId === "occ-2") {
-            return {
-              outcome: "BUSINESS_REJECTION",
-              code: "400",
-              message: "Sai định dạng số giấy tờ",
-            };
-          }
-          // occ-3: transient on attempts 1 and 2, succeeds on attempt 3
-          if (callsPerOccupant["occ-3"] < 3) {
-            return { outcome: "AMBIGUOUS", code: "HTTP_504", message: "Gateway Timeout" };
-          }
+      let inFlight = 0;
+      let maxInFlight = 0;
+      const sentNames: string[] = [];
+      f.provider.submitDeclaration.mockImplementation(async (_kind, payload) => {
+        const item = (payload as Array<{ hoTen: string }>)[0];
+        sentNames.push(item.hoTen);
+        inFlight++;
+        maxInFlight = Math.max(maxInFlight, inFlight);
+        await Promise.resolve();
+        inFlight--;
+        if (item.hoTen === "Guest One") {
           return { outcome: "SUCCESS", code: "200", message: "Thành công" };
-        },
-      );
+        }
+        if (item.hoTen === "Guest Two") {
+          return { outcome: "BUSINESS_REJECTION", code: "400", message: "Sai định dạng số giấy tờ" };
+        }
+        return { outcome: "AMBIGUOUS", code: "HTTP_504", message: "Gateway Timeout" };
+      });
 
       await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
 
-      // Verify wave call counts
-      expect(callsPerOccupant["occ-1"]).toBe(1);
-      expect(callsPerOccupant["occ-2"]).toBe(1);
-      expect(callsPerOccupant["occ-3"]).toBe(3);
-      expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(5);
-
-      // Verify no attempt-specific caller timeout overrides were passed
+      expect(sentNames).toEqual(["Guest One", "Guest Two", "Guest Three"]);
+      expect(maxInFlight).toBe(1);
+      expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(3);
       for (const call of f.provider.submitDeclaration.mock.calls) {
         expect((call as any)[3]).toBeUndefined();
       }
-
       expect(f.repository.finalizeAutoSubmitRun).toHaveBeenCalledWith(
         "run-auto-1",
         expect.objectContaining({
           status: "COMPLETED",
           totalCount: 3,
-          successCount: 2,
+          successCount: 1,
           failedCount: 1,
-          unknownCount: 0,
+          unknownCount: 1,
         }),
       );
     });
 
-    it("sends final Telegram summary exactly once after all pages and waves, never per wave", async () => {
+    it("sends one final Telegram summary after all guest attempts", async () => {
       const f = fixture();
       const sendTelegramMock = jest.fn().mockResolvedValue(true);
       (f.service as any).telegramNotificationService = {
@@ -2258,10 +2587,10 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
         "hotel-1",
         expect.objectContaining({
           totalEligible: 2,
-          successCount: 2,
+          successCount: 1,
           failureCount: 0,
-          unknownCount: 0,
-          directSuccessCount: 2,
+          unknownCount: 1,
+          directSuccessCount: 1,
         }),
       );
     });

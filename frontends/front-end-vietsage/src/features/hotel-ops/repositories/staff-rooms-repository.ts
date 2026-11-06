@@ -200,10 +200,10 @@ export type CollectReceivableInput = {
 };
 
 export const staffRoomsRepository = {
-  async issueCheckoutInvoice(hotelId: string, folioId: string) {
+  async issueCheckoutInvoice(hotelId: string, folioId: string, expectedBalanceAmount: number) {
     const response = await requestInternalApiEnvelope<{ id: string; balanceAmount: number | string }>(
       `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/billing/folios/${encodeURIComponent(folioId)}/invoice`,
-      { method: "POST", body: {} },
+      { method: "POST", body: { expectedBalanceAmount } },
     );
     return response.data;
   },

@@ -403,14 +403,10 @@ export function ChannexChannelWizard({
                 className="mt-1 min-h-11 w-full rounded-xl border border-[var(--outline-variant)] px-4 text-base"
               />
             </label>
-            <label className="text-base font-semibold">
-              Tiền tệ
-              <input
-                value={prepared.currency ?? "VND"}
-                readOnly
-                className="mt-1 min-h-11 w-full rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)] px-4 text-base"
-              />
-            </label>
+            <div>
+              <p className="text-base font-semibold">Tiền tệ</p>
+              <p className="mt-1 text-base">{prepared.currency ?? "VND"}</p>
+            </div>
           </div>
 
           {remoteRates.length ? (

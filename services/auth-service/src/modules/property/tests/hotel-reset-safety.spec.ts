@@ -1,7 +1,8 @@
 import { ForbiddenException } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
+import { Prisma, RoomStatus } from "@prisma/client";
 import { HotelCoreRepository } from "../infrastructure/repositories/hotel-core.repository";
 import { HotelsService } from "../application/hotels.service";
+import { RequestRealtimeEmitter } from "../../../request-realtime.emitter";
 
 // Simulate row-lock lifetime and rollback, without claiming database integration proof.
 function harness(count = 1) {
@@ -14,7 +15,11 @@ function harness(count = 1) {
   const deletes = jest.fn().mockResolvedValue({ count: 1 });
   const update = jest.fn();
   const lock = jest.fn();
+  const changedRooms = jest.fn().mockResolvedValue([]);
+  const readRooms = jest.fn().mockResolvedValue([]);
+  const committed = jest.fn();
   const prisma = {
+    room: { findMany: readRooms },
     $transaction: async (callback: (tx: any) => Promise<unknown>) => {
       let release!: () => void;
       let locked = false;
@@ -22,6 +27,11 @@ function harness(count = 1) {
       const tx: any = new Proxy(
         {
           $queryRaw: async (sql: TemplateStringsArray, id: string) => {
+            if (sql.join("?").includes('FROM "Room"')) {
+              expect(locked).toBe(true);
+              expect(id).toBe("hotel-1");
+              return [];
+            }
             expect(sql.join("?")).toContain('FROM "Hotel" WHERE id = ? FOR UPDATE');
             expect(id).toBe("hotel-1");
             const previous = tail;
@@ -33,6 +43,10 @@ function harness(count = 1) {
             staged = settings;
             lock();
             return [{ id }];
+          },
+          room: {
+            findMany: changedRooms,
+            updateMany: jest.fn().mockResolvedValue({ count: 1 }),
           },
           hotel: {
             findFirst: jest.fn(async ({ where }) => {
@@ -65,6 +79,7 @@ function harness(count = 1) {
       try {
         const result = await callback(tx);
         settings = staged;
+        committed();
         return result;
       } finally {
         if (locked) release();
@@ -76,11 +91,80 @@ function harness(count = 1) {
     deletes,
     update,
     lock,
+    changedRooms,
+    readRooms,
+    committed,
     settings: () => settings,
   };
 }
 
 describe("hotel operational reset safety", () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it("emits only changed rooms after commit using their persisted status and timestamp", async () => {
+    const h = harness();
+    const updatedAt = new Date("2026-11-06T00:00:00.000Z");
+    h.changedRooms.mockResolvedValue([{ id: "room-dirty", status: RoomStatus.PROCESSING }]);
+    h.readRooms.mockImplementation(async ({ where }) => {
+      expect(h.committed).toHaveBeenCalledTimes(1);
+      expect(where).toEqual({ hotelId: "hotel-1", id: { in: ["room-dirty"] } });
+      return [{ id: "room-dirty", roomNumber: "101", status: RoomStatus.AVAILABLE, updatedAt }];
+    });
+    const emit = jest.spyOn(RequestRealtimeEmitter, "emitRoomStatusUpdated").mockImplementation(() => {
+      expect(h.committed).toHaveBeenCalledTimes(1);
+    });
+
+    await expect(h.repository.resetHotelOperationalData("hotel-1")).resolves.toEqual({
+      operationalResetCount: 2,
+      remainingResets: 0,
+    });
+    expect(h.changedRooms).toHaveBeenCalledWith({
+      where: { hotelId: "hotel-1", status: { not: RoomStatus.AVAILABLE } },
+      select: { id: true, status: true },
+    });
+    expect(emit).toHaveBeenCalledTimes(1);
+    expect(emit).toHaveBeenCalledWith({
+      hotelId: "hotel-1", roomId: "room-dirty", roomNumber: "101",
+      status: RoomStatus.AVAILABLE, previousStatus: RoomStatus.PROCESSING, updatedAt,
+    });
+  });
+
+  it("does not fail a committed reset if the room readback fails", async () => {
+    const h = harness();
+    h.changedRooms.mockResolvedValue([{ id: "room-1", status: RoomStatus.PROCESSING }]);
+    h.readRooms.mockRejectedValue(new Error("read unavailable"));
+    const emit = jest.spyOn(RequestRealtimeEmitter, "emitRoomStatusUpdated");
+    await expect(h.repository.resetHotelOperationalData("hotel-1")).resolves.toEqual({
+      operationalResetCount: 2, remainingResets: 0,
+    });
+    expect(h.committed).toHaveBeenCalledTimes(1);
+    expect(emit).not.toHaveBeenCalled();
+  });
+
+  it("continues room delivery if an emission fails and preserves newer persisted state", async () => {
+    const h = harness();
+    const updatedAt = new Date("2026-11-06T00:00:00.000Z");
+    h.changedRooms.mockResolvedValue([
+      { id: "room-1", status: RoomStatus.PROCESSING },
+      { id: "room-2", status: RoomStatus.OCCUPIED },
+    ]);
+    h.readRooms.mockResolvedValue([
+      { id: "room-1", roomNumber: "101", status: RoomStatus.AVAILABLE, updatedAt },
+      { id: "room-2", roomNumber: "102", status: RoomStatus.MAINTENANCE, updatedAt },
+    ]);
+    const emit = jest.spyOn(RequestRealtimeEmitter, "emitRoomStatusUpdated")
+      .mockImplementationOnce(() => { throw new Error("emit unavailable"); })
+      .mockImplementation(() => undefined);
+    await expect(h.repository.resetHotelOperationalData("hotel-1")).resolves.toEqual({
+      operationalResetCount: 2, remainingResets: 0,
+    });
+    expect(emit).toHaveBeenCalledTimes(2);
+    expect(emit).toHaveBeenLastCalledWith({
+      hotelId: "hotel-1", roomId: "room-2", roomNumber: "102",
+      status: RoomStatus.MAINTENANCE, previousStatus: undefined, updatedAt,
+    });
+  });
+
   it("rejects exhausted quota before any destructive work", async () => {
     const h = harness(2);
     await expect(h.repository.resetHotelOperationalData("hotel-1")).rejects.toBeInstanceOf(
@@ -159,11 +243,15 @@ describe("hotel operational reset safety", () => {
 
   it("propagates counter-write failure within the same transaction", async () => {
     const h = harness(1);
+    h.changedRooms.mockResolvedValue([{ id: "room-1", status: RoomStatus.PROCESSING }]);
+    const emit = jest.spyOn(RequestRealtimeEmitter, "emitRoomStatusUpdated");
     h.update.mockImplementationOnce(() => {
       throw new Error("write failed");
     });
     await expect(h.repository.resetHotelOperationalData("hotel-1")).rejects.toThrow("write failed");
     expect(h.settings().operationalResetCount).toBe(1);
+    expect(h.readRooms).not.toHaveBeenCalled();
+    expect(emit).not.toHaveBeenCalled();
   });
 
   it("allows super-admin resets beyond quota while preserving unrelated settings", async () => {

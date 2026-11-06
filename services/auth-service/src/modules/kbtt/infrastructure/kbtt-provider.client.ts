@@ -5,6 +5,10 @@ import {
   type KbttCredentials,
 } from "../domain/schemas/kbtt.schema";
 import { kbttUnavailable, loadKbttConfig } from "./kbtt.config";
+import {
+  kbttDomesticDepartureChangeSchema,
+  kbttForeignDepartureChangeSchema,
+} from "../domain/schemas/kbtt-departure.schema";
 
 export const KBTT_AUTH_FAILED_MESSAGE =
   "Không thể xác thực tài khoản KBTT. Kiểm tra tài khoản, quyền tích hợp hoặc thử lại sau.";
@@ -90,6 +94,38 @@ export class KbttProviderClient {
       declarationKind === "FOREIGN"
         ? "/client-service/kbtt/kbtt-3th"
         : "/client-service/kbtt-vn/kbtt-3th";
+    return this.submitPayload(path, payload, accessToken);
+  }
+
+  async changeDeparture(
+    declarationKind: "VIETNAMESE" | "FOREIGN",
+    payload: unknown[],
+    accessToken: string,
+  ): Promise<KbttSubmitOutcome> {
+    const schema =
+      declarationKind === "FOREIGN"
+        ? kbttForeignDepartureChangeSchema
+        : kbttDomesticDepartureChangeSchema;
+    const parsed = schema.array().min(1).safeParse(payload);
+    if (!parsed.success) {
+      return {
+        outcome: "BUSINESS_REJECTION",
+        code: "LOCAL_VALIDATION",
+        message: parsed.error.issues.map((issue) => issue.message).join("; "),
+      };
+    }
+    const path =
+      declarationKind === "FOREIGN"
+        ? "/client-service/kbtt/kbtt-3th/doi-ngay-tra-phong"
+        : "/client-service/kbtt-vn/kbtt-3th/doi-ngay-tra-phong";
+    return this.submitPayload(path, parsed.data, accessToken);
+  }
+
+  private async submitPayload(
+    path: string,
+    payload: unknown[],
+    accessToken: string,
+  ): Promise<KbttSubmitOutcome> {
     if (!this.config.KBTT_BASE_URL) throw kbttUnavailable();
     const url = new URL(`${this.config.KBTT_BASE_URL}${path}`);
     let response: Response;

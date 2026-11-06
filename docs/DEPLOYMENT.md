@@ -127,6 +127,8 @@ Production Compose includes `nginxinc/nginx-unprivileged:1.28-alpine` as the onl
 - `auth-service:8080` for Socket.IO (and direct backend services);
 - `postgres` remains available only to the backend network.
 
+Development uses slashless `/socket.io` only through the same-origin Next proxy to avoid its trailing-slash redirect. Production keeps `/socket.io/` routed directly to Nest by Nginx. Next-only production Socket.IO proxying is unsupported; configure `NEXT_PUBLIC_REALTIME_URL` with a browser-reachable backend origin or provide direct upstream Socket.IO routing.
+
 Run the static checks before building:
 
 ```bash

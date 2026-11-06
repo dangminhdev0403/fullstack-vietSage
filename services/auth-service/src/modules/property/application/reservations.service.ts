@@ -87,6 +87,30 @@ export class ReservationsService {
     private readonly roomAllocationService?: any,
   ) {}
 
+  private async emitRoomStatusUpdated(input: {
+    hotelId: string;
+    roomId: string;
+    fallbackStatus: RoomStatus;
+    previousStatus?: RoomStatus | null;
+  }) {
+    try {
+      const room = await this.reservationsRepository.findRoomStatusInHotel?.(
+        input.hotelId,
+        input.roomId,
+      );
+      RequestRealtimeEmitter.emitRoomStatusUpdated({
+        hotelId: input.hotelId,
+        roomId: input.roomId,
+        roomNumber: room?.roomNumber ?? null,
+        status: room?.status ?? input.fallbackStatus,
+        previousStatus: input.previousStatus ?? null,
+        updatedAt: room?.updatedAt ?? null,
+      });
+    } catch {
+      // Realtime delivery must not fail a committed reservation transition.
+    }
+  }
+
   async createBulkReservations(
     actorUserId: string,
     activeRoleId: string,
@@ -325,6 +349,9 @@ export class ReservationsService {
         throw new NotFoundException("Không tìm thấy đặt phòng");
       }
     }
+    const roomBeforeCheckIn = reservation?.roomId
+      ? await this.reservationsRepository.findRoomStatusInHotel?.(hotelId, reservation.roomId)
+      : null;
     const accessCode = generateOpaqueToken(9).slice(0, 12).toUpperCase();
     const result = await this.reservationsRepository.checkInReservation({
       hotelId,
@@ -347,17 +374,12 @@ export class ReservationsService {
       });
 
       if (result.stay?.roomId) {
-        try {
-          RequestRealtimeEmitter.emitRoomStatusUpdated({
-            hotelId,
-            roomId: result.stay.roomId,
-            status: RoomStatus.OCCUPIED,
-            previousStatus: RoomStatus.AVAILABLE,
-            updatedAt: new Date(),
-          });
-        } catch {
-          // Non-blocking realtime emission
-        }
+        await this.emitRoomStatusUpdated({
+          hotelId,
+          roomId: result.stay.roomId,
+          fallbackStatus: RoomStatus.OCCUPIED,
+          previousStatus: roomBeforeCheckIn?.status ?? RoomStatus.AVAILABLE,
+        });
       }
     }
 
@@ -538,17 +560,12 @@ export class ReservationsService {
       swapExpectedUpdatedAt: dto.swapExpectedUpdatedAt,
       actorUserId,
     });
-    try {
-      RequestRealtimeEmitter.emitRoomStatusUpdated({
-        hotelId,
-        roomId: dto.targetRoomId,
-        status: RoomStatus.RESERVED,
-        previousStatus: RoomStatus.RESERVED,
-        updatedAt: new Date(),
-      });
-    } catch {
-      // Non-blocking realtime emission
-    }
+    await this.emitRoomStatusUpdated({
+      hotelId,
+      roomId: dto.targetRoomId,
+      fallbackStatus: RoomStatus.RESERVED,
+      previousStatus: RoomStatus.RESERVED,
+    });
     return result;
   }
 
@@ -578,16 +595,13 @@ export class ReservationsService {
       expectedUpdatedAt: dto.expectedUpdatedAt,
       actorUserId,
     });
-    try {
-      RequestRealtimeEmitter.emitRoomStatusUpdated({
+    if (updated.roomId) {
+      await this.emitRoomStatusUpdated({
         hotelId,
-        roomId: updated.roomId || "",
-        status: RoomStatus.RESERVED,
+        roomId: updated.roomId,
+        fallbackStatus: RoomStatus.RESERVED,
         previousStatus: RoomStatus.RESERVED,
-        updatedAt: new Date(),
       });
-    } catch {
-      // Non-blocking realtime emission
     }
     return updated;
   }
@@ -638,16 +652,13 @@ export class ReservationsService {
         await this.hotelAccessService.assertRoomAccess(actorUserId, activeRoleId, hotelId, roomId);
       },
     });
-    try {
-      RequestRealtimeEmitter.emitRoomStatusUpdated({
+    if (updated.roomId) {
+      await this.emitRoomStatusUpdated({
         hotelId,
-        roomId: updated.roomId || "",
-        status: RoomStatus.RESERVED,
+        roomId: updated.roomId,
+        fallbackStatus: RoomStatus.RESERVED,
         previousStatus: RoomStatus.RESERVED,
-        updatedAt: new Date(),
       });
-    } catch {
-      // Non-blocking realtime emission
     }
     return updated;
   }

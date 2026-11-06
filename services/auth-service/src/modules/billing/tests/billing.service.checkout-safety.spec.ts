@@ -36,6 +36,20 @@ import { BillingService } from "../application/billing.service";
 
 const now = new Date("2026-07-18T10:00:00.000Z");
 
+function checkoutHousekeepingTx() {
+  return {
+    housekeepingTask: {
+      findFirst: jest.fn().mockResolvedValue(null),
+      create: jest.fn().mockImplementation(({ data }) => Promise.resolve({
+        id: "checkout-cleaning-task", ...data, room: { roomNumber: "101" },
+        createdAt: now, updatedAt: now,
+      })),
+    },
+    housekeepingTaskHistory: { create: jest.fn().mockResolvedValue({}) },
+    housekeepingNotification: { create: jest.fn().mockResolvedValue({}) },
+  };
+}
+
 function createService(
   prisma: Record<string, unknown>,
   repository: Record<string, unknown> = {},
@@ -108,7 +122,7 @@ describe("BillingService checkout safety", () => {
           },
         ]),
       },
-      guestStay: { update: jest.fn() },
+      guestStay: { update: jest.fn(), updateMany: jest.fn() },
       room: { update: jest.fn() },
       roomQRCode: { updateMany: jest.fn() },
     };
@@ -161,7 +175,10 @@ describe("BillingService checkout safety", () => {
         }),
       }),
     });
-    expect(tx.guestStay.update).not.toHaveBeenCalled();
+    expect(tx.guestStay.updateMany).toHaveBeenCalledWith({
+      where: { id: "stay-1", hotelId: "hotel-1", status: { in: [GuestStayStatus.ACTIVE, GuestStayStatus.CHECKED_IN] } },
+      data: { status: GuestStayStatus.CHECKOUT_PENDING },
+    });
     expect(tx.room.update).not.toHaveBeenCalled();
     expect(tx.roomQRCode.updateMany).not.toHaveBeenCalled();
   });
@@ -204,6 +221,7 @@ describe("BillingService checkout safety", () => {
 
   it("processPaymentWebhook settles checkout and revokes guest access only once payment succeeds", async () => {
     const tx = {
+      ...checkoutHousekeepingTx(),
       payment: {
         findFirst: jest.fn().mockResolvedValue({
           id: "payment-1",
@@ -241,7 +259,9 @@ describe("BillingService checkout safety", () => {
       },
       invoice: { update: jest.fn().mockResolvedValue({}) },
       folio: { update: jest.fn().mockResolvedValue({}) },
-      guestStay: { update: jest.fn().mockResolvedValue({}) },
+      guestStay: { update: jest.fn().mockResolvedValue({}), updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+      hotel: { findUniqueOrThrow: jest.fn().mockResolvedValue({ tenantId: "tenant-1" }) },
+      domainEvent: { create: jest.fn().mockResolvedValue({ id: "checkout-event" }) },
       guestSession: { updateMany: jest.fn().mockResolvedValue({ count: 2 }) },
       room: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
       roomQRCode: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
@@ -268,8 +288,8 @@ describe("BillingService checkout safety", () => {
       where: { id: "folio-1" },
       data: { status: FolioStatus.CLOSED, closedAt: now },
     });
-    expect(tx.guestStay.update).toHaveBeenCalledWith({
-      where: { id: "stay-1" },
+    expect(tx.guestStay.updateMany).toHaveBeenCalledWith({
+      where: { id: "stay-1", hotelId: "hotel-1", status: { not: GuestStayStatus.CHECKED_OUT } },
       data: {
         status: GuestStayStatus.CHECKED_OUT,
         checkedOutAt: now,
@@ -305,6 +325,7 @@ describe("BillingService checkout safety", () => {
   it("publishes conversation closure after a zero-balance checkout commits", async () => {
     const payment = { id: "payment-zero", status: PaymentStatus.SUCCEEDED };
     const tx = {
+      ...checkoutHousekeepingTx(),
       $queryRawUnsafe: jest.fn().mockResolvedValue([]),
       invoice: {
         findFirst: jest.fn().mockResolvedValue({
@@ -325,7 +346,9 @@ describe("BillingService checkout safety", () => {
         create: jest.fn().mockResolvedValue(payment),
       },
       folio: { update: jest.fn().mockResolvedValue({}) },
-      guestStay: { update: jest.fn().mockResolvedValue({}) },
+      guestStay: { update: jest.fn().mockResolvedValue({}), updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+      hotel: { findUniqueOrThrow: jest.fn().mockResolvedValue({ tenantId: "tenant-1" }) },
+      domainEvent: { create: jest.fn().mockResolvedValue({ id: "checkout-event" }) },
       guestSession: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
       room: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
       roomQRCode: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
@@ -385,7 +408,9 @@ describe("BillingService checkout safety", () => {
         create: jest.fn().mockResolvedValue(payment),
       },
       folio: { update: jest.fn().mockResolvedValue({}) },
-      guestStay: { update: jest.fn().mockResolvedValue({}) },
+      guestStay: { update: jest.fn().mockResolvedValue({}), updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+      hotel: { findUniqueOrThrow: jest.fn().mockResolvedValue({ tenantId: "tenant-1" }) },
+      domainEvent: { create: jest.fn().mockResolvedValue({ id: "checkout-event" }) },
       guestSession: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
       room: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
       roomQRCode: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
@@ -444,7 +469,9 @@ describe("BillingService checkout safety", () => {
       },
       invoice: { update: jest.fn().mockResolvedValue({}) },
       folio: { update: jest.fn().mockResolvedValue({}) },
-      guestStay: { update: jest.fn().mockResolvedValue({}) },
+      guestStay: { update: jest.fn().mockResolvedValue({}), updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+      hotel: { findUniqueOrThrow: jest.fn().mockResolvedValue({ tenantId: "tenant-1" }) },
+      domainEvent: { create: jest.fn().mockResolvedValue({ id: "checkout-event" }) },
       guestSession: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
       room: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
       roomQRCode: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
@@ -498,6 +525,7 @@ describe("BillingService checkout safety", () => {
       currency: "VND",
     };
     const tx = {
+      ...checkoutHousekeepingTx(),
       $queryRawUnsafe: jest.fn().mockResolvedValue([]),
       invoice: {
         findFirst: jest.fn().mockResolvedValue(invoice),
@@ -516,7 +544,9 @@ describe("BillingService checkout safety", () => {
         create: jest.fn().mockResolvedValue({ id: "tx-1" }),
       },
       folio: { update: jest.fn().mockResolvedValue({}) },
-      guestStay: { update: jest.fn().mockResolvedValue({}) },
+      guestStay: { update: jest.fn().mockResolvedValue({}), updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+      hotel: { findUniqueOrThrow: jest.fn().mockResolvedValue({ tenantId: "tenant-1" }) },
+      domainEvent: { create: jest.fn().mockResolvedValue({ id: "checkout-event" }) },
       guestSession: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
       room: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
       roomQRCode: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
@@ -575,8 +605,8 @@ describe("BillingService checkout safety", () => {
       where: { id: invoice.folioId },
       data: expect.objectContaining({ status: FolioStatus.CLOSED }),
     });
-    expect(tx.guestStay.update).toHaveBeenCalledWith({
-      where: { id: invoice.stayId },
+    expect(tx.guestStay.updateMany).toHaveBeenCalledWith({
+      where: { id: invoice.stayId, hotelId: "hotel-1", status: { not: GuestStayStatus.CHECKED_OUT } },
       data: expect.objectContaining({ status: GuestStayStatus.CHECKED_OUT }),
     });
     expect(tx.room.updateMany).toHaveBeenCalledWith({
@@ -640,7 +670,7 @@ describe("BillingService checkout safety", () => {
       },
     });
     expect(tx.folio.update).not.toHaveBeenCalled();
-    expect(tx.guestStay.update).not.toHaveBeenCalled();
+    expect(tx.guestStay.updateMany).not.toHaveBeenCalled();
     expect(tx.guestSession.updateMany).not.toHaveBeenCalled();
     expect(tx.room.updateMany).not.toHaveBeenCalled();
     expect(eventPublisher.publishConversationClosed).not.toHaveBeenCalled();
@@ -693,8 +723,8 @@ describe("BillingService checkout safety", () => {
       where: { id: invoice.folioId },
       data: expect.objectContaining({ status: FolioStatus.CLOSED }),
     });
-    expect(tx.guestStay.update).toHaveBeenCalledWith({
-      where: { id: invoice.stayId },
+    expect(tx.guestStay.updateMany).toHaveBeenCalledWith({
+      where: { id: invoice.stayId, hotelId: "hotel-1", status: { not: GuestStayStatus.CHECKED_OUT } },
       data: expect.objectContaining({ status: GuestStayStatus.CHECKED_OUT }),
     });
     expect(tx.room.updateMany).toHaveBeenCalledWith({
@@ -2630,6 +2660,7 @@ describe("BillingService checkout safety", () => {
   describe("Authoritative booking deposits, allocations, and invoice integration regressions", () => {
     it("issueInvoice applies completed booking deposit and settles full prepaid checkout atomically", async () => {
       const tx: any = {
+      ...checkoutHousekeepingTx(),
         $queryRawUnsafe: jest.fn().mockResolvedValue([]),
         folio: {
           findFirst: jest.fn().mockResolvedValue({
@@ -2729,6 +2760,8 @@ describe("BillingService checkout safety", () => {
           update: jest.fn().mockResolvedValue({}),
           updateMany: jest.fn().mockResolvedValue({ count: 1 }),
         },
+        hotel: { findUniqueOrThrow: jest.fn().mockResolvedValue({ tenantId: "tenant-1" }) },
+        domainEvent: { create: jest.fn().mockResolvedValue({ id: "checkout-event" }) },
         guestSession: {
           updateMany: jest.fn().mockResolvedValue({ count: 1 }),
         },
@@ -2767,6 +2800,9 @@ describe("BillingService checkout safety", () => {
       expect(invoice.status).toBe(InvoiceStatus.PAID);
       expect(invoice.balanceAmount).toEqual(new Prisma.Decimal(0));
       expect(invoice.paidAmount).toEqual(new Prisma.Decimal(1000000));
+      expect(tx.housekeepingTask.create).toHaveBeenCalledTimes(1);
+      expect(tx.housekeepingTaskHistory.create).toHaveBeenCalledTimes(1);
+      expect(tx.housekeepingNotification.create).toHaveBeenCalledTimes(1);
       expect(tx.bookingPaymentAllocation.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: "bpa-1" },
@@ -2786,9 +2822,9 @@ describe("BillingService checkout safety", () => {
           }),
         }),
       );
-      expect(tx.guestStay.update).toHaveBeenCalledWith(
+      expect(tx.guestStay.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: "stay-dep-1" },
+          where: { id: "stay-dep-1", hotelId: "hotel-1", status: { not: GuestStayStatus.CHECKED_OUT } },
           data: expect.objectContaining({ status: GuestStayStatus.CHECKED_OUT }),
         }),
       );
@@ -2897,6 +2933,7 @@ describe("BillingService checkout safety", () => {
 
     it("issueInvoice splits excess allocation and preserves remainder on original target", async () => {
       const tx: any = {
+      ...checkoutHousekeepingTx(),
         $queryRawUnsafe: jest.fn().mockResolvedValue([]),
         folio: {
           findFirst: jest.fn().mockResolvedValue({
@@ -2986,7 +3023,9 @@ describe("BillingService checkout safety", () => {
         payment: {
           create: jest.fn().mockResolvedValue({ id: "pay-1" }),
         },
-        guestStay: { update: jest.fn().mockResolvedValue({}), updateMany: jest.fn() },
+        guestStay: { update: jest.fn().mockResolvedValue({}), updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+        hotel: { findUniqueOrThrow: jest.fn().mockResolvedValue({ tenantId: "tenant-1" }) },
+        domainEvent: { create: jest.fn().mockResolvedValue({ id: "checkout-event" }) },
         guestSession: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
         room: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
         roomQRCode: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
@@ -3061,6 +3100,7 @@ describe("BillingService checkout safety", () => {
       };
 
       const tx: any = {
+      ...checkoutHousekeepingTx(),
         $queryRawUnsafe: jest.fn().mockResolvedValue([]),
         payment: {
           findFirst: jest.fn().mockResolvedValue(paymentRecord),
@@ -3075,7 +3115,9 @@ describe("BillingService checkout safety", () => {
           update: jest.fn().mockResolvedValue({}),
         },
         folio: { update: jest.fn().mockResolvedValue({}) },
-        guestStay: { update: jest.fn().mockResolvedValue({}) },
+        guestStay: { update: jest.fn().mockResolvedValue({}), updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+      hotel: { findUniqueOrThrow: jest.fn().mockResolvedValue({ tenantId: "tenant-1" }) },
+      domainEvent: { create: jest.fn().mockResolvedValue({ id: "checkout-event" }) },
         guestSession: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
         room: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
         roomQRCode: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
@@ -3389,6 +3431,94 @@ describe("BillingService checkout safety", () => {
       expect(tx.payment.create).toHaveBeenCalledWith(expect.objectContaining({
         data: expect.objectContaining({ confirmedAt: receivedAt }),
       }));
+    });
+  });
+});
+
+
+describe("Checkout expected balance guard", () => {
+  function guardedFixture(existingBalance?: number) {
+    const folio = { id: "folio-1", hotelId: "hotel-1", stayId: "stay-1",
+      status: FolioStatus.OPEN, currency: "VND", hotel: { id: "hotel-1" }, room: {}, stay: {} };
+    const invoice = { id: "invoice-1", stayId: "stay-1", status: InvoiceStatus.ISSUED,
+      totalAmount: new Prisma.Decimal(200000), balanceAmount: new Prisma.Decimal(existingBalance ?? 200000) };
+    const tx = {
+      $queryRawUnsafe: jest.fn().mockResolvedValue([]),
+      folio: { findFirst: jest.fn().mockResolvedValue(folio), update: jest.fn() },
+      invoice: { findFirst: jest.fn().mockResolvedValue(existingBalance === undefined ? null : invoice),
+        create: jest.fn().mockResolvedValue(invoice) },
+      folioItem: { findMany: jest.fn().mockResolvedValue([{ itemType: FolioItemType.ROOM_CHARGE,
+        subtotalSnapshot: new Prisma.Decimal(200000), taxAmountSnapshot: new Prisma.Decimal(0),
+        discountAmountSnapshot: new Prisma.Decimal(0), totalSnapshot: new Prisma.Decimal(200000) }]) },
+      guestStay: { updateMany: jest.fn() },
+    };
+    const prisma = { invoice: { findFirst: jest.fn().mockResolvedValue(existingBalance === undefined ? null : invoice) },
+      folio: { updateMany: jest.fn() },
+      $transaction: jest.fn((cb: (transaction: typeof tx) => Promise<unknown>) => cb(tx)) };
+    const service = createService(prisma);
+    Reflect.set(service, "ensureFolioExists", jest.fn().mockResolvedValue(folio));
+    jest.spyOn(service, "validateFolioForCheckout").mockResolvedValue(undefined as never);
+    Reflect.set(service, "reconcileStayServiceRequests", jest.fn().mockResolvedValue(undefined));
+    Reflect.set(service, "ensureRoomChargeFolioItem", jest.fn().mockResolvedValue(undefined));
+    Reflect.set(service, "applyBookingDepositsToInvoice", jest.fn().mockResolvedValue(invoice));
+    return { service, tx, prisma, invoice };
+  }
+
+  it.each([0, 1, 200001])("rejects mismatched expected balance %s on reused invoice before state changes", async (expectedBalanceAmount) => {
+    const f = guardedFixture(200000);
+    await expect(f.service.issueInvoice("user-1", "role", "hotel-1", "folio-1", { expectedBalanceAmount }))
+      .rejects.toThrow("CHECKOUT_BALANCE_CHANGED");
+    expect(f.prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+    });
+    expect(f.prisma.folio.updateMany).not.toHaveBeenCalled();
+    expect(f.tx.folio.update).not.toHaveBeenCalled();
+    expect(f.tx.guestStay.updateMany).not.toHaveBeenCalled();
+    expect(f.tx.invoice.create).not.toHaveBeenCalled();
+  });
+
+  it("uses post-deposit balance and aborts transaction when it differs from submitted balance", async () => {
+    const f = guardedFixture();
+    Reflect.set(f.service, "applyBookingDepositsToInvoice", jest.fn().mockResolvedValue({
+      ...f.invoice, balanceAmount: new Prisma.Decimal(150000),
+    }));
+    await expect(f.service.issueInvoice("user-1", "role", "hotel-1", "folio-1", { expectedBalanceAmount: 200000 }))
+      .rejects.toThrow("CHECKOUT_BALANCE_CHANGED");
+    expect(f.tx.folio.update).not.toHaveBeenCalled();
+    expect(f.tx.guestStay.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("accepts an exact balance, preserving existing checkout flow", async () => {
+    const f = guardedFixture(200000);
+    await expect(f.service.issueInvoice("user-1", "role", "hotel-1", "folio-1", { expectedBalanceAmount: 200000 }))
+      .resolves.toMatchObject({ id: "invoice-1" });
+    expect(f.tx.folio.update).toHaveBeenCalledTimes(1);
+  });
+
+  it("accepts zero balance only when the acknowledged invoice also has zero balance", async () => {
+    const f = guardedFixture(0);
+    await expect(f.service.issueInvoice("user-1", "role", "hotel-1", "folio-1", { expectedBalanceAmount: 0 }))
+      .resolves.toMatchObject({ balanceAmount: new Prisma.Decimal(0) });
+  });
+});
+
+
+describe("Invoice expected amount request validation", () => {
+  it.each([-1, NaN, Infinity, "200000", null])("rejects invalid expected amount %s before service dispatch", async (expectedBalanceAmount) => {
+    const service = { issueInvoice: jest.fn() };
+    const controller = new FolioController(service as never);
+    await expect(controller.issueInvoice({ user: { userId: "user-1", roleId: "role" } } as never,
+      "hotel-1", "folio-1", { expectedBalanceAmount })).rejects.toBeInstanceOf(BadRequestException);
+    expect(service.issueInvoice).not.toHaveBeenCalled();
+  });
+
+  it("preserves zero expected amount through the controller boundary", async () => {
+    const service = { issueInvoice: jest.fn().mockResolvedValue({ id: "invoice-1" }) };
+    const controller = new FolioController(service as never);
+    await controller.issueInvoice({ user: { userId: "user-1", roleId: "role" } } as never,
+      "hotel-1", "folio-1", { expectedBalanceAmount: 0 });
+    expect(service.issueInvoice).toHaveBeenCalledWith("user-1", "role", "hotel-1", "folio-1", {
+      reconciliations: [], expectedBalanceAmount: 0,
     });
   });
 });

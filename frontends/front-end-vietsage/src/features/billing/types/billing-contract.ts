@@ -14,6 +14,14 @@ export type FolioSummary = {
   folioNumber?: string;
   status?: string;
   currency?: string;
+  invoice?: {
+    id?: string | null;
+    invoiceNumber?: string | null;
+    status?: string;
+    totalAmount?: MoneyValue;
+    paidAmount?: MoneyValue;
+    balanceAmount?: MoneyValue;
+  } | null;
   subtotal: MoneyValue;
   tax: MoneyValue;
   discount: MoneyValue;

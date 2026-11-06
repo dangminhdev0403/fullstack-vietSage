@@ -1,10 +1,10 @@
 "use client";
 
-import { type FormEvent, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { type FormEvent, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
-import { requestInternalApi, requestInternalApiEnvelope } from "@/core/http/internal-api-client";
+import { useRequestDetail } from "@/features/hotel-ops/hooks/use-request-detail";
+import type { RequestStaffOption } from "@/features/hotel-ops/repositories/request-queue-repository";
 import { showConfirmDialog, showErrorAlert, showSuccessAlert } from "@/libs/swal";
 import type { HotelGuestRequest } from "@/features/hotel-ops/types/hotel-ops-contract";
 import { validNextRequestStatuses } from "@/features/hotel-ops/types/hotel-ops-contract";
@@ -23,11 +23,7 @@ import {
 import type { GuestRequestStatus } from "@/features/guest-os/types/guest-os-contract";
 import { invalidateHotelRequestRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
 
-export type StaffOption = {
-  id: string;
-  name: string;
-  role?: string;
-};
+export type StaffOption = RequestStaffOption;
 
 type RequestDetailLabels = {
   statusActions: string;
@@ -108,44 +104,16 @@ export function RequestDetailClient({
   readOnly = false,
   staffOptions,
 }: RequestDetailClientProps) {
-  const router = useRouter();
   const queryClient = useQueryClient();
-  const [request, setRequest] = useState(initialRequest);
+  const detail = useRequestDetail(apiBasePath, hotelId, initialRequest);
+  const request = detail.request;
+  const fetchedStaff = detail.staff;
   const [assignment, setAssignment] = useState(initialRequest.assignedToUserId ?? "");
   const [assignmentNote, setAssignmentNote] = useState("");
   const [note, setNote] = useState("");
   const [statusNote, setStatusNote] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [fetchedStaff, setFetchedStaff] = useState<StaffOption[]>([]);
-
-  useEffect(() => {
-    let active = true;
-    async function fetchStaff() {
-      try {
-        const res = await requestInternalApiEnvelope<{
-          items?: Array<{ id: string; fullName?: string; name?: string; role?: string; roles?: Array<{ name: string }> }>;
-        }>(`/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/staff-assignments?limit=100`, {
-          method: "GET",
-        });
-        if (active && res?.data?.items) {
-          const list = res.data.items.map((u) => ({
-            id: (u as { user?: { id: string } }).user?.id || u.id,
-            name: (u as { user?: { fullName: string } }).user?.fullName || u.fullName || u.name || "Nhân viên",
-            role: u.roles?.[0]?.name || u.role,
-          }));
-          setFetchedStaff(list);
-        }
-      } catch {
-        // Fallback gracefully
-      }
-    }
-    void fetchStaff();
-    return () => {
-      active = false;
-    };
-  }, [hotelId]);
-
   const combinedStaff = useMemo(() => {
     const map = new Map<string, StaffOption>();
     (staffOptions ?? []).forEach((s) => map.set(s.id, s));
@@ -160,11 +128,7 @@ export function RequestDetailClient({
   }, [staffOptions, fetchedStaff, request.assignedToUser]);
 
   async function reload() {
-    const fresh = await requestInternalApi<HotelGuestRequest>(
-      `${apiBasePath}/${encodeURIComponent(request.id)}`,
-      { method: "GET" },
-    );
-    setRequest(fresh);
+    const fresh = await detail.reload();
     setAssignment(fresh.assignedToUserId ?? "");
     void invalidateHotelRequestRealtimeQueries(queryClient, hotelId);
 
@@ -185,11 +149,9 @@ export function RequestDetailClient({
     setIsSaving(true);
     setError(null);
     try {
-      const updated = (await requestInternalApiEnvelope<HotelGuestRequest>(
-        `${apiBasePath}/${encodeURIComponent(request.id)}/status`,
-        { method: "PATCH", body: { status, note: statusNote.trim() || undefined } },
-      )).data;
-      setRequest(updated);
+      await detail.status.mutateAsync({
+        requestId: request.id, status, note: statusNote.trim() || undefined,
+      });
       setStatusNote("");
       await reload();
       await showSuccessAlert(
@@ -221,17 +183,11 @@ export function RequestDetailClient({
     setIsSaving(true);
     setError(null);
     try {
-      const updated = (await requestInternalApiEnvelope<HotelGuestRequest>(
-        `${apiBasePath}/${encodeURIComponent(request.id)}/assignment`,
-        {
-          method: "PATCH",
-          body: {
-            assignedToUserId: assignment.trim() || null,
-            note: assignmentNote.trim() || undefined,
-          },
-        },
-      )).data;
-      setRequest(updated);
+      await detail.assignment.mutateAsync({
+        requestId: request.id,
+        assignedToUserId: assignment.trim() || null,
+        note: assignmentNote.trim() || undefined,
+      });
       setAssignmentNote("");
       await reload();
       await showSuccessAlert(
@@ -262,10 +218,7 @@ export function RequestDetailClient({
     setIsSaving(true);
     setError(null);
     try {
-      await requestInternalApiEnvelope(
-        `${apiBasePath}/${encodeURIComponent(request.id)}/events`,
-        { method: "POST", body: { note: note.trim() } },
-      );
+      await detail.note.mutateAsync({ requestId: request.id, note: note.trim() });
       setNote("");
       await reload();
       await showSuccessAlert(

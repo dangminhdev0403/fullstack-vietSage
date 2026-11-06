@@ -10,7 +10,7 @@ Agents without global Ponytail settings also read `PONYTAIL.md` before coding.
 
 ---
 
-## CODE MODE and runner prompts
+## CODE MODE, TEST MODE and runner prompts
 
-Use the [shared CODE MODE profile](C:/Users/Dangminhdev0403/.agents/skills/focused-execution/SKILL.md#code-mode) for activation, analysis, task-sized sub-agents and concise task briefs. This entrypoint does not duplicate execution, reporting or runner lifecycle procedures. Audit-specific evidence requirements remain in Strict Audit Mode and apply to audit deliverables.
+Use the shared [CODE MODE](C:/Users/Dangminhdev0403/.agents/skills/focused-execution/SKILL.md#code-mode) and [TEST MODE](C:/Users/Dangminhdev0403/.agents/skills/focused-execution/SKILL.md#test-mode) profiles for activation, silent execution, low-token browser/test verification, task-sized sub-agents and concise task briefs. This entrypoint does not duplicate execution, reporting or runner lifecycle procedures. Audit-specific evidence requirements remain in Strict Audit Mode and apply to audit deliverables.
 

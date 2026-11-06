@@ -21,6 +21,7 @@ const taskInclude = {
       roomNumber: true,
       floor: true,
       status: true,
+      updatedAt: true,
       roomType: {
         select: {
           name: true,
@@ -606,7 +607,7 @@ export class HousekeepingRepository {
       if (task.status === HousekeepingTaskStatus.COMPLETED) {
         const room = await tx.room.findUnique({ where: { id: task.roomId } });
         if (room?.status === RoomStatus.AVAILABLE) {
-          return { task, changed: false as const };
+          return { task, changed: false as const, roomStatus: null };
         }
         throw new ConflictException(
           `Công việc đã hoàn thành nhưng phòng hiện đang ở trạng thái ${room?.status}`,
@@ -680,6 +681,11 @@ export class HousekeepingRepository {
         throw new ConflictException("Xung đột đồng thời khi hoàn thành công việc");
       }
 
+      const persistedRoom = await tx.room.findFirst({
+        where: { id: task.roomId, hotelId: input.hotelId },
+        select: { roomNumber: true, status: true, updatedAt: true },
+      });
+
       await tx.housekeepingTaskHistory.create({
         data: {
           taskId: input.taskId,
@@ -698,6 +704,13 @@ export class HousekeepingRepository {
         }),
         changed: true as const,
         previousStatus: task.status,
+        roomStatus: {
+          roomId: task.roomId,
+          roomNumber: persistedRoom?.roomNumber ?? room.roomNumber ?? null,
+          status: RoomStatus.AVAILABLE,
+          previousStatus: room.status,
+          updatedAt: persistedRoom?.updatedAt ?? null,
+        },
       };
     });
 
@@ -710,6 +723,18 @@ export class HousekeepingRepository {
           }),
         ),
       );
+      if (result.roomStatus) {
+        emitHousekeepingTaskRealtime(() =>
+          RequestRealtimeEmitter.emitRoomStatusUpdated({
+            hotelId: input.hotelId,
+            roomId: result.roomStatus.roomId,
+            roomNumber: result.roomStatus.roomNumber,
+            status: result.roomStatus.status,
+            previousStatus: result.roomStatus.previousStatus,
+            updatedAt: result.roomStatus.updatedAt,
+          }),
+        );
+      }
     }
     return result.task;
   }
@@ -722,6 +747,10 @@ export class HousekeepingRepository {
     expectedVersion?: number;
   }) {
     const result = await this.prisma.$transaction(async (tx) => {
+      let roomStatusTransition: {
+        roomId: string;
+        previousStatus: RoomStatus;
+      } | null = null;
       const task = await tx.housekeepingTask.findFirst({
         where: { id: input.taskId, hotelId: input.hotelId },
         include: taskInclude,
@@ -760,10 +789,14 @@ export class HousekeepingRepository {
           );
         }
         if (room && room.status === RoomStatus.AVAILABLE) {
-          await tx.room.updateMany({
+          const roomUpdate = await tx.room.updateMany({
             where: { id: task.roomId, hotelId: input.hotelId, status: RoomStatus.AVAILABLE },
             data: { status: RoomStatus.PROCESSING },
           });
+          if (roomUpdate.count !== 1) {
+            throw new ConflictException("Trạng thái phòng đã thay đổi trong quá trình mở lại công việc");
+          }
+          roomStatusTransition = { roomId: task.roomId, previousStatus: RoomStatus.AVAILABLE };
         }
       }
 
@@ -801,13 +834,22 @@ export class HousekeepingRepository {
         },
       });
 
+      const updatedTask = await tx.housekeepingTask.findUniqueOrThrow({
+        where: { id: input.taskId },
+        include: taskInclude,
+      });
       return {
-        task: await tx.housekeepingTask.findUniqueOrThrow({
-          where: { id: input.taskId },
-          include: taskInclude,
-        }),
+        task: updatedTask,
         changed: true as const,
         previousStatus: task.status,
+        roomStatus: roomStatusTransition
+          ? {
+              ...roomStatusTransition,
+              roomNumber: updatedTask.room?.roomNumber ?? null,
+              status: RoomStatus.PROCESSING,
+              updatedAt: updatedTask.room?.updatedAt ?? null,
+            }
+          : null,
       };
     });
 
@@ -818,6 +860,19 @@ export class HousekeepingRepository {
         }),
       ),
     );
+    const roomStatus = result.roomStatus;
+    if (roomStatus) {
+      emitHousekeepingTaskRealtime(() =>
+        RequestRealtimeEmitter.emitRoomStatusUpdated({
+          hotelId: input.hotelId,
+          roomId: roomStatus.roomId,
+          roomNumber: roomStatus.roomNumber,
+          status: roomStatus.status,
+          previousStatus: roomStatus.previousStatus,
+          updatedAt: roomStatus.updatedAt,
+        }),
+      );
+    }
     return result.task;
   }
 

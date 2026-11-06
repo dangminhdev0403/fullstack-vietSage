@@ -112,7 +112,6 @@ export function FrontDeskArrivalDetailPanel({
   const [depositPercent, setDepositPercent] = useState<string>("50");
   const [depositAmount, setDepositAmount] = useState<string>("");
   const [depositMethod, setDepositMethod] = useState<"CASH" | "BANK_TRANSFER" | "CARD" | "QR">("BANK_TRANSFER");
-  const [depositReference, setDepositReference] = useState<string>("");
   const [depositNotes, setDepositNotes] = useState<string>("");
   const [isSubmittingDeposit, setIsSubmittingDeposit] = useState<boolean>(false);
   const [isSubmittingReceivable, setIsSubmittingReceivable] = useState<boolean>(false);
@@ -135,7 +134,6 @@ export function FrontDeskArrivalDetailPanel({
     setDepositMode("AMOUNT");
     setDepositPercent("50");
     setDepositAmount("");
-    setDepositReference("");
     setDepositNotes("");
   }
 
@@ -616,13 +614,11 @@ export function FrontDeskArrivalDetailPanel({
         percentValue: depositMode === "PERCENT" ? Number(depositPercent) : undefined,
         amount: numericAmount,
         paymentMethod: depositMethod,
-        referenceCode: depositReference.trim() || undefined,
         notes: depositNotes.trim() || undefined,
       });
 
       void refetchBookingPayments();
       setDepositAmount("");
-      setDepositReference("");
       setDepositNotes("");
       await showSuccessAlert(
         "Đã ghi nhận thanh toán cọc",
@@ -1371,20 +1367,6 @@ export function FrontDeskArrivalDetailPanel({
                     <VsIcon name="add_card" className="text-sm" />
                     <span>{isSubmittingDeposit ? "Đang lưu..." : "Ghi nhận đặt cọc"}</span>
                   </button>
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label htmlFor="arrival-deposit-ref" className="block text-xs font-bold text-slate-700 mb-1">
-                    Mã tham chiếu / Số chuẩn chi ngân hàng
-                  </label>
-                  <input
-                    id="arrival-deposit-ref"
-                    type="text"
-                    value={depositReference}
-                    onChange={(e) => setDepositReference(e.target.value)}
-                    placeholder="Mã GD ngân hàng / số bill POS"
-                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800"
-                  />
                 </div>
 
                 <div className="sm:col-span-2">

@@ -18,7 +18,7 @@ const escapeHtml = (value: string) =>
   })[character]!);
 
 export function ServiceCatalogView({ data }: Readonly<{ data: ServicePortalData }>) {
-  const { update, importPreview, importCommit, data: queryData } = useServicePortal();
+  const { update, importPreview, importCommit, data: queryData } = useServicePortal({ queries: ["data"] });
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "ACTIVE" | "DISABLED" | "DRAFT">("all");
   const [page, setPage] = useState(1);

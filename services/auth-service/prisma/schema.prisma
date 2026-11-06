@@ -765,6 +765,7 @@ model Hotel {
   kbttConnection                KbttHotelConnection?
   kbttGuestDeclarations         KbttGuestDeclaration[]
   kbttAutoSubmitRuns            KbttAutoSubmitRun[]
+  kbttStayOperations            KbttStayOperation[]
   featureEntitlements           HotelFeatureEntitlement[]
   channelConnections            ChannelConnection[]
   channelDailyAvailabilities    ChannelDailyAvailability[]
@@ -824,6 +825,7 @@ model KbttGuestDeclaration {
   draftPayloadJson            Json?
   submittedPayloadJson        Json?
   submittedPayloadFingerprint String?               @db.VarChar(64)
+  submittedCsltId             String?               @db.VarChar(32)
   providerCode                String?               @db.VarChar(32)
   providerMessage             String?               @db.VarChar(500)
   providerResponseJson        Json?
@@ -835,9 +837,11 @@ model KbttGuestDeclaration {
   hotel    Hotel             @relation(fields: [hotelId], references: [id], onDelete: Restrict)
   stay     GuestStay         @relation(fields: [stayId], references: [id], onDelete: Restrict)
   occupant GuestStayOccupant @relation(fields: [occupantId], references: [id], onDelete: Restrict)
+  stayOperations KbttStayOperation[]
 
   @@unique([hotelId, stayId, occupantId, revision])
   @@index([hotelId, status])
+  @@index([submittedCsltId, declarationKind, status])
   @@index([occupantId])
   @@index([stayId])
 }
@@ -1284,6 +1288,7 @@ model GuestStay {
   marketplaceOrders           MarketplaceOrder[]
   guestCarts                  GuestCart[]
   kbttGuestDeclarations       KbttGuestDeclaration[]
+  kbttStayOperations          KbttStayOperation[]
   hotelReceivables            HotelReceivable[]
   housekeepingTasks           HousekeepingTask[]
 
@@ -1313,6 +1318,7 @@ model GuestStayOccupant {
   stay                  GuestStay              @relation(fields: [stayId], references: [id], onDelete: Cascade)
   guestSessions         GuestSession[]
   kbttGuestDeclarations KbttGuestDeclaration[]
+  kbttStayOperations    KbttStayOperation[]
 
   @@index([stayId])
   @@index([hotelId])
@@ -1807,10 +1813,79 @@ model DomainEvent {
   processedAt   DateTime?
   retryCount    Int               @default(0)
   hotel         Hotel?            @relation(fields: [hotelId], references: [id], onDelete: SetNull)
+  kbttStayReceipt KbttStayEventReceipt?
 
   @@index([eventType, occurredAt])
   @@index([hotelId, occurredAt])
   @@index([status, occurredAt])
+}
+
+enum KbttStayOperationKind {
+  EXTEND
+  CHECKOUT
+  RECOVER
+}
+
+enum KbttStayOperationStatus {
+  PENDING
+  SENDING
+  SUCCEEDED
+  REJECTED
+  UNKNOWN
+  BLOCKED
+  SUPERSEDED
+}
+
+// Delivery history is separate from the immutable initial declaration.
+model KbttStayOperation {
+  id                 String                  @id @default(cuid())
+  hotelId            String
+  stayId             String
+  occupantId         String
+  declarationId      String
+  sourceEventId      String
+  csltId             String                  @db.VarChar(32)
+  identityKey        String                  @db.VarChar(64)
+  deduplicationKey   String                  @unique @db.VarChar(240)
+  declarationKind    CitizenshipKind
+  kind               KbttStayOperationKind
+  status             KbttStayOperationStatus  @default(PENDING)
+  desiredDepartureAt DateTime?
+  wasOverdue         Boolean                 @default(false)
+  payloadJson        Json?
+  payloadFingerprint String?                 @db.VarChar(64)
+  providerCode       String?                 @db.VarChar(64)
+  providerMessage    String?                 @db.VarChar(500)
+  claimToken         String?                 @db.VarChar(64)
+  attemptedAt        DateTime?
+  resolvedAt         DateTime?
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+
+  hotel       Hotel               @relation(fields: [hotelId], references: [id], onDelete: Restrict)
+  stay        GuestStay           @relation(fields: [stayId], references: [id], onDelete: Restrict)
+  occupant    GuestStayOccupant   @relation(fields: [occupantId], references: [id], onDelete: Restrict)
+  declaration KbttGuestDeclaration @relation(fields: [declarationId], references: [id], onDelete: Restrict)
+
+  @@index([status, updatedAt])
+  @@index([hotelId, stayId, occupantId])
+  @@index([csltId, identityKey, status])
+  @@index([sourceEventId])
+}
+
+// A lease covers one provider establishment, including its initial declarations.
+model KbttDeliveryLease {
+  csltId     String   @id @db.VarChar(32)
+  ownerToken String   @db.VarChar(64)
+  expiresAt  DateTime
+}
+
+// Consumer-specific receipt: do not acknowledge DomainEvent for other consumers.
+model KbttStayEventReceipt {
+  eventId     String      @id
+  summaryJson Json
+  processedAt DateTime    @default(now())
+  event       DomainEvent @relation(fields: [eventId], references: [id], onDelete: Restrict)
 }
 
 model EmergencyLocation {

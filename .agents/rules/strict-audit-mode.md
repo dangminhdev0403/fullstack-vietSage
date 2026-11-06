@@ -13,7 +13,7 @@ When the user authorizes audit and fixes together, use the shared [continuous au
 ## Reporting and delegation
 
 - Apply Ponytail ultra to audit reasoning: challenge unnecessary complexity and recommend the smallest root-cause correction.
-- For an audit-only deliverable, consolidate verified findings into one final report, starting with `STRICT AUDIT MODE: ACTIVE (PONYTAIL: ULTRA).`. For audit+fix, maintain evidence in the shared register and summarize the final result concisely. Avoid play-by-play; retain progress updates and lifecycle messages required by the runtime.
+- For an audit-only deliverable, consolidate verified findings into one final report, starting with `STRICT AUDIT MODE: ACTIVE (PONYTAIL: ULTRA).`. For audit+fix, maintain evidence in the shared register and summarize the final result concisely. Do not emit intermediate `phase: commentary` messages or periodic 60-second updates; preserve only Orca CLI lifecycle commands when running inside an Orca worker.
 - Delegated audit reviewers inherit the exact review boundary, invariants and read-only policy. Their task brief needs those task-specific facts, not a copy of this ruleset.
 - Ordinary implementation workers and their focused tests remain implementation. They report changed behavior, checks and remaining gaps without audit markers, a separate evidence ledger or a settlement essay.
 - The host owns the shared map, evidence consolidation and final report/register. Use useful scoped reviewers or module owners within the active authorization and shared profile. Keep Orca's actual Task/Dispatch lifecycle intact and do not repeat its preamble in task briefs.

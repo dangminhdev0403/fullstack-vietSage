@@ -12,21 +12,22 @@ import {
 
 import {
   formatAlertErrorMessage,
-  formatBatchResultHtml,
   showConfirmDialog,
   showErrorAlert,
   showSuccessAlert,
   showWarningAlert,
-  trustedAlertHtml,
 } from "@/libs/swal";
 
 import { useKbttPreferencesStore } from "../store/kbtt-preferences-store";
 import { kbttResource } from "../resources/kbtt-resource";
 import { useKbttConnection } from "../hooks/use-kbtt-connection";
 import { KbttDailyMovementsPanel } from "./kbtt-daily-movements-panel";
+import { KbttDeliveryStatus } from "./kbtt-delivery-status";
 import {
   canSelectKbttDeclaration,
-  getKbttListState,
+  getKbttDeclarationDisplayStatus,
+  isKbttDeclarationQueued,
+  kbttPaginationQuerySchema,
   formatKbttDraftForDisplay,
   formatKbttDraftForProvider,
   kbttErrorCode,
@@ -35,6 +36,7 @@ import {
   type CitizenshipKind,
   type KbttCatalogItem,
   type KbttDeclarationListItem,
+  type KbttPaginationQuery,
 } from "../types/kbtt-contract";
 
 const inputClass =
@@ -227,14 +229,6 @@ const DEFAULT_NATIONALITIES: readonly { code: string; nameVi: string }[] = [
   { code: "ESP", nameVi: "Tây Ban Nha" },
 ];
 
-const AUTO_SUBMIT_DELAY_SECONDS =
-  Number(process.env.NEXT_PUBLIC_KBTT_AUTO_SUBMIT_DELAY_SECONDS) > 0
-    ? Number(process.env.NEXT_PUBLIC_KBTT_AUTO_SUBMIT_DELAY_SECONDS)
-    : 1800;
-
-const IS_AUTO_SUBMIT_ENABLED =
-  process.env.NEXT_PUBLIC_KBTT_AUTO_SUBMIT_ENABLED !== "false";
-
 function formatStayDateTimeForForm(
   dateStr: string | null | undefined,
 ): string | undefined {
@@ -275,57 +269,19 @@ function formatNationality(row: KbttDeclarationListItem): string {
   return "Chưa xác định";
 }
 
-function getDeclarationStatus(row: KbttDeclarationListItem): {
-  key: "UNSENT" | "SUBMITTED" | "REJECTED" | "SENDING" | "UNKNOWN" | "CANCELLED";
-  label: string;
-  dotColor: string;
-  badgeClass: string;
-} {
-  const dec = row.declaration;
-  const status = dec?.status ?? row.derivedStatus;
-  if (status === "SENDING" || status === "UNKNOWN" || status === "CANCELLED") {
-    return {
-      key: status,
-      label: status === "SENDING" ? "Đang gửi" : status === "UNKNOWN" ? "Cần đối soát" : "Đã hủy",
-      dotColor: "bg-amber-500",
-      badgeClass: "border-amber-200 bg-amber-50 text-amber-900",
-    };
-  }
-  if (dec) {
-    if (
-      dec.status === "FAILED" ||
-      (dec.providerMessage && dec.status !== "SUBMITTED")
-    ) {
-      return {
-        key: "REJECTED",
-        label: "Bị từ chối",
-        dotColor: "bg-rose-500",
-        badgeClass: "border-rose-200 bg-rose-50 text-rose-800",
-      };
-    }
-    if (dec.status === "SUBMITTED") {
-      return {
-        key: "SUBMITTED",
-        label: "Đã gửi BCA",
-        dotColor: "bg-emerald-500",
-        badgeClass: "border-emerald-200 bg-emerald-50 text-emerald-800",
-      };
-    }
-  }
-  if (row.derivedStatus === "SUBMITTED") {
-    return {
-      key: "SUBMITTED",
-      label: "Đã gửi BCA",
-      dotColor: "bg-emerald-500",
-      badgeClass: "border-emerald-200 bg-emerald-50 text-emerald-800",
-    };
-  }
-  return {
-    key: "UNSENT",
-    label: "Chưa gửi",
-    dotColor: "bg-amber-500",
-    badgeClass: "border-amber-200 bg-amber-50 text-amber-800",
+function getDeclarationStatus(row: KbttDeclarationListItem) {
+  const key = getKbttDeclarationDisplayStatus(row);
+  const states = {
+    UNSENT: { label: "Chưa gửi", dotColor: "bg-slate-400", badgeClass: "border-slate-200 bg-slate-50 text-slate-700" },
+    QUEUED: { label: "Đã xếp hàng", dotColor: "bg-sky-600", badgeClass: "border-sky-200 bg-sky-50 text-sky-900" },
+    SUBMITTED: { label: "Đã gửi BCA", dotColor: "bg-emerald-500", badgeClass: "border-emerald-200 bg-emerald-50 text-emerald-800" },
+    LOCAL_ERROR: { label: row.declaration?.providerCode === "LOCAL_VALIDATION" ? "Cần sửa dữ liệu" : "Cần kiểm tra", dotColor: "bg-amber-500", badgeClass: "border-amber-200 bg-amber-50 text-amber-900" },
+    REJECTED: { label: "Bị từ chối", dotColor: "bg-rose-500", badgeClass: "border-rose-200 bg-rose-50 text-rose-800" },
+    SENDING: { label: "Đang gửi", dotColor: "bg-amber-500", badgeClass: "border-amber-200 bg-amber-50 text-amber-900" },
+    UNKNOWN: { label: "Cần đối soát", dotColor: "bg-amber-500", badgeClass: "border-amber-200 bg-amber-50 text-amber-900" },
+    CANCELLED: { label: "Đã hủy", dotColor: "bg-amber-500", badgeClass: "border-amber-200 bg-amber-50 text-amber-900" },
   };
+  return { key, ...states[key] };
 }
 
 function SearchIcon({ className = "h-5 w-5" }: { className?: string }) {
@@ -473,24 +429,6 @@ function SparklesIcon({ className = "h-4 w-4" }: { className?: string }) {
   );
 }
 
-function ClockIcon({ className = "h-4 w-4" }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      strokeWidth={2}
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
-      />
-    </svg>
-  );
-}
-
 function RowActionMenu({
   statusInfo,
   canEdit,
@@ -552,27 +490,27 @@ function RowActionMenu({
         </button>
       )}
 
-      {/* Gửi BCA ngay (chưa gửi hoặc bị từ chối) */}
+      {/* Xếp hàng gửi BCA */}
       {canEdit && (
         <button
           type="button"
           disabled={disabled}
           onClick={onSubmit}
-          title="Gửi hồ sơ khách này lên BCA ngay"
+          title="Xếp hàng gửi hồ sơ BCA"
           className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-[#064e3b] px-2.5 py-1 text-sm font-semibold text-white shadow-2xs hover:bg-[#043327] disabled:opacity-40 transition-colors"
         >
           <CloudUploadIcon className="h-3.5 w-3.5 text-emerald-200" />
-          <span>Gửi BCA</span>
+          <span>Xếp hàng</span>
         </button>
       )}
 
       {/* Xem lý do từ chối (nếu bị từ chối) */}
-      {(statusInfo.key === "REJECTED" || statusInfo.key === "UNKNOWN") && (
+      {(statusInfo.key === "REJECTED" || statusInfo.key === "LOCAL_ERROR" || statusInfo.key === "UNKNOWN") && (
         <button
           type="button"
           disabled={disabled}
           onClick={onViewError}
-          title="Xem phản hồi BCA"
+          title="Xem lỗi hồ sơ"
           className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-sm font-semibold text-rose-700 shadow-2xs hover:bg-rose-100 disabled:opacity-40 transition-colors"
         >
           <AlertCircleIcon className="h-3.5 w-3.5 text-rose-500" />
@@ -636,7 +574,12 @@ export function KbttDeclarationsPage({
   const isOwnerWorkspace = pathname ? pathname.startsWith("/owner") : false;
   const { connection: connectionQuery } = useKbttConnection(hotelId);
   const connectionData = connectionQuery.data;
-  const isConnected = connectionData?.status === "CONNECTED";
+  const isConnected = connectionQuery.isSuccess && connectionData?.status === "CONNECTED";
+  const connectionIssue = isConnected ? null
+    : connectionQuery.isPending ? "Đang tải trạng thái kết nối BCA. Vui lòng chờ."
+      : connectionQuery.isError || !connectionData
+        ? "Chưa đọc được trạng thái kết nối BCA. Vui lòng làm mới để kiểm tra lại."
+        : "Khách sạn chưa kết nối thành công với Cổng BCA. Vui lòng kết nối tài khoản trước khi xếp hàng hồ sơ.";
 
   const [activeSection, setActiveSection] = useState<
     "declarations" | "arrivals" | "departures"
@@ -669,8 +612,8 @@ export function KbttDeclarationsPage({
 
   // Filter states
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("ALL");
-  const [nationalityFilter, setNationalityFilter] = useState<string>("ALL");
+  const [statusFilter, setStatusFilter] = useState<NonNullable<KbttPaginationQuery["status"]> | "ALL">("ALL");
+  const [nationalityFilter, setNationalityFilter] = useState<NonNullable<KbttPaginationQuery["nationality"]> | "ALL">("ALL");
   const [checkInDateFilter, setCheckInDateFilter] = useState<string>("");
 
   const [isSubmittingBatch, setIsSubmittingBatch] = useState(false);
@@ -686,16 +629,22 @@ export function KbttDeclarationsPage({
 
   const declarationsQuery = useQuery(
     useMemo(
-      () => boundResource.queries.declarations.options({ page, limit }),
-      [boundResource, page, limit],
+      () => ({
+        ...boundResource.queries.declarations.options({
+           page, limit, q: searchQuery.trim() || undefined,
+           status: statusFilter === "ALL" ? undefined : statusFilter,
+           nationality: nationalityFilter === "ALL" ? undefined : nationalityFilter,
+           checkInDate: checkInDateFilter || undefined,
+         }),
+        refetchInterval: activeSection === "declarations" ? 10_000 : (false as const),
+        refetchIntervalInBackground: false,
+      }),
+      [boundResource, page, limit, activeSection, searchQuery, statusFilter, nationalityFilter, checkInDateFilter],
     ),
   );
 
   const saveMutation = useMutation(boundResource.mutations.saveDraft.options());
   const submitMutation = useMutation(boundResource.mutations.submit.options());
-  const sendBatchSummaryMutation = useMutation(
-    boundResource.mutations.sendBatchSummary.options(),
-  );
   const devResetMutation = useMutation(
     boundResource.mutations.devResetDeclarations.options(),
   );
@@ -754,7 +703,6 @@ export function KbttDeclarationsPage({
     () => declarationsQuery.data ?? [],
     [declarationsQuery.data],
   );
-  const listState = getKbttListState(allRows, declarationsQuery.status);
   const isListReady = declarationsQuery.isSuccess && !declarationsQuery.isFetching;
 
   const totalPages = useMemo(() => {
@@ -778,49 +726,7 @@ export function KbttDeclarationsPage({
     [page, totalPages],
   );
 
-  const filteredRows = useMemo(() => {
-    return allRows.filter((row) => {
-      // 1. Search query
-      const q = searchQuery.trim().toLowerCase();
-      if (q) {
-        const haystack =
-          `${row.roomNumber ?? ""} ${row.fullName} ${row.identityNumber ?? ""}`.toLowerCase();
-        if (!haystack.includes(q)) return false;
-      }
-
-      // 2. Status filter
-      if (statusFilter !== "ALL") {
-        const status = getDeclarationStatus(row);
-        if (status.key !== statusFilter) return false;
-      }
-
-      // 3. Nationality filter
-      if (nationalityFilter === "VNM") {
-        if (row.citizenshipKind !== "VIETNAMESE" && row.nationality !== "VNM")
-          return false;
-      } else if (nationalityFilter === "FOREIGN") {
-        if (
-          row.citizenshipKind !== "FOREIGN" &&
-          (row.citizenshipKind === "VIETNAMESE" || row.nationality === "VNM")
-        )
-          return false;
-      }
-
-      // 4. Check-in date filter
-      if (checkInDateFilter) {
-        const rowDate = row.checkedInAt || row.plannedCheckInAt;
-        if (!rowDate || !rowDate.startsWith(checkInDateFilter)) return false;
-      }
-
-      return true;
-    });
-  }, [
-    allRows,
-    searchQuery,
-    statusFilter,
-    nationalityFilter,
-    checkInDateFilter,
-  ]);
+  const filteredRows = allRows;
 
   const selectableRows = useMemo(
     () => canManage && declarationsQuery.isSuccess ? filteredRows.filter(canSelectKbttDeclaration) : [],
@@ -882,14 +788,12 @@ export function KbttDeclarationsPage({
           : /^(?=.*[A-Za-z])[A-Za-z0-9]{1,10}$/.test(identityNumber)
             ? 4
             : 0;
+      const birthDate = (edits.dateOfBirth ?? row.dateOfBirth ?? "").trim();
+      const isYearOnly = /^\d{4}$/.test(birthDate);
       const data: Record<string, unknown> = {
         hoTen: (edits.fullName ?? row.fullName).trim(),
         gioiTinh: (edits.gender ?? row.gender ?? "").trim(),
-        ngayThangNamSinhStr: (
-          edits.dateOfBirth ??
-          row.dateOfBirth ??
-          ""
-        ).trim(),
+        ngayThangNamSinhStr: citizenshipKind === "FOREIGN" && isYearOnly ? birthDate + "-01-01" : birthDate,
         ...(citizenshipKind === "VIETNAMESE"
           ? {
               soGiayTo: identityNumber,
@@ -900,7 +804,8 @@ export function KbttDeclarationsPage({
           : {
               soHoChieu: identityNumber,
               quocTich: nationality,
-              loaiNgayThangNamSinh: "D",
+              ...(isYearOnly ? { loaiNgayThangNamSinh: "Y" }
+                : edits.dateOfBirth !== undefined ? { loaiNgayThangNamSinh: "D" } : {}),
             }),
       };
       await saveMutation.mutateAsync({
@@ -1069,239 +974,47 @@ export function KbttDeclarationsPage({
     }
   }, [devModalEdits, devUpdateOccupantsMutation, handleRefresh]);
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleSubmitAll = useCallback(async () => {
-    if (!isListReady || isSubmittingBatch) return;
-    if (!isConnected) {
-      await showWarningAlert(
-        "Chưa đăng nhập Cổng BCA",
-        "Khách sạn chưa đăng nhập hoặc chưa kết nối thành công với Cổng dịch vụ công Bộ Công An. Vui lòng kết nối tài khoản trước khi gửi hồ sơ.",
-      );
-      return;
-    }
-
-    const unsubmittedRows = selectableRows;
-
-    if (unsubmittedRows.length === 0) return;
-
-    const confirmResult = await showConfirmDialog({
-      title: "Upload tất cả lên BCA",
-      text: `Bạn có chắc muốn gửi khai báo tạm trú cho toàn bộ ${unsubmittedRows.length} khách chưa gửi lên Cổng dịch vụ công Bộ Công an không?`,
-      confirmText: "Gửi toàn bộ",
-      cancelText: "Hủy bỏ",
-      reverseButtons: false,
+    if (!canManage || !isListReady || isSubmittingBatch || !isConnected) return;
+    const rows = selectableRows;
+    if (rows.length === 0) return;
+    const confirmation = await showConfirmDialog({
+      title: "Xếp hàng gửi BCA",
+      text: `Xếp hàng khai báo cho ${rows.length} khách trong danh sách đang hiển thị?`,
+      confirmText: "Xếp hàng", cancelText: "Hủy bỏ", reverseButtons: false,
     });
-    if (!confirmResult.isConfirmed) return;
-
+    if (!confirmation.isConfirmed) return;
     setIsSubmittingBatch(true);
-    let successCount = 0;
-    const errorItems: Array<{ room?: string; name?: string; message: string }> = [];
-    const errors: string[] = [];
-
-    const settledResults = await Promise.allSettled(
-      unsubmittedRows.map(async (row) => {
-        await saveInlineRow(row);
-        await submitMutation.mutateAsync({ occupantId: row.occupantId });
-        return row;
-      }),
-    );
-
-    for (let i = 0; i < settledResults.length; i++) {
-      const res = settledResults[i];
-      const row = unsubmittedRows[i];
-      if (res.status === "fulfilled") {
-        successCount++;
-      } else {
-        const msg = errorText(res.reason);
-        errorItems.push({
-          room: row.roomNumber ?? "—",
-          name: row.fullName,
-          message: msg,
-        });
-        errors.push(`Phòng ${row.roomNumber ?? "—"} (${row.fullName}): ${msg}`);
+    const results = await Promise.allSettled(rows.map(async (row) => {
+      await saveInlineRow(row);
+      const record = await submitMutation.mutateAsync({ occupantId: row.occupantId });
+      if (!isKbttDeclarationQueued(record)) {
+        throw new Error("Phản hồi chưa xác nhận đã xếp hàng. Vui lòng làm mới để kiểm tra.");
       }
-    }
-
-    const totalBatchCount = unsubmittedRows.length;
-    const failedBatchCount = errorItems.length;
-    if (totalBatchCount > 0) {
-      try {
-        await sendBatchSummaryMutation.mutateAsync({
-          totalEligible: totalBatchCount,
-          successCount,
-          failureCount: failedBatchCount,
-          unknownCount: 0,
-          isDryRun: false,
-        });
-      } catch {
-        // non-blocking
-      }
-    }
-
+    }));
+    const queuedCount = results.filter((result) => result.status === "fulfilled").length;
+    const errors = results.flatMap((result, index) => result.status === "rejected"
+      ? [`Phòng ${rows[index].roomNumber ?? "—"} · ${rows[index].fullName}: ${errorText(result.reason)}`] : []);
     setIsSubmittingBatch(false);
     handleRefresh();
-
-    if (errors.length === 0) {
-      await showSuccessAlert(
-        "Gửi BCA thành công",
-        `Đã gửi thành công khai báo tạm trú cho toàn bộ ${successCount} khách lên Bộ Công an.`,
-      );
+    if (errors.length > 0) {
+      await showWarningAlert("Xếp hàng chưa hoàn tất", `${queuedCount} hồ sơ đã xếp hàng.\n${errors.join("\n")}`);
     } else {
-      await showErrorAlert(
-        "Kết quả gửi BCA",
-        trustedAlertHtml(
-          formatBatchResultHtml({
-            total: unsubmittedRows.length,
-            success: successCount,
-            failed: errorItems.length,
-            errors: errorItems,
-            itemTypeLabel: "khách",
-            guidance:
-              "Vui lòng kiểm tra lại thông tin hồ sơ của các phòng bị lỗi hoặc chỉnh sửa thông tin chi tiết trước khi gửi lại.",
-          }),
-        ),
-      );
+      await showSuccessAlert("Đã xếp hàng", `${queuedCount} hồ sơ đang chờ gửi BCA.`);
     }
-  }, [
-    isConnected,
-    selectableRows,
-    saveInlineRow,
-    submitMutation,
-    sendBatchSummaryMutation,
-    handleRefresh,
-    isListReady,
-    isSubmittingBatch,
-  ]);
-
-  const [isAutoPaused, setIsAutoPaused] = useState(false);
-  const [countdownSeconds, setCountdownSeconds] = useState(
-    AUTO_SUBMIT_DELAY_SECONDS,
-  );
-
-  const executeAutoSubmitNow = useCallback(async () => {
-    if (!isConnected || !isListReady || isSubmittingBatch) return;
-    const unsubmittedRows = selectableRows;
-    if (unsubmittedRows.length === 0) return;
-
-    setIsSubmittingBatch(true);
-    let successCount = 0;
-    const errorItems: Array<{ room?: string; name?: string; message: string }> = [];
-
-    const settledResults = await Promise.allSettled(
-      unsubmittedRows.map(async (row) => {
-        await saveInlineRow(row);
-        await submitMutation.mutateAsync({ occupantId: row.occupantId });
-        return row;
-      }),
-    );
-
-    for (let i = 0; i < settledResults.length; i++) {
-      const res = settledResults[i];
-      const row = unsubmittedRows[i];
-      if (res.status === "fulfilled") {
-        successCount++;
-      } else {
-        const msg = errorText(res.reason);
-        errorItems.push({
-          room: row.roomNumber ?? "—",
-          name: row.fullName,
-          message: msg,
-        });
-      }
-    }
-
-    const totalBatchCount = unsubmittedRows.length;
-    const failedBatchCount = errorItems.length;
-    if (totalBatchCount > 0) {
-      try {
-        await sendBatchSummaryMutation.mutateAsync({
-          totalEligible: totalBatchCount,
-          successCount,
-          failureCount: failedBatchCount,
-          unknownCount: 0,
-          isDryRun: false,
-        });
-      } catch {
-        // non-blocking
-      }
-    }
-
-    setIsSubmittingBatch(false);
-    handleRefresh();
-
-    if (errorItems.length === 0) {
-      await showSuccessAlert(
-        "Tự động gửi BCA thành công",
-        `Hệ thống VietSage đã tự động đẩy thành công ${successCount} hồ sơ khách lên Cổng DVC Bộ Công An.`,
-      );
-    } else {
-      setCountdownSeconds(AUTO_SUBMIT_DELAY_SECONDS);
-      await showErrorAlert(
-        "Kết quả tự động gửi BCA",
-        trustedAlertHtml(
-          formatBatchResultHtml({
-            total: unsubmittedRows.length,
-            success: successCount,
-            failed: errorItems.length,
-            errors: errorItems,
-            itemTypeLabel: "khách",
-            guidance:
-              "Vui lòng kiểm tra lại thông tin của các phòng bị từ chối trước khi hệ thống thực hiện lượt quét tự động tiếp theo.",
-          }),
-        ),
-      );
-    }
-  }, [selectableRows, saveInlineRow, submitMutation, sendBatchSummaryMutation, handleRefresh, isConnected, isListReady, isSubmittingBatch]);
-
-  // Timer interval: ticks down each second when active
-  useEffect(() => {
-    if (
-      !IS_AUTO_SUBMIT_ENABLED ||
-      !isConnected ||
-      !isListReady ||
-      isAutoPaused ||
-      isSubmittingBatch ||
-      unsubmittedCount === 0 ||
-      !declarationsQuery.isSuccess
-    ) {
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
-      if (countdownSeconds <= 1) {
-        setCountdownSeconds(AUTO_SUBMIT_DELAY_SECONDS);
-        void executeAutoSubmitNow();
-        return;
-      }
-      setCountdownSeconds((previous) => previous - 1);
-    }, 1000);
-
-    return () => window.clearTimeout(timer);
-  }, [
-    isConnected,
-    countdownSeconds,
-    isAutoPaused,
-    isSubmittingBatch,
-    unsubmittedCount,
-    executeAutoSubmitNow,
-    isListReady,
-    declarationsQuery.isSuccess,
-  ]);
+  }, [canManage, isConnected, selectableRows, saveInlineRow, submitMutation, handleRefresh, isListReady, isSubmittingBatch]);
 
   const handleSubmitSingle = useCallback(
     async (row: KbttDeclarationListItem) => {
-      if (!isListReady || !canSelectKbttDeclaration(row)) return;
-      if (!isConnected) {
-        await showWarningAlert(
-          "Chưa đăng nhập Cổng BCA",
-          "Khách sạn chưa đăng nhập hoặc chưa kết nối thành công với Cổng dịch vụ công Bộ Công An. Vui lòng kết nối tài khoản trước khi gửi hồ sơ.",
-        );
+      if (!canManage || !isListReady || submitMutation.isPending || !canSelectKbttDeclaration(row)) return;
+      if (connectionIssue) {
+        await showWarningAlert("Chưa thể xếp hàng", connectionIssue);
         return;
       }
       const confirmResult = await showConfirmDialog({
-        title: "Gửi khai báo BCA",
-        text: `Gửi khai báo tạm trú cho khách ${row.fullName} (Phòng ${row.roomNumber ?? "—"}) lên Cổng dịch vụ công Bộ Công an?`,
-        confirmText: "Gửi ngay",
+        title: "Xếp hàng gửi BCA",
+        text: `Xếp hàng khai báo cho khách ${row.fullName} (Phòng ${row.roomNumber ?? "—"})?`,
+        confirmText: "Xếp hàng",
         cancelText: "Hủy bỏ",
         reverseButtons: false,
       });
@@ -1309,31 +1022,31 @@ export function KbttDeclarationsPage({
 
       try {
         await saveInlineRow(row);
-        await submitMutation.mutateAsync({ occupantId: row.occupantId });
+        const record = await submitMutation.mutateAsync({ occupantId: row.occupantId });
+        if (!isKbttDeclarationQueued(record)) {
+          throw new Error("Phản hồi chưa xác nhận đã xếp hàng. Vui lòng làm mới để kiểm tra.");
+        }
         handleRefresh();
         await showSuccessAlert(
-          "Nộp khai báo thành công",
-          `Đã gửi khai báo cho khách ${row.fullName}.`,
+          "Đã xếp hàng",
+          `Hồ sơ của khách ${row.fullName} đang chờ gửi BCA.`,
         );
       } catch (err) {
-        await showErrorAlert("Lỗi nộp khai báo", errorText(err));
+        handleRefresh();
+        await showErrorAlert("Chưa thể xếp hàng", errorText(err));
       }
     },
-    [isConnected, saveInlineRow, submitMutation, handleRefresh, isListReady],
+    [canManage, connectionIssue, saveInlineRow, submitMutation, handleRefresh, isListReady],
   );
 
   const handleViewError = useCallback(async (row: KbttDeclarationListItem) => {
     const rawMessage =
       row.declaration?.providerMessage ||
       "Chưa có thông tin chi tiết về phản hồi từ Cổng dịch vụ công Bộ Công an.";
-    const codePrefix =
-      row.declaration?.providerCode &&
-      !rawMessage.includes(row.declaration.providerCode)
-        ? `[${row.declaration.providerCode}] `
-        : "";
-    const message = `${codePrefix}${rawMessage}`;
+    const message = sanitizeErrorMessage(rawMessage);
+    const status = getDeclarationStatus(row);
     await showErrorAlert(
-      `Lý do từ chối - Phòng ${row.roomNumber ?? "—"}`,
+      `${status.label} - Phòng ${row.roomNumber ?? "—"}`,
       message,
     );
   }, []);
@@ -1403,19 +1116,12 @@ export function KbttDeclarationsPage({
           {/* Header */}
           <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-wider text-emerald-800">
-            KHÁCH ĐANG CHECK-IN
-          </p>
           <h1
             id="declarations-title"
             className="mt-1 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl text-balance"
           >
-            Chỉnh sửa & Gửi BCA theo danh sách
+            Hồ sơ BCA
           </h1>
-          <p className="mt-1 text-base text-slate-600 text-pretty">
-            Chỉnh sửa thông tin nhiều khách cùng lúc và gửi BCA hàng loạt. Mỗi
-            dòng là một khách đang lưu trú.
-          </p>
         </div>
       </header>
 
@@ -1428,7 +1134,8 @@ export function KbttDeclarationsPage({
             type="search"
             placeholder="Tìm theo số phòng, tên khách hoặc giấy tờ..."
             value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
+            onChange={(event) => { setSearchQuery(event.target.value); setPage(1); }}
+            maxLength={200}
             className="min-h-11 w-full rounded-xl border border-slate-200 bg-white pl-11 pr-4 py-2.5 text-base text-slate-900 outline-none transition-all focus:border-[#064e3b] focus:ring-2 focus:ring-[#064e3b]/15"
           />
         </div>
@@ -1437,14 +1144,21 @@ export function KbttDeclarationsPage({
         <div className="w-full sm:w-auto">
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={(e) => {
+              const value = e.target.value;
+              const status = kbttPaginationQuerySchema.shape.status.safeParse(value);
+              setStatusFilter(status.success && status.data ? status.data : "ALL");
+              setPage(1);
+            }}
             className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-base text-slate-700 outline-none transition-all focus:border-[#064e3b] focus:ring-2 focus:ring-[#064e3b]/15"
           >
             <option value="ALL">Tất cả trạng thái</option>
             <option value="UNSENT">Chưa gửi</option>
             <option value="SUBMITTED">Đã gửi BCA</option>
+            <option value="LOCAL_ERROR">Cần kiểm tra</option>
             <option value="REJECTED">Bị từ chối</option>
             <option value="SENDING">Đang gửi</option>
+            <option value="QUEUED">Đã xếp hàng</option>
             <option value="UNKNOWN">Cần đối soát</option>
             <option value="CANCELLED">Đã hủy</option>
           </select>
@@ -1454,7 +1168,11 @@ export function KbttDeclarationsPage({
         <div className="w-full sm:w-auto">
           <select
             value={nationalityFilter}
-            onChange={(e) => setNationalityFilter(e.target.value)}
+            onChange={(e) => {
+              const value = e.target.value;
+              setNationalityFilter(value === "VNM" || value === "FOREIGN" ? value : "ALL");
+              setPage(1);
+            }}
             className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-base text-slate-700 outline-none transition-all focus:border-[#064e3b] focus:ring-2 focus:ring-[#064e3b]/15"
           >
             <option value="ALL">Tất cả quốc tịch</option>
@@ -1468,7 +1186,7 @@ export function KbttDeclarationsPage({
           <input
             type="date"
             value={checkInDateFilter}
-            onChange={(e) => setCheckInDateFilter(e.target.value)}
+            onChange={(e) => { setCheckInDateFilter(e.target.value); setPage(1); }}
             title="Lọc theo ngày check-in"
             className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-base text-slate-700 outline-none transition-all focus:border-[#064e3b] focus:ring-2 focus:ring-[#064e3b]/15"
           />
@@ -1488,182 +1206,26 @@ export function KbttDeclarationsPage({
         </button>
       </div>
 
-      {/* Khối Tự động gửi BCA (Production Auto-Submit Engine) */}
-      {listState === "loading" || declarationsQuery.isFetching || connectionQuery.isLoading ? (
-        <div role="status" className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 sm:p-5 text-base text-slate-700">
-          Đang tải dữ liệu và kiểm tra trạng thái khai báo BCA...
-        </div>
-      ) : listState === "error" ? (
-        <div role="status" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:p-5 text-base text-amber-900">
-          Chưa xác định trạng thái hồ sơ vì tải dữ liệu thất bại. Tạm dừng gửi BCA; vui lòng thử lại bên dưới.
-        </div>
-      ) : !isConnected ? (
-        <div className="rounded-2xl border border-amber-300/80 bg-gradient-to-r from-amber-50/90 via-orange-50/40 to-slate-50/80 p-4 sm:p-5 shadow-xs transition-all space-y-3">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-100 px-3 py-1 text-xs font-bold uppercase tracking-wider text-amber-900 shadow-2xs">
-                <span className="relative flex h-2 w-2">
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-600"></span>
-                </span>
-                Chưa đăng nhập Cổng BCA
-              </span>
-
-              <div className="flex items-center gap-2">
-                <span className="text-base font-bold text-slate-900">
-                  Tự động gửi BCA đang tắt
-                </span>
-                <span className="text-xs text-slate-600 font-medium hidden md:inline">
-                  · Đang có <strong>{unsubmittedCount}</strong> hồ sơ chưa gửi
-                </span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {canConfigure && isOwnerWorkspace ? (
-                <a
-                  href={`/owner/hotels/${encodeURIComponent(hotelId)}/settings?tab=integrations`}
-                  className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-amber-800 px-4 py-1.5 text-sm font-semibold text-white shadow-xs hover:bg-amber-900 transition-colors"
-                >
-                  <WrenchIcon className="h-4 w-4 text-amber-200" />
-                  <span>Cấu hình tại Thiết lập</span>
-                </a>
-              ) : (
-                <span className="text-xs font-medium text-amber-800 italic">
-                  Vui lòng liên hệ Quản lý / Chủ khách sạn cấu hình kết nối BCA trong mục Thiết lập
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-600 pt-1 border-t border-amber-200/60">
-            <p>
-              Khách sạn chưa đăng nhập hoặc chưa kết nối thành công với Cổng dịch vụ công Bộ Công An. Hệ thống sẽ <strong>không tự động đẩy hồ sơ</strong> cho đến khi tài khoản được kết nối và xác thực thành công.
-            </p>
-          </div>
-        </div>
-      ) : listState === "empty" ? (
-        <div role="status" className="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5 text-base text-slate-700">
-          Không có hồ sơ trên trang này. Chưa có dữ liệu để xác nhận kết quả gửi BCA.
-        </div>
-      ) : listState === "submitted" ? (
-        <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 sm:p-5 text-sm text-emerald-900 shadow-2xs">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
-              <svg
-                className="h-5 w-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2.5}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="m4.5 12.75 6 6 9-13.5"
-                />
-              </svg>
-            </div>
-            <div>
-              <p className="font-bold text-base text-emerald-950">
-                Hồ sơ trên trang này đã gửi BCA thành công
-              </p>
-              <p className="text-xs sm:text-sm text-emerald-800 mt-0.5">
-                Tự động gửi tạm dừng (sẽ tự động kích hoạt đếm ngược {AUTO_SUBMIT_DELAY_SECONDS}s khi có khách check-in mới).
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2.5">
-          </div>
-        </div>
-      ) : unsubmittedCount === 0 ? (
-        <div role="status" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:p-5 text-base text-amber-900">
-          {filteredRows.length === 0
-            ? "Không có hồ sơ phù hợp bộ lọc. Thử xóa bộ lọc để xem các hồ sơ còn lại."
-            : "Không có hồ sơ có thể gửi trong danh sách đang hiển thị. Các hồ sơ đang gửi, cần đối soát hoặc đã hủy không được gửi lại."}
-        </div>
-      ) : (
-        <div className="rounded-2xl border border-emerald-900/15 bg-gradient-to-r from-emerald-50/90 via-teal-50/50 to-slate-50/80 p-4 sm:p-5 shadow-xs transition-all space-y-3">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300 bg-emerald-100 px-3 py-1 text-xs font-bold uppercase tracking-wider text-emerald-900 shadow-2xs">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600"></span>
-                </span>
-                Tự động đẩy BCA
-              </span>
-
-              <div className="flex items-center gap-2">
-                <ClockIcon className="h-5 w-5 text-emerald-700 animate-pulse" />
-                <span className="text-base font-bold text-slate-900">
-                  {isAutoPaused ? (
-                    <>
-                      Tự động gửi đang tạm dừng (
-                      {countdownSeconds ?? AUTO_SUBMIT_DELAY_SECONDS}s)
-                    </>
-                  ) : (
-                    <>
-                      Tự động gửi BCA sau:{" "}
-                      <span className="text-emerald-800 font-extrabold text-lg">
-                        {countdownSeconds ?? AUTO_SUBMIT_DELAY_SECONDS}s
-                      </span>
-                    </>
-                  )}
-                </span>
-                <span className="text-xs text-slate-500 font-medium hidden md:inline">
-                  · Đang có <strong>{unsubmittedCount}</strong> hồ sơ sẵn sàng đẩy
-                </span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setIsAutoPaused((prev) => !prev)}
-                disabled={isSubmittingBatch}
-                className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 text-sm font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 disabled:opacity-40 transition-colors"
-              >
-                {isAutoPaused ? "▶ Tiếp tục" : "⏸ Tạm dừng"}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => void executeAutoSubmitNow()}
-                disabled={isSubmittingBatch}
-                className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#064e3b] px-4 py-1.5 text-sm font-semibold text-white shadow-xs hover:bg-[#043327] disabled:opacity-40 transition-colors"
-              >
-                <CloudUploadIcon className="h-4 w-4" />
-                {isSubmittingBatch
-                  ? "Đang gửi..."
-                  : `Gửi ngay (${unsubmittedCount})`}
-              </button>
-            </div>
-          </div>
-
-          {/* Progress bar visual */}
-          <div className="w-full bg-emerald-100/70 h-1.5 rounded-full overflow-hidden">
-            <div
-              className="bg-emerald-600 h-full transition-all duration-1000 ease-linear"
-              style={{
-                width: `${Math.max(
-                  0,
-                  Math.min(
-                    100,
-                    (((countdownSeconds ?? AUTO_SUBMIT_DELAY_SECONDS)) /
-                      AUTO_SUBMIT_DELAY_SECONDS) *
-                      100,
-                  ),
-                )}%`,
-              }}
-            />
-          </div>
-
-          <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 pt-1">
-            <p>
-              Hệ thống tự động đồng bộ hồ sơ lên Cổng DVC Bộ Công An theo chu kỳ đã cấu hình ({AUTO_SUBMIT_DELAY_SECONDS}s). Khi toàn bộ hồ sơ được nộp xong, bộ đếm sẽ tự động dừng.
-            </p>
-          </div>
+      <KbttDeliveryStatus
+        delivery={declarationsQuery.data?.delivery}
+        isLoading={declarationsQuery.isPending}
+        hasError={declarationsQuery.isError}
+      />
+      {connectionQuery.isError && (
+        <p role="alert" className="text-base text-amber-900">{connectionIssue}</p>
+      )}
+      {canManage && unsubmittedCount > 0 && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => void handleSubmitAll()}
+            disabled={!isConnected || !isListReady || isSubmittingBatch}
+            title={connectionIssue ?? undefined}
+            className="inline-flex min-h-11 items-center gap-2 whitespace-nowrap rounded-xl bg-emerald-900 px-4 py-2 text-base font-semibold text-white hover:bg-emerald-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800 disabled:opacity-40"
+          >
+            <CloudUploadIcon className="h-4 w-4" />
+            {isSubmittingBatch ? "Đang xếp hàng…" : `Xếp hàng gửi BCA (${unsubmittedCount})`}
+          </button>
         </div>
       )}
 
@@ -1930,7 +1492,7 @@ export function KbttDeclarationsPage({
           occupantId={selectedOccupant.occupantId}
           occupantSummary={selectedOccupant}
           canManage={canManage}
-          isConnected={isConnected}
+          connectionIssue={connectionIssue}
           isDevMode={isDevMode}
           onClose={() => setSelectedOccupant(null)}
           onUpdated={handleRefresh}
@@ -1967,7 +1529,7 @@ function DeclarationModal({
   occupantId,
   occupantSummary,
   canManage,
-  isConnected = true,
+  connectionIssue,
   isDevMode: _isDevMode = false,
   onClose,
   onUpdated,
@@ -1976,7 +1538,7 @@ function DeclarationModal({
   occupantId: string;
   occupantSummary: KbttDeclarationListItem;
   canManage: boolean;
-  isConnected?: boolean;
+  connectionIssue: string | null;
   isDevMode?: boolean;
   onClose: () => void;
   onUpdated: () => void;
@@ -2025,11 +1587,15 @@ function DeclarationModal({
         occupantSummary.plannedCheckOutAt,
       );
     }
-    if (initialKind === "FOREIGN" && !initial.thoiHanTamTruStr) {
-      initial.thoiHanTamTruStr = initial.ngayDiDuKienStr;
-    }
     if (!initial.ngayThangNamSinhStr && occupant.dateOfBirth) {
-      initial.ngayThangNamSinhStr = occupant.dateOfBirth;
+      const birthDate = occupant.dateOfBirth.trim();
+      if (initialKind === "FOREIGN" && /^\d{4}$/.test(birthDate) &&
+          (!initial.loaiNgayThangNamSinh || initial.loaiNgayThangNamSinh === "Y")) {
+        initial.ngayThangNamSinhStr = birthDate + "-01-01";
+        initial.loaiNgayThangNamSinh = "Y";
+      } else if (!/^\d{4}$/.test(birthDate)) {
+        initial.ngayThangNamSinhStr = birthDate;
+      }
     }
     if (!initial.gioiTinh && occupant.gender) {
       const gender = occupant.gender.trim().toUpperCase();
@@ -2043,10 +1609,10 @@ function DeclarationModal({
     ) {
       initial.soGiayTo = occupant.identityNumber;
     }
-    if (!initial.diaChi && occupant.residencePlace) {
+    if (initialKind === "VIETNAMESE" && !initial.diaChi && occupant.residencePlace) {
       initial.diaChi = occupant.residencePlace;
     }
-    if (!initial.soDienThoai && occupant.phone) {
+    if (initialKind === "VIETNAMESE" && !initial.soDienThoai && occupant.phone) {
       initial.soDienThoai = occupant.phone;
     }
     if (initialKind === "FOREIGN") {
@@ -2137,27 +1703,28 @@ function DeclarationModal({
   const formData = useMemo<Record<string, unknown>>(
     () => ({
       ...baseFormData,
-      ...(baseFormData.loaiGiayTo === undefined && inferredDocumentType
+      ...(citizenshipKind === "VIETNAMESE" && baseFormData.loaiGiayTo === undefined && inferredDocumentType
         ? { loaiGiayTo: Number(inferredDocumentType) }
         : {}),
-      ...(baseFormData.lyDoCuTru === undefined && inferredStayReason
+      ...(citizenshipKind === "VIETNAMESE" && baseFormData.lyDoCuTru === undefined && inferredStayReason
         ? { lyDoCuTru: Number(inferredStayReason) }
         : {}),
-      ...(baseFormData.maTT === undefined && inferredProvinceCode
+      ...(citizenshipKind === "VIETNAMESE" && baseFormData.maTT === undefined && inferredProvinceCode
         ? { maTT: inferredProvinceCode }
         : {}),
-      ...(baseFormData.maPX === undefined && inferredWardCode
+      ...(citizenshipKind === "VIETNAMESE" && baseFormData.maPX === undefined && inferredWardCode
         ? { maPX: inferredWardCode }
         : {}),
-      ...(baseFormData.noiCuTru === undefined && inferredResidencePlace
+      ...(citizenshipKind === "VIETNAMESE" && baseFormData.noiCuTru === undefined && inferredResidencePlace
         ? { noiCuTru: Number(inferredResidencePlace) }
         : {}),
-      ...(baseFormData.quocTich === undefined && inferredNationalityCode
+      ...(citizenshipKind === "FOREIGN" && baseFormData.quocTich === undefined && inferredNationalityCode
         ? { quocTich: inferredNationalityCode }
         : {}),
     }),
     [
       baseFormData,
+      citizenshipKind,
       inferredDocumentType,
       inferredStayReason,
       inferredNationalityCode,
@@ -2184,6 +1751,7 @@ function DeclarationModal({
     detailQuery.data?.declaration?.status === "SUBMITTED";
   const isReadOnly = !detailQuery.isSuccess || detailQuery.isFetching || !canSelectKbttDeclaration({
     derivedStatus: detailQuery.data?.derivedStatus ?? occupantSummary.derivedStatus,
+    declaration: detailQuery.data?.declaration ?? occupantSummary.declaration,
   });
   const [isSavingDraft, setIsSavingDraft] = useState(false);
 
@@ -2203,7 +1771,7 @@ function DeclarationModal({
         occupantId,
         body: {
           citizenshipKind,
-          data: formatKbttDraftForProvider(formData),
+          data: formatKbttDraftForProvider(formData, citizenshipKind),
           allowSubmittedEdit: true,
         },
       });
@@ -2224,11 +1792,8 @@ function DeclarationModal({
     event.preventDefault();
     if (!canManage) return;
     if (isReadOnly) return;
-    if (!isConnected) {
-      await showWarningAlert(
-        "Chưa đăng nhập Cổng BCA",
-        "Khách sạn chưa đăng nhập hoặc chưa kết nối thành công với Cổng dịch vụ công Bộ Công An. Vui lòng kết nối tài khoản trước khi gửi hồ sơ.",
-      );
+    if (connectionIssue) {
+      await showWarningAlert("Chưa thể xếp hàng", connectionIssue);
       return;
     }
     if (!citizenshipKind) {
@@ -2240,9 +1805,9 @@ function DeclarationModal({
     }
 
     const confirmResult = await showConfirmDialog({
-      title: "Xác nhận gửi khai báo lên Bộ Công an?",
-      text: `Gửi hồ sơ khai báo lưu trú của khách "${formData.hoTen || formData.hoVaTen || "khách lưu trú"}" lên Cổng dịch vụ công Bộ Công an?`,
-      confirmText: "Lưu & Khai báo BCA",
+      title: "Xếp hàng gửi BCA",
+      text: `Lưu và xếp hàng hồ sơ của khách "${formData.hoTen || formData.hoVaTen || "khách lưu trú"}"?`,
+      confirmText: "Lưu & Xếp hàng",
       cancelText: "Hủy bỏ",
       reverseButtons: false,
     });
@@ -2253,7 +1818,7 @@ function DeclarationModal({
         occupantId,
         body: {
           citizenshipKind,
-          data: formatKbttDraftForProvider(formData),
+          data: formatKbttDraftForProvider(formData, citizenshipKind),
           allowSubmittedEdit: true,
         },
       });
@@ -2263,10 +1828,13 @@ function DeclarationModal({
     }
 
     try {
-      await submitMutation.mutateAsync({ occupantId });
+      const record = await submitMutation.mutateAsync({ occupantId });
+      if (!isKbttDeclarationQueued(record)) {
+        throw new Error("Phản hồi chưa xác nhận đã xếp hàng. Vui lòng làm mới để kiểm tra.");
+      }
       await showSuccessAlert(
-        "Khai báo tạm trú",
-        "Bộ Công an đã tiếp nhận hồ sơ.",
+        "Đã xếp hàng",
+        "Hồ sơ đang chờ gửi BCA.",
       );
       onUpdated();
       onClose();
@@ -2278,7 +1846,7 @@ function DeclarationModal({
         (submitError as { status: unknown }).status === 400;
       const title = isValidation
         ? "Dữ liệu chưa đủ điều kiện gửi"
-        : "Bộ Công an từ chối hồ sơ";
+        : "Chưa thể xếp hàng";
       await showErrorAlert(title, errorText(submitError));
       onUpdated();
     }
@@ -2382,14 +1950,16 @@ function DeclarationModal({
         {/* Form Body */}
         {!detailQuery.isPending && !detailQuery.isError && (
           <form onSubmit={handleSubmit} className="space-y-6">
-            {detailQuery.data?.declaration?.status === "DRAFT" &&
+            {detailQuery.data?.declaration &&
+              ["DRAFT", "FAILED"].includes(detailQuery.data.declaration.status) &&
               detailQuery.data.declaration.providerMessage && (
                 <div className="rounded-2xl border border-red-200/90 bg-red-50/50 p-4 shadow-2xs space-y-2.5">
                   <div className="flex items-center gap-2 font-bold text-red-900 text-sm sm:text-base">
                     <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-200 text-red-800 text-xs font-black">
                       !
                     </span>
-                    <span>Lần gửi trước bị Bộ Công an từ chối</span>
+                    <span>{detailQuery.data.declaration.providerCode === "LOCAL_VALIDATION"
+                      ? "Cần sửa dữ liệu trước khi gửi" : "Hồ sơ có lỗi cần kiểm tra"}</span>
                   </div>
                   <div
                     dangerouslySetInnerHTML={{
@@ -3131,12 +2701,14 @@ function DeclarationModal({
                     disabled={isBusy}
                     className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#064e3b] px-6 py-3 text-base font-bold text-white shadow-md transition-all hover:bg-[#043327] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#064e3b] disabled:opacity-50"
                   >
-                    {submitMutation.isPending ? "Đang gửi…" : "Lưu & Khai báo BCA"}
+                    {submitMutation.isPending ? "Đang xếp hàng…" : "Lưu & Xếp hàng"}
                   </button>
                 ) : isActuallySubmitted ? (
                   <span className="inline-flex min-h-12 items-center rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-base font-semibold text-emerald-800">
                     Hồ sơ của lần lưu trú này đã gửi BCA
                   </span>
+                ) : isKbttDeclarationQueued(detailQuery.data?.declaration) ? (
+                  <span role="status" className="text-base text-sky-900">Đã xếp hàng · Chờ gửi BCA</span>
                 ) : isReadOnly && detailQuery.isSuccess ? (
                   <span role="status" className="text-base text-amber-900">
                     Hồ sơ đang gửi, cần đối soát hoặc đã hủy. Chỉ xem; không sửa hay gửi lại.
@@ -3262,7 +2834,7 @@ function KbttDevInterventionModal({
           <button
             type="button"
             onClick={onClose}
-            className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 hover:bg-amber-200/50 hover:text-slate-800 transition-colors"
+            className="flex h-9 w-9 items-center justify-center rounded-xl text-amber-800 hover:bg-amber-200/50 hover:text-amber-950 transition-colors"
             aria-label="Đóng bảng công cụ"
           >
             ✕

@@ -1898,10 +1898,31 @@ export class HotelRoomsRepository {
     },
   ) {
     return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`
+        SELECT id FROM "GuestStay"
+        WHERE id = ${stayId} AND "hotelId" = ${hotelId}
+        FOR UPDATE
+      `;
       const existingStay = await tx.guestStay.findFirst({
         where: { id: stayId, hotelId },
+        include: { hotel: { select: { tenantId: true } } },
       });
       if (!existingStay) return null;
+
+      if (input.plannedCheckOutAt &&
+          input.plannedCheckOutAt.getTime() !== existingStay.plannedCheckOutAt.getTime() &&
+          (existingStay.checkedOutAt || existingStay.status === GuestStayStatus.CHECKED_OUT ||
+            existingStay.status === GuestStayStatus.CANCELLED)) {
+        throw new ConflictException("Không thể gia hạn lượt lưu trú đã kết thúc");
+      }
+      if (input.plannedCheckOutAt && input.plannedCheckOutAt < existingStay.plannedCheckOutAt) {
+        throw new BadRequestException("Thời gian gia hạn phải sau hạn trả phòng hiện tại");
+      }
+      if (input.plannedCheckOutAt &&
+          input.plannedCheckOutAt > existingStay.plannedCheckOutAt &&
+          input.plannedCheckOutAt.getTime() <= Date.now()) {
+        throw new BadRequestException("Thời gian gia hạn phải ở tương lai");
+      }
 
       const primaryOccupantUpdates: { fullName?: string; phone?: string | null } = {};
       if (input.guestDisplayName !== undefined) {
@@ -1922,7 +1943,7 @@ export class HotelRoomsRepository {
         });
       }
 
-      return tx.guestStay.update({
+      const updatedStay = await tx.guestStay.update({
         where: { id: stayId },
         data: {
           ...(input.plannedCheckOutAt ? { plannedCheckOutAt: input.plannedCheckOutAt } : {}),
@@ -1937,6 +1958,30 @@ export class HotelRoomsRepository {
           },
         },
       });
+
+      if (
+        input.plannedCheckOutAt &&
+        input.plannedCheckOutAt.getTime() !== existingStay.plannedCheckOutAt.getTime()
+      ) {
+        const changedAt = new Date();
+        await this.createDomainEvent(tx, {
+          eventType: "GUEST_STAY_DEPARTURE_CHANGED",
+          aggregateType: "GuestStay",
+          aggregateId: stayId,
+          hotelId,
+          tenantId: existingStay.hotel.tenantId,
+          payload: {
+            version: 1,
+            stayId,
+            previousPlannedCheckOutAt: existingStay.plannedCheckOutAt.toISOString(),
+            plannedCheckOutAt: updatedStay.plannedCheckOutAt.toISOString(),
+            wasOverdue: existingStay.plannedCheckOutAt.getTime() < changedAt.getTime(),
+            changedAt: changedAt.toISOString(),
+          },
+        });
+      }
+
+      return updatedStay;
     });
   }
 
@@ -2091,7 +2136,14 @@ export class HotelRoomsRepository {
         aggregateId: input.stayId,
         hotelId: input.hotelId,
         tenantId: input.tenantId,
-        payload: { stayId: input.stayId, roomId: input.roomId, actorUserId: input.actorUserId },
+        payload: {
+          version: 1,
+          stayId: input.stayId,
+          roomId: input.roomId,
+          checkedOutAt: now.toISOString(),
+          actorUserId: input.actorUserId,
+          closureReason: "CHECKOUT",
+        },
       });
 
       await this.createDomainEvent(tx, {

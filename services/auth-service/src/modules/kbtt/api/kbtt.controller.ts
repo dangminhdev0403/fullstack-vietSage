@@ -18,6 +18,7 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiResponse,
   ApiTags,
 } from "@nestjs/swagger";
@@ -195,7 +196,13 @@ export class KbttController {
   @Get("declarations")
   @Header("Cache-Control", "no-store")
   @RequirePermission("hotel.kbtt.declarations.view")
-  @ApiOperation({ summary: "List active occupants combined with KBTT declaration status" })
+  @ApiOperation({ summary: "List active occupants and local background delivery status" })
+  @ApiQuery({ name: "page", required: false, type: Number, minimum: 1 })
+  @ApiQuery({ name: "limit", required: false, type: Number, minimum: 1, maximum: 100 })
+  @ApiQuery({ name: "q", required: false, type: String, maxLength: 200 })
+  @ApiQuery({ name: "status", required: false, enum: ["UNSENT", "QUEUED", "SUBMITTED", "LOCAL_ERROR", "REJECTED", "SENDING", "UNKNOWN", "CANCELLED"] })
+  @ApiQuery({ name: "nationality", required: false, enum: ["VNM", "FOREIGN"] })
+  @ApiQuery({ name: "checkInDate", required: false, type: String, format: "date" })
   listDeclarations(
     @Req() request: RequestWithRequiredUser,
     @Param("hotelId") hotelId: string,
@@ -253,7 +260,7 @@ export class KbttController {
   @Header("Cache-Control", "no-store")
   @ApiParam({ name: "occupantId", type: String })
   @RequirePermission("hotel.kbtt.declarations.manage")
-  @ApiOperation({ summary: "Submit validated declaration to KBTT provider (API 4/5)" })
+  @ApiOperation({ summary: "Queue validated declaration for background BCA delivery" })
   submit(
     @Req() request: RequestWithRequiredUser,
     @Param("hotelId") hotelId: string,

@@ -4,7 +4,7 @@ import { type FormEvent, useCallback, useMemo, useState } from "react";
 import { showConfirmDialog, showErrorAlert, showSuccessAlert } from "@/libs/swal";
 
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
-import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
+import { useServiceCatalog } from "@/features/hotel-ops/hooks/use-service-catalog";
 import type {
   HotelServiceCategory,
   HotelServiceItem,
@@ -56,8 +56,10 @@ export function ServiceCatalogClient({
   initialItems,
 }: ServiceCatalogClientProps) {
   const [tab, setTab] = useState<"categories" | "items">("categories");
-  const [categories, setCategories] = useState(initialCategories);
-  const [items, setItems] = useState(initialItems);
+  const catalog = useServiceCatalog({ hotelId, surface: "hotel-ops" }, initialCategories, initialItems);
+  const { categories, items } = catalog;
+  const saveCategoryMutation = catalog.saveCategory.mutateAsync;
+  const saveItemMutation = catalog.saveItem.mutateAsync;
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -117,17 +119,7 @@ export function ServiceCatalogClient({
         sortOrder: toNumber(categoryForm.sortOrder) ?? 0,
         status: categoryForm.status,
       };
-      const path = categoryForm.id
-        ? `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/service-categories/${encodeURIComponent(categoryForm.id)}`
-        : `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/service-categories`;
-      const saved = categoryForm.id
-        ? (await requestInternalApiEnvelope<HotelServiceCategory>(path, { method: "PATCH", body: payload })).data
-        : (await requestInternalApiEnvelope<HotelServiceCategory>(path, { method: "POST", body: payload })).data;
-
-      setCategories((current) => {
-        const exists = current.some((category) => category.id === saved.id);
-        return exists ? current.map((category) => (category.id === saved.id ? saved : category)) : [saved, ...current];
-      });
+      const saved = await saveCategoryMutation({ id: categoryForm.id, input: payload });
       setCategoryForm(null);
       await showSuccessAlert(
         isEdit ? "Cập nhật thành công!" : "Tạo nhóm dịch vụ thành công!",
@@ -171,17 +163,7 @@ export function ServiceCatalogClient({
         sortOrder: toNumber(itemForm.sortOrder) ?? 0,
         status: itemForm.status,
       };
-      const path = itemForm.id
-        ? `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/service-items/${encodeURIComponent(itemForm.id)}`
-        : `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/service-items`;
-      const saved = itemForm.id
-        ? (await requestInternalApiEnvelope<HotelServiceItem>(path, { method: "PATCH", body: payload })).data
-        : (await requestInternalApiEnvelope<HotelServiceItem>(path, { method: "POST", body: payload })).data;
-
-      setItems((current) => {
-        const exists = current.some((item) => item.id === saved.id);
-        return exists ? current.map((item) => (item.id === saved.id ? saved : item)) : [saved, ...current];
-      });
+      const saved = await saveItemMutation({ id: itemForm.id, input: payload });
       setItemForm(null);
       await showSuccessAlert(
         isEdit ? "Cập nhật thành công!" : "Tạo dịch vụ thành công!",
@@ -218,13 +200,7 @@ export function ServiceCatalogClient({
 
       try {
         const nextStatus: HotelServiceStatus = isDeactivating ? "DISABLED" : "ACTIVE";
-        const saved = (
-          await requestInternalApiEnvelope<HotelServiceCategory>(
-            `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/service-categories/${encodeURIComponent(category.id)}`,
-            { method: "PATCH", body: { status: nextStatus } },
-          )
-        ).data;
-        setCategories((current) => current.map((item) => (item.id === saved.id ? saved : item)));
+        await saveCategoryMutation({ id: category.id, input: { status: nextStatus } });
         await showSuccessAlert(
           `Đã ${actionText} nhóm dịch vụ!`,
           `Nhóm dịch vụ "${category.name}" đã được ${actionText}.`,
@@ -233,7 +209,7 @@ export function ServiceCatalogClient({
         await showErrorAlert("Không thể cập nhật trạng thái", error);
       }
     },
-    [canManage, hotelId],
+    [canManage, saveCategoryMutation],
   );
 
   const toggleItem = useCallback(
@@ -259,13 +235,7 @@ export function ServiceCatalogClient({
 
       try {
         const nextStatus: HotelServiceStatus = isDeactivating ? "DISABLED" : "ACTIVE";
-        const saved = (
-          await requestInternalApiEnvelope<HotelServiceItem>(
-            `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/service-items/${encodeURIComponent(item.id)}`,
-            { method: "PATCH", body: { status: nextStatus } },
-          )
-        ).data;
-        setItems((current) => current.map((entry) => (entry.id === saved.id ? saved : entry)));
+        await saveItemMutation({ id: item.id, input: { status: nextStatus } });
         await showSuccessAlert(
           `Đã ${actionText} dịch vụ!`,
           `Dịch vụ "${item.name}" đã được ${actionText}.`,
@@ -274,7 +244,7 @@ export function ServiceCatalogClient({
         await showErrorAlert("Không thể cập nhật trạng thái", error);
       }
     },
-    [canManage, hotelId],
+    [canManage, saveItemMutation],
   );
 
   const categoryColumns = useMemo<DataTableColumn<HotelServiceCategory>[]>(() => {

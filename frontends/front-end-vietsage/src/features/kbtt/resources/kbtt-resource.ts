@@ -20,6 +20,7 @@ import type {
   KbttDeclarationRecord,
   KbttDevOccupantUpdateItem,
   KbttOccupantDeclarationDetail,
+  KbttPaginationQuery,
   SaveKbttDraftPayload,
 } from "../types/kbtt-contract";
 
@@ -46,9 +47,15 @@ export const kbttResource = createResource<HotelScope>()({
         kbttRepository.connection(scope.hotelId, signal),
     }),
     declarations: defineQuery({
-      inputKey: (input: { page?: number; limit?: number } = {}) => [
+      // Array metadata carries delivery counters even when every row is unchanged.
+      defaults: { structuralSharing: false },
+      inputKey: (input: Partial<KbttPaginationQuery> = {}) => [
         input.page ?? 1,
         input.limit ?? 50,
+        input.q?.trim() ?? "",
+        input.status ?? "",
+        input.nationality ?? "",
+        input.checkInDate ?? "",
       ],
       queryFn: ({
         scope,
@@ -56,7 +63,7 @@ export const kbttResource = createResource<HotelScope>()({
         signal,
       }: ResourceQueryContext<
         HotelScope,
-        { page?: number; limit?: number } | undefined
+        Partial<KbttPaginationQuery> | undefined
       >): Promise<PaginatedKbttDeclarations> =>
         kbttRepository.listDeclarations(scope.hotelId, input, signal),
     }),

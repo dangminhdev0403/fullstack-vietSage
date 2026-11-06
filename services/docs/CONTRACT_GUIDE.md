@@ -58,6 +58,26 @@ A service that owns tables owns:
 - Webhooks must validate provider authenticity where supported.
 - Integration failures should be observable and should not leak provider internals to API consumers.
 
+### BCA connection identity
+
+- Hotel-scoped connection responses add `username: string | null` from the encrypted saved credentials after the existing KBTT permission and hotel-access checks. Reads remain local and never authenticate with BCA. Decryption failure preserves stored status metadata and returns `username: null`. Keep `maskedUsername` for older clients; never return passwords, tokens or encryption fields.
+
+### BCA background delivery
+
+- `POST /hotels/:hotelId/kbtt/declarations/:occupantId/submit` validates locally and returns the existing declaration shape with `status: READY` and `providerCode: LOCAL_QUEUED`. It does not authenticate or transmit to BCA. Repeating the same queued request returns the same record; editing its draft removes it from the queue. The existing minute scheduler sends only records still queued at dispatch, using CAS and the existing delivery lease. An ambiguous transmission remains `UNKNOWN` for reconciliation.
+- Check-in also queues initial declarations. The live auto-submit test action schedules the existing background run; dry-run remains local-only. The kill switch and live flag govern dispatch; the lifecycle flag independently governs extension/check-out/recovery work.
+- `GET /hotels/:hotelId/kbtt/declarations` adds `delivery`: `{mode:'BACKGROUND', state:'RUNNING'|'PAUSED'|'NOT_CONFIGURED', lifecycleEnabled:boolean, pendingCount:number, sendingCount:number, reviewCount:number, lastSucceededAt:string|null, recentIssues:Array<{id:string,kind:'INITIAL'|'EXTEND'|'CHECKOUT'|'RECOVER',status:'FAILED'|'REJECTED'|'UNKNOWN'|'BLOCKED',roomNumber:string,fullName:string,message:string|null,updatedAt:string}>}`.
+- Delivery monitoring reads only local state, includes departed stays, and follows the caller's hotel/room scope. PostgreSQL selects the latest state per guest/action, suppresses completed recovery/obsolete updates, aggregates counts and returns at most 20 recent issues. Last success includes initial and lifecycle sends. It exposes no payloads, identity documents, provider messages or credentials and makes no provider calls.
+
+### BCA lifecycle and front desk validation
+
+- Foreign residence validity must come from explicitly supplied data; never infer it from the hotel departure. Missing validity remains a local validation error before submission.
+- BCA lifecycle routing compares Vietnam calendar days (`Asia/Ho_Chi_Minh`) for both guest kinds. An hour-only departure change on the acknowledged day sends nothing. A later departure day uses API 12/13 GH when the acknowledged day is today or later; when it is before today, a confirmed later day (today or later) goes directly to API 4/5 as a new declaration (RECOVER), preserving actual arrival and acknowledged identity. Initial dispatch and transactional claim guards compare the same calendar days. The domestic GH 30-day limit and independently confirmed foreign residence validity also use calendar days. Actual PMS timestamps and documented datetime wire fields remain intact. Do not probe GH or infer expiry from a disappearing web list. Repeated acknowledged target days are superseded; later expiry cycles remain possible. Timeout/unknown results block dependent delivery and are not retried blindly.
+- Date reductions and extensions of checked-out/cancelled stays are rejected under the stay transaction lock before guest/stay/event writes. Same-date updates emit no extension event; new extensions must end in the future. Cleaning/ready/maintenance/blocked changes do not transmit guest updates. Completed checkout uses TS.
+- Primary/co-guest birth dates supplied to create-stay and reservation check-in must be real calendar dates and not in the future; blank dates remain optional and a valid year-only value remains YYYY. At the BCA boundary, foreign year-only DOB is encoded as Y with YYYY-01-01; it is never labeled as a known full date. Check-in validates entered document/date values before confirmation.
+- Local declaration GET accepts optional q (max 200), status (UNSENT, QUEUED, SUBMITTED, LOCAL_ERROR, REJECTED, SENDING, UNKNOWN, CANCELLED), nationality (VNM, FOREIGN), and checkInDate (valid YYYY-MM-DD in Vietnam time). Filters use projected draft values before pagination; totals are filtered. Delivery counters retain hotel/room scope. LOCAL_ERROR is distinct from a provider rejection. These are local reads, never BCA lookups.
+- Existing invoice issue requests accept optional expectedBalanceAmount (finite, nonnegative). Front desk settlement checks the entered amount before issue; the server checks the authoritative invoice balance, including deposits, in its transaction. Once an invoice exists, settlement uses its total/paid/balance from the existing folio summary rather than subtracting booking deposits again. A mismatch returns CHECKOUT_BALANCE_CHANGED and rolls back. Existing callers omitting the field retain their behavior; payment confirmation still enforces full settlement.
+
 ### Channex staging contract
 
 - Hotel-scoped `RoomType` stores the publishable VND base price; `Room.price`
