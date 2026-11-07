@@ -24,7 +24,7 @@ const protectedPrefixes = [
   "/hotels",
   "/service",
 ] as const;
-const authRoutes = new Set([LOGIN_PATH, LEGACY_LOGIN_PATH]);
+const authRoutes = new Set<string>([LOGIN_PATH, LEGACY_LOGIN_PATH]);
 const nextAuthCookiePrefixes = [
   "next-auth.",
   "__Secure-next-auth.",

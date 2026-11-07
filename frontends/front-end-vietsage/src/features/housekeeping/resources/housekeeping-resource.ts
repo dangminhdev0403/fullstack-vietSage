@@ -102,42 +102,96 @@ export const housekeepingResource = createResource<HousekeepingScope>()({
     }),
   },
   mutations: {
-    claimTask: defineMutation<HousekeepingScope, { taskId: string } & TaskVersionInput, HousekeepingTask>({
-      mutationFn: ({ scope, variables }) => housekeepingRepository.claimTask(scope.hotelId, variables.taskId, { expectedVersion: variables.expectedVersion }),
+    claimTask: defineMutation({
+      mutationFn: ({
+        scope,
+        variables,
+      }: ResourceMutationContext<
+        HousekeepingScope,
+        { taskId: string } & TaskVersionInput
+      >): Promise<HousekeepingTask> =>
+        housekeepingRepository.claimTask(scope.hotelId, variables.taskId, {
+          expectedVersion: variables.expectedVersion,
+        }),
       invalidates: taskAndRoomInvalidates,
     }),
-    assignCleaner: defineMutation<HousekeepingScope, { taskId: string } & TaskVersionInput, HousekeepingTask>({
-      mutationFn: ({ scope, variables }) => housekeepingRepository.claimTask(scope.hotelId, variables.taskId, { expectedVersion: variables.expectedVersion }),
+    assignCleaner: defineMutation({
+      mutationFn: ({
+        scope,
+        variables,
+      }: ResourceMutationContext<
+        HousekeepingScope,
+        { taskId: string } & TaskVersionInput
+      >): Promise<HousekeepingTask> =>
+        housekeepingRepository.claimTask(scope.hotelId, variables.taskId, {
+          expectedVersion: variables.expectedVersion,
+        }),
       invalidates: taskAndRoomInvalidates,
     }),
-    startTask: defineMutation<HousekeepingScope, { taskId: string } & TaskVersionInput, HousekeepingTask>({
-      mutationFn: ({ scope, variables }) => housekeepingRepository.startTask(scope.hotelId, variables.taskId, { expectedVersion: variables.expectedVersion }),
+    startTask: defineMutation({
+      mutationFn: ({
+        scope,
+        variables,
+      }: ResourceMutationContext<
+        HousekeepingScope,
+        { taskId: string } & TaskVersionInput
+      >): Promise<HousekeepingTask> =>
+        housekeepingRepository.startTask(scope.hotelId, variables.taskId, {
+          expectedVersion: variables.expectedVersion,
+        }),
       invalidates: taskAndRoomInvalidates,
     }),
-    blockTask: defineMutation<HousekeepingScope, { taskId: string; reason: string; notes?: string } & TaskVersionInput, HousekeepingTask>({
-      mutationFn: ({ scope, variables }) => housekeepingRepository.blockTask(scope.hotelId, variables.taskId, { reason: variables.reason, notes: variables.notes, expectedVersion: variables.expectedVersion }),
+    blockTask: defineMutation({
+      mutationFn: ({
+        scope,
+        variables,
+      }: ResourceMutationContext<
+        HousekeepingScope,
+        { taskId: string; reason: string; notes?: string } & TaskVersionInput
+      >): Promise<HousekeepingTask> =>
+        housekeepingRepository.blockTask(scope.hotelId, variables.taskId, {
+          reason: variables.reason,
+          notes: variables.notes,
+          expectedVersion: variables.expectedVersion,
+        }),
       invalidates: taskAndRoomInvalidates,
     }),
-    completeTask: defineMutation<HousekeepingScope, { taskId: string; notes?: string } & TaskVersionInput, HousekeepingTask>({
-      mutationFn: ({ scope, variables }) => housekeepingRepository.completeTask(scope.hotelId, variables.taskId, { notes: variables.notes, expectedVersion: variables.expectedVersion }),
+    completeTask: defineMutation({
+      mutationFn: ({
+        scope,
+        variables,
+      }: ResourceMutationContext<
+        HousekeepingScope,
+        { taskId: string; notes?: string } & TaskVersionInput
+      >): Promise<HousekeepingTask> =>
+        housekeepingRepository.completeTask(scope.hotelId, variables.taskId, {
+          notes: variables.notes,
+          expectedVersion: variables.expectedVersion,
+        }),
       invalidates: taskAndRoomInvalidates,
     }),
-    reopenTask: defineMutation<HousekeepingScope, { taskId: string; reason?: string } & TaskVersionInput, HousekeepingTask>({
-      mutationFn: ({ scope, variables }) => housekeepingRepository.reopenTask(scope.hotelId, variables.taskId, { reason: variables.reason, expectedVersion: variables.expectedVersion }),
+    reopenTask: defineMutation({
+      mutationFn: ({
+        scope,
+        variables,
+      }: ResourceMutationContext<
+        HousekeepingScope,
+        { taskId: string; reason?: string } & TaskVersionInput
+      >): Promise<HousekeepingTask> =>
+        housekeepingRepository.reopenTask(scope.hotelId, variables.taskId, {
+          reason: variables.reason,
+          expectedVersion: variables.expectedVersion,
+        }),
       invalidates: taskAndRoomInvalidates,
     }),
-    confirmRoomReady: defineMutation<
-      HousekeepingScope,
-      { roomId: string; expectedUpdatedAt: string },
-      HotelRoomSummary
-    >({
+    confirmRoomReady: defineMutation({
       mutationFn: ({
         scope,
         variables,
       }: ResourceMutationContext<
         HousekeepingScope,
         { roomId: string; expectedUpdatedAt: string }
-      >) =>
+      >): Promise<HotelRoomSummary> =>
         housekeepingRepository.confirmRoomReady(
           scope.hotelId,
           variables.roomId,
@@ -145,18 +199,14 @@ export const housekeepingResource = createResource<HousekeepingScope>()({
         ),
       invalidates: taskAndRoomInvalidates,
     }),
-    inspectRoom: defineMutation<
-      HousekeepingScope,
-      { roomId: string; expectedUpdatedAt: string },
-      HotelRoomSummary
-    >({
+    inspectRoom: defineMutation({
       mutationFn: ({
         scope,
         variables,
       }: ResourceMutationContext<
         HousekeepingScope,
         { roomId: string; expectedUpdatedAt: string }
-      >) =>
+      >): Promise<HotelRoomSummary> =>
         housekeepingRepository.confirmRoomReady(
           scope.hotelId,
           variables.roomId,
@@ -164,18 +214,14 @@ export const housekeepingResource = createResource<HousekeepingScope>()({
         ),
       invalidates: taskAndRoomInvalidates,
     }),
-    updateRoomStatus: defineMutation<
-      HousekeepingScope,
-      { roomId: string; status: string },
-      HotelRoomSummary
-    >({
+    updateRoomStatus: defineMutation({
       mutationFn: ({
         scope,
         variables,
       }: ResourceMutationContext<
         HousekeepingScope,
         { roomId: string; status: string }
-      >) =>
+      >): Promise<HotelRoomSummary> =>
         housekeepingRepository.updateRoomStatus(
           scope.hotelId,
           variables.roomId,
@@ -183,18 +229,14 @@ export const housekeepingResource = createResource<HousekeepingScope>()({
         ),
       invalidates: taskAndRoomInvalidates,
     }),
-    updateRequestStatus: defineMutation<
-      HousekeepingScope,
-      { requestId: string } & UpdateRequestStatusInput,
-      StaffRequestListItem
-    >({
+    updateRequestStatus: defineMutation({
       mutationFn: ({
         scope,
         variables,
       }: ResourceMutationContext<
         HousekeepingScope,
         { requestId: string } & UpdateRequestStatusInput
-      >) => {
+      >): Promise<StaffRequestListItem> => {
         const { requestId, ...payload } = variables;
         return housekeepingRepository.updateRequestStatus(
           scope.hotelId,

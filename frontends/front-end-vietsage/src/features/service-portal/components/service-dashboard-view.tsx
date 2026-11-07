@@ -23,14 +23,7 @@ function getOrderStatusLabel(status: MarketplaceOrder["status"]): string {
   switch (status) {
     case "COMPLETED":
       return "Hoàn tất";
-    case "CONFIRMED":
-      return "Đã xác nhận";
     case "ACKNOWLEDGED":
-    case "ACCEPTED":
-    case "PROCESSING":
-    case "PREPARING":
-    case "DELIVERING":
-    case "READY":
       return "Đã tiếp nhận";
     case "PENDING":
       return "Chờ xử lý";
