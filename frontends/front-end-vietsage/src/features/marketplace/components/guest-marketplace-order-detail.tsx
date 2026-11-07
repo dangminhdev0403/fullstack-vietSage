@@ -138,19 +138,19 @@ export function GuestMarketplaceOrderDetail({
         role="dialog"
         aria-modal="true"
         aria-labelledby="order-detail-title"
-        className="flex max-h-[92vh] w-full max-w-xl flex-col overflow-hidden rounded-[2.2rem] bg-white shadow-2xl border border-gray-100 animate-in zoom-in-95 duration-200"
+        className="flex max-h-[92vh] w-full max-w-xl min-w-0 flex-col overflow-hidden rounded-[2.2rem] bg-white shadow-2xl border border-gray-100 animate-in zoom-in-95 duration-200"
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-100 bg-[#fbf9f4] p-5 sm:p-6">
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 items-center gap-3">
             <div className="grid size-11 place-items-center rounded-2xl bg-[#25483f] text-white">
               <VsIcon name="receipt_long" className="text-xl text-[#d7bd61]" />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-xs font-bold uppercase tracking-wider text-[#8a6a13]">
                 {t("marketplace.orderDetail")}
               </p>
-              <h2 id="order-detail-title" className="vs-display font-mono text-base font-extrabold text-[#18211d]">
+              <h2 id="order-detail-title" className="vs-display max-w-full break-all whitespace-normal font-mono text-base font-extrabold text-[#18211d]">
                 {order.orderNumber}
               </h2>
             </div>

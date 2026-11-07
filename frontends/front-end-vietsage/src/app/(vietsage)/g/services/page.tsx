@@ -131,11 +131,25 @@ function buildConfirmHtml(
   service: GuestServiceItem,
   note: string,
   t: GuestTranslator,
+  quantity: number,
+  intlLocale: string,
 ): string {
+  const numericPrice =
+    service.price === null || service.price === undefined || service.price === ""
+      ? null
+      : Number(service.price);
+  const quantityLine = service.quantityEnabled
+    ? `<section class="vs-service-confirm-item"><span class="vs-service-confirm-bullet">&bull;</span><span class="vs-service-confirm-label">${escapeHtml(t("services.quantity"))}</span><p class="vs-service-confirm-copy">${quantity}</p></section>`
+    : "";
+  const totalLine =
+    numericPrice !== null && Number.isFinite(numericPrice) && service.quantityEnabled
+      ? ` · Thành tiền: ${(numericPrice * quantity).toLocaleString(intlLocale)}${service.currency ? ` ${escapeHtml(service.currency)}` : ""}`
+      : "";
+  const priceLine = `<section class="vs-service-confirm-item"><span class="vs-service-confirm-bullet">&bull;</span><span class="vs-service-confirm-label">${escapeHtml(t("services.price"))}</span><p class="vs-service-confirm-copy">${escapeHtml(getServicePrice(service, t, intlLocale))}${escapeHtml(totalLine)}</p></section>`;
   const noteLine = note.trim()
     ? `<section class="vs-service-confirm-item"><span class="vs-service-confirm-bullet">&bull;</span><span class="vs-service-confirm-label">${escapeHtml(t("services.noteLabel"))}</span><p class="vs-service-confirm-copy">${escapeHtml(note.trim())}</p></section>`
     : "";
-  return `<div class="vs-service-confirm-content"><section class="vs-service-confirm-item"><span class="vs-service-confirm-bullet">&bull;</span><span class="vs-service-confirm-label">${escapeHtml(t("services.serviceLabel"))}</span><p class="vs-service-confirm-service">${escapeHtml(service.name)}</p></section>${noteLine}</div>`;
+  return `<div class="vs-service-confirm-content"><section class="vs-service-confirm-item"><span class="vs-service-confirm-bullet">&bull;</span><span class="vs-service-confirm-label">${escapeHtml(t("services.serviceLabel"))}</span><p class="vs-service-confirm-service">${escapeHtml(service.name)}</p></section>${quantityLine}${priceLine}${noteLine}</div>`;
 }
 
 function GuestServicesContent() {
@@ -379,7 +393,7 @@ function GuestServicesContent() {
         requestPriority === "URGENT"
           ? t("requests.urgent")
           : t("services.send"),
-      html: buildConfirmHtml(selectedService, requestNote, t),
+      html: buildConfirmHtml(selectedService, requestNote, t, quantity ?? 1, intlLocale),
       icon: requestPriority === "URGENT" ? "warning" : "question",
       showCancelButton: true,
       confirmButtonText: t("services.send"),

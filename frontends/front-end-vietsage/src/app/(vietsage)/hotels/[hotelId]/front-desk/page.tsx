@@ -28,6 +28,7 @@ import { FrontDeskInHouseTable } from "./front-desk-in-house-table";
 import { FrontDeskArrivalsTable } from "./front-desk-arrivals-table";
 import { FrontDeskGroupsTable } from "./front-desk-groups-table";
 import { FrontDeskSearchBar } from "./front-desk-search-bar";
+import { FrontDeskLiveRefresh } from "./front-desk-live-refresh";
 import { buildFrontDeskGroupSummaries } from "@/features/hotel-ops/utils/front-desk-groups";
 
 export const dynamic = "force-dynamic";
@@ -429,6 +430,9 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
         />
       ) : (
         <>
+          {(tab === "arrivals" || tab === "groups") ? (
+            <FrontDeskLiveRefresh hotelId={hotelId} />
+          ) : null}
           {/* Realtime Search Bar */}
           <FrontDeskSearchBar
             initialQuery={q}

@@ -151,6 +151,30 @@ function CheckoutSettlementForm({
     return Number(stay.nightlyRateSnapshot || 0);
   }, [currentInvoice, effectiveFolioContext, stay]);
 
+  const folioMissingRoomCharge = useMemo(() => {
+    const items = effectiveFolioContext?.items ?? [];
+    if (isFolioLoading || isFolioError || items.length === 0) return false;
+    if (items.some((item) => item.itemType === "ROOM_CHARGE" || item.itemType === "ROOM_NIGHT")) return false;
+    const roomRate = Number(
+      stay.nightlyRateSnapshot ??
+        room.effectivePrice ??
+        room.price ??
+        room.basePrice ??
+        room.roomType?.basePrice ??
+        0,
+    );
+    const start = new Date(stay.checkedInAt || stay.plannedCheckInAt || "");
+    const end = new Date(stay.plannedCheckOutAt || "");
+    const nights =
+      Number.isFinite(start.getTime()) && Number.isFinite(end.getTime())
+        ? Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86_400_000))
+        : 1;
+    const expectedRoomCharge = Number.isFinite(roomRate) && roomRate > 0 ? roomRate * nights : 0;
+    return expectedRoomCharge > 0 && folioTotal + 0.5 < expectedRoomCharge;
+  }, [effectiveFolioContext?.items, folioTotal, isFolioError, isFolioLoading, room, stay]);
+
+  const isCheckoutBlocked = isFolioLoading || isFolioError || folioMissingRoomCharge;
+
   // Remaining balance
   const remainingDue = checkoutRemainingBalance({
     invoice: currentInvoice, total: folioTotal, deposits: paidDepositsSummary.total,
@@ -173,7 +197,7 @@ function CheckoutSettlementForm({
 
   // Handler for Option 1: Thu nốt tiền khách & Trả phòng
   async function handleSettlePaymentAndCheckout() {
-    if (submittingRef.current || isFolioLoading || isFolioError || !effectiveFolioContext) return;
+    if (submittingRef.current || isCheckoutBlocked || !effectiveFolioContext) return;
     submittingRef.current = true;
     setIsSubmitting(true);
     try {
@@ -210,7 +234,7 @@ function CheckoutSettlementForm({
 
   // Handler for Option 2: Chuyển sang công nợ & Trả phòng
   async function handleTransferToReceivableAndCheckout() {
-    if (submittingRef.current || isFolioLoading || isFolioError || !effectiveFolioContext) return;
+    if (submittingRef.current || isCheckoutBlocked || !effectiveFolioContext) return;
     const finalDebtorName =
       debtorType === "PARTNER"
         ? partnerName.trim() || debtorName.trim()
@@ -320,6 +344,11 @@ function CheckoutSettlementForm({
         </header>
 
         {isFolioError ? <p role="alert" className="px-6 py-3 text-red-700">Không thể tải thông tin thanh toán. Vui lòng đóng và mở lại để thử lại.</p> : null}
+        {folioMissingRoomCharge ? (
+          <p role="alert" className="px-6 py-3 text-amber-800 bg-amber-50 border-b border-amber-200">
+            Bảng kê chưa có đủ tiền phòng. Đã khóa quyết toán để tránh thu sai; vui lòng tải lại folio sau khi cập nhật giá phòng.
+          </p>
+        ) : null}
         {/* Modal Body */}
         <div className="p-6 overflow-y-auto space-y-5">
           {/* 3 Metric Cards */}
@@ -636,7 +665,7 @@ function CheckoutSettlementForm({
             {settlementMode === "PAYMENT" ? (
               <button
                 type="button"
-                disabled={isSubmitting || isFolioLoading || isFolioError || !effectiveFolioContext}
+                disabled={isSubmitting || isCheckoutBlocked || !effectiveFolioContext}
                 onClick={() => void handleSettlePaymentAndCheckout()}
                 className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-6 py-2 text-xs sm:text-sm font-bold text-white shadow-md transition active:scale-[0.98] cursor-pointer disabled:opacity-50 whitespace-nowrap"
               >
@@ -646,7 +675,7 @@ function CheckoutSettlementForm({
             ) : (
               <button
                 type="button"
-                disabled={isSubmitting || isFolioLoading || isFolioError || !effectiveFolioContext}
+                disabled={isSubmitting || isCheckoutBlocked || !effectiveFolioContext}
                 onClick={() => void handleTransferToReceivableAndCheckout()}
                 className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-xl bg-amber-700 hover:bg-amber-800 px-6 py-2 text-xs sm:text-sm font-bold text-white shadow-md transition active:scale-[0.98] cursor-pointer disabled:opacity-50 whitespace-nowrap"
               >

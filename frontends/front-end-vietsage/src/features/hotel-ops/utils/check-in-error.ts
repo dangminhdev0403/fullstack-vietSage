@@ -106,6 +106,29 @@ export function formatFriendlyCheckInError(error: unknown): string {
   return msg || "Đã có lỗi xảy ra khi nhận phòng. Vui lòng thử lại.";
 }
 
+export function formatFriendlyHotelOpsError(error: unknown): string {
+  const errObj = error as Record<string, unknown> | null;
+  const nestedData = (errObj?.data as Record<string, unknown>)?.data as Record<string, unknown> | undefined;
+  const directData = errObj?.data as Record<string, unknown> | undefined;
+  const detail =
+    (typeof nestedData?.detail === "string" ? nestedData.detail : "") ||
+    (typeof directData?.detail === "string" ? directData.detail : "");
+  const message = error instanceof Error ? error.message : String(error || "");
+  const normalized = `${detail} ${message}`.toUpperCase();
+
+  if (normalized.includes("ROOM_RESERVATION_OVERLAP")) {
+    return "Phòng đã có đặt phòng trùng thời gian. Vui lòng chọn phòng trống khác hoặc cập nhật lịch.";
+  }
+  if (normalized.includes("ROOM_TYPE_MISMATCH")) {
+    return "Phòng được chọn không cùng hạng với đặt phòng. Vui lòng chọn phòng cùng hạng.";
+  }
+  if (normalized.includes("MISSING_AGREED_ROOM_RATE_SNAPSHOT")) {
+    return "Đặt phòng chưa có giá phòng đã chốt. Vui lòng cập nhật giá trước khi xem kế hoạch phòng.";
+  }
+
+  return formatFriendlyCheckInError(error);
+}
+
 export function isEarlyCheckInError(error: unknown): boolean {
   const msg = error instanceof Error ? error.message : String(error || "");
   const upper = msg.toUpperCase();

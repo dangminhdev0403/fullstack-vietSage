@@ -23,7 +23,7 @@ import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import { CheckInWorkspace } from "@/features/local-biometric/components/check-in-workspace";
 import type { CheckInStayFields } from "@/features/local-biometric/types/check-in-workspace";
 import { BrandedRoomQr } from "@/features/hotel-ops/components/branded-room-qr";
-import { formatFriendlyCheckInError } from "@/features/hotel-ops/utils/check-in-error";
+import { formatFriendlyCheckInError, formatFriendlyHotelOpsError } from "@/features/hotel-ops/utils/check-in-error";
 import {
   FrontDeskRoomDetailPanel,
   resolveRoomStatusModel,
@@ -1753,6 +1753,10 @@ export function StaffRoomsClient({
       ) {
         return false;
       }
+      const targetTypeId = arrival.roomTypeId ?? null;
+      const targetTypeName = arrival.room?.type?.trim().toLowerCase() ?? null;
+      if (targetTypeId && r.roomTypeId !== targetTypeId) return false;
+      if (!targetTypeId && targetTypeName && r.type?.trim().toLowerCase() !== targetTypeName) return false;
       return physicalStatus === "available" || r.id === arrival.roomId;
     });
 
@@ -1814,7 +1818,7 @@ export function StaffRoomsClient({
     } catch (err) {
       await showErrorAlert(
         "Không thể gán phòng",
-        err instanceof Error ? err.message : "Đã có lỗi xảy ra.",
+        formatFriendlyHotelOpsError(err),
       );
     }
   }

@@ -708,7 +708,16 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
 
   if (!open) return null;
 
-  const roomStatus = room.status === "ready" ? "Phòng sẵn sàng" : room.status;
+  const roomStatusLabels: Record<string, string> = {
+    ready: "Phòng sẵn sàng",
+    available: "Sẵn sàng đón khách",
+    occupied: "Đang có khách",
+    overdue: "Quá hạn trả phòng",
+    processing: "Chờ dọn buồng",
+    maintenance: "Bảo trì",
+    blocked: "Đã khóa",
+  };
+  const roomStatus = roomStatusLabels[String(room.status ?? "").toLowerCase()] ?? "Sẵn sàng đón khách";
 
   const totalGuests = 1 + occupants.length;
   const query = searchQuery.trim().toLowerCase();

@@ -96,6 +96,21 @@ function hasDisplayableTimelineEvent(event: NonNullable<HotelGuestRequest["event
   return Boolean(event.status || event.type || event.note?.trim());
 }
 
+function formatRequestServicePrice(serviceItem: NonNullable<HotelGuestRequest["serviceItem"]>): string {
+  const price =
+    serviceItem.price ??
+    serviceItem.effectivePrice ??
+    serviceItem.priceOverride ??
+    serviceItem.category?.defaultPrice ??
+    null;
+  const currency =
+    serviceItem.currency ||
+    serviceItem.effectiveCurrency ||
+    serviceItem.category?.currency ||
+    "VND";
+  return formatMoney({ price, currency });
+}
+
 export function RequestDetailClient({
   hotelId,
   initialRequest,
@@ -262,7 +277,7 @@ export function RequestDetailClient({
           <div className="mt-6 grid gap-4 sm:grid-cols-3">
             <div className="rounded-lg border border-[color:rgba(198,197,213,0.2)] p-4"><p className="text-xs uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">{labels.reservation}</p><p className="mt-1 font-semibold">{request.stay?.reservationCode ?? "-"}</p></div>
             <div className="rounded-lg border border-[color:rgba(198,197,213,0.2)] p-4"><p className="text-xs uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">{labels.serviceItem}</p><p className="mt-1 font-semibold">{request.serviceItem?.name ?? labels.rawRequest}</p></div>
-            <div className="rounded-lg border border-[color:rgba(198,197,213,0.2)] p-4"><p className="text-xs uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">{labels.price}</p><p className="mt-1 font-semibold">{request.serviceItem ? formatMoney(request.serviceItem) : "-"}</p></div>
+            <div className="rounded-lg border border-[color:rgba(198,197,213,0.2)] p-4"><p className="text-xs uppercase tracking-[0.08em] text-[var(--on-surface-variant)]">{labels.price}</p><p className="mt-1 font-semibold">{request.serviceItem ? formatRequestServicePrice(request.serviceItem) : "-"}</p></div>
           </div>
         </article>
 

@@ -171,7 +171,7 @@ export class ReservationsRepository {
           roomNumber: true,
           roomTypeId: true,
           type: true,
-          roomType: { select: { id: true, name: true } },
+          roomType: { select: { id: true, name: true, basePrice: true } },
         },
       });
 
@@ -340,7 +340,7 @@ export class ReservationsRepository {
             ? specificRate
             : input.nightlyRateSnapshot !== undefined
               ? input.nightlyRateSnapshot
-              : room.price;
+              : (room.price ?? room.roomType?.basePrice ?? null);
 
         const nightlyRateSnapshot =
           effectiveRaw !== undefined && effectiveRaw !== null
@@ -362,7 +362,7 @@ export class ReservationsRepository {
           status: ReservationStatus.ARRIVAL_READY,
           assignedAt: now,
           assignedByUserId: input.createdByUserId,
-          baseNightlyRateSnapshot: room.price,
+          baseNightlyRateSnapshot: room.price ?? room.roomType?.basePrice ?? null,
           nightlyRateSnapshot,
           sourceCategory:
             (input.sourceCategory === "TA" ? "TRAVEL_AGENCY" : input.sourceCategory) ?? undefined,
@@ -502,7 +502,9 @@ export class ReservationsRepository {
             price: true,
             roomTypeId: true,
             type: true,
-            roomType: { select: { id: true, name: true, maxOccupancy: true } },
+            roomType: {
+              select: { id: true, name: true, maxOccupancy: true, basePrice: true },
+            },
           },
         });
         if (!room) {
@@ -1082,13 +1084,15 @@ export class ReservationsRepository {
             price: true,
             roomTypeId: true,
             type: true,
-            roomType: { select: { id: true, name: true, maxOccupancy: true } },
+            roomType: {
+              select: { id: true, name: true, maxOccupancy: true, basePrice: true },
+            },
           },
         });
         if (!room) {
           throw new NotFoundException("Không tìm thấy phòng");
         }
-        assignedRoomPrice = room.price;
+        assignedRoomPrice = room.price ?? room.roomType?.basePrice ?? null;
         if (NON_SELLABLE_ROOM_STATUSES.includes(room.status)) {
           throw new ConflictException("ROOM_NOT_AVAILABLE");
         }
@@ -2906,7 +2910,11 @@ export class ReservationsRepository {
     return this.runSerializable(async (tx) => {
       const res = await tx.reservation.findFirst({
         where: { id: input.reservationId, hotelId: input.hotelId },
-        include: { room: { include: { roomType: true } }, roomType: true, hotel: { select: { timezone: true } } },
+        include: {
+          room: { include: { roomType: true } },
+          roomType: true,
+          hotel: { select: { timezone: true } },
+        },
       });
       if (!res) {
         throw new NotFoundException("Không tìm thấy đặt phòng");

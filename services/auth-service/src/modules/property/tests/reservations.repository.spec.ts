@@ -501,19 +501,30 @@ describe("ReservationsRepository transactional lifecycle", () => {
 
     expect(result.stay).toEqual(newStay);
     expect(tx.guestStay.updateMany).toHaveBeenCalledWith({
-      where: { id: "stay-past-overdue", hotelId: "hotel-1", status: { in: expect.arrayContaining([
-        GuestStayStatus.ACTIVE, GuestStayStatus.CHECKED_IN, GuestStayStatus.CHECKOUT_PENDING,
-      ]) } },
+      where: {
+        id: "stay-past-overdue",
+        hotelId: "hotel-1",
+        status: {
+          in: expect.arrayContaining([
+            GuestStayStatus.ACTIVE,
+            GuestStayStatus.CHECKED_IN,
+            GuestStayStatus.CHECKOUT_PENDING,
+          ]),
+        },
+      },
       data: expect.objectContaining({
         status: GuestStayStatus.CHECKED_OUT,
       }),
     });
-    expect(tx.domainEvent.create).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({
-        eventType: "GUEST_CHECKED_OUT", aggregateId: "stay-past-overdue",
-        payload: expect.objectContaining({ roomId: "room-1", closureReason: "OVERDUE_REPLACED" }),
+    expect(tx.domainEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          eventType: "GUEST_CHECKED_OUT",
+          aggregateId: "stay-past-overdue",
+          payload: expect.objectContaining({ roomId: "room-1", closureReason: "OVERDUE_REPLACED" }),
+        }),
       }),
-    }));
+    );
     expect(tx.folio.updateMany).toHaveBeenCalledWith({
       where: {
         stayId: "stay-past-overdue",
@@ -1440,6 +1451,54 @@ describe("ReservationsRepository transactional lifecycle", () => {
   });
 
   describe("createBulkReservations transactional group booking", () => {
+    it("uses the room type base price when a room has no local price override", async () => {
+      const tx = {
+        $queryRawUnsafe: jest.fn(),
+        room: {
+          findMany: jest.fn().mockResolvedValue([
+            {
+              id: "room-1",
+              status: RoomStatus.AVAILABLE,
+              price: null,
+              roomTypeId: "type-1",
+              type: "Deluxe",
+              roomType: {
+                id: "type-1",
+                name: "Deluxe",
+                basePrice: new Prisma.Decimal(900000),
+              },
+            },
+          ]),
+        },
+        reservation: {
+          findFirst: jest.fn().mockResolvedValue(null),
+          create: jest.fn().mockImplementation(async ({ data }: any) => ({
+            id: "res-room-1",
+            ...data,
+          })),
+        },
+        guestStay: { findFirst: jest.fn().mockResolvedValue(null) },
+      };
+      const { repository } = createRepository(tx);
+
+      const result = await repository.createBulkReservations({
+        hotelId: "hotel-1",
+        groupCode: "VSH_GROUP_RATE_FALLBACK",
+        leadGuestName: "Guest",
+        checkInDate: new Date("2026-09-10T14:00:00.000Z"),
+        checkOutDate: new Date("2026-09-11T12:00:00.000Z"),
+        roomIds: ["room-1"],
+        createdByUserId: "actor-1",
+        generateReservationCode: jest.fn().mockResolvedValue("VSH_RES_RATE_FALLBACK"),
+      });
+
+      expect(result.reservations[0]).toMatchObject({
+        roomId: "room-1",
+        nightlyRateSnapshot: "900000.00",
+        baseNightlyRateSnapshot: new Prisma.Decimal(900000),
+      });
+    });
+
     it("locks rooms in sorted order and creates all reservations atomically with one shared groupCode", async () => {
       const lockOrder: string[] = [];
       const tx = {
@@ -1901,7 +1960,9 @@ describe("ReservationsRepository transactional lifecycle", () => {
             plannedCheckOutAt: new Date("2026-10-25T05:00:00.000Z"),
           }),
           findUniqueOrThrow: jest.fn().mockResolvedValue({
-            ...res, plannedCheckOutAt: new Date("2026-10-25T05:00:00.000Z"), chargeLines: [],
+            ...res,
+            plannedCheckOutAt: new Date("2026-10-25T05:00:00.000Z"),
+            chargeLines: [],
           }),
         },
         guestStay: {
@@ -1913,7 +1974,8 @@ describe("ReservationsRepository transactional lifecycle", () => {
         hotel: { findUnique: jest.fn().mockResolvedValue({ timezone: "Asia/Ho_Chi_Minh" }) },
         reservationChargeLine: {
           findMany: jest.fn().mockResolvedValue([]),
-          deleteMany: jest.fn(), createMany: jest.fn(),
+          deleteMany: jest.fn(),
+          createMany: jest.fn(),
         },
       };
       const prisma = {

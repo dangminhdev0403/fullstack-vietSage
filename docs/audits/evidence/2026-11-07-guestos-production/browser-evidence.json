@@ -1,0 +1,518 @@
+{
+  "cases": [
+    {
+      "id": "UI01",
+      "result": "FAIL",
+      "detail": "Check-in phòng 101 hiển thị raw enum \"available\" dưới tiêu đề.",
+      "time": "2026-11-06T19:53:22.326Z"
+    },
+    {
+      "id": "CI01",
+      "result": "PASS",
+      "detail": "Submit check-in thiếu tên vẫn ở form, không nhận phòng.",
+      "time": "2026-11-06T19:54:00.318Z"
+    },
+    {
+      "id": "RM01",
+      "result": "PASS",
+      "detail": "Sơ đồ và kế hoạch phòng tải được; 25 phòng, có bộ lọc và lịch 7/14 ngày.",
+      "time": "2026-11-06T19:55:59.244Z"
+    },
+    {
+      "id": "RS01",
+      "result": "PASS",
+      "detail": "Đặt trước ngày trả 07/11 trước ngày nhận 08/11 bị chặn tại form, không tạo reservation.",
+      "time": "2026-11-06T19:57:38.483Z"
+    },
+    {
+      "id": "RS02",
+      "result": "PASS",
+      "detail": "Tạo đoàn VSH_GROUP_0005: P101 1.070.000 + P401 1.000.000 = tổng 2.070.000 VND (buffet 70.000 gán một lần).",
+      "time": "2026-11-06T19:59:05.057Z"
+    },
+    {
+      "id": "RM02",
+      "result": "FAIL",
+      "detail": "Kế hoạch phòng trả 409 MISSING_AGREED_ROOM_RATE_SNAPSHOT; timeline thiếu booking trong khi arrivals có 2 đặt trước mới.",
+      "time": "2026-11-06T19:59:05.057Z"
+    },
+    {
+      "id": "SV01",
+      "result": "PASS",
+      "detail": "Gửi Áo comple số lượng19 bị chặn; alert tối thiểu20.",
+      "time": "2026-11-06T20:00:30.113Z"
+    },
+    {
+      "id": "SV02",
+      "result": "FAIL",
+      "detail": "Confirm gửi dịch vụ21 đơn vị chỉ hiển thị tên/ghi chú, thiếu số lượng/đơn giá/tổng tiền (card1VND/đơn vị).",
+      "time": "2026-11-06T20:00:47.970Z"
+    },
+    {
+      "id": "RT01",
+      "result": "PASS",
+      "detail": "Yêu cầu QA Áo comple P301 xuất hiện ở tab staff đang mở, không reload, trạng thái Chờ tiếp nhận.",
+      "time": "2026-11-06T20:01:03.579Z"
+    },
+    {
+      "id": "BL01",
+      "result": "FAIL",
+      "detail": "Ghi nhận cọc70.000 tiền mặt cho reservation0149 bị từ chối \"Không có quyền thực hiện thao tác này\" trong phiên owner; chưa tạo khoản cọc.",
+      "time": "2026-11-06T20:01:03.579Z"
+    },
+    {
+      "id": "SV03",
+      "result": "PASS",
+      "detail": "Lịch sử khách hiển thị Áo comple SL21, tổng21 VND đúng đơn giá1.",
+      "time": "2026-11-06T20:01:34.414Z"
+    },
+    {
+      "id": "BL02",
+      "result": "FAIL",
+      "detail": "Chi tiết yêu cầu phía staff hiển thị Giá dịch vụ: Liên hệ, trong khi guest đã chốt và thấy tổng21 VND.",
+      "time": "2026-11-06T20:01:34.414Z"
+    },
+    {
+      "id": "SV04",
+      "result": "FAIL",
+      "detail": "Phiên owner xem được yêu cầu mới nhưng cột Xử lý trạng thái chỉ \"-\", không có Tiếp nhận/Hoàn thành/Từ chối. Lifecycle staff→guest bị chặn.",
+      "time": "2026-11-06T20:01:54.374Z"
+    },
+    {
+      "id": "RT02",
+      "result": "PASS",
+      "detail": "Guest hủy yêu cầu21VND; staff đổi Đã hủy trên tab đang mở, không reload.",
+      "time": "2026-11-06T20:02:12.106Z"
+    },
+    {
+      "id": "RS03",
+      "result": "PASS",
+      "detail": "Sửa riêng P101 thành2 đêm x900.000; form tổng1.870.000 gồm70.000 dịch vụ, lưu thành công.",
+      "time": "2026-11-06T20:03:28.435Z"
+    },
+    {
+      "id": "BL03",
+      "result": "FAIL",
+      "detail": "Sau sửa reservation0149 thành2 đêm x900.000 +70.000 dịch vụ, detail/remaining vẫn1.070.000 thay vì1.870.000 (lệch800.000).",
+      "time": "2026-11-06T20:03:44.530Z"
+    },
+    {
+      "id": "BL03-reload",
+      "result": "FAIL",
+      "detail": "Sau reload trang, detail0149 đúng1.870.000. Lỗi là dữ liệu tiền/cache stale sau sửa; đóng/mở detail không tự sửa.",
+      "time": "2026-11-06T20:04:25.249Z"
+    },
+    {
+      "id": "RT03",
+      "result": "PASS",
+      "detail": "Chat guest→staff tạo hội thoại/chưa đọc realtime; staff trả lời hiển thị ở khách không reload.",
+      "time": "2026-11-06T20:04:26.609Z"
+    },
+    {
+      "id": "RS04",
+      "result": "PASS",
+      "detail": "Gán P101 sangP401 đã có booking trùng lịch bị backend409, không đổi phòng.",
+      "time": "2026-11-06T20:06:01.393Z"
+    },
+    {
+      "id": "SV05",
+      "result": "PASS",
+      "detail": "Giặt nhanh qty11 bị chặn, alert tối đa10.",
+      "time": "2026-11-06T20:06:01.393Z"
+    },
+    {
+      "id": "UI02",
+      "result": "FAIL",
+      "detail": "Xung đột gán phòng hiển thị raw enum ROOM_RESERVATION_OVERLAP trong hộp lỗi.",
+      "time": "2026-11-06T20:06:23.743Z"
+    },
+    {
+      "id": "RS05",
+      "result": "FAIL",
+      "detail": "Bộ chọn \"phòng trống phù hợp\" đưa P102 khác hạng cho booking P101; xác nhận bị409 ROOM_TYPE_MISMATCH và lộ raw enum.",
+      "time": "2026-11-06T20:06:59.768Z"
+    },
+    {
+      "id": "RT04",
+      "result": "FAIL",
+      "detail": "Sau tạo reservation đơn014? P104, arrivals ngày mai vẫn2 kết quả và không có Single0711 sau8s; chỉ thấy đoàn2 phòng.",
+      "time": "2026-11-06T20:08:27.446Z"
+    },
+    {
+      "id": "RT04-confirm",
+      "result": "FAIL",
+      "detail": "Sau >1 phút arrivals vẫn2 phòng; reload mới thấy Single0711 P104 reservation0151 và tổng3 phòng.",
+      "time": "2026-11-06T20:09:28.144Z"
+    },
+    {
+      "id": "RS06",
+      "result": "PASS",
+      "detail": "Đổi booking0151 P104→P304 cùng hạng thành công; sơ đồ tab khác cập nhật P104 trống/P304 đặt trước không reload.",
+      "time": "2026-11-06T20:10:10.489Z"
+    },
+    {
+      "id": "OR01",
+      "result": "PASS",
+      "detail": "Order nhà hàng đối tác Minh Test Ngoài qty2:320x2=640 +phí64(10%)=704VND; guest và staff cùng704, xuất hiện realtime.",
+      "time": "2026-11-06T20:11:34.427Z"
+    },
+    {
+      "id": "RT05",
+      "result": "PASS",
+      "detail": "P105 Chờ dọn→Sẵn sàng sau xác nhận sạch, tab sơ đồ khác cập nhật không reload.",
+      "time": "2026-11-06T20:11:58.264Z"
+    },
+    {
+      "id": "UI03",
+      "result": "FAIL",
+      "detail": "Modal chi tiết order ngoài bị tràn ngang:320px overflow56px;360px overflow16px; từ390px không tràn.",
+      "time": "2026-11-06T20:14:45.283Z"
+    },
+    {
+      "id": "BL04",
+      "result": "FAIL",
+      "detail": "Checkout preview P301 chỉ tổng20VND/due20/0cọc/giảm0, có1lineÁo comple20x1; không có tiềnphòng dù detailniêmyết1.000.000/đêm. Cần fail-closed nếu legacy thiếu snapshot, không tự suy đoán giá.",
+      "time": "2026-11-06T20:15:28.557Z"
+    },
+    {
+      "id": "BC01",
+      "result": "BLOCKED",
+      "detail": "Không commit check-in, checkout, gia hạn vì lifecycle có thể chạm BCA; đã kiểm tra form/preview.",
+      "time": "2026-11-06T20:15:28.558Z"
+    },
+    {
+      "id": "RM03",
+      "result": "PASS",
+      "detail": "Tìm kiếm không khớp có empty state; lọc quá hạn4/chờdọn8/sẵn sàng12/đặt trước1, đúng25phòng sau dọnP105.",
+      "time": "2026-11-06T20:16:40.965Z"
+    },
+    {
+      "id": "QR01",
+      "result": "PASS",
+      "detail": "QR phòng301 mở GuestOS riêng; token không hợp lệ hiển thị \"Mã QR không khả dụng\", không lộ dữ liệu phòng cũ.",
+      "time": "2026-11-06T20:16:40.965Z"
+    },
+    {
+      "id": "QR02",
+      "result": "PASS",
+      "detail": "Phiên khách độc lập truy cập owner/dashboard được chuyển đến đăng nhập; không kế thừa tenant.",
+      "time": "2026-11-06T20:17:07.840Z"
+    },
+    {
+      "id": "UI04",
+      "result": "PASS",
+      "detail": "Dùng Enter trên điều hướng Trang chủ mở đúng home phòng301.",
+      "time": "2026-11-06T20:17:07.840Z"
+    },
+    {
+      "id": "RS07",
+      "result": "PASS",
+      "detail": "Quản lý đoàn ngàymai hiển thị VSH_GROUP_0005 tổng2.870.000 =P1011.870.000+P4011.000.000 sau sửa riêng1phòng.",
+      "time": "2026-11-06T20:18:27.532Z"
+    },
+    {
+      "id": "LG01",
+      "result": "PASS",
+      "detail": "Đổi VI→EN: Service list và Home/Services/Requests/Messages dịch đúng, room session giữ nguyên.",
+      "time": "2026-11-06T20:18:27.532Z"
+    },
+    {
+      "id": "UI05",
+      "result": "PASS",
+      "detail": "Home GuestOS đo đúng320/360/390/430/768/820/1024/1280/1440/1920 vàlandscape844x390: không tràn ngang. Checkoutmodalkhôngtrànở10widths; không suy ra toàn bộa11y.",
+      "time": "2026-11-06T20:20:16.591Z"
+    },
+    {
+      "id": "RT06",
+      "result": "PASS",
+      "detail": "Mô phỏng offline đóng WebSocket, tin staff không tới khi offline; online lại tự đồng bộ tin nhắn bị lỡ, không reload.",
+      "time": "2026-11-06T20:21:36.155Z"
+    },
+    {
+      "id": "RS08",
+      "result": "PASS",
+      "detail": "Hủy reservation0149 API200, reload xác nhận đã loại khỏi arrivals.",
+      "time": "2026-11-06T20:21:36.155Z"
+    },
+    {
+      "id": "RT07",
+      "result": "FAIL",
+      "detail": "Sau hủy0149 API200, arrivals vẫnhiện Đãxácnhận cho tới reload.",
+      "time": "2026-11-06T20:21:36.155Z"
+    },
+    {
+      "id": "RS09",
+      "result": "PASS",
+      "detail": "Đã hủy cả3 reservation thử0149/0150/0151; arrivals ngàymai trở về0 sau reload, không check-in.",
+      "time": "2026-11-06T20:24:39.394Z"
+    },
+    {
+      "id": "OR02",
+      "result": "BLOCKED",
+      "detail": "Order thử MP72ADC...704VND còn Chờ tiếp nhận: guest không có nút hủy, owner chỉ xem; không thực hiện thanh toán thật.",
+      "time": "2026-11-06T20:24:39.394Z"
+    }
+  ],
+  "checkoutResponsive": [
+    {
+      "surface": "checkout",
+      "width": 320,
+      "actual": 320,
+      "modalW": 314,
+      "modalX": 0,
+      "overflow": 0,
+      "pageOverflow": 0
+    },
+    {
+      "surface": "checkout",
+      "width": 360,
+      "actual": 360,
+      "modalW": 354,
+      "modalX": 0,
+      "overflow": 0,
+      "pageOverflow": 0
+    },
+    {
+      "surface": "checkout",
+      "width": 390,
+      "actual": 390,
+      "modalW": 384,
+      "modalX": 0,
+      "overflow": 0,
+      "pageOverflow": 0
+    },
+    {
+      "surface": "checkout",
+      "width": 430,
+      "actual": 430,
+      "modalW": 424,
+      "modalX": 0,
+      "overflow": 0,
+      "pageOverflow": 0
+    },
+    {
+      "surface": "checkout",
+      "width": 768,
+      "actual": 768,
+      "modalW": 762,
+      "modalX": 0,
+      "overflow": 0,
+      "pageOverflow": 0
+    },
+    {
+      "surface": "checkout",
+      "width": 820,
+      "actual": 820,
+      "modalW": 814,
+      "modalX": 0,
+      "overflow": 0,
+      "pageOverflow": 0
+    },
+    {
+      "surface": "checkout",
+      "width": 1024,
+      "actual": 1024,
+      "modalW": 1018,
+      "modalX": 0,
+      "overflow": 0,
+      "pageOverflow": 0
+    },
+    {
+      "surface": "checkout",
+      "width": 1280,
+      "actual": 1280,
+      "modalW": 1274,
+      "modalX": 0,
+      "overflow": 0,
+      "pageOverflow": 0
+    },
+    {
+      "surface": "checkout",
+      "width": 1440,
+      "actual": 1440,
+      "modalW": 1434,
+      "modalX": 0,
+      "overflow": 0,
+      "pageOverflow": 0
+    },
+    {
+      "surface": "checkout",
+      "width": 1920,
+      "actual": 1920,
+      "modalW": 1914,
+      "modalX": 0,
+      "overflow": 0,
+      "pageOverflow": 0
+    }
+  ],
+  "guestOrderResponsive": [
+    {
+      "surface": "guest-order",
+      "width": 320,
+      "actual": 320,
+      "modalW": 290,
+      "modalX": 12,
+      "overflow": 56,
+      "pageOverflow": 0
+    },
+    {
+      "surface": "guest-order",
+      "width": 360,
+      "actual": 360,
+      "modalW": 330,
+      "modalX": 12,
+      "overflow": 16,
+      "pageOverflow": 0
+    },
+    {
+      "surface": "guest-order",
+      "width": 390,
+      "actual": 390,
+      "modalW": 360,
+      "modalX": 12,
+      "overflow": 0,
+      "pageOverflow": 0
+    },
+    {
+      "surface": "guest-order",
+      "width": 430,
+      "actual": 430,
+      "modalW": 400,
+      "modalX": 12,
+      "overflow": 0,
+      "pageOverflow": 0
+    },
+    {
+      "surface": "guest-order",
+      "width": 768,
+      "actual": 768,
+      "modalW": 576,
+      "modalX": 93,
+      "overflow": 0,
+      "pageOverflow": 0
+    },
+    {
+      "surface": "guest-order",
+      "width": 820,
+      "actual": 820,
+      "modalW": 576,
+      "modalX": 119,
+      "overflow": 0,
+      "pageOverflow": 0
+    },
+    {
+      "surface": "guest-order",
+      "width": 1024,
+      "actual": 1024,
+      "modalW": 576,
+      "modalX": 221,
+      "overflow": 0,
+      "pageOverflow": 0
+    },
+    {
+      "surface": "guest-order",
+      "width": 1280,
+      "actual": 1280,
+      "modalW": 576,
+      "modalX": 349,
+      "overflow": 0,
+      "pageOverflow": 0
+    },
+    {
+      "surface": "guest-order",
+      "width": 1440,
+      "actual": 1440,
+      "modalW": 576,
+      "modalX": 429,
+      "overflow": 0,
+      "pageOverflow": 0
+    },
+    {
+      "surface": "guest-order",
+      "width": 1920,
+      "actual": 1920,
+      "modalW": 576,
+      "modalX": 669,
+      "overflow": 0,
+      "pageOverflow": 0
+    }
+  ],
+  "guestHomeResponsive": [
+    {
+      "height": 844,
+      "overflow": 0,
+      "width": 320
+    },
+    {
+      "height": 844,
+      "overflow": 0,
+      "width": 360
+    },
+    {
+      "height": 844,
+      "overflow": 0,
+      "width": 390
+    },
+    {
+      "height": 900,
+      "overflow": 0,
+      "width": 430
+    },
+    {
+      "height": 900,
+      "overflow": 0,
+      "width": 768
+    },
+    {
+      "height": 900,
+      "overflow": 0,
+      "width": 820
+    },
+    {
+      "height": 900,
+      "overflow": 0,
+      "width": 1024
+    },
+    {
+      "height": 900,
+      "overflow": 0,
+      "width": 1280
+    },
+    {
+      "height": 900,
+      "overflow": 0,
+      "width": 1440
+    },
+    {
+      "height": 1080,
+      "overflow": 0,
+      "width": 1920
+    },
+    {
+      "height": 390,
+      "overflow": 0,
+      "width": 844
+    }
+  ],
+  "reconnectProbe": {
+    "receivedWhileOffline": 0,
+    "events": [
+      {
+        "method": "Network.webSocketClosed"
+      },
+      {
+        "method": "Network.loadingFailed",
+        "error": "net::ERR_INTERNET_DISCONNECTED"
+      },
+      {
+        "method": "Network.loadingFailed",
+        "error": "net::ERR_INTERNET_DISCONNECTED"
+      },
+      {
+        "method": "Network.loadingFailed",
+        "error": "net::ERR_INTERNET_DISCONNECTED"
+      }
+    ]
+  },
+  "scope": "production sweep only; no BCA/VPS; no post-fix production retest"
+}

@@ -18,6 +18,7 @@ import { EditReservationModal } from "@/features/hotel-ops/components/edit-reser
 import { GroupOperationsDrawer } from "@/features/hotel-ops/components/group-operations-drawer";
 import {
   formatFriendlyCheckInError,
+  formatFriendlyHotelOpsError,
   isEarlyCheckInError,
   isLateCheckInError,
 } from "@/features/hotel-ops/utils/check-in-error";
@@ -198,8 +199,16 @@ export function FrontDeskArrivalDetailPanel({
   }, [roomsPage?.items]);
 
   const availableRooms = useMemo(() => {
-    return allHotelRooms.filter((r) => r.status === "AVAILABLE" || r.id === arrival?.roomId);
-  }, [allHotelRooms, arrival?.roomId]);
+    const targetTypeId = arrival?.roomTypeId ?? null;
+    const targetTypeName = arrival?.room?.type?.trim().toLowerCase() ?? null;
+    return allHotelRooms.filter((r) => {
+      if (r.id === arrival?.roomId) return true;
+      if (r.status !== "AVAILABLE") return false;
+      if (targetTypeId && r.roomTypeId !== targetTypeId) return false;
+      if (!targetTypeId && targetTypeName && r.type?.trim().toLowerCase() !== targetTypeName) return false;
+      return true;
+    });
+  }, [allHotelRooms, arrival?.roomId, arrival?.roomTypeId, arrival?.room?.type]);
 
   const assignedRoomLive = allHotelRooms.find((r) => r.id === arrival?.roomId) || null;
 
@@ -346,7 +355,7 @@ export function FrontDeskArrivalDetailPanel({
     } catch (err) {
       await showErrorAlert(
         "Không thể gán phòng",
-        err instanceof Error ? err.message : "Đã có lỗi xảy ra khi gán phòng.",
+        formatFriendlyHotelOpsError(err),
       );
     } finally {
       setIsSubmittingRoom(false);
@@ -1730,10 +1739,13 @@ export function FrontDeskArrivalDetailPanel({
             : undefined
         }
         onSuccess={async (updated) => {
-          setLocalArrival((prev) => ({
-            ...(prev || activeArrival),
-            ...updated,
-          }));
+          let refreshed = updated;
+          try {
+            refreshed = await staffRoomsRepository.getReservation(hotelId, updated.id);
+          } catch {
+            // Keep the PATCH response if the follow-up refresh is temporarily unavailable.
+          }
+          setLocalArrival((prev) => ({ ...(prev || activeArrival), ...refreshed }));
           await invalidateHotelRealtimeQueries(queryClient, hotelId);
         }}
       />
