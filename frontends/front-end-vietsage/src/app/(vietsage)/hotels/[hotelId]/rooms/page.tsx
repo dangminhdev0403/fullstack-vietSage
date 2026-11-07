@@ -182,7 +182,6 @@ export default async function StaffRoomsPage({
             !isHousekeeping &&
             (context.permissions.includes("hotel.stays.manage") ||
               context.permissions.includes("hotel.stays.check-in") ||
-              userPersona === "owner" ||
               userPersona === "front_desk" ||
               userPersona === "manager")
           }
@@ -206,7 +205,6 @@ export default async function StaffRoomsPage({
             !isHousekeeping &&
             (context.permissions.includes("hotel.stays.manage") ||
               context.permissions.includes("hotel.stays.check-out") ||
-              userPersona === "owner" ||
               userPersona === "front_desk" ||
               userPersona === "manager")
           }
@@ -214,7 +212,6 @@ export default async function StaffRoomsPage({
             !isHousekeeping &&
             (context.permissions.includes("hotel.stays.check-in") ||
               context.permissions.includes("hotel.stays.manage") ||
-              userPersona === "owner" ||
               userPersona === "front_desk" ||
               userPersona === "manager")
           }

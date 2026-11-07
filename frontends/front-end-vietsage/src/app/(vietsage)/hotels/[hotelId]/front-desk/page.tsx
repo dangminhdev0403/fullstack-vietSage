@@ -284,7 +284,7 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
     context.permissions.includes("hotel.stays.manage");
   const canCheckInStay =
     context.permissions.includes("hotel.stays.check-in") ||
-    context.permissions.includes("hotel.reservations.manage");
+    context.permissions.includes("hotel.stays.manage");
   const canManageReservations = context.permissions.includes("hotel.reservations.manage");
   const canViewRequests =
     context.permissions.includes("hotel.requests.view") ||

@@ -153,7 +153,7 @@ function CheckoutSettlementForm({
 
   const folioMissingRoomCharge = useMemo(() => {
     const items = effectiveFolioContext?.items ?? [];
-    if (isFolioLoading || isFolioError || items.length === 0) return false;
+    if (isFolioLoading || isFolioError) return false;
     if (items.some((item) => item.itemType === "ROOM_CHARGE" || item.itemType === "ROOM_NIGHT")) return false;
     const roomRate = Number(
       stay.nightlyRateSnapshot ??
@@ -170,7 +170,7 @@ function CheckoutSettlementForm({
         ? Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86_400_000))
         : 1;
     const expectedRoomCharge = Number.isFinite(roomRate) && roomRate > 0 ? roomRate * nights : 0;
-    return expectedRoomCharge > 0 && folioTotal + 0.5 < expectedRoomCharge;
+    return expectedRoomCharge > 0 && (items.length === 0 || folioTotal + 0.5 < expectedRoomCharge);
   }, [effectiveFolioContext?.items, folioTotal, isFolioError, isFolioLoading, room, stay]);
 
   const isCheckoutBlocked = isFolioLoading || isFolioError || folioMissingRoomCharge;
