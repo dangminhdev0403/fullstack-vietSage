@@ -36,6 +36,109 @@ import { getCanonicalOrderItems } from "@/features/marketplace/utils/marketplace
 
 type RequestSourceTab = "ALL" | "HOTEL" | "EXTERNAL";
 
+const EXTERNAL_REQUESTS_COPY: Record<
+  string,
+  {
+    providerFallback: string;
+    externalBadge: string;
+    totalPrefix: string;
+    quantityPrefix: string;
+    voucherCodeLabel: string;
+    voucherIssuedFallback: string;
+    guestFallback: string;
+    printTicket: string;
+    acknowledgedGeneratingVoucher: string;
+    createdAtLabel: string;
+    emptyExternalTitle: string;
+    emptyExternalSubtitle: string;
+  }
+> = {
+  vi: {
+    providerFallback: "Đối tác dịch vụ",
+    externalBadge: "Dịch vụ bên ngoài",
+    totalPrefix: "Tổng",
+    quantityPrefix: "SL",
+    voucherCodeLabel: "Mã phiếu dịch vụ",
+    voucherIssuedFallback: "ĐÃ PHÁT HÀNH",
+    guestFallback: "Khách lưu trú",
+    printTicket: "In phiếu",
+    acknowledgedGeneratingVoucher: "Khách sạn đã tiếp nhận & Đang tạo mã phiếu...",
+    createdAtLabel: "Ngày đặt",
+    emptyExternalTitle: "Chưa có đơn dịch vụ bên ngoài",
+    emptyExternalSubtitle: "Đơn đặt dịch vụ từ đối tác liên kết sẽ xuất hiện trong danh sách này.",
+  },
+  en: {
+    providerFallback: "Service Partner",
+    externalBadge: "Partner Service",
+    totalPrefix: "Total",
+    quantityPrefix: "Qty",
+    voucherCodeLabel: "Service Voucher Code",
+    voucherIssuedFallback: "ISSUED",
+    guestFallback: "Hotel Guest",
+    printTicket: "Print Voucher",
+    acknowledgedGeneratingVoucher: "Hotel acknowledged & generating voucher...",
+    createdAtLabel: "Ordered at",
+    emptyExternalTitle: "No partner service orders yet",
+    emptyExternalSubtitle: "Orders placed with partner services will appear here.",
+  },
+  zh: {
+    providerFallback: "服务合作伙伴",
+    externalBadge: "外部合作服务",
+    totalPrefix: "总计",
+    quantityPrefix: "数量",
+    voucherCodeLabel: "服务凭证编码",
+    voucherIssuedFallback: "已签发",
+    guestFallback: "住店宾客",
+    printTicket: "打印凭证",
+    acknowledgedGeneratingVoucher: "酒店已确认并正在生成服务凭证...",
+    createdAtLabel: "下单时间",
+    emptyExternalTitle: "暂无外部合作服务订单",
+    emptyExternalSubtitle: "预订的合作服务订单将显示在此列表中。",
+  },
+  ko: {
+    providerFallback: "제휴 서비스 파트너",
+    externalBadge: "외부 제휴 서비스",
+    totalPrefix: "합계",
+    quantityPrefix: "수량",
+    voucherCodeLabel: "서비스 바우처 코드",
+    voucherIssuedFallback: "발급 완료",
+    guestFallback: "투숙객",
+    printTicket: "바우처 인쇄",
+    acknowledgedGeneratingVoucher: "호텔 접수 완료 및 바우처 발급 중...",
+    createdAtLabel: "주문 일시",
+    emptyExternalTitle: "외부 제휴 서비스 주문 내역이 없습니다",
+    emptyExternalSubtitle: "제휴 파트너에게 예약한 서비스 주문이 여기에 표시됩니다.",
+  },
+  ru: {
+    providerFallback: "Партнёр сервиса",
+    externalBadge: "Внешний сервис",
+    totalPrefix: "Итого",
+    quantityPrefix: "Кол-во",
+    voucherCodeLabel: "Код сервисного ваучера",
+    voucherIssuedFallback: "ВЫПУЩЕН",
+    guestFallback: "Гость отеля",
+    printTicket: "Печать ваучера",
+    acknowledgedGeneratingVoucher: "Отель принял заказ и формирует ваучер...",
+    createdAtLabel: "Дата заказа",
+    emptyExternalTitle: "Заказов внешних услуг пока нет",
+    emptyExternalSubtitle: "Заказы услуг у партнёров отеля появятся в этом списке.",
+  },
+  hi: {
+    providerFallback: "सेवा भागीदार",
+    externalBadge: "बाहरी सेवा",
+    totalPrefix: "कुल",
+    quantityPrefix: "मात्रा",
+    voucherCodeLabel: "सेवा वाउचर कोड",
+    voucherIssuedFallback: "जारी किया गया",
+    guestFallback: "होटल अतिथि",
+    printTicket: "वाउचर प्रिंट करें",
+    acknowledgedGeneratingVoucher: "होटल ने स्वीकार किया और वाउचर बना रहा है...",
+    createdAtLabel: "ऑर्डर तिथि",
+    emptyExternalTitle: "अभी कोई बाहरी सेवा ऑर्डर नहीं है",
+    emptyExternalSubtitle: "साझेदार सेवाओं के ऑर्डर इस सूची में दिखाई देंगे।",
+  },
+};
+
 function getExternalOrderStatusBadge(
   status: string,
   t: (key: string) => string,
@@ -166,6 +269,7 @@ export default function GuestRequestsPage() {
 
   const showHotelRequests = sourceTab === "ALL" || sourceTab === "HOTEL";
   const showExternalOrders = sourceTab === "ALL" || sourceTab === "EXTERNAL";
+  const extCopy = EXTERNAL_REQUESTS_COPY[locale] ?? EXTERNAL_REQUESTS_COPY.vi;
 
   return (
     <div className="vs-page-shell vs-guest-readable vs-safe-bottom vs-guest-comfort-surface min-h-screen overflow-x-clip text-[#18211d]">
@@ -245,7 +349,7 @@ export default function GuestRequestsPage() {
               <GuestStagger className="grid gap-5 md:grid-cols-2">
                 {externalOrders.map((order) => {
                   const statusBadge = getExternalOrderStatusBadge(order.status, t);
-                  const providerName = order.serviceTenant?.serviceProfile?.displayName ?? "Đối tác dịch vụ";
+                  const providerName = order.serviceTenant?.serviceProfile?.displayName ?? extCopy.providerFallback;
                   const totalAmount = typeof order.totalAmount === "number" ? order.totalAmount : Number(order.totalAmount);
                   return (
                     <GuestStaggerItem key={order.id}>
@@ -263,7 +367,7 @@ export default function GuestRequestsPage() {
                         </div>
 
                         <div className="mb-2 flex items-center gap-2">
-                          <span className="inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs font-extrabold text-amber-900">Dịch vụ bên ngoài</span>
+                          <span className="inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs font-extrabold text-amber-900 whitespace-nowrap">{extCopy.externalBadge}</span>
                           <span className="truncate rounded-lg bg-[#eef3ee] px-2.5 py-1 font-mono text-xs text-[#465149]">{order.orderNumber}</span>
                         </div>
 
@@ -272,10 +376,10 @@ export default function GuestRequestsPage() {
 
                         <div className="mt-3 flex flex-wrap gap-2">
                           <span className="inline-flex min-h-7 items-center rounded-full border border-[#d7bd61]/55 bg-[#fff9df] px-2.5 text-xs font-black text-[#765a0e]">
-                            Tổng: {Number.isFinite(totalAmount) ? new Intl.NumberFormat("vi-VN", { style: "currency", currency: order.currency || "VND", maximumFractionDigits: 0 }).format(totalAmount) : "-"}
+                            {extCopy.totalPrefix}: {Number.isFinite(totalAmount) ? new Intl.NumberFormat(intlLocale, { style: "currency", currency: order.currency || "VND", maximumFractionDigits: 0 }).format(totalAmount) : "-"}
                           </span>
                           <span className="inline-flex min-h-7 items-center rounded-full border border-[#25483f]/14 bg-white px-2.5 text-xs font-black text-[#25483f]">
-                            SL: {order.quantity}
+                            {extCopy.quantityPrefix}: {order.quantity}
                           </span>
                           {order.unitSnapshot ? (
                             <span className="inline-flex min-h-7 items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 text-xs font-bold text-slate-600">
@@ -298,10 +402,10 @@ export default function GuestRequestsPage() {
                               </div>
                               <div>
                                 <div className="text-xs font-extrabold uppercase tracking-wider text-emerald-800">
-                                  Mã phiếu dịch vụ
+                                  {extCopy.voucherCodeLabel}
                                 </div>
                                 <div className="font-mono text-sm font-black text-emerald-950 tracking-wider">
-                                  {order.voucher?.voucherNumber ?? "ĐÃ PHÁT HÀNH"}
+                                  {order.voucher?.voucherNumber ?? extCopy.voucherIssuedFallback}
                                 </div>
                               </div>
                             </div>
@@ -313,7 +417,7 @@ export default function GuestRequestsPage() {
                                   printMarketplaceVoucherTicket({
                                     voucherCode: order.voucher!.voucherNumber!,
 
-                                    guestDisplayName: order.stay?.guestDisplayName ?? "Khách lưu trú",
+                                    guestDisplayName: order.stay?.guestDisplayName ?? extCopy.guestFallback,
                                     roomNumber: order.stay?.room?.roomNumber ?? "-",
                                     providerDisplayName: providerName,
                                     orderNumber: order.orderNumber,
@@ -328,19 +432,19 @@ export default function GuestRequestsPage() {
                                 className="vs-touch-button inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-3 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-emerald-800 active:scale-[0.97]"
                               >
                                 <VsIcon name="print" className="text-sm" />
-                                <span>In phiếu</span>
+                                <span>{extCopy.printTicket}</span>
                               </button>
                             ) : null}
                           </div>
                         ) : order.hotelCoordinationStatus === "ACKNOWLEDGED" ? (
                           <div className="mt-3.5 flex items-center gap-2 rounded-2xl border border-blue-200 bg-blue-50/80 px-3.5 py-2.5 text-xs font-semibold text-blue-800">
                             <VsIcon name="check_circle" className="text-base text-blue-600" />
-                            <span>Khách sạn đã tiếp nhận & Đang tạo mã phiếu...</span>
+                            <span>{extCopy.acknowledgedGeneratingVoucher}</span>
                           </div>
                         ) : null}
 
                         <div className="mt-3 grid grid-cols-[1fr_auto] items-center gap-3 rounded-xl bg-[#f8fbf8] px-3 py-2">
-                          <span className="text-xs font-bold uppercase tracking-[0.08em] text-[#68746c]">Ngày đặt</span>
+                          <span className="text-xs font-bold uppercase tracking-[0.08em] text-[#68746c]">{extCopy.createdAtLabel}</span>
                           <span className="text-xs font-semibold text-[#18211d]">{formatGuestDateTime(order.createdAt, intlLocale)}</span>
                         </div>
                       </article>
@@ -351,8 +455,8 @@ export default function GuestRequestsPage() {
             ) : (
               <div className="rounded-3xl border-2 border-dashed border-amber-200 bg-amber-50/30 px-6 py-12 text-center">
                 <VsIcon name="storefront" className="mx-auto mb-3 text-4xl text-amber-300" />
-                <p className="text-sm font-bold text-[#465149]">Chưa có đơn dịch vụ bên ngoài</p>
-                <p className="mt-1 text-xs text-[#5e6a62]">Đơn đặt dịch vụ từ đối tác liên kết sẽ xuất hiện trong danh sách này.</p>
+                <p className="text-sm font-bold text-[#465149]">{extCopy.emptyExternalTitle}</p>
+                <p className="mt-1 text-xs text-[#5e6a62]">{extCopy.emptyExternalSubtitle}</p>
               </div>
             )}
           </section>

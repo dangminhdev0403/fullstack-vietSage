@@ -2,6 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import {
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+  type ColumnDef,
+} from "@tanstack/react-table";
 
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import {
@@ -604,6 +610,107 @@ export function LocalMateKnowledgeView() {
 
   const isSaving = createTourMutation.isPending || updateTourMutation.isPending;
 
+  const tourColumns = useMemo<ColumnDef<LocalMateTourKnowledge>[]>(
+    () => [
+      {
+        id: "title",
+        header: "Chương trình Tour",
+        cell: ({ row }) => {
+          const tour = row.original;
+          return (
+            <div className="flex items-start gap-2">
+              {tour.tourCode && (
+                <span className="font-mono text-xs font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200/80 px-1.5 py-0.5 rounded shadow-2xs shrink-0 mt-0.5 whitespace-nowrap">
+                  {tour.tourCode}
+                </span>
+              )}
+              <span className="font-bold text-sm sm:text-[14.5px] text-stone-900 group-hover:text-emerald-800 transition-colors leading-snug line-clamp-2">
+                {tour.title}
+              </span>
+            </div>
+          );
+        },
+      },
+      {
+        id: "geography",
+        header: "Tỉnh thành & Phạm vi",
+        cell: ({ row }) => {
+          const tour = row.original;
+          const detected = detectProvinceFromDestination(tour.title);
+          const provCode = tour.provinceCode || detected?.code;
+          const provName =
+            tour.province ||
+            (provCode ? PROVINCE_MAP[provCode]?.name : detected?.name) ||
+            "Khác";
+          const scopeDef = tour.tourScope ? TOUR_SCOPE_MAP[tour.tourScope] : undefined;
+          const hasGps = tour.latitude != null && tour.longitude != null;
+
+          return (
+            <div className="flex items-center gap-1.5">
+              <span className="inline-flex items-center gap-1 rounded-lg bg-stone-100 border border-stone-200/90 px-2.5 py-1 text-xs font-semibold text-stone-800 shadow-2xs whitespace-nowrap">
+                <VsIcon name="location_on" className="text-sm text-stone-500" />
+                <span>{provName}</span>
+              </span>
+              {scopeDef && (
+                <span
+                  className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold shadow-2xs whitespace-nowrap ${scopeDef.badgeClass}`}
+                  title={scopeDef.description}
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-current opacity-80" />
+                  <span>{scopeDef.shortLabel}</span>
+                </span>
+              )}
+              {hasGps && (
+                <span
+                  className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 border border-emerald-200/80 px-2 py-1 text-xs font-semibold text-emerald-800 shadow-2xs whitespace-nowrap"
+                  title={`Tọa độ: ${tour.latitude}, ${tour.longitude}`}
+                >
+                  <VsIcon name="my_location" className="text-xs text-emerald-700" />
+                  <span>GPS</span>
+                </span>
+              )}
+            </div>
+          );
+        },
+      },
+      {
+        id: "duration",
+        header: "Thời lượng",
+        cell: ({ row }) => (
+          <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber-50/90 border border-amber-200/90 px-3 py-1.5 text-xs font-semibold text-amber-900 shadow-2xs whitespace-nowrap">
+            <VsIcon name="schedule" className="text-sm text-amber-700" />
+            <span>{normalizeTourDuration(row.original.duration) || "Chưa rõ"}</span>
+          </span>
+        ),
+      },
+      {
+        id: "actions",
+        header: "Thao tác",
+        cell: ({ row }) => {
+          const tour = row.original;
+          return (
+            <button
+              type="button"
+              onClick={() => handleDeleteTour(tour)}
+              className="inline-flex h-8.5 w-8.5 items-center justify-center rounded-lg border border-stone-200/90 bg-white text-stone-400 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600 shadow-2xs transition-all cursor-pointer group/del whitespace-nowrap"
+              title="Xoá lịch trình"
+              aria-label={`Xoá lịch trình ${tour.title}`}
+            >
+              <VsIcon name="delete" className="text-base transition-transform group-hover/del:scale-110" />
+            </button>
+          );
+        },
+      },
+    ],
+    []
+  );
+
+  const tourTable = useReactTable({
+    data: paginatedTours,
+    columns: tourColumns,
+    getCoreRowModel: getCoreRowModel(),
+  });
+
   return (
     <div className="space-y-6">
       {/* Header section */}
@@ -867,133 +974,55 @@ export function LocalMateKnowledgeView() {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="sticky top-0 z-10 border-b border-stone-200/90 bg-stone-50/95 text-xs font-bold text-stone-600 uppercase tracking-wider backdrop-blur-xs">
-                  <th className="px-5 py-3.5 min-w-[340px]">Chương trình Tour</th>
-                  <th className="px-4 py-3.5 min-w-[280px]">Tỉnh thành & Phạm vi</th>
-                  <th className="px-4 py-3.5 min-w-[130px]">Thời lượng</th>
-                  <th className="px-5 py-3.5 w-[85px] min-w-[85px] whitespace-nowrap text-right">Thao tác</th>
-                </tr>
+                {tourTable.getHeaderGroups().map((headerGroup) => (
+                  <tr
+                    key={headerGroup.id}
+                    className="sticky top-0 z-10 border-b border-stone-200/90 bg-stone-50/95 text-xs font-bold text-stone-600 uppercase tracking-wider backdrop-blur-xs"
+                  >
+                    {headerGroup.headers.map((header) => (
+                      <th
+                        key={header.id}
+                        className={
+                          header.id === "title"
+                            ? "px-5 py-3.5 min-w-[340px]"
+                            : header.id === "geography"
+                              ? "px-4 py-3.5 min-w-[280px]"
+                              : header.id === "duration"
+                                ? "px-4 py-3.5 min-w-[130px]"
+                                : "px-5 py-3.5 w-[85px] min-w-[85px] whitespace-nowrap text-right"
+                        }
+                      >
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                      </th>
+                    ))}
+                  </tr>
+                ))}
               </thead>
               <tbody className="divide-y divide-stone-100">
-                {paginatedTours.map((tour) => {
-                  // Resolve Geography & Scope
-                  const detected = detectProvinceFromDestination(tour.title);
-                  const provCode = tour.provinceCode || detected?.code;
-                  const provName =
-                    tour.province ||
-                    (provCode ? PROVINCE_MAP[provCode]?.name : detected?.name) ||
-                    "Khác";
-                  const scopeDef = tour.tourScope ? TOUR_SCOPE_MAP[tour.tourScope] : undefined;
-                  const hasGps = tour.latitude != null && tour.longitude != null;
-
-                  // Highlights list
-                  const hlList = Array.isArray(tour.highlights)
-                    ? tour.highlights
-                    : typeof tour.highlights === "string"
-                      ? (tour.highlights as string).split(",").map((s) => s.trim()).filter(Boolean)
-                      : [];
-
-                  return (
-                    <tr
-                      key={tour.id}
-                      onClick={() => handleOpenEditModal(tour)}
-                      className="group cursor-pointer transition-colors hover:bg-stone-50/80 active:bg-stone-100/60"
-                      title="Nhấp vào dòng để chỉnh sửa lịch trình"
-                    >
-                      {/* Tour Column */}
-                      <td className="px-5 py-4 align-top">
-                        <div className="flex flex-col gap-1.5">
-                          <div className="flex items-start gap-2">
-                            {tour.tourCode && (
-                              <span className="font-mono text-xs font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200/80 px-1.5 py-0.5 rounded shadow-2xs shrink-0 mt-0.5">
-                                {tour.tourCode}
-                              </span>
-                            )}
-                            <span className="font-bold text-sm sm:text-[14.5px] text-stone-900 group-hover:text-emerald-800 transition-colors leading-snug line-clamp-2">
-                              {tour.title}
-                            </span>
-                          </div>
-
-                          {hlList.length > 0 && (
-                            <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                              {hlList.slice(0, 3).map((item, idx) => (
-                                <span
-                                  key={idx}
-                                  className="inline-flex items-center gap-1.5 rounded-md bg-stone-50 border border-stone-200/80 px-2 py-0.5 text-xs text-stone-600 font-medium"
-                                >
-                                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 shrink-0" />
-                                  <span className="truncate max-w-[240px]">{item}</span>
-                                </span>
-                              ))}
-                              {hlList.length > 3 && (
-                                <span className="text-xs font-semibold text-stone-400">
-                                  +{hlList.length - 3} điểm khác
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Geography & Scope Column */}
-                      <td className="px-4 py-4 align-top whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
-                          {/* Badge Tỉnh */}
-                          <span className="inline-flex items-center gap-1 rounded-lg bg-stone-100 border border-stone-200/90 px-2.5 py-1 text-xs font-semibold text-stone-800 shadow-2xs">
-                            <VsIcon name="location_on" className="text-sm text-stone-500" />
-                            <span>{provName}</span>
-                          </span>
-
-                          {/* Badge Scope */}
-                          {scopeDef && (
-                            <span
-                              className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold shadow-2xs ${scopeDef.badgeClass}`}
-                              title={scopeDef.description}
-                            >
-                              <span className="h-1.5 w-1.5 rounded-full bg-current opacity-80" />
-                              <span>{scopeDef.shortLabel}</span>
-                            </span>
-                          )}
-
-                          {/* GPS Badge */}
-                          {hasGps && (
-                            <span
-                              className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 border border-emerald-200/80 px-2 py-1 text-xs font-semibold text-emerald-800 shadow-2xs"
-                              title={`Tọa độ: ${tour.latitude}, ${tour.longitude}`}
-                            >
-                              <VsIcon name="my_location" className="text-xs text-emerald-700" />
-                              <span>GPS</span>
-                            </span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Duration Column */}
-                      <td className="px-4 py-4 align-top whitespace-nowrap">
-                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber-50/90 border border-amber-200/90 px-3 py-1.5 text-xs font-semibold text-amber-900 shadow-2xs">
-                          <VsIcon name="schedule" className="text-sm text-amber-700" />
-                          <span>{normalizeTourDuration(tour.duration) || "Chưa rõ"}</span>
-                        </span>
-                      </td>
-
-                      {/* Action Column: Chỉ hiện nút Xoá Lịch Trình theo yêu cầu */}
+                {tourTable.getRowModel().rows.map((row) => (
+                  <tr
+                    key={row.id}
+                    onClick={() => handleOpenEditModal(row.original)}
+                    className="group cursor-pointer transition-colors hover:bg-stone-50/80 active:bg-stone-100/60"
+                    title="Nhấp vào dòng để chỉnh sửa lịch trình"
+                  >
+                    {row.getVisibleCells().map((cell) => (
                       <td
-                        className="px-5 py-4 align-top text-right whitespace-nowrap"
-                        onClick={(e) => e.stopPropagation()}
+                        key={cell.id}
+                        className={
+                          cell.column.id === "title"
+                            ? "px-5 py-4 align-top"
+                            : cell.column.id === "actions"
+                              ? "px-5 py-4 align-top text-right whitespace-nowrap"
+                              : "px-4 py-4 align-top whitespace-nowrap"
+                        }
+                        onClick={cell.column.id === "actions" ? (e) => e.stopPropagation() : undefined}
                       >
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteTour(tour)}
-                          className="inline-flex h-8.5 w-8.5 items-center justify-center rounded-lg border border-stone-200/90 bg-white text-stone-400 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600 shadow-2xs transition-all cursor-pointer group/del"
-                          title="Xoá lịch trình"
-                          aria-label={`Xoá lịch trình ${tour.title}`}
-                        >
-                          <VsIcon name="delete" className="text-base transition-transform group-hover/del:scale-110" />
-                        </button>
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </td>
-                    </tr>
-                  );
-                })}
+                    ))}
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

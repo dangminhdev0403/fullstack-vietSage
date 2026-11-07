@@ -122,29 +122,6 @@ export function FrontDeskSearchBar({
           </button>
         ) : null}
       </div>
-
-      <button
-        className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-bold text-white shadow-xs transition-all hover:bg-blue-700 active:scale-[0.98] whitespace-nowrap"
-        type="submit"
-      >
-        {isPending ? (
-          <VsIcon name="refresh" className="h-4 w-4 animate-spin" />
-        ) : (
-          <VsIcon name="search" className="h-4 w-4" />
-        )}
-        <span>Tìm kiếm</span>
-      </button>
-
-      {hasSearch ? (
-        <button
-          className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition-all hover:bg-slate-50 hover:text-slate-900 active:scale-[0.98] whitespace-nowrap"
-          onClick={handleClear}
-          type="button"
-        >
-          <VsIcon name="close" className="h-4 w-4" />
-          <span>Xóa tìm kiếm</span>
-        </button>
-      ) : null}
     </form>
   );
 }

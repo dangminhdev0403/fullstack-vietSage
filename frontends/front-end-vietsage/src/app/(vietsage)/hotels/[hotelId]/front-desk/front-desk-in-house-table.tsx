@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
+import {
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+  type ColumnDef,
+} from "@tanstack/react-table";
 
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { FrontDeskRoomDetailPanel } from "@/features/hotel-ops/components/front-desk-room-detail-panel";
@@ -16,6 +22,11 @@ export type FrontDeskInHouseTableProps = {
   canCheckOutStay: boolean;
   canCheckInStay: boolean;
   canViewRequests: boolean;
+};
+
+type InHouseColumnMeta = {
+  headerClassName: string;
+  cellClassName: string;
 };
 
 function formatDateTime(value?: string | null): string {
@@ -38,11 +49,129 @@ export function FrontDeskInHouseTable({
   canManageStays,
   canCheckOutStay,
   canCheckInStay,
-  canViewRequests,
 }: FrontDeskInHouseTableProps) {
   const [selectedRoom, setSelectedRoom] = useState<HotelRoomSummary | null>(null);
   const lastFocusedTriggerRef = useRef<HTMLElement | null>(null);
   const renderedAtTime = new Date(renderedAtIso).getTime();
+
+  const columns = useMemo<ColumnDef<HotelRoomSummary>[]>(
+    () => [
+      {
+        id: "guest",
+        header: "Khách hàng",
+        meta: {
+          headerClassName: "px-4 py-3",
+          cellClassName: "px-4 py-3 align-middle",
+        } satisfies InHouseColumnMeta,
+        cell: ({ row }) => {
+          const guestName = row.original.activeStay?.guestDisplayName || "Khách lưu trú";
+          return (
+            <div className="font-bold text-slate-900 text-base leading-tight group-hover:text-blue-900 transition-colors">
+              {guestName}
+            </div>
+          );
+        },
+      },
+      {
+        id: "room",
+        header: "Phòng",
+        meta: {
+          headerClassName: "px-4 py-3 whitespace-nowrap",
+          cellClassName: "px-4 py-3 align-middle whitespace-nowrap",
+        } satisfies InHouseColumnMeta,
+        cell: ({ row }) => {
+          const room = row.original;
+          const stay = room.activeStay;
+          const roomNumber = room.roomNumber || "Chưa rõ";
+          const isOverdue = Boolean(
+            stay?.plannedCheckOutAt &&
+              new Date(stay.plannedCheckOutAt).getTime() < renderedAtTime,
+          );
+          return (
+            <div className="inline-flex items-center gap-2">
+              <span className="font-bold text-slate-800 text-base group-hover:text-blue-900 transition-colors">
+                Phòng {roomNumber}
+              </span>
+              {isOverdue ? (
+                <span className="inline-flex items-center gap-1 rounded border border-rose-200 bg-rose-50 px-1.5 py-0.5 text-xs font-bold text-rose-700 whitespace-nowrap">
+                  <span className="h-1.5 w-1.5 rounded-full bg-rose-500 animate-pulse" />
+                  <span>Quá hạn</span>
+                </span>
+              ) : null}
+            </div>
+          );
+        },
+      },
+      {
+        id: "checkIn",
+        header: "Nhận phòng",
+        meta: {
+          headerClassName: "px-4 py-3 whitespace-nowrap",
+          cellClassName: "px-4 py-3 align-middle whitespace-nowrap text-sm font-medium text-slate-700",
+        } satisfies InHouseColumnMeta,
+        cell: ({ row }) => {
+          const stay = row.original.activeStay;
+          return formatDateTime(stay?.checkedInAt ?? stay?.plannedCheckInAt);
+        },
+      },
+      {
+        id: "plannedCheckOut",
+        header: "Dự kiến trả",
+        meta: {
+          headerClassName: "px-4 py-3 whitespace-nowrap",
+          cellClassName: "px-4 py-3 align-middle whitespace-nowrap",
+        } satisfies InHouseColumnMeta,
+        cell: ({ row }) => {
+          const stay = row.original.activeStay;
+          const isOverdue = Boolean(
+            stay?.plannedCheckOutAt &&
+              new Date(stay.plannedCheckOutAt).getTime() < renderedAtTime,
+          );
+          return (
+            <span className={`text-sm ${isOverdue ? "font-bold text-rose-600" : "font-medium text-slate-700"}`}>
+              {formatDateTime(stay?.plannedCheckOutAt)}
+            </span>
+          );
+        },
+      },
+      {
+        id: "occupants",
+        header: "Số khách",
+        meta: {
+          headerClassName: "px-4 py-3 whitespace-nowrap",
+          cellClassName: "px-4 py-3 align-middle whitespace-nowrap text-sm font-medium text-slate-600",
+        } satisfies InHouseColumnMeta,
+        cell: ({ row }) => {
+          const stay = row.original.activeStay;
+          return `${(stay?.occupants?.length ?? 0) + 1} khách`;
+        },
+      },
+      {
+        id: "detailIndicator",
+        header: () => <span className="sr-only">Chi tiết</span>,
+        meta: {
+          headerClassName: "w-12 px-4 py-3 text-right",
+          cellClassName:
+            "w-12 px-4 py-3 align-middle text-right whitespace-nowrap text-slate-400 group-hover:text-blue-600 transition-colors",
+        } satisfies InHouseColumnMeta,
+        cell: () => (
+          <VsIcon
+            name="chevron_right"
+            className="text-xl inline-block transition-transform duration-150 group-hover:translate-x-0.5"
+          />
+        ),
+      },
+    ],
+    [renderedAtTime],
+  );
+
+  // eslint-disable-next-line react-hooks/incompatible-library
+  const table = useReactTable({
+    data: rooms,
+    columns,
+    getRowId: (row) => row.id,
+    getCoreRowModel: getCoreRowModel(),
+  });
 
   return (
     <>
@@ -50,28 +179,38 @@ export function FrontDeskInHouseTable({
         <div className="overflow-x-auto">
           <table className="w-full min-w-[850px] border-collapse text-left">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500">
-                <th scope="col" className="px-4 py-3">Khách hàng</th>
-                <th scope="col" className="px-4 py-3 whitespace-nowrap">Phòng</th>
-                <th scope="col" className="px-4 py-3 whitespace-nowrap">Nhận phòng</th>
-                <th scope="col" className="px-4 py-3 whitespace-nowrap">Dự kiến trả</th>
-                <th scope="col" className="px-4 py-3 whitespace-nowrap">Số khách</th>
-                <th scope="col" className="w-12 px-4 py-3 text-right"><span className="sr-only">Chi tiết</span></th>
-              </tr>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <tr
+                  key={headerGroup.id}
+                  className="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500"
+                >
+                  {headerGroup.headers.map((header) => {
+                    const meta = header.column.columnDef.meta as InHouseColumnMeta | undefined;
+                    return (
+                      <th
+                        key={header.id}
+                        scope="col"
+                        className={meta?.headerClassName ?? "px-4 py-3"}
+                      >
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(header.column.columnDef.header, header.getContext())}
+                      </th>
+                    );
+                  })}
+                </tr>
+              ))}
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
-              {rooms.map((room) => {
+              {table.getRowModel().rows.map((row) => {
+                const room = row.original;
                 const stay = room.activeStay;
                 const roomNumber = room.roomNumber || "Chưa rõ";
-                const isOverdue = Boolean(
-                  stay?.plannedCheckOutAt &&
-                    new Date(stay.plannedCheckOutAt).getTime() < renderedAtTime,
-                );
                 const guestName = stay?.guestDisplayName || "Khách lưu trú";
 
                 return (
                   <tr
-                    key={room.id}
+                    key={row.id}
                     tabIndex={0}
                     role="button"
                     aria-label={`Xem chi tiết phòng ${roomNumber} - Khách ${guestName}`}
@@ -88,52 +227,17 @@ export function FrontDeskInHouseTable({
                     }}
                     className="group cursor-pointer transition-colors hover:bg-blue-50/70 focus-visible:bg-blue-50/80 focus-visible:outline-none"
                   >
-                    {/* Khách hàng */}
-                    <td className="px-4 py-3 align-middle">
-                      <div className="font-bold text-slate-900 text-base leading-tight group-hover:text-blue-900 transition-colors">
-                        {guestName}
-                      </div>
-                    </td>
-
-                    {/* Phòng & Trạng thái */}
-                    <td className="px-4 py-3 align-middle whitespace-nowrap">
-                      <div className="inline-flex items-center gap-2">
-                        <span className="font-bold text-slate-800 text-base group-hover:text-blue-900 transition-colors">
-                          Phòng {roomNumber}
-                        </span>
-                        {isOverdue ? (
-                          <span className="inline-flex items-center gap-1 rounded border border-rose-200 bg-rose-50 px-1.5 py-0.5 text-xs font-bold text-rose-700">
-                            <span className="h-1.5 w-1.5 rounded-full bg-rose-500 animate-pulse" />
-                            <span>Quá hạn</span>
-                          </span>
-                        ) : null}
-                      </div>
-                    </td>
-
-                    {/* Nhận phòng */}
-                    <td className="px-4 py-3 align-middle whitespace-nowrap text-sm font-medium text-slate-700">
-                      {formatDateTime(stay?.checkedInAt ?? stay?.plannedCheckInAt)}
-                    </td>
-
-                    {/* Dự kiến trả phòng */}
-                    <td className="px-4 py-3 align-middle whitespace-nowrap">
-                      <span className={`text-sm ${isOverdue ? "font-bold text-rose-600" : "font-medium text-slate-700"}`}>
-                        {formatDateTime(stay?.plannedCheckOutAt)}
-                      </span>
-                    </td>
-
-                    {/* Số lượng khách */}
-                    <td className="px-4 py-3 align-middle whitespace-nowrap text-sm font-medium text-slate-600">
-                      {(stay?.occupants?.length ?? 0) + 1} khách
-                    </td>
-
-                    {/* Chỉ báo xem chi tiết */}
-                    <td className="w-12 px-4 py-3 align-middle text-right whitespace-nowrap text-slate-400 group-hover:text-blue-600 transition-colors">
-                      <VsIcon
-                        name="chevron_right"
-                        className="text-xl inline-block transition-transform duration-150 group-hover:translate-x-0.5"
-                      />
-                    </td>
+                    {row.getVisibleCells().map((cell) => {
+                      const meta = cell.column.columnDef.meta as InHouseColumnMeta | undefined;
+                      return (
+                        <td
+                          key={cell.id}
+                          className={meta?.cellClassName ?? "px-4 py-3 align-middle"}
+                        >
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      );
+                    })}
                   </tr>
                 );
               })}

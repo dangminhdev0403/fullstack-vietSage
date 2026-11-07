@@ -4,6 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { SwalVietSage } from "@/libs/swal";
+import { servicePortalRepository } from "../repository";
 import { useServicePortal } from "../use-service-portal";
 import type { ServiceItem, ServicePortalData } from "../types";
 import type { MarketplaceCategorySheetPreview } from "@/features/marketplace-admin/types";
@@ -30,42 +31,20 @@ export function ServiceCatalogView({ data }: Readonly<{ data: ServicePortalData 
   const [isCommitting, setIsCommitting] = useState(false);
   const [cachedCsvData, setCachedCsvData] = useState<string | null>(null);
 
-  const fetchGoogleSheetCsv = async (): Promise<string> => {
-    const response = await fetch("/api/service-portal?file=sheet", { cache: "no-store" });
-    if (!response.ok) {
-      const payload = (await response.json().catch(() => null)) as {
-        message?: string;
-        data?: { detail?: string };
-      } | null;
-      const detailMsg =
-        payload?.data?.detail && payload.data.detail !== "VALIDATION_ERROR"
-          ? payload.data.detail
-          : payload?.message && payload.message !== "VALIDATION_ERROR"
-          ? payload.message
-          : "Không thể truy cập Google Sheets / Excel Online đã lưu. Vui lòng liên hệ Super Admin.";
-      throw new Error(detailMsg);
-    }
-    const text = await response.text();
-    if (!text || text.includes("<!DOCTYPE html") || text.includes("<html")) {
-      throw new Error("Bảng tính Google Sheets / Excel Online chưa được mở quyền truy cập công khai. Vui lòng chọn 'Chia sẻ' -> 'Bất kỳ ai có liên kết'.");
-    }
-    return text;
-  };
-
   const findStoredSheetUrl = (): string =>
     (queryData.data?.profile?.googleSheetsUrl ?? data.profile.googleSheetsUrl ?? "").trim();
 
   const handlePreviewSheet = async () => {
     const sheetUrl = findStoredSheetUrl();
     if (!sheetUrl.trim()) {
-      setPreviewError("Super Admin chưa gán link Google Sheets / Excel Online cho đối tác. Vui lòng liên hệ Super Admin.");
+      setPreviewError("Quản trị nền tảng chưa gán đường dẫn Google Sheets / Excel Online cho đối tác. Vui lòng liên hệ Quản trị nền tảng.");
       return;
     }
 
     setIsPreviewing(true);
     setPreviewError(null);
     try {
-      const csvData = await fetchGoogleSheetCsv();
+      const csvData = await servicePortalRepository.fetchSheetCsv();
       setCachedCsvData(csvData);
       const res = await importPreview.mutateAsync({ csv: csvData, fileName: "google-sheet.csv" });
       setSheetPreview(res as unknown as MarketplaceCategorySheetPreview);
@@ -122,7 +101,9 @@ export function ServiceCatalogView({ data }: Readonly<{ data: ServicePortalData 
     update.mutate({ serviceId: item.id, data: result.value }, { onSuccess: () => toast.success("Cập nhật dịch vụ thành công"), onError: () => toast.error("Không thể cập nhật dịch vụ") });
   };
 
-  const filteredServices = data.services.filter((item) => {
+  const services = queryData.data?.services ?? data.services;
+
+  const filteredServices = services.filter((item) => {
     const name = item.name.toLowerCase();
     const catName = (item.category?.nameVi ?? "").toLowerCase();
     const matchesSearch =
@@ -139,8 +120,8 @@ export function ServiceCatalogView({ data }: Readonly<{ data: ServicePortalData 
   const safePage = Math.min(page, pageCount);
   const visibleServices = filteredServices.slice((safePage - 1) * pageSize, safePage * pageSize);
 
-  const totalCount = data.services.length;
-  const activeCount = data.services.filter((s) => s.status === "ACTIVE").length;
+  const totalCount = services.length;
+  const activeCount = services.filter((s) => s.status === "ACTIVE").length;
   const inactiveCount = totalCount - activeCount;
 
   const currentSheetUrl = findStoredSheetUrl();
@@ -517,7 +498,7 @@ export function ServiceCatalogView({ data }: Readonly<{ data: ServicePortalData 
             </div>
           ) : (
             <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm font-medium text-slate-500 shadow-2xs">
-              Chưa có dịch vụ nào trong menu phù hợp bộ lọc. Vui lòng thử lại hoặc dùng form bên trái để tạo dịch vụ mới.
+              Chưa có dịch vụ nào trong danh mục phù hợp với bộ lọc. Hãy đồng bộ từ Google Sheets phía trên để khởi tạo danh mục dịch vụ.
             </div>
           )}
           {filteredServices.length > pageSize ? (

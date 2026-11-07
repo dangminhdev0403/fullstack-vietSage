@@ -4713,7 +4713,7 @@ export function StaffRoomsClient({
     if (!booking.reservationId) {
       void showWarningAlert(
         "Chưa liên kết Đặt phòng",
-        "Đơn này chưa có mã reservationId trên hệ thống.",
+        "Đơn này chưa có mã đặt phòng trên hệ thống.",
       );
       return;
     }
@@ -6092,10 +6092,9 @@ export function StaffRoomsClient({
                 Đang xem sơ đồ dự kiến ngày:{" "}
                 {formatDateTime(businessDate).slice(0, 10)}
               </p>
-              <p className="text-xs text-sky-800 mt-0.5">
-                Trạng thái phòng hiển thị theo lịch đặt phòng tương lai
-                (projectedStatus). Trạng thái vật lý hiện tại của phòng không bị
-                thay đổi.
+              <p className="text-xs text-sky-800 mt-0.5 text-pretty">
+                Trạng thái phòng hiển thị theo lịch đặt phòng tương lai. Trạng
+                thái vật lý hiện tại của phòng không bị thay đổi.
               </p>
             </div>
           </div>
@@ -6481,26 +6480,6 @@ export function StaffRoomsClient({
                 ) : null}
               </div>
 
-              {/* Floor Select */}
-              <select
-                id="rooms-floor-filter"
-                name="floorFilter"
-                aria-label="Lọc theo tầng"
-                value={floor}
-                onChange={(event) => {
-                  setFloor(event.target.value);
-                  setPage(1);
-                }}
-                className="h-10 shrink-0 rounded-xl border border-slate-300 hover:border-slate-400 bg-white px-3 text-sm font-bold text-slate-800 focus:border-sky-600 focus:ring-2 focus:ring-sky-500/20 shadow-2xs min-w-[125px] cursor-pointer transition min-h-[40px]"
-              >
-                <option value="all">Tầng: Tất cả</option>
-                {floors.map((value) => (
-                  <option key={value} value={value}>
-                    Tầng {value}
-                  </option>
-                ))}
-              </select>
-
               {/* Room Type Select */}
               <select
                 id="rooms-type-filter"
@@ -6537,25 +6516,6 @@ export function StaffRoomsClient({
                 {zones.map((value) => (
                   <option key={value} value={value}>
                     Khu {value}
-                  </option>
-                ))}
-              </select>
-
-              {/* Status Select */}
-              <select
-                id="rooms-status-filter"
-                name="statusFilter"
-                aria-label="Lọc theo trạng thái phòng"
-                value={status}
-                onChange={(event) => {
-                  setStatus(event.target.value as RoomStatusFilter);
-                  setPage(1);
-                }}
-                className="h-10 shrink-0 rounded-xl border border-slate-300 hover:border-slate-400 bg-white px-3 text-sm font-bold text-slate-800 focus:border-sky-600 focus:ring-2 focus:ring-sky-500/20 shadow-2xs min-w-[160px] cursor-pointer transition min-h-[40px]"
-              >
-                {statusFilters.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    Trạng thái: {item.label}
                   </option>
                 ))}
               </select>
@@ -6853,14 +6813,6 @@ export function StaffRoomsClient({
                     </button>
                   );
                 })}
-              </div>
-
-              {/* Right: Layout indicator (1 hàng 1 tầng · Cuộn ngang) */}
-              <div className="flex items-center gap-2 ml-auto">
-                <span className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 border border-slate-200/80 px-3 py-1.5 text-xs font-bold text-slate-700 whitespace-nowrap">
-                  <VsIcon name="swap_horiz" className="text-sm text-sky-600" />
-                  <span>1 hàng 1 tầng · Cuộn ngang</span>
-                </span>
               </div>
             </div>
           )}
@@ -7875,21 +7827,6 @@ export function StaffRoomsClient({
                     </div>
                   ) : (
                     <>
-                      <div>
-                        <label className="block text-sm font-semibold text-slate-800 mb-1.5">
-                          Số điện thoại
-                        </label>
-                        <input
-                          type="tel"
-                          value={reservationGuestPhone}
-                          onChange={(e) =>
-                            setReservationGuestPhone(e.target.value)
-                          }
-                          placeholder="Ví dụ: 0912 345 678"
-                          className="w-full h-12 rounded-xl border border-slate-300 bg-white px-4 text-base font-medium text-slate-900 placeholder:text-slate-400 focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 outline-none transition min-h-[48px]"
-                        />
-                      </div>
-
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <div className="flex items-center justify-between mb-1.5">

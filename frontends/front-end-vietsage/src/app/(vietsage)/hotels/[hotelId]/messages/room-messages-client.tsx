@@ -699,7 +699,7 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
       <header className="shrink-0 flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--secondary)]">
-            LỄ TÂN WORKSPACE
+            Không gian lễ tân
           </p>
           <h1 className="vs-display mt-0.5 text-2xl font-semibold text-[var(--primary)] md:text-3xl">
             Tin nhắn phòng & GuestOS
@@ -783,10 +783,7 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--surface-container-low)] text-[var(--primary)]">
                 <VsIcon name="chat" className="text-3xl" />
               </div>
-              <h3 className="mt-4 font-bold text-lg text-[var(--primary)]">Chọn một phòng để mở hội thoại</h3>
-              <p className="mt-1 text-xs leading-relaxed text-[var(--on-surface-variant)]">
-                Chọn một phòng ở cột bên trái để trao đổi với khách đang lưu trú.
-              </p>
+              <h3 className="mt-4 font-bold text-lg text-[var(--primary)] text-balance">Chọn một phòng để mở hội thoại</h3>
             </div>
           ) : (
             <>

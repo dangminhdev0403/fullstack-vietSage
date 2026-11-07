@@ -56,7 +56,6 @@ export default async function OwnerStaffPage({ searchParams }: Props) {
               {context.tenants.map((tenant) => <option key={tenant.id} value={tenant.id}>{tenant.code} · {tenant.name}</option>)}
             </select>
           </label>
-          <button className="min-h-11 rounded-xl bg-[var(--primary)] px-5 text-sm font-semibold text-white">Mở phạm vi</button>
         </form>
       ) : null}
       {tenantId ? (

@@ -575,17 +575,6 @@ export function RolePermissionsBrowser({
             </span>
           </button>
         </div>
-
-        {activeRoleTab === "CUSTOM" && (
-          <button
-            type="button"
-            onClick={handleOpenCreateModal}
-            className="hidden sm:inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-[#25483f] px-4 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-[#1a352d]"
-          >
-            <VsIcon name="add" className="text-[16px]" />
-            <span>Tạo vai trò mới</span>
-          </button>
-        )}
       </div>
 
       {/* ── Main Grid Layout ── */}

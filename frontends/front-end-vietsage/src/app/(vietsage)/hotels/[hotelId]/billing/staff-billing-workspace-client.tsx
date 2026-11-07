@@ -274,7 +274,6 @@ export function StaffBillingWorkspaceClient({
   const [groupCashGivenInput, setGroupCashGivenInput] = useState<string>("");
   const [groupTableSearch, setGroupTableSearch] = useState<string>("");
   const [groupTableStatusFilter, setGroupTableStatusFilter] = useState<"ALL" | "PENDING" | "OPEN">("ALL");
-  const [masterInvoiceMode, setMasterInvoiceMode] = useState<"MASTER" | "SPLIT">("MASTER");
   const [bankCopied, setBankCopied] = useState<boolean>(false);
   const [previewFolioId, setPreviewFolioId] = useState<string | null>(null);
   const previewQuery = useQuery({
@@ -2156,32 +2155,6 @@ export function StaffBillingWorkspaceClient({
 
             {/* Thân thẻ cuộn mượt bên trong */}
             <div className="flex-1 min-h-0 overflow-y-auto p-3.5 space-y-3">
-              {/* Tùy chọn Xuất Hóa Đơn gọn gàng */}
-              <div className="flex items-center justify-between gap-1 p-1 rounded-xl bg-[#1c1204] border border-[#d4af37]/35 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setMasterInvoiceMode("MASTER")}
-                  className={`flex-1 py-1 px-2 rounded-lg text-xs font-bold transition cursor-pointer text-center ${
-                    masterInvoiceMode === "MASTER"
-                      ? "bg-[#d4af37] text-slate-950 font-black shadow-xs"
-                      : "text-amber-200/80 hover:bg-white/5"
-                  }`}
-                >
-                  1 Hóa đơn gộp
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMasterInvoiceMode("SPLIT")}
-                  className={`flex-1 py-1 px-2 rounded-lg text-xs font-bold transition cursor-pointer text-center ${
-                    masterInvoiceMode === "SPLIT"
-                      ? "bg-[#d4af37] text-slate-950 font-black shadow-xs"
-                      : "text-amber-200/80 hover:bg-white/5"
-                  }`}
-                >
-                  Hóa đơn từng phòng
-                </button>
-              </div>
-
               <dl className="space-y-2 text-xs text-[#fff3d1]">
                 {/* Tổng tiền phòng */}
                 <div className="flex justify-between items-center">
@@ -2396,34 +2369,6 @@ export function StaffBillingWorkspaceClient({
           </div>
         ) : (
           <>
-            {/* Hướng dẫn nghiệp vụ điều chỉnh chi phí Folio Phòng Lẻ */}
-            <details className="group shrink-0 mb-2 rounded-2xl border border-amber-300 bg-gradient-to-br from-amber-50 via-amber-100/60 to-orange-50 p-2.5 text-amber-950 shadow-xs">
-              <summary className="flex cursor-pointer items-center justify-between gap-2 font-black text-xs text-amber-950 select-none">
-                <span className="flex items-center gap-1.5 min-w-0">
-                  <VsIcon name="info" className="text-base text-amber-700 shrink-0" />
-                  <span className="truncate">Hướng dẫn &amp; Quy tắc %</span>
-                </span>
-                <span className="text-xs font-bold text-amber-800 shrink-0 rounded-md bg-amber-200/70 px-2 py-0.5 hover:bg-amber-300/80 transition">
-                  <span className="group-open:hidden">Mở rộng ▾</span>
-                  <span className="hidden group-open:inline">Thu gọn ▴</span>
-                </span>
-              </summary>
-              <ul className="mt-2 space-y-1.5 border-t border-amber-200/80 pt-2 text-xs font-medium text-amber-950 pl-1">
-                <li className="flex items-start gap-1.5">
-                  <span className="text-amber-700 font-extrabold">•</span>
-                  <span>
-                    <strong className="font-black text-amber-950">Phụ thu (Tăng giá)</strong>: Nhận phòng sớm, trả trễ, phụ thu người ở...
-                  </span>
-                </li>
-                <li className="flex items-start gap-1.5">
-                  <span className="text-amber-700 font-extrabold">•</span>
-                  <span>
-                    <strong className="font-black text-amber-950">Giảm giá</strong>: Ưu đãi khách VIP, voucher...
-                  </span>
-                </li>
-              </ul>
-            </details>
-
             {(activeSummary?.activeServiceRequests?.length ?? 0) > 0 ? (
               <section
                 aria-label="Đối soát dịch vụ chưa hoàn thành"

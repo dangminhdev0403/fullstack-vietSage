@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { safeStorage } from "@/core/storage/safe-storage";
 import type { MarketplaceServiceItem } from "../types/marketplace-contract";
 
 export type GuestCartItem = {
@@ -29,37 +30,6 @@ export type GuestCartStore = {
   updateItemNote: (serviceId: string, note: string) => void;
   clearCart: () => void;
   getItemCount: () => number;
-};
-
-const memoryStorage = new Map<string, string>();
-
-const safeStorage = {
-  getItem: (name: string): string | null => {
-    try {
-      if (typeof window !== "undefined" && window.localStorage) {
-        return window.localStorage.getItem(name);
-      }
-    } catch {}
-    return memoryStorage.get(name) ?? null;
-  },
-  setItem: (name: string, value: string): void => {
-    try {
-      if (typeof window !== "undefined" && window.localStorage) {
-        window.localStorage.setItem(name, value);
-        return;
-      }
-    } catch {}
-    memoryStorage.set(name, value);
-  },
-  removeItem: (name: string): void => {
-    try {
-      if (typeof window !== "undefined" && window.localStorage) {
-        window.localStorage.removeItem(name);
-        return;
-      }
-    } catch {}
-    memoryStorage.delete(name);
-  },
 };
 
 export const useGuestCartStore = create<GuestCartStore>()(

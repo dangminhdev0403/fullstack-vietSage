@@ -823,44 +823,8 @@ export function AdminBillingClient({
         <div className="flex flex-wrap items-center gap-2 shrink-0">
           <button
             type="button"
-            onClick={() => handleTabChange("localmate")}
-            className={`inline-flex items-center gap-2 rounded-xl min-h-10 px-4 py-2 text-sm font-bold transition-colors ${
-              activeTab === "localmate"
-                ? "bg-teal-700 text-white shadow-sm"
-                : "border border-teal-200 bg-teal-50 text-teal-800 hover:bg-teal-100 dark:bg-teal-950/40 dark:border-teal-800 dark:text-teal-300"
-            }`}
-          >
-            <VsIcon name="handshake" className="text-base" />
-            <span>Phí LocalMate ({localMateFeeRate}%)</span>
-          </button>
-
-          {activeTab !== "finalize" && (
-            <button
-              type="button"
-              onClick={() => handleTabChange("finalize")}
-              className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 min-h-10 px-4 py-2 text-sm font-bold text-indigo-700 hover:bg-indigo-100 transition-colors dark:bg-indigo-950/40 dark:border-indigo-800 dark:text-indigo-300"
-            >
-              <VsIcon name="bolt" className="text-base" />
-              <span>Chốt kỳ</span>
-            </button>
-          )}
-
-          {activeTab !== "invoices" && (
-            <button
-              type="button"
-              onClick={() => handleTabChange("invoices")}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white min-h-10 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300"
-            >
-              <VsIcon name="receipt_long" className="text-base" />
-              <span>Hóa đơn</span>
-            </button>
-          )}
-
-
-          <button
-            type="button"
             onClick={() => setShowCreateModal(true)}
-            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 min-h-10 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-emerald-500 transition-colors"
+            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 min-h-10 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-emerald-500 transition-colors whitespace-nowrap"
           >
             <VsIcon name="add_circle" className="text-base" />
             Onboard hợp đồng
@@ -1401,7 +1365,7 @@ export function AdminBillingClient({
 
             {activeContracts.length === 0 ? (
               <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center text-sm italic text-slate-400">
-                Không có hợp đồng nào đang ở trạng thái ACTIVE. Hãy vào tab &quot;Hợp đồng &amp; Biểu phí&quot; để onboard khách sạn.
+                Không có hợp đồng nào đang ở trạng thái Đang hoạt động. Hãy vào tab &quot;Hợp đồng &amp; Biểu phí&quot; để onboard khách sạn.
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -1501,24 +1465,13 @@ export function AdminBillingClient({
       {/* ========================================================================= */}
       {activeTab === "contracts" && (
         <div className="space-y-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white">
-                Danh sách Hợp đồng &amp; Biểu phí đối tác
-              </h2>
-              <p className="text-sm text-slate-500">
-                Quản lý các thỏa thuận mức phí tính theo lượt check-in hoặc % doanh thu cho từng khách sạn.
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setShowCreateModal(true)}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 min-h-11 px-5 py-2.5 text-base font-bold text-white shadow-md shadow-emerald-600/20 hover:from-emerald-500 hover:to-teal-500"
-            >
-              <VsIcon name="add_circle" className="text-lg" />
-              Onboard hợp đồng mới
-            </button>
+          <div>
+            <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white text-balance">
+              Danh sách Hợp đồng &amp; Biểu phí đối tác
+            </h2>
+            <p className="text-sm text-slate-500 text-pretty">
+              Quản lý các thỏa thuận mức phí tính theo lượt check-in hoặc % doanh thu cho từng khách sạn.
+            </p>
           </div>
 
           {/* Callout to LocalMate Fee Separation */}
@@ -1603,7 +1556,7 @@ export function AdminBillingClient({
                             }`}
                           >
                             <span className={`h-2 w-2 rounded-full ${c.status === "ACTIVE" ? "bg-emerald-500" : "bg-slate-400"}`}></span>
-                            {c.status === "ACTIVE" ? "Hoạt động" : c.status === "SUSPENDED" ? "Tạm dừng" : c.status}
+                            {c.status === "ACTIVE" ? "Đang hoạt động" : c.status === "SUSPENDED" ? "Tạm dừng" : c.status}
                           </span>
                         </td>
 
@@ -1924,40 +1877,6 @@ export function AdminBillingClient({
                     <span className="font-extrabold text-teal-800 dark:text-teal-300 text-base">
                       {Math.round(simTourPrice * localMateFeeInput / 100).toLocaleString("vi-VN")} VND
                     </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Business Model Clarity Callout */}
-          <div className="rounded-2xl border border-blue-200/80 bg-blue-50/60 p-5 dark:border-blue-900/60 dark:bg-blue-950/30">
-            <div className="flex items-start gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">
-                <VsIcon name="hub" className="text-xl" />
-              </span>
-              <div className="space-y-1">
-                <h4 className="text-base font-bold text-blue-950 dark:text-blue-200">
-                  Phân định rõ ràng 3 luồng doanh thu trên nền tảng VietSage
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 text-xs text-slate-600 dark:text-slate-300">
-                  <div className="rounded-xl bg-white/80 p-3 shadow-xs dark:bg-slate-900/80 border border-blue-100 dark:border-blue-900/40">
-                    <p className="font-bold text-teal-700 dark:text-teal-400">1. LocalMate (Đang cấu hình)</p>
-                    <p className="mt-1">
-                      Hướng dẫn viên du lịch &amp; trải nghiệm tour địa phương. Thu phí hoa hồng nền tảng <strong>{localMateFeeRate}%</strong>.
-                    </p>
-                  </div>
-                  <div className="rounded-xl bg-white/80 p-3 shadow-xs dark:bg-slate-900/80 border border-blue-100 dark:border-blue-900/40">
-                    <p className="font-bold text-indigo-700 dark:text-indigo-400">2. Marketplace dịch vụ</p>
-                    <p className="mt-1">
-                      Dịch vụ ngoài (vé tham quan, xe, spa, quà tặng). Chiết khấu theo từng đối tác cung cấp dịch vụ bên ngoài.
-                    </p>
-                  </div>
-                  <div className="rounded-xl bg-white/80 p-3 shadow-xs dark:bg-slate-900/80 border border-blue-100 dark:border-blue-900/40">
-                    <p className="font-bold text-slate-900 dark:text-white">3. VietSage SaaS Khách sạn</p>
-                    <p className="mt-1">
-                      Phí phần mềm quản lý lưu trú &amp; check-in khách sạn. Tính theo lượt check-in hoặc % doanh thu phòng (tab Hợp đồng).
-                    </p>
                   </div>
                 </div>
               </div>
@@ -2458,7 +2377,7 @@ export function AdminBillingClient({
             <form onSubmit={handleFinalizePeriod} className="mt-6 space-y-5">
               <div>
                 <label htmlFor="finalize-period-start" className="block text-sm font-semibold text-slate-800 dark:text-slate-200 mb-1.5">
-                  Từ ngày (Period Start) <span className="text-red-500">*</span>
+                  Từ ngày <span className="text-red-500">*</span>
                 </label>
                 <input
                   id="finalize-period-start"
@@ -2472,7 +2391,7 @@ export function AdminBillingClient({
 
               <div>
                 <label htmlFor="finalize-period-end" className="block text-sm font-semibold text-slate-800 dark:text-slate-200 mb-1.5">
-                  Đến ngày (Period End) <span className="text-red-500">*</span>
+                  Đến ngày <span className="text-red-500">*</span>
                 </label>
                 <input
                   id="finalize-period-end"

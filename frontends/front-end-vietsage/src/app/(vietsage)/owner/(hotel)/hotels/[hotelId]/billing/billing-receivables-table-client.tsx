@@ -168,7 +168,7 @@ export function BillingReceivablesTableClient({ hotelId }: BillingReceivablesTab
                 className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 focus:border-blue-600 focus:outline-hidden cursor-pointer"
               >
                 <option value="ALL">Tất cả trạng thái</option>
-                <option value="OPEN">Đang nợ (OPEN)</option>
+                <option value="OPEN">Chưa tất toán</option>
                 <option value="PARTIALLY_COLLECTED">Thu một phần</option>
                 <option value="SETTLED">Đã tất toán</option>
               </select>

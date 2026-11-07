@@ -68,21 +68,13 @@ const initialFormData: GuideFormData = {
   serviceLongitude: "",
 };
 
-export interface LocalMateGuidesViewProps {
-  currentUserEmail?: string;
-  currentUserRole?: string;
-  currentUserName?: string;
-}
-
-export function LocalMateGuidesView(_props: LocalMateGuidesViewProps = {}) {
+export function LocalMateGuidesView() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | LocalMateStatus>("ALL");
   const [positionFilter, setPositionFilter] = useState<
     "ALL" | "GUIDE" | "COORDINATOR" | "LEADER"
   >("ALL");
 
-  // Selection
-  const [selectedGuideIds, setSelectedGuideIds] = useState<Set<string>>(new Set());
   const [openMenuGuideId, setOpenMenuGuideId] = useState<string | null>(null);
 
   // Pagination
@@ -530,23 +522,6 @@ export function LocalMateGuidesView(_props: LocalMateGuidesViewProps = {}) {
     }
   };
 
-  // Bulk selection
-  const handleToggleSelectAll = () => {
-    if (selectedGuideIds.size === paginatedGuides.length) {
-      setSelectedGuideIds(new Set());
-    } else {
-      setSelectedGuideIds(new Set(paginatedGuides.map((g) => g.id)));
-    }
-  };
-
-  const handleToggleSelectRow = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const next = new Set(selectedGuideIds);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    setSelectedGuideIds(next);
-  };
-
   const isSaving = createGuideMutation.isPending || updateGuideMutation.isPending;
 
   return (
@@ -785,18 +760,7 @@ export function LocalMateGuidesView(_props: LocalMateGuidesViewProps = {}) {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="sticky top-0 z-10 border-b border-[#25483F]/12 bg-[#FAF7F0] text-xs font-bold uppercase tracking-wider text-[#485951]">
-                  <th className="w-12 px-6 py-4 text-center">
-                    <input
-                      type="checkbox"
-                      checked={
-                        paginatedGuides.length > 0 &&
-                        selectedGuideIds.size === paginatedGuides.length
-                      }
-                      onChange={handleToggleSelectAll}
-                      className="h-4 w-4 rounded border-[#25483F]/25 text-[#173F35] focus:ring-[#173F35] cursor-pointer"
-                    />
-                  </th>
-                  <th className="px-6 py-4 min-w-[320px]">LocalMate</th>
+                  <th className="px-6 py-4 min-w-[280px]">LocalMate</th>
                   <th className="px-6 py-4 min-w-[200px]">Khu vực</th>
                   <th className="px-6 py-4 min-w-[180px]">Ngôn ngữ</th>
                   <th className="px-6 py-4 min-w-[150px]">Phí dịch vụ</th>
@@ -805,31 +769,12 @@ export function LocalMateGuidesView(_props: LocalMateGuidesViewProps = {}) {
               </thead>
               <tbody className="divide-y divide-[#25483F]/8">
                 {paginatedGuides.map((guide) => {
-                  const isSelected = selectedGuideIds.has(guide.id);
-
                   return (
                     <tr
                       key={guide.id}
                       onClick={() => handleOpenEditModal(guide)}
-                      className={`group transition-colors ${
-                        isSelected
-                          ? "bg-[#FAF7F0]/80 cursor-pointer"
-                          : "hover:bg-[#FAF7F0]/50 cursor-pointer"
-                      }`}
+                      className="group transition-colors hover:bg-[#FAF7F0]/50 cursor-pointer"
                     >
-                      {/* Checkbox */}
-                      <td
-                        className="px-6 py-5 text-center"
-                        onClick={(e) => handleToggleSelectRow(guide.id, e)}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => {}}
-                          className="h-4 w-4 rounded border-[#25483F]/25 text-[#173F35] focus:ring-[#173F35] cursor-pointer"
-                        />
-                      </td>
-
                       {/* LocalMate Identity Column */}
                       <td className="px-6 py-5">
                         <div className="flex items-center gap-3.5">
@@ -843,25 +788,9 @@ export function LocalMateGuidesView(_props: LocalMateGuidesViewProps = {}) {
                               <span className="font-bold text-base text-[#142823] group-hover:text-[#173F35] transition-colors leading-snug">
                                 {guide.fullName}
                               </span>
-                              <span className="font-mono text-xs font-bold text-[#485951] bg-[#FAF7F0] border border-[#25483F]/12 px-2 py-0.5 rounded-md">
+                              <span className="font-mono text-xs font-bold text-[#485951] bg-[#FAF7F0] border border-[#25483F]/12 px-2 py-0.5 rounded-md whitespace-nowrap">
                                 {guide.guideCode}
                               </span>
-
-                              {/* Status Badge */}
-                              {guide.status === "QUALIFIED" ? (
-                                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#16805C]/10 border border-[#16805C]/20 px-3 py-1 text-xs font-bold text-[#16805C] whitespace-nowrap">
-                                  <span className="h-1.5 w-1.5 rounded-full bg-[#16805C]" />
-                                  Đạt chuẩn
-                                </span>
-                              ) : guide.status === "PENDING" ? (
-                                <span className="rounded-full bg-[#C79A32]/10 border border-[#C79A32]/20 px-3 py-1 text-xs font-bold text-[#C79A32] whitespace-nowrap">
-                                  Chờ duyệt
-                                </span>
-                              ) : (
-                                <span className="rounded-full bg-[#C94A4A]/10 border border-[#C94A4A]/20 px-3 py-1 text-xs font-bold text-[#C94A4A] whitespace-nowrap">
-                                  Tạm dừng
-                                </span>
-                              )}
                             </div>
                           </div>
                         </div>
@@ -1005,11 +934,6 @@ export function LocalMateGuidesView(_props: LocalMateGuidesViewProps = {}) {
               </select>
               <span>
                 trên tổng số <strong className="text-[#142823] font-bold">{totalItems}</strong> hướng dẫn viên
-                {selectedGuideIds.size > 0 && (
-                  <span className="ml-2 font-bold text-[#173F35]">
-                    (Đã chọn {selectedGuideIds.size})
-                  </span>
-                )}
               </span>
             </div>
 

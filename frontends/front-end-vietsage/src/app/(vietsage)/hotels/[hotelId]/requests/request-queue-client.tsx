@@ -646,13 +646,27 @@ export function RequestQueueClient({
           (item.latestNote ?? "").toLowerCase().includes(q),
       );
     }
+    const parseFilterDateMs = (raw: string, isEndOfDay: boolean): number | null => {
+      const trimmed = raw.trim();
+      const dmyMatch = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(trimmed);
+      const ymd = dmyMatch ? `${dmyMatch[3]}-${dmyMatch[2]}-${dmyMatch[1]}` : trimmed;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return null;
+      const ms = new Date(
+        `${ymd}T${isEndOfDay ? "23:59:59.999" : "00:00:00"}+07:00`,
+      ).getTime();
+      return Number.isNaN(ms) ? null : ms;
+    };
     if (filters.from) {
-      const fromTimestamp = new Date(`${filters.from}T00:00:00+07:00`).getTime();
-      list = list.filter((item) => new Date(item.createdAt).getTime() >= fromTimestamp);
+      const fromTimestamp = parseFilterDateMs(filters.from, false);
+      if (fromTimestamp !== null) {
+        list = list.filter((item) => new Date(item.createdAt).getTime() >= fromTimestamp);
+      }
     }
     if (filters.to) {
-      const toTimestamp = new Date(`${filters.to}T23:59:59.999+07:00`).getTime();
-      list = list.filter((item) => new Date(item.createdAt).getTime() <= toTimestamp);
+      const toTimestamp = parseFilterDateMs(filters.to, true);
+      if (toTimestamp !== null) {
+        list = list.filter((item) => new Date(item.createdAt).getTime() <= toTimestamp);
+      }
     }
 
     return list.sort((a, b) => {
@@ -713,13 +727,27 @@ export function RequestQueueClient({
           (order.guestNote ?? "").toLowerCase().includes(q),
       );
     }
+    const parseFilterDateMs = (raw: string, isEndOfDay: boolean): number | null => {
+      const trimmed = raw.trim();
+      const dmyMatch = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(trimmed);
+      const ymd = dmyMatch ? `${dmyMatch[3]}-${dmyMatch[2]}-${dmyMatch[1]}` : trimmed;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return null;
+      const ms = new Date(
+        `${ymd}T${isEndOfDay ? "23:59:59.999" : "00:00:00"}+07:00`,
+      ).getTime();
+      return Number.isNaN(ms) ? null : ms;
+    };
     if (filters.from) {
-      const fromTimestamp = new Date(`${filters.from}T00:00:00+07:00`).getTime();
-      list = list.filter((order) => new Date(order.createdAt).getTime() >= fromTimestamp);
+      const fromTimestamp = parseFilterDateMs(filters.from, false);
+      if (fromTimestamp !== null) {
+        list = list.filter((order) => new Date(order.createdAt).getTime() >= fromTimestamp);
+      }
     }
     if (filters.to) {
-      const toTimestamp = new Date(`${filters.to}T23:59:59.999+07:00`).getTime();
-      list = list.filter((order) => new Date(order.createdAt).getTime() <= toTimestamp);
+      const toTimestamp = parseFilterDateMs(filters.to, true);
+      if (toTimestamp !== null) {
+        list = list.filter((order) => new Date(order.createdAt).getTime() <= toTimestamp);
+      }
     }
     return list;
   }, [externalOrders, filters.status, filters.roomNumber, filters.q, filters.from, filters.to]);
@@ -1700,7 +1728,7 @@ export function RequestQueueClient({
                 const nextQ = event.target.value;
                 setFilters((prev) => ({ ...prev, q: nextQ }));
               }}
-              placeholder="Tìm phòng, khách, số điện thoại, booking hoặc dịch vụ..."
+              placeholder="Tìm theo mã phòng, tên khách, danh mục, nội dung..."
               className="min-h-11 w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-10 pr-9 text-sm text-slate-800 placeholder:text-slate-400 transition-colors focus:border-[var(--primary)] focus:bg-white focus:outline-none"
             />
             {filters.q ? (
@@ -1809,19 +1837,6 @@ export function RequestQueueClient({
                     className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-lg"
                   />
                 </div>
-              </div>
-
-              {/* Room Number Input */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  {mergedLabels.room}
-                </label>
-                <input
-                  value={filters.roomNumber ?? ""}
-                  onChange={(event) => updateFilter("roomNumber", event.target.value)}
-                  placeholder={mergedLabels.roomNumberPlaceholder}
-                  className="min-h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:border-[var(--primary)] focus:outline-none"
-                />
               </div>
 
               {/* Priority Select with Arrow */}
@@ -1951,26 +1966,6 @@ export function RequestQueueClient({
             ) : null}
           </div>
         ) : null}
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
-        {hotelRequestStatuses.map((status) => (
-          <button
-            key={status}
-            type="button"
-            onClick={() => applyStatusFilter(status)}
-            className={`rounded-xl border p-3 text-left transition ${filters.status === status ? "border-[var(--primary)] bg-[var(--primary-fixed)]" : "border-[color:rgba(198,197,213,0.24)] bg-white hover:border-[var(--outline-variant)]"}`}
-          >
-            <span
-              className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusTone(status)}`}
-            >
-              {requestStatusLabelMap[status]}
-            </span>
-            <span className="mt-3 block text-2xl font-semibold text-[var(--primary)]">
-              {activeSummaryCounts[status] ?? 0}
-            </span>
-          </button>
-        ))}
       </div>
 
       {inboxTab === "EXTERNAL_ORDERS" ? (

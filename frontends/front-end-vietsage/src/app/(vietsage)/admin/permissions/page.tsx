@@ -128,8 +128,8 @@ export default async function AdminPermissionsPage({
     const message =
       rolesResult.reason instanceof Error
         ? rolesResult.reason.message
-        : "Lỗi API roles không xác định";
-    apiWarnings.push(`GET /roles thất bại: ${message}`);
+        : "Không thể tải danh sách vai trò";
+    apiWarnings.push(`Không thể tải danh sách vai trò: ${message}`);
   }
 
   const effectiveRoleId = selectedRoleId ?? roles[0]?.id ?? null;
@@ -163,9 +163,9 @@ export default async function AdminPermissionsPage({
       const message =
         error instanceof Error
           ? error.message
-          : "Lỗi API permissions không xác định";
+          : "Không thể tải danh sách quyền hạn";
       apiWarnings.push(
-        `GET permissions cho ${effectiveRoleId} thất bại: ${message}`,
+        `Không thể tải danh sách quyền hạn của vai trò đang chọn: ${message}`,
       );
     }
   }

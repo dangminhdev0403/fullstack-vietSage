@@ -101,17 +101,10 @@ export function BillingFolioTableClient({
         <div className="relative overflow-hidden border-b border-slate-200/80 bg-gradient-to-br from-emerald-50/90 via-teal-50/40 to-slate-50 p-6 sm:p-7">
           <div className="absolute right-0 top-0 h-48 w-48 rounded-full bg-emerald-500/10 blur-3xl" />
           <div className="relative grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
-            <div className="space-y-2">
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600/10 px-3 py-0.5 text-sm font-bold uppercase tracking-[0.2em] text-emerald-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
-                Trung tâm folio
-              </div>
-              <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+            <div className="space-y-1">
+              <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 text-balance">
                 Theo dõi doanh thu lưu trú
               </h2>
-              <p className="max-w-xl text-sm leading-relaxed text-slate-600">
-                Theo dõi trạng thái thanh toán và đối soát doanh thu các lượt lưu trú.
-              </p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <Metric label="Tổng folio" value={String(folios.length)} icon="receipt_long" />

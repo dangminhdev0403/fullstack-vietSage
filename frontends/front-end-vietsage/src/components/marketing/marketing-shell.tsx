@@ -1,4 +1,7 @@
+"use client";
+
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
 
@@ -7,7 +10,7 @@ import { VietSageBrand } from "@/components/brand/vietsage-brand";
 import { normalizeLocale, type SupportedLocale } from "@/core/i18n/locales";
 
 import { MarketingHeader } from "./marketing-header";
-import { MarketingFooterLinks } from "./marketing-footer-links";
+
 import { REQUEST_DEMO_URL } from "./marketing-links";
 import { MarketingMotionRoot } from "./marketing-motion-root";
 import { PublicLocalMateChat } from "@/features/localmate-public/components/public-localmate-chat";
@@ -44,7 +47,7 @@ type ShellCopy = {
   assistantSubtitle: string;
   assistantStatus: string;
   deviceHeading: string;
-  deviceSub: string;
+  deviceSub?: string;
   promptPlaceholder: string;
   services: Array<{ icon: string; title: string; text: string; href: string }>;
   experienceTitle: string;
@@ -74,7 +77,7 @@ const SHELL_COPY: Record<SupportedLocale, ShellCopy> = {
     assistantSubtitle: "Chọn nhu cầu của bạn, chúng tôi sẽ hỗ trợ ngay",
     assistantStatus: "Sẵn sàng phục vụ",
     deviceHeading: "Bạn cần gì để kỳ lưu trú thoải mái hơn?",
-    deviceSub: "Chọn dịch vụ bạn quan tâm bên dưới",
+
     promptPlaceholder: "Ví dụ: Đặt bàn ăn, yêu cầu dọn phòng, hỏi thông tin địa phương...",
     services: [
       {
@@ -133,8 +136,8 @@ const SHELL_COPY: Record<SupportedLocale, ShellCopy> = {
       {
         heading: "Tài nguyên",
         links: [
-          { label: "Chính sách bảo mật", href: "#" },
-          { label: "Điều khoản sử dụng", href: "#" },
+          { label: "Chính sách bảo mật", href: "/about" },
+          { label: "Điều khoản sử dụng", href: "/contact" },
         ],
       },
     ],
@@ -152,7 +155,7 @@ const SHELL_COPY: Record<SupportedLocale, ShellCopy> = {
     assistantSubtitle: "Select your request, we are ready to assist immediately",
     assistantStatus: "Ready to serve",
     deviceHeading: "What would make your stay more comfortable?",
-    deviceSub: "Select the service you need below",
+
     promptPlaceholder: "E.g. Book dining, housekeeping request, local info...",
     services: [
       {
@@ -211,8 +214,8 @@ const SHELL_COPY: Record<SupportedLocale, ShellCopy> = {
       {
         heading: "Resources",
         links: [
-          { label: "Privacy Policy", href: "#" },
-          { label: "Terms of Use", href: "#" },
+          { label: "Privacy Policy", href: "/about" },
+          { label: "Terms of Use", href: "/contact" },
         ],
       },
     ],
@@ -230,7 +233,7 @@ const SHELL_COPY: Record<SupportedLocale, ShellCopy> = {
     assistantSubtitle: "选择您的需求，我们将即刻为您服务",
     assistantStatus: "在线服务",
     deviceHeading: "需要什么让您的住宿更舒适？",
-    deviceSub: "请在下方选择您需要的服务",
+
     promptPlaceholder: "例如：预订餐饮、客房清洁、咨询周边信息...",
     services: [
       {
@@ -287,8 +290,8 @@ const SHELL_COPY: Record<SupportedLocale, ShellCopy> = {
       {
         heading: "资源与条款",
         links: [
-          { label: "隐私政策", href: "#" },
-          { label: "使用条款", href: "#" },
+          { label: "隐私政策", href: "/about" },
+          { label: "使用条款", href: "/contact" },
         ],
       },
     ],
@@ -306,7 +309,7 @@ const SHELL_COPY: Record<SupportedLocale, ShellCopy> = {
     assistantSubtitle: "필요한 서비스를 선택하시면 즉시 지원합니다",
     assistantStatus: "서비스 준비 완료",
     deviceHeading: "더 편안한 투숙을 위해 무엇이 필요하신가요?",
-    deviceSub: "아래에서 관심 있는 서비스를 선택하세요",
+
     promptPlaceholder: "예: 룸서비스 주문, 객실 청소 요청, 현지 정보 문의...",
     services: [
       {
@@ -363,8 +366,8 @@ const SHELL_COPY: Record<SupportedLocale, ShellCopy> = {
       {
         heading: "리소스",
         links: [
-          { label: "개인정보처리방침", href: "#" },
-          { label: "이용약관", href: "#" },
+          { label: "개인정보처리방침", href: "/about" },
+          { label: "이용약관", href: "/contact" },
         ],
       },
     ],
@@ -382,7 +385,7 @@ const SHELL_COPY: Record<SupportedLocale, ShellCopy> = {
     assistantSubtitle: "Выберите услугу, и мы сразу поможем",
     assistantStatus: "Готов к обслуживанию",
     deviceHeading: "Что сделает ваше пребывание комфортнее?",
-    deviceSub: "Выберите интересующую услугу ниже",
+
     promptPlaceholder: "Например: заказ еды, уборка номера, местные советы...",
     services: [
       {
@@ -439,8 +442,8 @@ const SHELL_COPY: Record<SupportedLocale, ShellCopy> = {
       {
         heading: "Ресурсы",
         links: [
-          { label: "Политика конфиденциальности", href: "#" },
-          { label: "Условия использования", href: "#" },
+          { label: "Политика конфиденциальности", href: "/about" },
+          { label: "Условия использования", href: "/contact" },
         ],
       },
     ],
@@ -458,7 +461,7 @@ const SHELL_COPY: Record<SupportedLocale, ShellCopy> = {
     assistantSubtitle: "अपनी आवश्यकता चुनें, हम तुरंत सहायता करेंगे",
     assistantStatus: "सेवा के लिए तैयार",
     deviceHeading: "आपके प्रवास को क्या अधिक आरामदायक बना सकता है?",
-    deviceSub: "नीचे अपनी पसंदीदा सेवा चुनें",
+
     promptPlaceholder: "उदा.: भोजन ऑर्डर करें, कमरे की सफाई, स्थानीय जानकारी...",
     services: [
       {
@@ -515,8 +518,8 @@ const SHELL_COPY: Record<SupportedLocale, ShellCopy> = {
       {
         heading: "संसाधन",
         links: [
-          { label: "गोपनीयता नीति", href: "#" },
-          { label: "उपयोग की शर्तें", href: "#" },
+          { label: "गोपनीयता नीति", href: "/about" },
+          { label: "उपयोग की शर्तें", href: "/contact" },
         ],
       },
     ],
@@ -572,7 +575,7 @@ export function MarketingShell({
         </>
       )}
       <MarketingHeader accountAction={accountAction} locale={activeLocale} onLocaleChange={onLocaleChange} />
-      {showSceneRail && (
+      {usePathname() === "/" && showSceneRail && (
         <nav className="vs-scene-rail" aria-label={activeLocale === "vi" ? "Danh mục điều hướng trang chủ" : t.navAria}>
           <a href="#arrival" data-scene-link="arrival"><span>01</span><em>{t.railArrival}</em></a>
           <a href="#concierge" data-scene-link="concierge"><span>02</span><em>{t.railConcierge}</em></a>
@@ -692,7 +695,7 @@ export function Hero({
                       {t.deviceHeading}
                     </h3>
                     <p className="mt-0.5 text-xs text-[#6b6255]">
-                      {t.deviceSub}
+                      {t.deviceSub ?? null}
                     </p>
                   </div>
 

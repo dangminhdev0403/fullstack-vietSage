@@ -6,7 +6,7 @@ import Link from "next/link";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { GuestStagger, GuestStaggerItem } from "../motion/guest-stagger";
 
-const heroImage = "https://lh3.googleusercontent.com/aida-public/AB6AXuBLf-YgBzrAgVSZdKcO9N6jpI4lupnOTcOHfUkeGXB57Dlu87twUYSLuWmT9IOKxvna_fxW7cAmK9NUD2Nyjvi65lpkRMiABK9ITeGQnSpNE87Y4BOdW-oupeenR4uCeaq59Vwj6WeDl2ztZjekTZ81na-b6VBz7LkAtogRJ5RJgKf9N30jQC_INQ7nvHrk1KaMJbUgeHqxL-TqqEFTHsEvo3b6QXUfcm7piR-6miQr_6U1N-wX4KCupu6muvYa6qYMTmgdZmYX9DI";
+const heroImage = "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1600&q=80";
 
 type GuestHomeHeroProps = {
   greeting: string;

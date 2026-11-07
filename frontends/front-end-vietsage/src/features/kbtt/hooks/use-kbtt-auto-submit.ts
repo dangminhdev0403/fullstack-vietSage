@@ -9,6 +9,18 @@ import type {
   KbttAutoSubmitState,
 } from "../types/kbtt-contract";
 
+export function useKbttAutoSubmitEnabled(hotelId: string) {
+  const resource = useMemo(() => kbttResource.bind({ hotelId }), [hotelId]);
+  const options = useMemo(
+    () => ({
+      ...resource.queries.autoSubmitEnabled.options(undefined),
+      enabled: Boolean(hotelId),
+    }),
+    [resource, hotelId],
+  );
+  return useQuery(options);
+}
+
 export function useKbttAutoSubmit(hotelId: string) {
   const queryClient = useQueryClient();
   const resource = useMemo(() => kbttResource.bind({ hotelId }), [hotelId]);

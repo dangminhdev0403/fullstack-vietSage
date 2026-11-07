@@ -1380,25 +1380,6 @@ export function OwnerRoomsClient({
                 />
               )}
             </button>
-            <button
-              type="button"
-              onClick={() => void handleOperationalReset()}
-              disabled={isResetting || isBulkQrBusy}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-amber-300 bg-amber-50/90 px-4 text-sm font-bold text-amber-900 shadow-2xs hover:bg-amber-100 hover:border-amber-400 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
-              title="Làm mới dữ liệu vận hành về trạng thái ban đầu, đưa phòng về TRỐNG và bảo toàn nguyên vẹn danh sách phòng cùng mã QR Code"
-            >
-              {isResetting ? (
-                <>
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-amber-800 border-t-transparent" />
-                  <span>Đang xử lý...</span>
-                </>
-              ) : (
-                <>
-                  <VsIcon name="restart_alt" className="text-xl text-amber-700" />
-                  <span>Khởi động lại vận hành</span>
-                </>
-              )}
-            </button>
           </div>
         </header>
       )}
@@ -1441,23 +1422,10 @@ export function OwnerRoomsClient({
         {surfaceMode === "operations" && (
         <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-[#e5d8b8] bg-gradient-to-br from-[#fbf8f1] via-[#f7f2e4] to-[#f3ecda] p-5 sm:p-6 lg:p-7 shadow-[0_8px_30px_-6px_rgba(115,92,0,0.06),0_1px_2px_rgba(0,0,0,0.03)]">
           <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-[#f4d36f]/15 blur-3xl" aria-hidden="true" />
-          <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-            <div className="max-w-2xl min-w-0 flex-1 space-y-1.5">
-              <div className="inline-flex items-center gap-1.5">
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#8a6a13]" aria-hidden="true" />
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8a6a13]">
-                  QR Command Center
-                </p>
-              </div>
-              <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[#173d34] text-balance">
-                Kích hoạt, xuất và đổi toàn bộ mã QR
-              </h2>
-              <p className="text-sm leading-relaxed text-[#526056] text-pretty">
-                Tạo/kích hoạt QR cho tất cả phòng trước khi check-in, xuất bộ QR
-                để in, hoặc xoay vòng mã để vô hiệu hóa các bản in cũ. Mọi thao
-                tác hàng loạt đều yêu cầu xác nhận.
-              </p>
-            </div>
+          <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <h2 className="text-lg sm:text-xl font-bold tracking-tight text-[#173d34] text-balance">
+              Quản lý mã QR hàng loạt
+            </h2>
             <div className="flex flex-wrap items-center gap-3 shrink-0">
               <button
                 type="button"

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
@@ -9,7 +9,10 @@ import {
   showConfirmDialog,
   showErrorAlert,
 } from "@/libs/swal";
-import { housekeepingResource } from "../resources/housekeeping-resource";
+import {
+  housekeepingResource,
+  useHousekeepingMutations,
+} from "../resources/housekeeping-resource";
 import { useHousekeepingStore } from "../store/housekeeping-store";
 import {
   buildHousekeepingTaskCards,
@@ -227,13 +230,16 @@ export function useHousekeeping({
       ]);
   }, [taskCards]);
 
-  const claimTaskMutation = useMutation(boundResource.mutations.claimTask.options());
-  const startTaskMutation = useMutation(boundResource.mutations.startTask.options());
-  const completeTaskMutation = useMutation(boundResource.mutations.completeTask.options());
-  const blockTaskMutation = useMutation(boundResource.mutations.blockTask.options());
-  const reopenTaskMutation = useMutation(boundResource.mutations.reopenTask.options());
-  const updateStatusMutation = useMutation(boundResource.mutations.updateRoomStatus.options());
-  const legacyReadyMutation = useMutation(boundResource.mutations.confirmRoomReady.options());
+  const {
+    claimTaskMutation,
+    startTaskMutation,
+    completeTaskMutation,
+    blockTaskMutation,
+    reopenTaskMutation,
+    updateStatusMutation,
+    legacyReadyMutation,
+    updateRequestMutation,
+  } = useHousekeepingMutations(hotelId);
 
   const confirmRoomReady = useCallback(
     async (room: HotelRoomSummary) => {
@@ -383,11 +389,6 @@ export function useHousekeeping({
       }
     },
     [allRoomsQuery, roomId, roomQuery, blockTaskMutation, hotelId, queryClient, tasksByRoom, tasksQuery, updateStatusMutation],
-  );
-
-  // Mutation: Update guest request status (claim / complete)
-  const updateRequestMutation = useMutation(
-    boundResource.mutations.updateRequestStatus.options(),
   );
 
   const claimRequest = useCallback(

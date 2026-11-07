@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { VietSageBrand } from "@/components/brand/vietsage-brand";
 import { LOCALE_OPTIONS, normalizeLocale, type SupportedLocale } from "@/core/i18n/locales";
 import { authRepository } from "@/features/auth/repositories/auth-repository";
+import { getDefaultPathForRoles as resolvePostLoginRedirectPath } from "@/libs/rbac";
 import { REQUEST_DEMO_URL } from "./marketing-links";
 
 type HeaderCopy = {
@@ -16,10 +17,6 @@ type HeaderCopy = {
   solutions: string;
   pricing: string;
   integrations: string;
-  hotelTitle: string;
-  hotelDesc: string;
-  commerceTitle: string;
-  commerceDesc: string;
   brandSubtitle: string;
   demoBtn: string;
   signIn: string;
@@ -30,9 +27,6 @@ type HeaderCopy = {
   mobileMenuAria: string;
   openMenuAria: string;
   closeMenuAria: string;
-  lifecycleHeading: string;
-  propertiesHeading: string;
-  allSolutionsLink: string;
 };
 
 const HEADER_COPY: Record<SupportedLocale, HeaderCopy> = {
@@ -43,10 +37,6 @@ const HEADER_COPY: Record<SupportedLocale, HeaderCopy> = {
     solutions: "Giải pháp",
     pricing: "Bảng giá",
     integrations: "Tích hợp",
-    hotelTitle: "VietSage Hotel",
-    hotelDesc: "Trải nghiệm khách lưu trú, tự động hóa vận hành và minh bạch báo cáo.",
-    commerceTitle: "VietSage Commerce",
-    commerceDesc: "Quản lý danh mục, đặt hàng trực tuyến và phân tích kinh doanh.",
     brandSubtitle: "Nền tảng công nghệ quản trị khách sạn",
     demoBtn: "Yêu cầu demo",
     signIn: "Đăng nhập",
@@ -57,9 +47,6 @@ const HEADER_COPY: Record<SupportedLocale, HeaderCopy> = {
     mobileMenuAria: "Menu điều hướng",
     openMenuAria: "Mở menu điều hướng",
     closeMenuAria: "Đóng menu điều hướng",
-    lifecycleHeading: "Theo chu trình vận hành",
-    propertiesHeading: "Mô hình khách sạn",
-    allSolutionsLink: "Xem toàn bộ giải pháp →",
   },
   en: {
     home: "Home",
@@ -68,10 +55,6 @@ const HEADER_COPY: Record<SupportedLocale, HeaderCopy> = {
     solutions: "Solutions",
     pricing: "Pricing",
     integrations: "Integrations",
-    hotelTitle: "VietSage Hotel",
-    hotelDesc: "Guest stay experience, operational automation, and clear reporting.",
-    commerceTitle: "VietSage Commerce",
-    commerceDesc: "Catalog management, online ordering, and business analytics.",
     brandSubtitle: "Hotel management technology platform",
     demoBtn: "Request Demo",
     signIn: "Sign in",
@@ -82,9 +65,6 @@ const HEADER_COPY: Record<SupportedLocale, HeaderCopy> = {
     mobileMenuAria: "Navigation menu",
     openMenuAria: "Open navigation menu",
     closeMenuAria: "Close navigation menu",
-    lifecycleHeading: "Operational Lifecycle",
-    propertiesHeading: "Property Types",
-    allSolutionsLink: "View all solutions →",
   },
   zh: {
     home: "首页",
@@ -93,10 +73,6 @@ const HEADER_COPY: Record<SupportedLocale, HeaderCopy> = {
     solutions: "解决方案",
     pricing: "价格方案",
     integrations: "生态集成",
-    hotelTitle: "VietSage Hotel",
-    hotelDesc: "住客全流程体验、服务运营自动化与透明数据报表。",
-    commerceTitle: "VietSage Commerce",
-    commerceDesc: "商品目录管理、在线即时订购与数字化商业分析。",
     brandSubtitle: "酒店数智化运营管理技术平台",
     demoBtn: "预约演示",
     signIn: "登录",
@@ -107,9 +83,6 @@ const HEADER_COPY: Record<SupportedLocale, HeaderCopy> = {
     mobileMenuAria: "导航菜单",
     openMenuAria: "打开导航菜单",
     closeMenuAria: "关闭导航菜单",
-    lifecycleHeading: "运营全流程",
-    propertiesHeading: "适用业态",
-    allSolutionsLink: "查看全部方案 →",
   },
   ko: {
     home: "홈",
@@ -118,10 +91,6 @@ const HEADER_COPY: Record<SupportedLocale, HeaderCopy> = {
     solutions: "솔루션",
     pricing: "요금 안내",
     integrations: "시스템 연동",
-    hotelTitle: "VietSage Hotel",
-    hotelDesc: "투숙객 경험, 운영 자동화 및 투명한 데이터 리포트.",
-    commerceTitle: "VietSage Commerce",
-    commerceDesc: "카탈로그 관리, 온라인 주문 및 비즈니스 데이터 분석.",
     brandSubtitle: "호텔 운영 스마트 테크놀로지 플랫폼",
     demoBtn: "데모 신청",
     signIn: "로그인",
@@ -132,9 +101,6 @@ const HEADER_COPY: Record<SupportedLocale, HeaderCopy> = {
     mobileMenuAria: "내비게이션 메뉴",
     openMenuAria: "내비게이션 메뉴 열기",
     closeMenuAria: "내비게이션 메뉴 닫기",
-    lifecycleHeading: "운영 라이프사이클",
-    propertiesHeading: "숙박 시설 유형",
-    allSolutionsLink: "모든 솔루션 보기 →",
   },
   ru: {
     home: "Главная",
@@ -143,10 +109,6 @@ const HEADER_COPY: Record<SupportedLocale, HeaderCopy> = {
     solutions: "Решения",
     pricing: "Тарифы",
     integrations: "Интеграции",
-    hotelTitle: "VietSage Hotel",
-    hotelDesc: "Гостевой опыт, автоматизация процессов и прозрачная отчетность.",
-    commerceTitle: "VietSage Commerce",
-    commerceDesc: "Управление каталогом, онлайн-заказы и бизнес-аналитика.",
     brandSubtitle: "Технологическая платформа управления отелем",
     demoBtn: "Запросить демо",
     signIn: "Войти",
@@ -157,9 +119,6 @@ const HEADER_COPY: Record<SupportedLocale, HeaderCopy> = {
     mobileMenuAria: "Меню навигации",
     openMenuAria: "Открыть меню",
     closeMenuAria: "Закрыть меню",
-    lifecycleHeading: "Жизненный цикл",
-    propertiesHeading: "Типы объектов",
-    allSolutionsLink: "Все решения →",
   },
   hi: {
     home: "होम",
@@ -168,10 +127,6 @@ const HEADER_COPY: Record<SupportedLocale, HeaderCopy> = {
     solutions: "समाधान",
     pricing: "मूल्य निर्धारण",
     integrations: "एकीकरण",
-    hotelTitle: "VietSage Hotel",
-    hotelDesc: "अतिथि अनुभव, परिचालन स्वचालन और पारदर्शी रिपोर्टिंग।",
-    commerceTitle: "VietSage Commerce",
-    commerceDesc: "कैटलॉग प्रबंधन, ऑनलाइन ऑर्डरिंग और व्यावसायिक विश्लेषण।",
     brandSubtitle: "होटल प्रबंधन प्रौद्योगिकी मंच",
     demoBtn: "डेमो का अनुरोध करें",
     signIn: "साइन इन",
@@ -182,9 +137,6 @@ const HEADER_COPY: Record<SupportedLocale, HeaderCopy> = {
     mobileMenuAria: "नेविगेशन मेनू",
     openMenuAria: "नेविगेशन मेनू खोलें",
     closeMenuAria: "नेविगेशन मेनू बंद करें",
-    lifecycleHeading: "परिचालन चक्र",
-    propertiesHeading: "होटल के प्रकार",
-    allSolutionsLink: "सभी समाधान देखें →",
   },
 };
 
@@ -248,7 +200,11 @@ export function MarketingHeader({
         if (session && (session.user?.id || (session.activeRoleCode && !session.authError))) {
           setIsAuthenticated(true);
           const defaultPath =
-            session.activeRoleCode === "guest" ? "/g/home" : "/admin/dashboard";
+            session.activeRoleCode === "guest"
+              ? "/g/home"
+              : resolvePostLoginRedirectPath(
+                  session.activeRoleCode ? [session.activeRoleCode] : [],
+                );
           setCurrentAccountAction({
             label: session.activeRoleCode === "guest" ? t.guestExp : t.dashboard,
             href: defaultPath,

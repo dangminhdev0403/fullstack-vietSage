@@ -13,7 +13,6 @@ export const servicePortalResource = createResource<Record<string, never>>()({ n
 }, mutations: {
   verifyVoucher: defineMutation({ mutationFn: ({ variables }: { variables: { code: string } }) => servicePortalRepository.verifyVoucher(variables), defaults: { retry: false } }),
   profile: defineMutation({ mutationFn: ({ variables }: { variables: Partial<ServiceProfile> }) => servicePortalRepository.profile(variables), invalidates }),
-  create: defineMutation({ mutationFn: ({ variables }: { variables: unknown }) => servicePortalRepository.create(variables), invalidates }),
   update: defineMutation({ mutationFn: ({ variables }: { variables: { serviceId: string; data: unknown } }) => servicePortalRepository.update(variables), invalidates }),
   transition: defineMutation({ mutationFn: ({ variables }: { variables: { orderId: string; toStatus: string } }) => servicePortalRepository.transition(variables), invalidates }),
   importPreview: defineMutation({ mutationFn: ({ variables }: { variables: { csv: string; fileName: string } }) => servicePortalRepository.importPreview(variables) }),

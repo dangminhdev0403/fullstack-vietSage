@@ -9,6 +9,6 @@ import { HousekeepingRepository } from "./infrastructure/repositories/housekeepi
   imports: [PrismaModule, PropertyModule],
   controllers: [HousekeepingController],
   providers: [HousekeepingService, HousekeepingRepository],
-  exports: [HousekeepingService, HousekeepingRepository],
+  exports: [HousekeepingService],
 })
 export class HousekeepingModule {}

@@ -250,24 +250,6 @@ export function OwnerHotelDetailClient({ hotel }: OwnerHotelDetailClientProps) {
               <span>🔄</span>
               <span>Hoàn tác thay đổi</span>
             </button>
-
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[var(--primary)] px-5 text-xs sm:text-sm font-bold text-white shadow-xs transition-all hover:bg-[var(--primary-container)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 whitespace-nowrap"
-            >
-              {isSaving ? (
-                <>
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                  <span>Đang lưu...</span>
-                </>
-              ) : (
-                <>
-                  <span>💾</span>
-                  <span>Lưu thay đổi khách sạn</span>
-                </>
-              )}
-            </button>
           </div>
         </div>
       </div>
@@ -367,7 +349,7 @@ export function OwnerHotelDetailClient({ hotel }: OwnerHotelDetailClientProps) {
               <span className="text-base">🚪</span>
               <div>
                 <p className="font-semibold text-slate-800">Đưa toàn bộ phòng về TRỐNG</p>
-                <p className="text-xs text-slate-600">Trạng thái toàn bộ phòng được chuyển về AVAILABLE để sẵn sàng đón khách.</p>
+                <p className="text-xs text-slate-600 text-pretty">Trạng thái toàn bộ phòng được chuyển về Sẵn sàng đón khách.</p>
               </div>
             </div>
             <div className="flex items-start gap-2.5 rounded-xl bg-white/70 p-3 border border-amber-200/60">

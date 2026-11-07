@@ -506,10 +506,10 @@ function getPreviewErrorMessage(error: unknown): string {
     }
     if (!serverMessage && typeof errObj.message === "string" && errObj.message.trim()) serverMessage = errObj.message.trim();
     if (serverMessage) return serverMessage;
-    if (status === 404) return "Không tìm thấy Google Sheets hoặc tài nguyên (404 Not Found).";
-    if (status === 403) return "Google Sheets từ chối truy cập hoặc không có quyền (403 Forbidden).";
+    if (status === 404) return "Không tìm thấy Google Sheets hoặc tài nguyên yêu cầu.";
+    if (status === 403) return "Google Sheets từ chối truy cập hoặc không có quyền.";
     if (status === 400) return "Yêu cầu không hợp lệ hoặc thông tin nhập chưa đúng.";
-    if (status) return `Thao tác thất bại (Mã lỗi ${status}). Vui lòng kiểm tra lại.`;
+    if (status) return "Thao tác thất bại. Vui lòng kiểm tra lại.";
   }
   if (error instanceof Error && error.message.trim()) return error.message.trim();
   return "Không thể xem trước dữ liệu từ Google Sheets.";
@@ -1590,8 +1590,8 @@ export function OwnerServiceCatalogClient({
                   }
                   className="w-full cursor-pointer rounded-xl border border-[var(--outline-variant)] px-3.5 py-2.5 text-sm outline-none focus:border-[var(--primary)]"
                 >
-                  <option value="ACTIVE">Hoạt động (Active)</option>
-                  <option value="DISABLED">Tạm ngừng (Inactive)</option>
+                  <option value="ACTIVE">Đang bật</option>
+                  <option value="DISABLED">Tạm ẩn</option>
                 </select>
               </label>
             </div>

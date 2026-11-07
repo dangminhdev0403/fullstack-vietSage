@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, m } from "motion/react";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
+import { guestOsService } from "@/features/guest-os/service/guest-os-service-instance";
 import { useGuestStore, useGuestStoreHydrated } from "@/features/guest-os/store/guest-store";
 import { useGuestI18n } from "@/features/guest-os/i18n/use-guest-i18n";
 import { GUEST_AI_FLOATING_CHAT, hasHotelFeature } from "@/features/hotel-features/hotel-features";
@@ -116,6 +117,8 @@ export function GuestFloatingChat() {
   const hotel = useGuestStore((state) => state.hotel);
   const sessionToken = useGuestStore((state) => state.sessionToken);
   const language = useGuestStore((state) => state.language);
+  const teaserSeen = useGuestStore((state) => state.teaserSeen);
+  const setTeaserSeen = useGuestStore((state) => state.setTeaserSeen);
 
   // Lấy ngôn ngữ Web mà khách đã chọn
   const { locale, setLocale } = useGuestI18n();
@@ -192,22 +195,12 @@ export function GuestFloatingChat() {
 
   const dismissTeaser = useCallback(() => {
     setShowTeaser(false);
-    try {
-      if (typeof window !== "undefined") {
-        sessionStorage.setItem("vietsage_guest_teaser_seen", "true");
-      }
-    } catch {}
-  }, []);
+    setTeaserSeen(true);
+  }, [setTeaserSeen]);
 
   // Floating teaser message appears once after entering guest workspace / selecting language
   useEffect(() => {
-    if (!hasSelectedLanguage || !isWorkspace) return;
-
-    try {
-      if (typeof window !== "undefined" && sessionStorage.getItem("vietsage_guest_teaser_seen") === "true") {
-        return;
-      }
-    } catch {}
+    if (!hasSelectedLanguage || !isWorkspace || teaserSeen) return;
 
     // Delay entrance slightly so guest sees the workspace before being greeted
     const showTimer = setTimeout(() => {
@@ -217,18 +210,14 @@ export function GuestFloatingChat() {
     // Auto-dismiss teaser after 7 seconds so it doesn't block workspace actions
     const hideTimer = setTimeout(() => {
       setShowTeaser(false);
-      try {
-        if (typeof window !== "undefined") {
-          sessionStorage.setItem("vietsage_guest_teaser_seen", "true");
-        }
-      } catch {}
+      setTeaserSeen(true);
     }, 7200);
 
     return () => {
       clearTimeout(showTimer);
       clearTimeout(hideTimer);
     };
-  }, [hasSelectedLanguage, isWorkspace]);
+  }, [hasSelectedLanguage, isWorkspace, teaserSeen, setTeaserSeen]);
 
   // Focus input when opened
   useEffect(() => {
@@ -264,66 +253,50 @@ export function GuestFloatingChat() {
     setDynamicSuggestions(null);
 
     try {
-      const res = await fetch("/api/guest/chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${sessionToken}`,
-        },
-        body: JSON.stringify({
+      const payload = await guestOsService.sendAiChatMessage(
+        sessionToken,
+        {
           message: text,
           language: locale,
-        }),
-      });
+        },
+        locale,
+      );
 
-      if (res.ok) {
-        const payload = await res.json();
-        const replyText =
-          payload?.reply ||
-          payload?.data?.reply ||
-          getLocalMateNetworkErrorReply(locale);
+      const replyText =
+        payload?.reply ||
+        payload?.data?.reply ||
+        getLocalMateNetworkErrorReply(locale);
 
-        const action = (payload?.action ?? null) as GuestChatAction | null;
+      const action = (payload?.action ?? null) as GuestChatAction | null;
 
-        const botMsg: ChatMessage = {
-          id: `bot-${messageIdRef.current++}`,
-          sender: "concierge",
-          text: replyText,
-          time: getCurrentTimeString(),
-          action,
-        };
-        setChatHistory((prev) => [...prev, botMsg]);
+      const botMsg: ChatMessage = {
+        id: `bot-${messageIdRef.current++}`,
+        sender: "concierge",
+        text: replyText,
+        time: getCurrentTimeString(),
+        action,
+      };
+      setChatHistory((prev) => [...prev, botMsg]);
 
-        // Update dynamic quick-suggestions from agent response
-        if (Array.isArray(payload?.suggestions) && payload.suggestions.length > 0) {
-          setDynamicSuggestions(
-            payload.suggestions
-              .filter(
-                (s: unknown) =>
-                  s &&
-                  typeof (s as { label?: unknown }).label === "string" &&
-                  typeof (s as { query?: unknown }).query === "string",
-              )
-              .slice(0, 3)
-              .map((s: { label: string; query: string }, idx: number) => ({
-                id: `dynamic-${messageIdRef.current}-${idx}`,
-                label: s.label,
-                query: s.query,
-              })),
-          );
-        } else {
-          // Agent replied but provided no suggestions — hide the tray
-          setDynamicSuggestions([]);
-        }
+      // Update dynamic quick-suggestions from agent response
+      if (Array.isArray(payload?.suggestions) && payload.suggestions.length > 0) {
+        setDynamicSuggestions(
+          payload.suggestions
+            .filter(
+              (s: unknown) =>
+                s &&
+                typeof (s as { label?: unknown }).label === "string" &&
+                typeof (s as { query?: unknown }).query === "string",
+            )
+            .slice(0, 3)
+            .map((s: { label: string; query: string }, idx: number) => ({
+              id: `dynamic-${messageIdRef.current}-${idx}`,
+              label: s.label,
+              query: s.query,
+            })),
+        );
       } else {
-        const fallbackText = getLocalMateNetworkErrorReply(locale);
-        const botMsg: ChatMessage = {
-          id: `bot-${messageIdRef.current++}`,
-          sender: "concierge",
-          text: fallbackText,
-          time: getCurrentTimeString(),
-        };
-        setChatHistory((prev) => [...prev, botMsg]);
+        // Agent replied but provided no suggestions — hide the tray
         setDynamicSuggestions([]);
       }
     } catch {
@@ -414,10 +387,10 @@ export function GuestFloatingChat() {
 
                 {/* Content */}
                 <div className="pt-0.5">
-                  <h4 className="text-[12px] sm:text-[12.5px] font-bold text-[#1b352e] group-hover:text-[#916e15] transition-colors leading-snug">
+                  <h4 className="text-xs font-bold text-[#1b352e] group-hover:text-[#916e15] transition-colors leading-snug text-balance">
                     {uiText.teaserTitle}
                   </h4>
-                  <p className="mt-1 text-xs leading-relaxed text-[#55675f] line-clamp-3">
+                  <p className="mt-1 text-xs leading-relaxed text-[#55675f] line-clamp-3 text-pretty">
                     {uiText.teaserDesc}
                   </p>
                 </div>
@@ -482,7 +455,7 @@ export function GuestFloatingChat() {
                       </span>
                     </div>
                     <div className="text-left">
-                      <h3 className="text-sm font-bold tracking-wide text-white">
+                      <h3 className="text-sm font-bold tracking-wide text-white text-balance">
                         LocalMate AI
                       </h3>
                       <p className="text-sm text-[#e8e4dc]/85 flex items-center gap-1.5 mt-0.5">
@@ -622,7 +595,7 @@ export function GuestFloatingChat() {
                 {isTyping && (
                   <div className="flex items-center gap-2 text-xs text-[#5a6a62]">
                     <div className="flex items-center gap-2 rounded-2xl rounded-tl-xs border border-[#25483f]/12 bg-white px-3.5 py-2.5 shadow-sm">
-                      <span className="text-[12px] font-medium text-[#65766e]">
+                      <span className="text-xs font-medium text-[#65766e]">
                         {uiText.typing}
                       </span>
                       <div className="flex items-center gap-1">
@@ -667,7 +640,7 @@ export function GuestFloatingChat() {
                           type="button"
                           onClick={() => handleSelectSuggestion(item)}
                           disabled={isTyping}
-                          className="inline-flex shrink-0 items-center rounded-full border border-[#b18b26]/30 bg-[#b18b26]/8 px-3 py-1.5 text-[12px] font-medium text-[#654d12] shadow-2xs transition-all hover:bg-[#b18b26]/18 hover:border-[#b18b26]/60 cursor-pointer active:scale-95 disabled:opacity-50"
+                          className="inline-flex shrink-0 items-center rounded-full border border-[#b18b26]/30 bg-[#b18b26]/8 px-3 py-1.5 text-xs font-medium text-[#654d12] whitespace-nowrap shadow-2xs transition-all hover:bg-[#b18b26]/18 hover:border-[#b18b26]/60 cursor-pointer active:scale-95 disabled:opacity-50"
                         >
                           {item.label}
                         </button>

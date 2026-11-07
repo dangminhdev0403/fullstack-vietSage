@@ -116,7 +116,7 @@ Rules:
 - Cross-module imports use `*-public.ts`; Nest module composition may use `<context>.module.ts`.
 - Cross-module runtime collaboration uses Nest DI or existing in-process event ports, not mutable
   static dispatchers.
-- Run `node scripts/check-service-boundaries.mjs` and the final boundary release guard before merge.
+- Run `node services/auth-service/scripts/check-service-boundaries.mjs` and the final boundary release guard before merge.
 
 ## 7. Backend and Frontend Boundary
 

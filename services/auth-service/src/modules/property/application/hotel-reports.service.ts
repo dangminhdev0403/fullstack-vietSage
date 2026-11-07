@@ -523,7 +523,23 @@ export class HotelReportsService {
       }),
       (this.prisma as any).hotelReceivable
         ? (this.prisma as any).hotelReceivable.findMany({
-            where: { hotelId },
+            where: {
+              hotelId,
+              createdAt: { lte: endDate },
+              OR: [
+                { createdAt: { gte: startDate, lte: endDate } },
+                { transferredAt: { gte: startDate, lte: endDate } },
+                { status: { in: ["OPEN", "PARTIALLY_COLLECTED"] } },
+                {
+                  collections: {
+                    some: {
+                      isVoided: false,
+                      collectedAt: { gte: startDate, lte: endDate },
+                    },
+                  },
+                },
+              ],
+            },
             select: {
               id: true,
               originalAmount: true,
@@ -533,6 +549,18 @@ export class HotelReportsService {
               dueDate: true,
               debtorName: true,
               debtorType: true,
+              collections: {
+                where: {
+                  isVoided: false,
+                  collectedAt: { gte: startDate, lte: endDate },
+                },
+                select: {
+                  id: true,
+                  collectedAmount: true,
+                  collectedAt: true,
+                  paymentMethod: true,
+                },
+              },
             },
           })
         : Promise.resolve([]),

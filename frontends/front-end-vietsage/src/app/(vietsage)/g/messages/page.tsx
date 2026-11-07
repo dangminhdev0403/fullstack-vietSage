@@ -7,7 +7,7 @@ import { VsIcon } from "../../_components/vs-icon";
 import { VsTopBar } from "../../_components/vs-top-bar";
 import { GuestAccessRequiredState } from "@/features/guest-os/components/shared/guest-access-required-state";
 import { HttpError } from "@/core/http/http-error";
-import { safeLocalStorage } from "@/core/storage/safe-storage";
+
 import { useGuestI18n } from "@/features/guest-os/i18n/use-guest-i18n";
 import { guestOsService } from "@/features/guest-os/service/guest-os-service-instance";
 import { useGuestStore, useGuestStoreHydrated } from "@/features/guest-os/store/guest-store";
@@ -24,8 +24,39 @@ function TypewriterMessageBody({ body }: Readonly<{ body: string; createdAt?: st
   );
 }
 
+const MESSAGES_EXTRA_COPY: Record<
+  string,
+  { charLimit: (len: number) => string; sendAria: string }
+> = {
+  vi: {
+    charLimit: (len) => `Tin nhắn dài tối đa 1000 ký tự. ${len}/1000`,
+    sendAria: "Gửi tin nhắn",
+  },
+  en: {
+    charLimit: (len) => `Maximum 1000 characters. ${len}/1000`,
+    sendAria: "Send message",
+  },
+  zh: {
+    charLimit: (len) => `消息最多 1000 个字符。${len}/1000`,
+    sendAria: "发送消息",
+  },
+  ko: {
+    charLimit: (len) => `메시지는 최대 1000자까지 가능합니다. ${len}/1000`,
+    sendAria: "메시지 보내기",
+  },
+  ru: {
+    charLimit: (len) => `Максимум 1000 символов. ${len}/1000`,
+    sendAria: "Отправить сообщение",
+  },
+  hi: {
+    charLimit: (len) => `अधिकतम 1000 अक्षर। ${len}/1000`,
+    sendAria: "संदेश भेजें",
+  },
+};
+
 export default function GuestMessagesPage() {
-  const { locale, t } = useGuestI18n();
+  const { intlLocale, locale, t } = useGuestI18n();
+  const msgCopy = MESSAGES_EXTRA_COPY[locale] ?? MESSAGES_EXTRA_COPY.vi;
   const hydrated = useGuestStoreHydrated();
   const sessionToken = useGuestStore((state) => state.sessionToken);
   const room = useGuestStore((state) => state.room);
@@ -284,7 +315,7 @@ export default function GuestMessagesPage() {
           } catch {}
         }
         try {
-          safeLocalStorage.setItem("vietsage_typing_signal", JSON.stringify(payload));
+        // Cross-tab typing signals already use BroadcastChannel above
         } catch {}
       }
     }
@@ -402,7 +433,7 @@ export default function GuestMessagesPage() {
                   <div className={`min-w-0 max-w-[50%] flex flex-col ${fromGuest ? "items-end" : "items-start"}`}>
                     <div className="flex items-center gap-2 px-1 mb-1">
                       <span className="text-xs font-bold text-[#25483f]">{fromGuest ? t("messages.you") : (message.senderName ?? t("common.reception"))}</span>
-                      <span className="text-xs text-[#66736b]">{new Date(message.createdAt).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}</span>
+                      <span className="text-xs text-[#66736b]">{new Date(message.createdAt).toLocaleTimeString(intlLocale, { hour: "2-digit", minute: "2-digit" })}</span>
                     </div>
                     <div className={`w-fit max-w-full rounded-2xl px-4 py-3 text-base leading-relaxed shadow-sm ${fromGuest ? "bg-[#25483f] text-white rounded-tr-none" : "bg-[#f1ead9] text-[#18211d] rounded-tl-none"}`}>
                       <TypewriterMessageBody body={message.body} createdAt={message.createdAt} />
@@ -470,7 +501,7 @@ export default function GuestMessagesPage() {
                 id="guest-message-limit"
                 className={`mt-1.5 text-right text-xs ${body.length > 1000 ? "font-semibold text-red-700" : "text-[#66736b]"}`}
               >
-                Tin nhắn dài tối đa 1000 ký tự. {body.length}/1000
+                {msgCopy.charLimit(body.length)}
               </p>
               {sendError ? <p role="alert" className="mt-1 text-sm font-semibold text-red-700">{sendError}</p> : null}
             </div>
@@ -478,7 +509,7 @@ export default function GuestMessagesPage() {
               type="submit"
               disabled={!body.trim() || send.isPending}
               className="vs-touch-button inline-flex min-h-12 items-center justify-center rounded-xl bg-[#25483f] px-4 text-white disabled:opacity-50 shrink-0"
-              aria-label="Gửi tin nhắn"
+              aria-label={msgCopy.sendAria}
             >
               <VsIcon name="send" className="text-xl" />
             </button>

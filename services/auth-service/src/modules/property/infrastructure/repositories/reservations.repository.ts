@@ -329,10 +329,38 @@ export class ReservationsRepository {
       }
 
       const reservations: any[] = [];
+      let baseCodePrefix: string | null = null;
+      let baseCodeStartSeq = 0;
+      let baseCodePadLen = 0;
+      const explicitReservationCode = input.reservationCode?.trim();
+      if (!explicitReservationCode && uniqueRoomIds.length > 0) {
+        const firstCode = await input.generateReservationCode(tx);
+        const match = /^(.*?)(\d+)$/.exec(firstCode);
+        if (match) {
+          baseCodePrefix = match[1];
+          baseCodeStartSeq = Number.parseInt(match[2], 10);
+          baseCodePadLen = match[2].length;
+          if (uniqueRoomIds.length > 1 && (tx as any).code?.updateMany) {
+            await (tx as any).code.updateMany({
+              where: { name: "RESERVATION", isActive: true },
+              data: { sequenceNext: { increment: uniqueRoomIds.length - 1 } },
+            });
+          }
+        } else {
+          baseCodePrefix = firstCode;
+        }
+      }
 
-      for (const roomId of uniqueRoomIds) {
-        const reservationCode =
-          input.reservationCode?.trim() || (await input.generateReservationCode(tx));
+      for (const [roomIndex, roomId] of uniqueRoomIds.entries()) {
+        const reservationCode = explicitReservationCode
+          ? explicitReservationCode
+          : baseCodePrefix !== null && baseCodePadLen > 0
+            ? `${baseCodePrefix}${String(baseCodeStartSeq + roomIndex).padStart(baseCodePadLen, "0")}`
+            : baseCodePrefix !== null
+              ? roomIndex === 0
+                ? baseCodePrefix
+                : `${baseCodePrefix}-${roomIndex + 1}`
+              : await input.generateReservationCode(tx);
         const room = rooms.find((candidate) => candidate.id === roomId)!;
         const specificRate = input.roomRates?.[roomId] ?? allocatedRoomRates.get(roomId);
         const effectiveRaw =
@@ -1614,9 +1642,16 @@ export class ReservationsRepository {
             isPostedToFolio: false,
           },
         });
-        for (const extra of unpostedExtras) {
-          const item = await tx.folioItem.create({
-            data: {
+        if (unpostedExtras.length > 0) {
+          let extrasSubtotalAmount = new Prisma.Decimal(0);
+          let extrasTotalAmount = new Prisma.Decimal(0);
+          const folioItemsData = unpostedExtras.map((extra) => {
+            const unitPrice = new Prisma.Decimal(extra.unitPriceSnapshot ?? 0);
+            const subtotal = unitPrice.mul(extra.quantity);
+            const total = new Prisma.Decimal(extra.totalSnapshot ?? subtotal);
+            extrasSubtotalAmount = extrasSubtotalAmount.add(subtotal);
+            extrasTotalAmount = extrasTotalAmount.add(total);
+            return {
               hotelId: input.hotelId,
               folioId: folio.id,
               stayId: stay.id,
@@ -1631,7 +1666,7 @@ export class ReservationsRepository {
               unitPriceSnapshot: extra.unitPriceSnapshot,
               taxAmountSnapshot: extra.taxAmountSnapshot,
               discountAmountSnapshot: extra.discountAmountSnapshot,
-              subtotalSnapshot: extra.unitPriceSnapshot.mul(extra.quantity),
+              subtotalSnapshot: subtotal,
               totalSnapshot: extra.totalSnapshot,
               currency: extra.currency,
               billingSourceSnapshot: {
@@ -1641,15 +1676,40 @@ export class ReservationsRepository {
               },
               postedAt: now,
               postedByUserId: input.actorUserId,
-            },
+            };
           });
-          await tx.reservationChargeLine.update({
-            where: { id: extra.id },
-            data: {
-              isPostedToFolio: true,
-              postedFolioItemId: item.id,
-            },
-          });
+
+          if (tx.folioItem.createMany) {
+            await tx.folioItem.createMany({ data: folioItemsData });
+          } else {
+            for (const itemData of folioItemsData) {
+              await tx.folioItem.create({ data: itemData });
+            }
+          }
+
+          if (tx.reservationChargeLine.updateMany) {
+            await tx.reservationChargeLine.updateMany({
+              where: { id: { in: unpostedExtras.map((extra) => extra.id) } },
+              data: { isPostedToFolio: true },
+            });
+          } else {
+            for (const extra of unpostedExtras) {
+              await tx.reservationChargeLine.update({
+                where: { id: extra.id },
+                data: { isPostedToFolio: true },
+              });
+            }
+          }
+
+          if (tx.folio?.update) {
+            await tx.folio.update({
+              where: { id: folio.id },
+              data: {
+                subtotalAmount: { increment: extrasSubtotalAmount },
+                totalAmount: { increment: extrasTotalAmount },
+              },
+            });
+          }
         }
       }
       await tx.roomQRCode.updateMany({

@@ -9,6 +9,16 @@ import { localPartnersResource } from "@/features/local-partners/resources/local
 import { channelManagerResource } from "@/features/channel-manager/api/channel-manager.resource";
 import { housekeepingResource } from "@/features/housekeeping/resources/housekeeping-resource";
 
+const RESOURCE_KEY_PREFIXES = [
+  ["rooms"],
+  ["front-desk"],
+  ["billing"],
+  ["housekeeping"],
+  ["owner-hotels"],
+  ["requests"],
+  ["guest-os"],
+] as const;
+
 export async function invalidateHotelMessageRealtimeQueries(
   queryClient: QueryClient,
   hotelId: string,
@@ -72,6 +82,12 @@ export async function invalidateHotelHousekeepingRealtimeQueries(
       queryKey: ["hotels", hotelId, "rooms"],
       refetchType: "active",
     }),
+    ...RESOURCE_KEY_PREFIXES.map((queryKey) =>
+      queryClient.invalidateQueries({
+        queryKey: [...queryKey],
+        refetchType: "active",
+      }),
+    ),
     staffBound.invalidate(queryClient),
     ownerBound.invalidate(queryClient),
     roomPlanBound.invalidate(queryClient),
@@ -118,6 +134,12 @@ export async function invalidateHotelRealtimeQueries(
       queryKey: ["hotels", hotelId, "housekeeping"],
       refetchType: "active",
     }),
+    ...RESOURCE_KEY_PREFIXES.map((queryKey) =>
+      queryClient.invalidateQueries({
+        queryKey: [...queryKey],
+        refetchType: "active",
+      }),
+    ),
     staffBound.invalidate(queryClient),
     ownerBound.invalidate(queryClient),
     roomPlanBound.invalidate(queryClient),

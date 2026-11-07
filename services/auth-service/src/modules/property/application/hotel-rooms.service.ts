@@ -178,6 +178,17 @@ export class HotelRoomsService {
     dto: CreateRoomsBodyInput,
   ) {
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    const seenRoomNumbers = new Set<string>();
+    for (const item of dto.items) {
+      const normalizedRoomNumber = item.roomNumber.trim().toLowerCase();
+      if (seenRoomNumbers.has(normalizedRoomNumber)) {
+        throw new ConflictException(
+          `Số phòng bị trùng lặp trong danh sách: ${item.roomNumber.trim()}`,
+        );
+      }
+      seenRoomNumbers.add(normalizedRoomNumber);
+    }
+
     const items: Array<Awaited<ReturnType<typeof this.createRoomRecord>>> = [];
 
     for (const item of dto.items) {

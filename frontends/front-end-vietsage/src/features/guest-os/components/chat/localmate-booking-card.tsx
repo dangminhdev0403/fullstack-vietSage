@@ -15,12 +15,6 @@ export function LocalMateBookingCard({ action, onBook }: LocalMateBookingCardPro
   const { locale } = useGuestI18n();
   const { localMate, service } = action;
 
-  const formattedPrice = useMemo(() => {
-    const raw = Number(service.unitPrice);
-    if (!Number.isFinite(raw) || raw <= 0) return "Liên hệ";
-    return new Intl.NumberFormat("vi-VN").format(raw) + " ₫";
-  }, [service.unitPrice]);
-
   const copy = useMemo(() => {
     switch (locale) {
       case "en":
@@ -32,6 +26,8 @@ export function LocalMateBookingCard({ action, onBook }: LocalMateBookingCardPro
           perTour: "/ tour",
           bookButton: "Request Tour Booking",
           languages: "Languages",
+          contactPrice: "Contact",
+          reviewsLabel: "reviews",
         };
       case "zh":
         return {
@@ -42,6 +38,8 @@ export function LocalMateBookingCard({ action, onBook }: LocalMateBookingCardPro
           perTour: "/ 次",
           bookButton: "预约此向导",
           languages: "服务语言",
+          contactPrice: "欢迎垂询",
+          reviewsLabel: "条评价",
         };
       case "ko":
         return {
@@ -52,6 +50,32 @@ export function LocalMateBookingCard({ action, onBook }: LocalMateBookingCardPro
           perTour: "/ 회",
           bookButton: "가이드 예약 요청",
           languages: "구사 언어",
+          contactPrice: "문의 요망",
+          reviewsLabel: "개 리뷰",
+        };
+      case "ru":
+        return {
+          verifiedBadge: "Проверенный LocalMate",
+          telegramActive: "Telegram подключен",
+          telegramInactive: "Ожидание Telegram",
+          priceLabel: "Стоимость тура",
+          perTour: "/ тур",
+          bookButton: "Забронировать гида",
+          languages: "Языки",
+          contactPrice: "По запросу",
+          reviewsLabel: "отзывов",
+        };
+      case "hi":
+        return {
+          verifiedBadge: "सत्यापित LocalMate",
+          telegramActive: "Telegram जुड़ा हुआ है",
+          telegramInactive: "Telegram प्रतीक्षा में",
+          priceLabel: "पैकेज शुल्क",
+          perTour: "/ टूर",
+          bookButton: "गाइड बुक करें",
+          languages: "भाषाएँ",
+          contactPrice: "संपर्क करें",
+          reviewsLabel: "समीक्षाएं",
         };
       default:
         return {
@@ -62,9 +86,17 @@ export function LocalMateBookingCard({ action, onBook }: LocalMateBookingCardPro
           perTour: "/ chuyến",
           bookButton: "Đặt lịch với LocalMate",
           languages: "Ngôn ngữ",
+          contactPrice: "Liên hệ",
+          reviewsLabel: "đánh giá",
         };
     }
   }, [locale]);
+
+  const formattedPrice = useMemo(() => {
+    const raw = Number(service.unitPrice);
+    if (!Number.isFinite(raw) || raw <= 0) return copy.contactPrice;
+    return new Intl.NumberFormat("vi-VN").format(raw) + " ₫";
+  }, [copy.contactPrice, service.unitPrice]);
 
   return (
     <div className="mt-3 overflow-hidden rounded-2xl border border-emerald-200/80 bg-white/95 p-4 shadow-sm backdrop-blur-sm transition-all hover:shadow-md dark:border-emerald-800/40 dark:bg-neutral-900/90">
@@ -105,7 +137,7 @@ export function LocalMateBookingCard({ action, onBook }: LocalMateBookingCardPro
               {localMate.rating.toFixed(1)}
             </span>
             <span>•</span>
-            <span>{localMate.totalReviews} đánh giá</span>
+            <span>{localMate.totalReviews} {copy.reviewsLabel}</span>
             <span>•</span>
             <span
               className={`inline-flex items-center gap-1 font-medium ${

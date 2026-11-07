@@ -84,9 +84,26 @@ function formatOrderDateTime(isoString: string): string {
   }
 }
 
+function getVoucherStatusLabel(status?: string | null): string {
+  switch (status) {
+    case "ISSUED":
+    case "ACTIVE":
+      return "Đã phát hành";
+    case "REDEEMED":
+    case "USED":
+      return "Đã sử dụng";
+    case "EXPIRED":
+      return "Hết hạn";
+    case "CANCELLED":
+    case "VOID":
+      return "Đã hủy";
+    default:
+      return "Hợp lệ";
+  }
+}
+
 export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }>) {
   const { transition, verifyVoucher, data: dataQuery } = useServicePortal({ queries: ["data"] });
-  const isConnected = true;
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedOrder, setSelectedOrder] = useState<MarketplaceOrder | null>(null);
@@ -139,6 +156,8 @@ export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }
       } else if (sortState.key === "guest") {
         leftVal = left.stay?.guestDisplayName ?? "";
         rightVal = right.stay?.guestDisplayName ?? "";
+      } else if (sortState.key === "quantity") {
+        return (left.quantity - right.quantity) * multiplier;
       } else if (sortState.key === "amount") {
         const leftAuth = getPartnerAuthorizedOrderItems(left, data.profile);
         const rightAuth = getPartnerAuthorizedOrderItems(right, data.profile);
@@ -423,15 +442,9 @@ export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }
             <span>🔑 Kiểm tra mã dịch vụ</span>
           </button>
 
-          <span
-            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium border ${
-              isConnected
-                ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                : "bg-amber-50 text-amber-800 border-amber-200"
-            }`}
-          >
-            <span className={`h-2 w-2 rounded-full ${isConnected ? "bg-emerald-500 animate-pulse" : "bg-amber-500"}`} />
-            {isConnected ? "Realtime Socket kết nối" : "Đang kết nối lại..."}
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-800 border border-emerald-200 whitespace-nowrap">
+            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            Đồng bộ trực tuyến
           </span>
         </div>
       </header>
@@ -668,7 +681,7 @@ export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }
                   {selectedOrder.voucher ? (
                     <p>
                       Mã phiếu dịch vụ: <span className="font-bold text-indigo-950 font-mono">{selectedOrder.voucher.voucherNumber}</span>
-                      {selectedOrder.voucher.status ? ` (${selectedOrder.voucher.status})` : ""}
+                      {selectedOrder.voucher.status ? ` (${getVoucherStatusLabel(selectedOrder.voucher.status)})` : ""}
                     </p>
                   ) : null}
                 </div>

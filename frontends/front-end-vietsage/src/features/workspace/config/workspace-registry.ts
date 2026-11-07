@@ -16,6 +16,8 @@ export type {
   WorkspaceWidgetDefinition,
 } from "../types/workspace-registry";
 
+export type WorkspacePersonaId = Exclude<WorkspacePersona, "principal">;
+
 const STAFF_PERSONAS: readonly WorkspacePersona[] = [
   "manager",
   "front_desk",
@@ -23,10 +25,10 @@ const STAFF_PERSONAS: readonly WorkspacePersona[] = [
   "food_beverage",
 ];
 
-const WORKSPACE_DEFINITIONS: Record<WorkspacePersona, WorkspaceDefinition> = {
+const WORKSPACE_DEFINITIONS: Record<WorkspacePersonaId, WorkspaceDefinition> = {
   platform_admin: {
     persona: "platform_admin",
-    eyebrow: "Quản trị nền tảng",
+    eyebrow: "Hệ thống trung tâm",
     title: "Quản trị nền tảng",
     description: "Tenant, khách sạn, tài khoản và chính sách truy cập.",
     profileLabel: "Quản trị viên",
@@ -51,7 +53,7 @@ const WORKSPACE_DEFINITIONS: Record<WorkspacePersona, WorkspaceDefinition> = {
   },
   owner: {
     persona: "owner",
-    eyebrow: "Quản trị khách sạn",
+    eyebrow: "Không gian chủ sở hữu",
     title: "Quản trị khách sạn",
     description: "Hiệu suất, tài chính, thiết lập và kết nối khách sạn.",
     profileLabel: "Chủ khách sạn",
@@ -76,7 +78,7 @@ const WORKSPACE_DEFINITIONS: Record<WorkspacePersona, WorkspaceDefinition> = {
   },
   housekeeping: {
     persona: "housekeeping",
-    eyebrow: "Vận hành buồng phòng",
+    eyebrow: "Bộ phận buồng phòng",
     title: "Vận hành buồng phòng",
     description: "Theo dõi và hoàn thành công việc buồng phòng được phân công.",
     profileLabel: "Buồng phòng",
@@ -84,7 +86,7 @@ const WORKSPACE_DEFINITIONS: Record<WorkspacePersona, WorkspaceDefinition> = {
   },
   maintenance: {
     persona: "maintenance",
-    eyebrow: "Vận hành kỹ thuật",
+    eyebrow: "Bộ phận kỹ thuật",
     title: "Vận hành kỹ thuật",
     description: "Theo dõi và xử lý yêu cầu kỹ thuật theo phạm vi khách sạn.",
     profileLabel: "Kỹ thuật",
@@ -107,15 +109,6 @@ const WORKSPACE_DEFINITIONS: Record<WorkspacePersona, WorkspaceDefinition> = {
     profileLabel: "Đối tác dịch vụ",
     homePath: "/service/dashboard",
   },
-  principal: {
-    persona: "principal",
-    eyebrow: "Ban Giám Hiệu",
-    title: "Điều hành trường học",
-    description:
-      "Theo dõi và quản lý các hoạt động trong phạm vi trường học được phân công.",
-    profileLabel: "Hiệu trưởng",
-    homePath: "/staff",
-  },
 };
 
 const ROLE_ALIASES: Record<string, WorkspacePersona> = {
@@ -124,19 +117,13 @@ const ROLE_ALIASES: Record<string, WorkspacePersona> = {
   PLATFORM_FINANCE: "platform_finance",
   TENANT_OWNER: "owner",
   HOTEL_OWNER: "owner",
-  PRINCIPAL: "principal",
-  SCHOOL_PRINCIPAL: "principal",
-  HIEU_TRUONG: "principal",
-  SCHOOL_ADMIN: "principal",
-  PRINCIPAL_ADMIN: "principal",
-  HIEU_TRUONG_ADMIN: "principal",
   HOTEL_MANAGER: "front_desk",
   HOTEL_FRONTDESK: "front_desk",
   HOUSEKEEPING: "housekeeping",
   HOTEL_HOUSEKEEPING: "housekeeping",
   MAINTENANCE: "maintenance",
-  HOTEL_MAINTENANCE: "front_desk",
-  HOTEL_FNB: "front_desk",
+  HOTEL_MAINTENANCE: "maintenance",
+  HOTEL_FNB: "food_beverage",
   SERVICE_STAFF: "service_partner",
   LOCALMATE_MANAGER: "localmate_manager",
   LOCALMATE: "localmate_manager",
@@ -209,7 +196,12 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     icon: "payments",
     order: 50,
     section: "ADMINISTRATION",
-    anyCapabilities: ["platform.billing.view", "platform.billing.manage"],
+    anyCapabilities: [
+      "platform.billing.view",
+      "platform.billing.manage",
+      "platform.roles.view",
+      "platform.hotels.view",
+    ],
   },
   {
     key: "admin.marketplace",
@@ -222,6 +214,8 @@ const NAVIGATION: readonly WorkspaceNavigationDefinition[] = [
     anyCapabilities: [
       "platform.marketplace.view",
       "platform.marketplace.manage",
+      "platform.roles.view",
+      "platform.hotels.view",
     ],
   },
   {
@@ -782,7 +776,9 @@ export function createWorkspaceRegistry(
   }
 
   return Object.freeze({
-    definitions: Object.freeze({ ...WORKSPACE_DEFINITIONS }),
+    definitions: Object.freeze({
+      ...WORKSPACE_DEFINITIONS,
+    }) as unknown as Readonly<Record<WorkspacePersona, WorkspaceDefinition>>,
     roleAliases: Object.freeze(roleAliases),
     navigation: Object.freeze(
       navigation.map((item) => Object.freeze({ ...item })),
@@ -818,9 +814,6 @@ export function resolveWorkspacePersona(
   const normalized = normalizeRoleCode(roleCode);
   const alias = registry.roleAliases[normalized];
   if (alias) return alias;
-  if (normalized.includes("PRINCIPAL") || normalized.includes("HIEU_TRUONG")) {
-    return "principal";
-  }
   if (normalized.includes("LOCALMATE") || normalized.includes("LOCAL_MATE")) {
     return "localmate_manager";
   }

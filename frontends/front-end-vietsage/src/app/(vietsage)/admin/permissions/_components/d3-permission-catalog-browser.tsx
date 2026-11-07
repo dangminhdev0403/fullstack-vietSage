@@ -146,14 +146,14 @@ export function D3PermissionCatalogBrowser({
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-sm font-bold text-gray-900 text-balance">
-                  Danh mục Quyền hạn Hệ thống D3 (Immutable Business Permissions)
+                  Danh mục quyền hạn hệ thống
                 </h2>
                 <span className="rounded-md border border-blue-300 bg-blue-100 px-2 py-0.5 text-xs font-bold text-blue-900 whitespace-nowrap">
                   Bất biến
                 </span>
               </div>
               <p className="mt-0.5 text-xs text-gray-600 text-pretty">
-                Tập hợp các quyền hạn chuẩn được mã hóa cố định theo kiến trúc Bounded Context và hợp đồng API bảo vệ.
+                Tập hợp các quyền hạn chuẩn được mã hóa cố định theo từng phân hệ nghiệp vụ và hợp đồng API bảo vệ.
                 Các quyền này không bị sửa đổi tùy tiện mà dùng làm chuẩn mực để gán cho các vai trò vận hành.
               </p>
             </div>
@@ -164,7 +164,7 @@ export function D3PermissionCatalogBrowser({
               {stats.total} Quyền hệ thống
             </span>
             <span className="rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-gray-700 shadow-xs whitespace-nowrap">
-              8 Bounded Contexts
+              8 phân hệ nghiệp vụ
             </span>
           </div>
         </div>
@@ -363,59 +363,6 @@ export function D3PermissionCatalogBrowser({
               );
             },
           )}
-        </div>
-
-        {/* Risk Filter Chips */}
-        <div className="flex flex-wrap items-center gap-1.5 border-t border-gray-100 pt-2.5">
-          <span className="text-xs font-semibold text-gray-500 mr-1 flex items-center gap-1">
-            <VsIcon name="shield" className="text-[14px]" />
-            <span>Mức rủi ro:</span>
-          </span>
-
-          <button
-            type="button"
-            onClick={() => setSelectedRisk("ALL")}
-            className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
-              selectedRisk === "ALL"
-                ? "bg-primary text-on-primary"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            }`}
-          >
-            Tất cả rủi ro
-          </button>
-
-          {(["LOW", "MEDIUM", "HIGH", "CRITICAL"] as BusinessPermissionRisk[]).map(
-            (risk) => {
-              const cfg = RISK_LEVEL_CONFIG[risk];
-              const isSelected = selectedRisk === risk;
-              let count = 0;
-              if (risk === "LOW") count = stats.low;
-              else if (risk === "MEDIUM") count = stats.medium;
-              else if (risk === "HIGH") count = stats.high;
-              else count = stats.critical;
-
-              return (
-                <button
-                  key={risk}
-                  type="button"
-                  onClick={() => setSelectedRisk(isSelected ? "ALL" : risk)}
-                  className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold border transition ${
-                    isSelected
-                      ? "bg-primary text-on-primary border-primary shadow-xs"
-                      : `${cfg.badgeBg} hover:opacity-90`
-                  }`}
-                >
-                  <span
-                    className={`h-2 w-2 rounded-full ${
-                      isSelected ? "bg-white" : cfg.dotBg
-                    }`}
-                  />
-                  <span>{risk}</span>
-                  <span className="opacity-75">({count})</span>
-                </button>
-              );
-            },
-          )}
 
           {/* Reset Filters */}
           {(searchQuery || selectedContext !== "ALL" || selectedRisk !== "ALL") && (
@@ -426,7 +373,7 @@ export function D3PermissionCatalogBrowser({
                 setSelectedContext("ALL");
                 setSelectedRisk("ALL");
               }}
-              className="ml-auto inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold text-red-600 hover:bg-red-50"
+              className="ml-auto inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold text-red-600 hover:bg-red-50 whitespace-nowrap"
             >
               <VsIcon name="restart_alt" className="text-[14px]" />
               <span>Đặt lại bộ lọc</span>
@@ -442,7 +389,7 @@ export function D3PermissionCatalogBrowser({
           <strong className="text-gray-900 font-bold">
             {filteredPermissions.length}
           </strong>{" "}
-          / {permissions.length} quyền hệ thống D3
+          / {permissions.length} quyền hệ thống
           {selectedContext !== "ALL" && (
             <span>
               {" "}
@@ -453,11 +400,6 @@ export function D3PermissionCatalogBrowser({
             </span>
           )}
         </div>
-        {filteredPermissions.length > 0 && (
-          <div className="text-xs text-gray-400">
-            Nhấn vào mã quyền để sao chép vào bộ nhớ tạm
-          </div>
-        )}
       </div>
 
       {/* ── Empty State ── */}
@@ -540,7 +482,13 @@ export function D3PermissionCatalogBrowser({
                             className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-semibold whitespace-nowrap border ${riskConfig.badgeBg}`}
                             title={riskConfig.description}
                           >
-                            {perm.risk}
+                            {perm.risk === "LOW"
+                              ? "Thấp"
+                              : perm.risk === "MEDIUM"
+                                ? "Trung bình"
+                                : perm.risk === "HIGH"
+                                  ? "Cao"
+                                  : "Trọng yếu"}
                           </span>
                         </div>
 
@@ -604,7 +552,7 @@ export function D3PermissionCatalogBrowser({
                     Mô tả nghiệp vụ
                   </th>
                   <th scope="col" className="px-4 py-3.5">
-                    Bounded Context
+                    Phân hệ nghiệp vụ
                   </th>
                   <th scope="col" className="px-4 py-3.5">
                     Mức rủi ro

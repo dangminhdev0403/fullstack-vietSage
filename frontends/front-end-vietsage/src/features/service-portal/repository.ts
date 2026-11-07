@@ -18,12 +18,6 @@ const call = <T>(method: HttpMethod, body?: unknown, action?: string, status?: s
   return requestInternalApi<T>(`/api/service-portal${queryString}`, { method, body, signal });
 };
 
-const csvCall = async (action: "template" | "export") => {
-  const response = await fetch(`/api/service-portal?file=${action}`, { cache: "no-store" });
-  if (!response.ok) throw new Error("Không thể tải file CSV");
-  return response.text();
-};
-
 export const servicePortalRepository = {
   data: (signal?: AbortSignal) => call<ServicePortalData>("GET", undefined, undefined, undefined, signal),
   financialSummary: (signal?: AbortSignal) => call<PartnerFinancialSummary>("GET", undefined, "financialSummary", undefined, signal),
@@ -36,7 +30,6 @@ export const servicePortalRepository = {
       signal,
     ),
   profile: (input: Partial<ServiceProfile>) => call<ServiceProfile>("PATCH", input),
-  create: (input: unknown) => call("POST", { action: "create", input }),
   update: (input: { serviceId: string; data: unknown }) =>
     call("POST", { action: "update", ...input }),
   transition: (input: { orderId: string; toStatus: string }) =>
@@ -45,6 +38,29 @@ export const servicePortalRepository = {
     call<ServiceItemImportPreview>("POST", { action: "importPreview", ...input }),
   importCommit: (input: { csv: string; fileName: string; previewToken: string }) =>
     call("POST", { action: "importCommit", ...input }),
+  async fetchSheetCsv(): Promise<string> {
+    const response = await fetch("/api/service-portal?file=sheet", { cache: "no-store" });
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => null)) as {
+        message?: string;
+        data?: { detail?: string };
+      } | null;
+      const detailMsg =
+        payload?.data?.detail && payload.data.detail !== "VALIDATION_ERROR"
+          ? payload.data.detail
+          : payload?.message && payload.message !== "VALIDATION_ERROR"
+          ? payload.message
+          : "Không thể truy cập Google Sheets / Excel Online đã lưu. Vui lòng liên hệ Quản trị nền tảng.";
+      throw new Error(detailMsg);
+    }
+    const text = await response.text();
+    if (!text || text.includes("<!DOCTYPE html") || text.includes("<html")) {
+      throw new Error(
+        "Bảng tính Google Sheets / Excel Online chưa được mở quyền truy cập công khai. Vui lòng chọn 'Chia sẻ' -> 'Bất kỳ ai có liên kết'.",
+      );
+    }
+    return text;
+  },
   async verifyVoucher(input: { code: string }): Promise<VoucherVerification | null> {
     try {
       return await requestInternalApi<VoucherVerification | null>("/api/service-portal/vouchers/verify", {
@@ -60,7 +76,5 @@ export const servicePortalRepository = {
       return { valid: false, message };
     }
   },
-  template: () => csvCall("template"),
-  export: () => csvCall("export"),
 };
 

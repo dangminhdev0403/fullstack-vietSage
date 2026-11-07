@@ -1,3 +1,5 @@
+import { useMemo } from "react";
+import { useMutation } from "@tanstack/react-query";
 import {
   createResource,
   defineMutation,
@@ -28,6 +30,17 @@ import type {
 type HousekeepingScope = {
   hotelId: string;
 };
+
+const taskAndRoomInvalidates = [
+  { type: "query", operation: "tasks" },
+  { type: "query", operation: "summary" },
+  { type: "query", operation: "rooms" },
+  { type: "query", operation: "room" },
+] as const;
+
+const requestInvalidates = [
+  { type: "query", operation: "requests" },
+] as const;
 
 export const housekeepingResource = createResource<HousekeepingScope>()({
   namespace: ["vietsage"],
@@ -91,18 +104,27 @@ export const housekeepingResource = createResource<HousekeepingScope>()({
   mutations: {
     claimTask: defineMutation<HousekeepingScope, { taskId: string } & TaskVersionInput, HousekeepingTask>({
       mutationFn: ({ scope, variables }) => housekeepingRepository.claimTask(scope.hotelId, variables.taskId, { expectedVersion: variables.expectedVersion }),
+      invalidates: taskAndRoomInvalidates,
+    }),
+    assignCleaner: defineMutation<HousekeepingScope, { taskId: string } & TaskVersionInput, HousekeepingTask>({
+      mutationFn: ({ scope, variables }) => housekeepingRepository.claimTask(scope.hotelId, variables.taskId, { expectedVersion: variables.expectedVersion }),
+      invalidates: taskAndRoomInvalidates,
     }),
     startTask: defineMutation<HousekeepingScope, { taskId: string } & TaskVersionInput, HousekeepingTask>({
       mutationFn: ({ scope, variables }) => housekeepingRepository.startTask(scope.hotelId, variables.taskId, { expectedVersion: variables.expectedVersion }),
+      invalidates: taskAndRoomInvalidates,
     }),
     blockTask: defineMutation<HousekeepingScope, { taskId: string; reason: string; notes?: string } & TaskVersionInput, HousekeepingTask>({
       mutationFn: ({ scope, variables }) => housekeepingRepository.blockTask(scope.hotelId, variables.taskId, { reason: variables.reason, notes: variables.notes, expectedVersion: variables.expectedVersion }),
+      invalidates: taskAndRoomInvalidates,
     }),
     completeTask: defineMutation<HousekeepingScope, { taskId: string; notes?: string } & TaskVersionInput, HousekeepingTask>({
       mutationFn: ({ scope, variables }) => housekeepingRepository.completeTask(scope.hotelId, variables.taskId, { notes: variables.notes, expectedVersion: variables.expectedVersion }),
+      invalidates: taskAndRoomInvalidates,
     }),
     reopenTask: defineMutation<HousekeepingScope, { taskId: string; reason?: string } & TaskVersionInput, HousekeepingTask>({
       mutationFn: ({ scope, variables }) => housekeepingRepository.reopenTask(scope.hotelId, variables.taskId, { reason: variables.reason, expectedVersion: variables.expectedVersion }),
+      invalidates: taskAndRoomInvalidates,
     }),
     confirmRoomReady: defineMutation<
       HousekeepingScope,
@@ -121,6 +143,26 @@ export const housekeepingResource = createResource<HousekeepingScope>()({
           variables.roomId,
           variables.expectedUpdatedAt,
         ),
+      invalidates: taskAndRoomInvalidates,
+    }),
+    inspectRoom: defineMutation<
+      HousekeepingScope,
+      { roomId: string; expectedUpdatedAt: string },
+      HotelRoomSummary
+    >({
+      mutationFn: ({
+        scope,
+        variables,
+      }: ResourceMutationContext<
+        HousekeepingScope,
+        { roomId: string; expectedUpdatedAt: string }
+      >) =>
+        housekeepingRepository.confirmRoomReady(
+          scope.hotelId,
+          variables.roomId,
+          variables.expectedUpdatedAt,
+        ),
+      invalidates: taskAndRoomInvalidates,
     }),
     updateRoomStatus: defineMutation<
       HousekeepingScope,
@@ -139,6 +181,7 @@ export const housekeepingResource = createResource<HousekeepingScope>()({
           variables.roomId,
           variables.status,
         ),
+      invalidates: taskAndRoomInvalidates,
     }),
     updateRequestStatus: defineMutation<
       HousekeepingScope,
@@ -159,6 +202,38 @@ export const housekeepingResource = createResource<HousekeepingScope>()({
           payload,
         );
       },
+      invalidates: requestInvalidates,
     }),
   },
 });
+
+export function useHousekeepingMutations(hotelId: string) {
+  const boundResource = useMemo(
+    () => housekeepingResource.bind({ hotelId }),
+    [hotelId],
+  );
+
+  const claimTaskMutation = useMutation(boundResource.mutations.claimTask.options());
+  const assignCleanerMutation = useMutation(boundResource.mutations.assignCleaner.options());
+  const startTaskMutation = useMutation(boundResource.mutations.startTask.options());
+  const completeTaskMutation = useMutation(boundResource.mutations.completeTask.options());
+  const blockTaskMutation = useMutation(boundResource.mutations.blockTask.options());
+  const reopenTaskMutation = useMutation(boundResource.mutations.reopenTask.options());
+  const updateStatusMutation = useMutation(boundResource.mutations.updateRoomStatus.options());
+  const legacyReadyMutation = useMutation(boundResource.mutations.confirmRoomReady.options());
+  const inspectRoomMutation = useMutation(boundResource.mutations.inspectRoom.options());
+  const updateRequestMutation = useMutation(boundResource.mutations.updateRequestStatus.options());
+
+  return {
+    claimTaskMutation,
+    assignCleanerMutation,
+    startTaskMutation,
+    completeTaskMutation,
+    blockTaskMutation,
+    reopenTaskMutation,
+    updateStatusMutation,
+    legacyReadyMutation,
+    inspectRoomMutation,
+    updateRequestMutation,
+  };
+}

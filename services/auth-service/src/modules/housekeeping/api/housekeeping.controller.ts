@@ -22,7 +22,7 @@ import { ApiDescript } from "../../../shared/decorators/api-descript.decorator";
 import { RequirePermission } from "../../../shared/decorators/require-permission.decorator";
 import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
 import type { AuthenticatedUser } from "../../../shared/security";
-import { hotelIdParamSchema } from "../../property/domain/schemas/shared.schema";
+import { hotelIdParamSchema } from "../../property/property-public";
 import { HousekeepingService } from "../application/housekeeping.service";
 import {
   blockHousekeepingTaskBodySchema,

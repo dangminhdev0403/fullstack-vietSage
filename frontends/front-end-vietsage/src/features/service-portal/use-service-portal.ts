@@ -11,7 +11,6 @@ export function useServicePortal(options?: { settlementStatus?: string; queries?
     settlements: useQuery({ ...resource.queries.settlements.options(options?.settlementStatus), enabled: enabled("settlements") }),
     verifyVoucher: useMutation(resource.mutations.verifyVoucher.options()),
     profile: useMutation(resource.mutations.profile.options()),
-    create: useMutation(resource.mutations.create.options()),
     update: useMutation(resource.mutations.update.options()),
     transition: useMutation(resource.mutations.transition.options()),
     importPreview: useMutation(resource.mutations.importPreview.options()),

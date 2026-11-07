@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { safeStorage } from "@/core/storage/safe-storage";
 
 import type {
   GuestCurrentSessionResult,
@@ -20,11 +21,13 @@ type GuestStore = {
   room: GuestRoomState | null;
   guest: GuestProfileState | null;
   language: string | null;
+  teaserSeen: boolean;
 
   setGuestSession: (session: GuestScanQrResult) => void;
   importSessionToken: (sessionToken: string) => void;
   refreshSessionSnapshot: (session: GuestCurrentSessionResult) => void;
   setLanguage: (value: string) => void;
+  setTeaserSeen: (seen: boolean) => void;
   clearSession: () => void;
 };
 
@@ -38,6 +41,7 @@ const initialGuestState: Pick<
   | "room"
   | "guest"
   | "language"
+  | "teaserSeen"
 > = {
   sessionToken: null,
   hotelId: null,
@@ -47,6 +51,7 @@ const initialGuestState: Pick<
   room: null,
   guest: null,
   language: null,
+  teaserSeen: false,
 };
 
 function sanitizeSession(
@@ -84,37 +89,6 @@ function sanitizeSession(
   };
 }
 
-const memoryStorage = new Map<string, string>();
-
-const safeStorage = {
-  getItem: (name: string): string | null => {
-    try {
-      if (typeof window !== "undefined" && window.localStorage) {
-        return window.localStorage.getItem(name);
-      }
-    } catch {}
-    return memoryStorage.get(name) ?? null;
-  },
-  setItem: (name: string, value: string): void => {
-    try {
-      if (typeof window !== "undefined" && window.localStorage) {
-        window.localStorage.setItem(name, value);
-        return;
-      }
-    } catch {}
-    memoryStorage.set(name, value);
-  },
-  removeItem: (name: string): void => {
-    try {
-      if (typeof window !== "undefined" && window.localStorage) {
-        window.localStorage.removeItem(name);
-        return;
-      }
-    } catch {}
-    memoryStorage.delete(name);
-  },
-};
-
 export const useGuestStore = create<GuestStore>()(
   persist(
     (set) => ({
@@ -147,10 +121,12 @@ export const useGuestStore = create<GuestStore>()(
           },
         }),
       setLanguage: (value) => set({ language: value.trim() || null }),
+      setTeaserSeen: (teaserSeen) => set({ teaserSeen }),
       clearSession: () =>
         set((state) => ({
           ...initialGuestState,
           language: state.language,
+          teaserSeen: state.teaserSeen,
         })),
     }),
     {
@@ -165,6 +141,7 @@ export const useGuestStore = create<GuestStore>()(
         room: state.room,
         guest: state.guest,
         language: state.language,
+        teaserSeen: state.teaserSeen,
       }),
     },
   ),

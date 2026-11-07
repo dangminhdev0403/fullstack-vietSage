@@ -120,7 +120,7 @@ export function AdminPermissionsWorkbench({
                 : "bg-gray-100 text-gray-600"
             }`}
           >
-            D3 Catalog ({totalCatalogPermissions})
+            Danh mục quyền ({totalCatalogPermissions})
           </span>
         </button>
       </div>
@@ -137,7 +137,7 @@ export function AdminPermissionsWorkbench({
       )}
 
       {activeTab === "catalog" && (
-        <div role="tabpanel" aria-label="Danh mục quyền hệ thống D3">
+        <div role="tabpanel" aria-label="Danh mục quyền hạn hệ thống">
           <D3PermissionCatalogBrowser customCatalog={customCatalog} />
         </div>
       )}

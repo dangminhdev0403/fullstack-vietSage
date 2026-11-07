@@ -28,9 +28,9 @@ export default async function OwnerBillingPage({ params, searchParams }: PagePro
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200/80 bg-emerald-50 px-3.5 py-1 text-xs font-bold uppercase tracking-[0.2em] text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300">
+        <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200/80 bg-emerald-50 px-3.5 py-1 text-xs font-bold uppercase tracking-[0.2em] text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300 whitespace-nowrap">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse" />
-          Billing &amp; Revenue Protection
+          Quản trị doanh thu &amp; công nợ
         </div>
         <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white">
           Quản lý tài chính &amp; phí VietSage SaaS

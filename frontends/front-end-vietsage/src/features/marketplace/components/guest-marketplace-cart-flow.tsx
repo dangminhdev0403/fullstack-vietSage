@@ -27,6 +27,53 @@ import { GuestMarketplaceOrderDetail } from "./guest-marketplace-order-detail";
 
 type CartFlowStep = "CART" | "REVIEW" | "ORDER_DETAIL";
 
+const CART_FLOW_COPY: Record<
+  string,
+  {
+    remainingCapacity: (cap: number) => string;
+    cartCleared: string;
+    costBreakdownTitle: string;
+    quoteLoadError: string;
+  }
+> = {
+  vi: {
+    remainingCapacity: (cap) => `Chỉ còn ${cap} suất`,
+    cartCleared: "Đã làm trống giỏ hàng",
+    costBreakdownTitle: "Bảng kê chi phí",
+    quoteLoadError: "Không thể lấy bảng kê chi phí. Vui lòng thử lại.",
+  },
+  en: {
+    remainingCapacity: (cap) => `Only ${cap} left`,
+    cartCleared: "Cart cleared",
+    costBreakdownTitle: "Cost Breakdown",
+    quoteLoadError: "Unable to load cost breakdown. Please try again.",
+  },
+  zh: {
+    remainingCapacity: (cap) => `仅剩 ${cap} 份`,
+    cartCleared: "已清空购物车",
+    costBreakdownTitle: "费用明细",
+    quoteLoadError: "无法获取费用明细，请重试。",
+  },
+  ko: {
+    remainingCapacity: (cap) => `${cap}개 남음`,
+    cartCleared: "장바구니를 비웠습니다",
+    costBreakdownTitle: "비용 내역",
+    quoteLoadError: "비용 내역을 불러올 수 없습니다. 다시 시도해 주세요.",
+  },
+  ru: {
+    remainingCapacity: (cap) => `Осталось всего ${cap}`,
+    cartCleared: "Корзина очищена",
+    costBreakdownTitle: "Детализация стоимости",
+    quoteLoadError: "Не удалось загрузить расчёт стоимости. Повторите попытку.",
+  },
+  hi: {
+    remainingCapacity: (cap) => `केवल ${cap} शेष`,
+    cartCleared: "कार्ट खाली कर दिया गया",
+    costBreakdownTitle: "लागत विवरण",
+    quoteLoadError: "लागत विवरण लोड नहीं हो सका। कृपया पुनः प्रयास करें।",
+  },
+};
+
 type GuestMarketplaceCartFlowProps = {
   sessionToken: string;
   isOpen: boolean;
@@ -42,7 +89,8 @@ export function GuestMarketplaceCartFlow({
   availableServices = [],
   onOrderCreated,
 }: GuestMarketplaceCartFlowProps) {
-  const { t, intlLocale } = useGuestI18n();
+  const { t, locale, intlLocale } = useGuestI18n();
+  const cartCopy = CART_FLOW_COPY[locale] ?? CART_FLOW_COPY.vi;
   const idempotencyId = useId();
 
   const cartItems = useGuestCartStore((state) => state.items);
@@ -79,7 +127,7 @@ export function GuestMarketplaceCartFlow({
           warningReason = t("marketplace.soldOut");
         } else if (item.quantity > liveService.capacityAvailable) {
           isUnavailable = true;
-          warningReason = `Chỉ còn ${liveService.capacityAvailable} suất`;
+          warningReason = cartCopy.remainingCapacity(liveService.capacityAvailable);
         }
       }
     }
@@ -98,7 +146,7 @@ export function GuestMarketplaceCartFlow({
     });
     if (confirmation.isConfirmed) {
       clearCart();
-      toast.success("Đã làm trống giỏ hàng");
+      toast.success(cartCopy.cartCleared);
     }
   };
 
@@ -420,7 +468,7 @@ export function GuestMarketplaceCartFlow({
               {/* Backend-Provided Cart Totals Breakdown */}
               <div className="rounded-2xl border border-[#25483f]/15 bg-[#f8f4ea] p-4 space-y-3 shadow-xs">
                 <span className="text-xs font-bold uppercase tracking-wider text-[#8a6a13] block">
-                  Bảng kê chi phí (Hệ thống cung cấp)
+                  {cartCopy.costBreakdownTitle}
                 </span>
 
                 {!quote && cartQuery.isPending ? (
@@ -461,7 +509,7 @@ export function GuestMarketplaceCartFlow({
                 ) : (
                   /* Fallback display if cart query failed */
                   <div className="text-xs text-red-600">
-                    Không thể lấy bảng kê chi phí. Vui lòng thử lại.
+                    {cartCopy.quoteLoadError}
                   </div>
                 )}
               </div>

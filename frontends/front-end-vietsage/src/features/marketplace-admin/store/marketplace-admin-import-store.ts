@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { safeStorage } from "@/core/storage/safe-storage";
 
 export type MarketplaceAdminImportState = {
   categorySheetUrl: string;
@@ -8,43 +9,6 @@ export type MarketplaceAdminImportState = {
   setCategorySheetUrl: (url: string) => void;
   setPartnerSheetUrl: (tenantKey: string, url: string) => void;
   getPartnerSheetUrl: (tenantId?: string | null, tenantCode?: string | null) => string;
-};
-
-const memoryStorage = new Map<string, string>();
-
-const safeStorage = {
-  getItem: (name: string): string | null => {
-    try {
-      if (typeof window !== "undefined" && window.localStorage) {
-        return window.localStorage.getItem(name);
-      }
-    } catch {
-      // Ignore storage errors in restricted contexts
-    }
-    return memoryStorage.get(name) ?? null;
-  },
-  setItem: (name: string, value: string): void => {
-    try {
-      if (typeof window !== "undefined" && window.localStorage) {
-        window.localStorage.setItem(name, value);
-        return;
-      }
-    } catch {
-      // Ignore storage errors in restricted contexts
-    }
-    memoryStorage.set(name, value);
-  },
-  removeItem: (name: string): void => {
-    try {
-      if (typeof window !== "undefined" && window.localStorage) {
-        window.localStorage.removeItem(name);
-        return;
-      }
-    } catch {
-      // Ignore storage errors in restricted contexts
-    }
-    memoryStorage.delete(name);
-  },
 };
 
 export const useMarketplaceAdminImportStore = create<MarketplaceAdminImportState>()(
@@ -75,24 +39,18 @@ export const useMarketplaceAdminImportStore = create<MarketplaceAdminImportState
           return state.partnerSheetUrls[tenantCode];
         }
         // Fallback to legacy localStorage keys if not yet persisted in store
-        if (typeof window !== "undefined") {
-          try {
-            if (tenantId) {
-              const legacyId = window.localStorage.getItem(`vietsage_partner_${tenantId}_sheet_url`);
-              if (legacyId) return legacyId;
-            }
-            if (tenantCode) {
-              const legacyCode = window.localStorage.getItem(`vietsage_partner_${tenantCode}_sheet_url`);
-              if (legacyCode) return legacyCode;
-            }
-            const generic1 = window.localStorage.getItem("vietsage_partner_service_items_sheet_url");
-            if (generic1) return generic1;
-            const generic2 = window.localStorage.getItem("vietsage_marketplace_partner_sheet_url");
-            if (generic2) return generic2;
-          } catch {
-            // Ignore storage errors
-          }
+        if (tenantId) {
+          const legacyId = safeStorage.getItem(`vietsage_partner_${tenantId}_sheet_url`);
+          if (legacyId) return legacyId;
         }
+        if (tenantCode) {
+          const legacyCode = safeStorage.getItem(`vietsage_partner_${tenantCode}_sheet_url`);
+          if (legacyCode) return legacyCode;
+        }
+        const generic1 = safeStorage.getItem("vietsage_partner_service_items_sheet_url");
+        if (generic1) return generic1;
+        const generic2 = safeStorage.getItem("vietsage_marketplace_partner_sheet_url");
+        if (generic2) return generic2;
         return "";
       },
     }),
@@ -106,16 +64,10 @@ export const useMarketplaceAdminImportStore = create<MarketplaceAdminImportState
       onRehydrateStorage: () => (state) => {
         if (!state) return;
         // Migrate legacy categorySheetUrl if store is empty
-        if (typeof window !== "undefined") {
-          try {
-            if (!state.categorySheetUrl) {
-              const legacyCat = window.localStorage.getItem("vietsage_marketplace_category_sheet_url");
-              if (legacyCat) {
-                state.setCategorySheetUrl(legacyCat);
-              }
-            }
-          } catch {
-            // Ignore storage errors
+        if (!state.categorySheetUrl) {
+          const legacyCat = safeStorage.getItem("vietsage_marketplace_category_sheet_url");
+          if (legacyCat) {
+            state.setCategorySheetUrl(legacyCat);
           }
         }
       },

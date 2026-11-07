@@ -558,7 +558,6 @@ model Code {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  @@index([name])
   @@index([isActive])
 }
 
@@ -621,6 +620,7 @@ model AuthSession {
   refreshIdempotency AuthRefreshIdempotency[]
 
   @@index([userId, status])
+  @@index([roleId])
   @@index([refreshFamilyId, status])
   @@index([status, idleExpiresAt])
   @@index([status, absoluteExpiresAt])
@@ -1398,7 +1398,9 @@ model GuestRequest {
   @@index([hotelId, status, createdAt])
   @@index([roomId, status])
   @@index([stayId, createdAt])
+  @@index([sessionId])
   @@index([serviceItemId])
+  @@index([assignedToUserId])
   @@index([billingPostStatus])
 }
 
@@ -1512,6 +1514,8 @@ model GuestRequestNotification {
   route             NotificationRoute              @relation(fields: [routeId], references: [id], onDelete: Cascade)
 
   @@unique([guestRequestId, provider])
+  @@index([routeId])
+  @@index([status])
 }
 
 model GuestRequestEvent {
@@ -2019,13 +2023,14 @@ model EmergencyCallEvent {
   incident                     EmergencyIncident?           @relation(fields: [incidentId], references: [id], onDelete: SetNull)
   emergencyLocation            EmergencyLocation?           @relation(fields: [emergencyLocationId], references: [id], onDelete: SetNull)
   notifications                EmergencyNotification[]
-  hotelServiceItem             HotelServiceItem?            @relation(fields: [hotelServiceItemId], references: [id])
+  hotelServiceItem             HotelServiceItem?            @relation(fields: [hotelServiceItemId], references: [id], onDelete: SetNull)
   hotelServiceItemId           String?
 
   @@index([tenantId, attemptedAt])
   @@index([hotelId, attemptedAt])
   @@index([incidentId, attemptedAt])
   @@index([providerCallId])
+  @@index([hotelServiceItemId])
 }
 
 model EmergencyIncidentTimeline {
@@ -2392,6 +2397,9 @@ model ServiceVoucher {
 
   @@index([serviceTenantId, status])
   @@index([hotelId, status])
+  @@index([serviceId])
+  @@index([verificationCode])
+  @@index([qrTokenHash])
 }
 
 model MarketplaceOrder {
@@ -2447,6 +2455,7 @@ model MarketplaceOrder {
   @@index([hotelId, status, createdAt])
   @@index([stayId, createdAt])
   @@index([publicSessionId, createdAt])
+  @@index([serviceId])
   @@index([assignedLocalMateProfileId])
 }
 
@@ -2971,6 +2980,7 @@ model BookingPayment {
   @@index([hotelId, reservationId])
   @@index([hotelId, groupId])
   @@index([hotelId, status, receivedAt])
+  @@index([hotelId, createdAt])
 }
 
 model BookingPaymentAllocation {
@@ -2992,6 +3002,8 @@ model BookingPaymentAllocation {
 
   @@index([hotelId, bookingPaymentId])
   @@index([hotelId, folioId])
+  @@index([reservationId])
+  @@index([groupId])
 }
 
 model HotelReceivable {

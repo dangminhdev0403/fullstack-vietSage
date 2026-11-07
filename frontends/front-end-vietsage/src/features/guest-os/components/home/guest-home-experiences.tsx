@@ -5,8 +5,8 @@ import Link from "next/link";
 
 import { GuestReveal } from "../motion/guest-reveal";
 
-const diningImage = "https://lh3.googleusercontent.com/aida-public/AB6AXuDXM0kt_WMMmzSxfZEVpa0Z0DchZESlCNbyzVKGrHS_OccnhPY8_Y4Q2Lzh-5f2-ASXzuoKHOjFlFSbv2I8kQLMSkQY1UStUcZ-Njwzjk4xcQZnUKceheUjBig1oRC-_GYnTrtE9uc1Ab5gj4tsgYGUWitROyXQQuwwn9z2T13GbaABZxZj13uEVEymaPI_VizfMJa27urVVwtAqIoIU-jh-J735qx5lV2szkYk2Pqb1TPI7vjpJt8b2S4fcFrG-qvT39bUDbAXjhQ";
-const spaImage = "https://lh3.googleusercontent.com/aida-public/AB6AXuA2jpiq4gCQ8iu2W6tjojXn8cE6RAPo9aj_U1tKEro3rZ7fNxTIm2FLg7kfYKz-2oFGuB0UhMTfoSel_aeOW5_7rphVTeiTleVdlN-xAgyR0j4m42fLlUuZVOdnK1Fzi4fQp7dgTSvqAlFjGrTGekNktfipI1g2cZ5gFzd4tTgSwykCi3gfrp7AO3DzfSFr-0SPXZZbtDe7mo57KjhHzGfYoCsYAtxaSiH_ru1WiKfUXvWe3zs5LNjsnthIwB1yeZ9ArxbY4eAW9TE";
+const diningImage = "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=1200&q=80";
+const spaImage = "https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=1200&q=80";
 
 export type GuestHomeExperience = { eyebrow: string; title: string; description: string; alt: string };
 

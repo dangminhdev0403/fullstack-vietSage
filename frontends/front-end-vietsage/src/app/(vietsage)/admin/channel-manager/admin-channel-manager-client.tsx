@@ -563,10 +563,6 @@ export function AdminChannelManagerClient({
               {canManage ? (
                 <>
                   <div className="space-y-4">
-                    <div className="rounded-2xl border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] p-4 text-xs text-[var(--on-surface-variant)]">
-                      <span className="font-bold text-gray-900">Khu vực đẩy ARI: </span>
-                      Đẩy lại dữ liệu giá và quỹ phòng (ARI) trực tiếp sang Channex khi cần ép đồng bộ lại hoặc giải quyết gián đoạn kết nối.
-                    </div>
                     <AriPushCard
                       key={`push-${selectedHotel.hotelId}`}
                       hotelId={selectedHotel.hotelId}
@@ -575,10 +571,6 @@ export function AdminChannelManagerClient({
                   </div>
 
                   <div className="space-y-4">
-                    <div className="rounded-2xl border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] p-4 text-xs text-[var(--on-surface-variant)]">
-                      <span className="font-bold text-gray-900">Trung tâm xử lý sự cố & Đối soát: </span>
-                      Kiểm tra đơn đặt phòng OTA, ép kéo feed đồng bộ thủ công từ Channex và xử lý hàng đợi booking sửa đổi cần đối soát.
-                    </div>
                     <OtaBookingsTab
                       key={`ota-${selectedHotel.hotelId}`}
                       hotelId={selectedHotel.hotelId}
@@ -848,33 +840,6 @@ export function AdminChannelManagerClient({
                   </button>
                 )}
               </div>
-
-              <div className="w-full sm:w-auto">
-                <label htmlFor={stateFilterId} className="sr-only">
-                  Lọc theo trạng thái
-                </label>
-                <div className="relative">
-                  <select
-                    id={stateFilterId}
-                    value={filterState}
-                    onChange={(e) =>
-                      handleStateFilterChange(e.target.value as AdminChannelOverviewState | "ALL")
-                    }
-                    className="min-h-11 w-full sm:w-52 appearance-none rounded-xl border border-[#e2d7c5] bg-[#faf6ef]/70 pl-3.5 pr-9 py-2 text-sm font-semibold text-[#17201b] shadow-2xs transition-all focus:border-[#24473d] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#24473d]/20 cursor-pointer"
-                  >
-                    <option value="ALL">Tất cả trạng thái</option>
-                    <option value="ACTIVE">Hoạt động</option>
-                    <option value="ATTENTION">Cần chú ý</option>
-                    <option value="INTERRUPTED">Gián đoạn</option>
-                    <option value="SETTING_UP">Đang thiết lập</option>
-                    <option value="UNCONFIGURED">Chưa thiết lập</option>
-                  </select>
-                  <VsIcon
-                    name="expand_more"
-                    className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-base text-[#8b948d]"
-                  />
-                </div>
-              </div>
             </div>
 
             {/* Right Side: Total counter badge & action buttons */}
@@ -906,46 +871,6 @@ export function AdminChannelManagerClient({
                 <span>{isFetching ? "Đang đồng bộ..." : "Làm mới"}</span>
               </button>
             </div>
-          </div>
-
-          {/* Quick filter chips */}
-          <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-[#f0eae0]">
-            <span className="text-xs font-bold uppercase tracking-wider text-[#69726b] mr-1">
-              Bộ lọc nhanh:
-            </span>
-            {[
-              { id: "ALL" as const, label: "Tất cả", count: summary?.totalHotels },
-              { id: "ACTIVE" as const, label: "Đang hoạt động", count: summary?.activeHotels },
-              { id: "ATTENTION" as const, label: "Cần chú ý", count: summary?.needsAttention },
-              { id: "UNCONFIGURED" as const, label: "Chưa thiết lập", count: summary?.unconfiguredHotels },
-            ].map((chip) => {
-              const isCurrent = filterState === chip.id;
-              return (
-                <button
-                  key={chip.id}
-                  type="button"
-                  onClick={() => handleStateFilterChange(chip.id)}
-                  className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${
-                    isCurrent
-                      ? "bg-[#24473d] text-[#fff8e8] shadow-2xs"
-                      : "bg-[#f4ede2] text-[#69726b] hover:bg-[#eae1d2] hover:text-[#17201b]"
-                  }`}
-                >
-                  <span>{chip.label}</span>
-                  {chip.count !== undefined && (
-                    <span
-                      className={`rounded-full px-1.5 py-0.2 text-xs font-black ${
-                        isCurrent
-                          ? "bg-[#e8b363] text-[#17201b]"
-                          : "bg-black/10 text-[#17201b]"
-                      }`}
-                    >
-                      {chip.count}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
           </div>
         </div>
       </section>

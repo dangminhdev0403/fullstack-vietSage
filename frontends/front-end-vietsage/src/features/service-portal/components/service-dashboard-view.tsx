@@ -19,6 +19,30 @@ function getNextStatus(order: MarketplaceOrder): { label: string; status: Market
   return null;
 }
 
+function getOrderStatusLabel(status: MarketplaceOrder["status"]): string {
+  switch (status) {
+    case "COMPLETED":
+      return "Hoàn tất";
+    case "CONFIRMED":
+      return "Đã xác nhận";
+    case "ACKNOWLEDGED":
+    case "ACCEPTED":
+    case "PROCESSING":
+    case "PREPARING":
+    case "DELIVERING":
+    case "READY":
+      return "Đã tiếp nhận";
+    case "PENDING":
+      return "Chờ xử lý";
+    case "CANCELLED":
+      return "Đã hủy";
+    case "REJECTED":
+      return "Từ chối";
+    default:
+      return "Đang xử lý";
+  }
+}
+
 export function ServiceDashboardView({ data }: Readonly<{ data: ServicePortalData }>) {
   const { transition, financialSummary, data: dataQuery } = useServicePortal({ queries: ["data", "financialSummary"] });
   const currentData = dataQuery.data ?? data;
@@ -247,14 +271,14 @@ export function ServiceDashboardView({ data }: Readonly<{ data: ServicePortalDat
                     <div className="space-y-1">
                       <div className="flex items-center gap-2.5 flex-wrap">
                         <span className="font-mono font-bold text-[#17201b] text-base">{order.orderNumber}</span>
-                        <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                        <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap ${
                           order.status === "PENDING"
                             ? "bg-[#fff3db] text-[#925f0e] border border-[#f3d6a2]"
                             : order.status === "ACKNOWLEDGED"
                             ? "bg-[#e8f2ee] text-[#1c553f] border border-[#c1e0d3]"
                             : "bg-[#e7f4eb] text-[#16562c] border border-[#bde2c7]"
                         }`}>
-                          {order.status}
+                          {getOrderStatusLabel(order.status)}
                         </span>
                         {/* Settlement Status Badge */}
                         <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${

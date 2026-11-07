@@ -300,6 +300,63 @@ export class GuestOsService {
     return unwrapApiEnvelope<{ read: true; updatedCount: number }>(payload).data;
   }
 
+  async sendAiChatMessage(
+    sessionToken: string,
+    input: { message: string; language?: string },
+    locale?: GuestLocaleCode,
+  ): Promise<{
+    reply?: string;
+    data?: { reply?: string };
+    action?: unknown;
+    suggestions?: Array<{ label: string; query: string }>;
+  }> {
+    const payload = await this.httpClient.request<
+      unknown,
+      { message: string; language?: string }
+    >({
+      method: "POST",
+      path: this.path("/guest/chat"),
+      accessToken: sessionToken,
+      body: input,
+      headers: localeHeaders(locale),
+    });
+
+    if (
+      payload &&
+      typeof payload === "object" &&
+      ("reply" in payload || "suggestions" in payload || "action" in payload)
+    ) {
+      return payload as {
+        reply?: string;
+        data?: { reply?: string };
+        action?: unknown;
+        suggestions?: Array<{ label: string; query: string }>;
+      };
+    }
+
+    return unwrapApiEnvelope<{
+      reply?: string;
+      data?: { reply?: string };
+      action?: unknown;
+      suggestions?: Array<{ label: string; query: string }>;
+    }>(payload).data;
+  }
+
+  async syncSessionCookie(sessionToken: string): Promise<{ ok: boolean }> {
+    const payload = await this.httpClient.request<unknown, { sessionToken: string }>({
+      method: "POST",
+      path: this.path("/guest/session/sync"),
+      accessToken: sessionToken,
+      body: { sessionToken },
+    });
+
+    if (payload && typeof payload === "object" && "ok" in payload) {
+      return payload as { ok: boolean };
+    }
+
+    return unwrapApiEnvelope<{ ok: boolean }>(payload).data;
+  }
+
   async createEmergencyCall(
     sessionToken: string,
     input: CreateGuestEmergencyCallInput,

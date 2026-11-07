@@ -181,7 +181,7 @@ export default function GiaiPhapPage() {
                   <ArrowRightIcon className="w-4 h-4" />
                 </a>
                 <Link
-                  href="/contact"
+                  href="/contact?action=demo"
                   className="inline-flex items-center gap-2.5 px-6 py-3.5 rounded-full bg-white hover:bg-slate-50 text-slate-700 font-bold text-sm sm:text-base border border-slate-200 shadow-xs transition-all whitespace-nowrap"
                 >
                   <span className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-900 flex items-center justify-center text-xs">
@@ -219,7 +219,7 @@ export default function GiaiPhapPage() {
                   <img
                     alt="Không gian khách sạn sang trọng và quản lý thông minh"
                     className="w-full h-[350px] sm:h-[400px] object-cover"
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuBx4LlQjfp3C0a0T1HEFlF1dGxf2pcL3_dDYJbAA8Q0Dsi8VMY3FAQ7ygnhrcDymOPLnUx9sf5Y6WSf70cOlVRHIW6JEyQQ-VYBeBcDx5s_P073p185EkxrJaFlaUjMBG60_R4GcRMuomyu7fuzgrcSuH19V94y3ERpYmIs8lGbCRgCPAi7sER2WkCn7GAPnnOuFoVSzQ5EpCyvecFTHjaGcrLp-HNbxfZOuVeEmhEPYFjvR4BREQbusw"
+                    src="https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80"
                   />
                   {/* Mockup Overlay Dashboard Screen Preview */}
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-900/35 to-transparent flex flex-col justify-end p-5 sm:p-6 text-white">
@@ -391,7 +391,7 @@ export default function GiaiPhapPage() {
 
               <div className="pt-3">
                 <Link
-                  href="/contact"
+                  href="/contact?topic=kbtt-compliance"
                   className="inline-flex items-center gap-2.5 px-6 py-3.5 rounded-full bg-[#9e6328] hover:bg-[#85511e] text-white font-bold text-sm sm:text-base transition-all shadow-sm whitespace-nowrap"
                 >
                   <span>Tìm hiểu chi tiết giải pháp C06</span>
@@ -468,7 +468,7 @@ export default function GiaiPhapPage() {
                   <img
                     alt="Khách sạn vận hành hiệu quả"
                     className="w-full h-full object-cover min-h-[140px]"
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuAoc8WcnMOWQJ1rUshtjv4Fisj0q9RCk1an8b3nYpJmrMFDGMYKQs0b1PzEI3iJ9iGKIvKN56rSxHi1XNW9cBHTndruW58vZxCb0rkpL3pIkpYJdCdRWffSZ3lWyRB85WWC4VIMS2EO7P9jyB8SryA96l_5yjAAnkbZncAqgenMLQyeo13zePCuocXPjrJQ9b30TqtaeAVdWWuuvjktR4FcGV5B6M6MjLbY1YdNFsaV2UU4ny5RyUmU7g"
+                    src="https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80"
                   />
                   <div className="absolute inset-0 bg-emerald-950/20" />
                   <div className="absolute bottom-2.5 left-2.5 right-2.5 px-2.5 py-1.5 bg-white/95 backdrop-blur-md rounded text-xs font-bold text-slate-800 text-center whitespace-nowrap shadow-xs">
@@ -506,7 +506,7 @@ export default function GiaiPhapPage() {
                 <img
                   alt="PMS Quản lý khách sạn"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuBXPljD1FfIbkUmizkj7OBf02PKot2faM8Smo3KWuQOp6ILQUuwbWMzfTqmLPufPhapuxKaxqX6KmAg7U_Rb5Oq1YEvk5A5oVC5Vo3K8bV5KteIa2Oh0VRbxHeg1-KZtjzjQdUPeVIjoc13Iys362aJZ3bhonRWrQUdNeVdMjSqNN4Ph1hZRZcoq_jDjjAiZv92rHMAzoQ6dcx5ZFUjcI6-8CVlLDRaw41orWlDrLVxXOfzMtz8RvdMLA"
+                  src="https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=800&q=80"
                 />
                 <div className="absolute top-3 left-3 w-9 h-9 rounded-lg bg-white/95 text-emerald-900 flex items-center justify-center text-sm shadow-xs">
                   <MonitorIcon className="w-5 h-5" />
@@ -534,7 +534,7 @@ export default function GiaiPhapPage() {
                 <img
                   alt="Channel Manager quản lý kênh bán OTA"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuC4FH8lsWShCJXH4QaJgrcmAsHn2C_8w4FZWNXNjZSkAhWLk40dBUbIYR4Vz1RxP_UmuiWAASRTWk_dRFXizKnioPMhj6mby0RZQqFtdTPvhSuciTH_87WsXkMll1LGyPvq60E6hSSpoEZeadBrww43JxutWTaB8p8c43S4dOQ2cZ7zi1htMLnhb-vi9t0LGrjTAKqrzBy2TrzMq7Fy2bSSpblmO4fThhv-o0aKrMsuXacbWc82sq-g_Q"
+                  src="https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=800&q=80"
                 />
                 <div className="absolute top-3 left-3 w-9 h-9 rounded-lg bg-white/95 text-emerald-900 flex items-center justify-center text-sm shadow-xs">
                   <RefreshSyncIcon className="w-5 h-5" />
@@ -562,7 +562,7 @@ export default function GiaiPhapPage() {
                 <img
                   alt="E-Concierge trải nghiệm khách số hóa"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuBXw6lHcsubHomP5dfqOmkRcWaZRepKHgn4AfZxwRT4V2x3wwO-wfbLuL6hnqRhr3MeXTPx0jFlPqlASFCyprqdMzSNL5EYVv2SlZRkldIkBeN7Rj9phjz6zYZGJGmGEZF1QN_C4jjFnxYwrB9ZuDVV8QVnYL7cC8szd-Mkajsxr2BJr7Gj5uoDZdDzl9UIbBtuVbyfDgp8ZB2fV_xnjnFQaH-Pfe_ixTj2dNZx2vJPEDc8ZeZH-yfpNA"
+                  src="https://images.unsplash.com/photo-1571896349842-33c89424de2d?auto=format&fit=crop&w=800&q=80"
                 />
                 <div className="absolute top-3 left-3 w-9 h-9 rounded-lg bg-white/95 text-emerald-900 flex items-center justify-center text-sm shadow-xs">
                   <SmartphoneIcon className="w-5 h-5" />
@@ -590,7 +590,7 @@ export default function GiaiPhapPage() {
                 <img
                   alt="Báo cáo phân tích doanh thu khách sạn"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuAKc8HGcWtFz_OhMNW-CeX-1HLO7_PAOyICgxRZ4NGrwOp5nC0sbngoW_FHMOI6wXRuZ0172jphyK9ZEEgB6jSpLD6UQhSKVxc--kA6NRZhxqGGVRg_x_zwrBm_B0vfBlZxvC-3VNqTWgBi0bLs-qxqLTYaa_reHTHNkTGlR49YCfwuZWT_UqEDvPrqB8lnwgiixp7zYSG266o5Dw1qmtZqvxXFILgg34bXWM2Kqfx2Nzz9ZpeoNvJw4A"
+                  src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80"
                 />
                 <div className="absolute top-3 left-3 w-9 h-9 rounded-lg bg-white/95 text-emerald-900 flex items-center justify-center text-sm shadow-xs">
                   <PieChartIcon className="w-5 h-5" />
@@ -626,7 +626,7 @@ export default function GiaiPhapPage() {
                 <img
                   alt="Khách sạn tin dùng giải pháp VietSage"
                   className="w-full h-[320px] sm:h-[360px] object-cover"
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuAfbyjUTi9SuPO6G5NmV-dkR10gHBBGXMY0pK7W6M3u2fi6e0KLxsL20B5Xon09DJYsNuo1apY8EN6N42H6UrE6HBeYjOtUCw9QV4L9vat1xrwxSQIyt_LxNKuBeX-UHcAeajQcUk9NjF5yIsx5vw3Qk0alu4LarbVJvWu_QtVrJgsgQ34zVq80CB-6oAwww64fTiFnkEfNX0fky7DnY4jxKjff1BcEMhuo0dmCbfV61maaNHveWvLbyg"
+                  src="https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=1000&q=80"
                 />
               </div>
               {/* Floating Badge for Trust */}
@@ -637,17 +637,17 @@ export default function GiaiPhapPage() {
                   <img
                     alt="Quản lý khách sạn đối tác"
                     className="inline-block h-7 w-7 rounded-full ring-2 ring-white object-cover"
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuBqqwxob9XA367s3yNvHjEhAwRXaLAIWZ5jfWRBIKhH5c8U5wbzEdz4JREKlFzfjeng61ewfgNDDFVxztDJUSV8AbaVYJ09W7ga3y__IvyZJubWLqpjGMcAP2_cD1T6g_VgFFPzJr42WVR1FiAf9KLBrgNrM67impobE9jaB3BTy5Xbk6FnoIVbAeojxWvhk0TFbxMYeXWdLGWDsNTLJQIc8U7Q9GVVPQq-LvprQEaxeZOuvz1x0wmmaw"
+                    src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80"
                   />
                   <img
                     alt="Quản lý khách sạn đối tác"
                     className="inline-block h-7 w-7 rounded-full ring-2 ring-white object-cover"
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuCz33bWmGJ0SsAg0kaMU0lgfAULxVAhP1xWGESDWcnv7hoVHi0M05VXn9nf7so17HYHC68j2dKblEnsWjVEM0KC4T0d5pzB-NSaHXjlMugutg8A1B8dwUvq4BEh4QkEv8H5qNG7tg_mZ5uRBB7Gm0lBrKxYrKjf2cvsLR3Xno1OaYUda2Ys5O6G11te8bbOCvJ1tUBeWYkyGQHoVMEbrDesO3IbTXq0BxGVkgNy0Q5Fk6iklKgIbuhHSw"
+                    src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80"
                   />
                   <img
                     alt="Quản lý khách sạn đối tác"
                     className="inline-block h-7 w-7 rounded-full ring-2 ring-white object-cover"
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuBTp6J_RO7S55x-hcnIhUIhGtc9_IhjyEX3DAR-5IRv-AntCPUoKFoeXlhzg3EcxvU1ygJFC4CkB4epxEG51afPwx3B3uTgP761G-M_OldE_Rz32O-AxB5vzVViE792ET1UtmVR5pxaFuareDT788l1QANND82iPzixlKtfVf_RbfsjjR3MlxyipuggWNZ4Ye6AHFSIxKrkVasNeR4CtTMGzLXfOpmVg5JHb3I8n-42Sx-TgAmv64trnA"
+                    src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&q=80"
                   />
                   <div className="inline-flex items-center justify-center h-7 w-7 rounded-full ring-2 ring-white bg-emerald-100 text-xs font-bold text-emerald-900 whitespace-nowrap">
                     +297
@@ -717,7 +717,7 @@ export default function GiaiPhapPage() {
               <img
                 alt="Resort hoàng hôn"
                 className="w-full h-full object-cover"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuDcZIJpnYIhyP_O0NCpLqnzaDQLNcFaujLc3Db7Aoq1dWFo58ukjT60ky0aprsyNApTT6oPlV0u3oBISeyQT8LhZO1-ev3MiXNz7oIgcabfpXRl3UYllFgQaedt1xsbAcA05jTMZOhWpGTKsXNHEj6skT-ewGW_bz4CA8P0N72MWBb0E7eedSWO2JrQpNjEJcNyUf0pTxnsl5H_AmVdGZoo5eb6N-WtI0jF1gBnoYqdZb8xdeSj5nvy3w"
+                src="https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?auto=format&fit=crop&w=1200&q=80"
               />
             </div>
 
@@ -744,7 +744,7 @@ export default function GiaiPhapPage() {
                     <ArrowRightIcon className="w-4 h-4" />
                   </Link>
                   <Link
-                    href="/contact"
+                    href="/contact?action=demo"
                     className="px-6 py-3.5 rounded-full bg-emerald-900/80 hover:bg-emerald-800 border border-emerald-700/60 text-white font-semibold text-sm sm:text-base transition-colors whitespace-nowrap"
                   >
                     <span>Xem demo trực tiếp</span>

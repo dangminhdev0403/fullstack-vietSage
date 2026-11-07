@@ -49,7 +49,64 @@ export function GuestMarketplaceOrderDetail({
   onClose,
   onBackToMarketplace,
 }: GuestMarketplaceOrderDetailProps) {
-  const { t, intlLocale } = useGuestI18n();
+  const { t, locale, intlLocale } = useGuestI18n();
+  const detailCopy = {
+    vi: {
+      orderNotFound: "Không tìm thấy đơn dịch vụ",
+      guestFallback: "Khách lưu trú",
+      orderStatusLabel: "Trạng thái đơn:",
+      createdAtLabel: "Thời gian tạo:",
+      voucherIssuedFallback: "ĐÃ PHÁT HÀNH",
+      hotelReceivingNote: "Khách sạn đang tiếp nhận và sẽ cấp phiếu dịch vụ ngay cho bạn.",
+    },
+    en: {
+      orderNotFound: "Service order not found",
+      guestFallback: "Hotel Guest",
+      orderStatusLabel: "Order status:",
+      createdAtLabel: "Created at:",
+      voucherIssuedFallback: "ISSUED",
+      hotelReceivingNote: "The hotel is processing your order and will issue your voucher shortly.",
+    },
+    zh: {
+      orderNotFound: "未找到服务订单",
+      guestFallback: "住店宾客",
+      orderStatusLabel: "订单状态：",
+      createdAtLabel: "创建时间：",
+      voucherIssuedFallback: "已签发",
+      hotelReceivingNote: "酒店正在处理您的订单，稍后将为您签发服务凭证。",
+    },
+    ko: {
+      orderNotFound: "서비스 주문을 찾을 수 없습니다",
+      guestFallback: "투숙객",
+      orderStatusLabel: "주문 상태:",
+      createdAtLabel: "생성 시간:",
+      voucherIssuedFallback: "발급 완료",
+      hotelReceivingNote: "호텔에서 주문을 접수 중이며 곧 서비스 바우처를 발급해 드립니다.",
+    },
+    ru: {
+      orderNotFound: "Заказ услуги не найден",
+      guestFallback: "Гость отеля",
+      orderStatusLabel: "Статус заказа:",
+      createdAtLabel: "Время создания:",
+      voucherIssuedFallback: "ВЫПУЩЕН",
+      hotelReceivingNote: "Отель обрабатывает ваш заказ и скоро выпустит сервисный ваучер.",
+    },
+    hi: {
+      orderNotFound: "सेवा ऑर्डर नहीं मिला",
+      guestFallback: "होटल अतिथि",
+      orderStatusLabel: "ऑर्डर की स्थिति:",
+      createdAtLabel: "बनाने का समय:",
+      voucherIssuedFallback: "जारी किया गया",
+      hotelReceivingNote: "होटल आपके ऑर्डर को स्वीकार कर रहा है और शीघ्र ही सेवा वाउचर जारी करेगा।",
+    },
+  }[locale] ?? {
+    orderNotFound: "Không tìm thấy đơn dịch vụ",
+    guestFallback: "Khách lưu trú",
+    orderStatusLabel: "Trạng thái đơn:",
+    createdAtLabel: "Thời gian tạo:",
+    voucherIssuedFallback: "ĐÃ PHÁT HÀNH",
+    hotelReceivingNote: "Khách sạn đang tiếp nhận và sẽ cấp phiếu dịch vụ ngay cho bạn.",
+  };
 
   const activeOrderId = initialOrder?.id || orderId;
   const orderQuery = useGuestMarketplaceOrder(sessionToken, activeOrderId);
@@ -92,7 +149,7 @@ export function GuestMarketplaceOrderDetail({
       >
         <div className="w-full max-w-lg rounded-[2.2rem] bg-white p-7 text-center space-y-4">
           <VsIcon name="error" className="mx-auto text-4xl text-red-500" />
-          <h3 className="text-lg font-bold text-[#18211d]">Không tìm thấy đơn dịch vụ</h3>
+          <h3 className="text-lg font-bold text-[#18211d]">{detailCopy.orderNotFound}</h3>
           <button
             type="button"
             onClick={onClose}
@@ -115,7 +172,7 @@ export function GuestMarketplaceOrderDetail({
     printMarketplaceVoucherTicket({
       voucherCode: order.voucher.voucherNumber,
 
-      guestDisplayName: order.stay?.guestDisplayName ?? "Khách lưu trú",
+      guestDisplayName: order.stay?.guestDisplayName ?? detailCopy.guestFallback,
       roomNumber: order.stay?.room?.roomNumber ?? "-",
       providerDisplayName: providerName,
       orderNumber: order.orderNumber,
@@ -171,7 +228,7 @@ export function GuestMarketplaceOrderDetail({
           {/* Status and Summary Pill */}
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-[#25483f]/10 bg-[#f8f4ea]/60 p-4">
             <div>
-              <span className="text-xs font-semibold text-[#5e6a62]">Trạng thái đơn:</span>
+              <span className="text-xs font-semibold text-[#5e6a62]">{detailCopy.orderStatusLabel}</span>
               <div className="mt-1">
                 <span className={`inline-flex items-center rounded-full px-3 py-0.5 text-xs font-black border ${statusBadge.className}`}>
                   {statusBadge.label}
@@ -214,7 +271,7 @@ export function GuestMarketplaceOrderDetail({
                 </p>
               </div>
               <div>
-                <span className="text-[#5e6a62]">Thời gian tạo:</span>
+                <span className="text-[#5e6a62]">{detailCopy.createdAtLabel}</span>
                 <p className="font-bold text-[#18211d]">
                   {formatGuestDateTime(order.createdAt, intlLocale)}
                 </p>
@@ -242,7 +299,7 @@ export function GuestMarketplaceOrderDetail({
                       {t("marketplace.voucherCodeLabel")}
                     </span>
                     <p className="font-mono text-base font-black text-emerald-950 tracking-wider">
-                      {order.voucher?.voucherNumber ?? "ĐÃ PHÁT HÀNH"}
+                      {order.voucher?.voucherNumber ?? detailCopy.voucherIssuedFallback}
                     </p>
                   </div>
                 </div>
@@ -271,7 +328,7 @@ export function GuestMarketplaceOrderDetail({
           ) : (
             <div className="flex items-center gap-2.5 rounded-2xl border border-amber-200 bg-amber-50/80 p-4 text-xs text-amber-900">
               <VsIcon name="hourglass_top" className="text-lg text-amber-600 shrink-0" />
-              <span>Khách sạn đang tiếp nhận và sẽ cấp phiếu dịch vụ ngay cho bạn.</span>
+              <span>{detailCopy.hotelReceivingNote}</span>
             </div>
           )}
 

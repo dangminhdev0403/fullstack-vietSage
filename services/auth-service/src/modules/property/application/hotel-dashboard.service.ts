@@ -290,6 +290,7 @@ export class HotelDashboardService {
     const dayAfterTomorrowStart = startOfPlainDate(todayPlain.add({ days: 2 }), hotelTimeZone);
     const yesterdayStart = startOfPlainDate(todayPlain.subtract({ days: 1 }), hotelTimeZone);
     const sevenDaysStart = startOfPlainDate(todayPlain.subtract({ days: 6 }), hotelTimeZone);
+    const thirtyDaysAgo = startOfPlainDate(todayPlain.subtract({ days: 29 }), hotelTimeZone);
     const monthStart = startOfPlainDate(todayPlain.with({ day: 1 }), hotelTimeZone);
 
     const bizTodayStart = todayStart;
@@ -307,25 +308,6 @@ export class HotelDashboardService {
       requestStatusRows,
       unprocessedRequests,
       urgentUnprocessedRequests,
-      topServices,
-      todayRequests,
-      yesterdayRequests,
-      todayUrgentRequests,
-      yesterdayUrgentRequests,
-      revenueToday,
-      revenueSevenDays,
-      revenueMonth,
-      failedPayments,
-      billingIssues,
-      attentionRequests,
-      attentionRooms,
-      attentionCheckOuts,
-      activities,
-      acknowledgedEvents,
-      completedRequests,
-      inHouseStays,
-      activeReservations,
-      standaloneReservedStays,
     ] = await Promise.all([
       this.prisma.room.count({ where: roomWhere }),
       this.prisma.room.groupBy({ by: ["status"], where: roomWhere, _count: { _all: true } }),
@@ -362,6 +344,20 @@ export class HotelDashboardService {
           status: { in: REQUEST_INCOMPLETE_STATUSES },
         },
       }),
+    ]);
+
+    const [
+      topServices,
+      todayRequests,
+      yesterdayRequests,
+      todayUrgentRequests,
+      yesterdayUrgentRequests,
+      revenueToday,
+      revenueSevenDays,
+      revenueMonth,
+      failedPayments,
+      billingIssues,
+    ] = await Promise.all([
       this.prisma.guestRequest.groupBy({
         by: ["serviceItemId"],
         where: { hotelId, ...activeRequestStayFilter, serviceItemId: { not: null } },
@@ -427,6 +423,19 @@ export class HotelDashboardService {
         where: { ...paymentWhere, status: { in: [PaymentStatus.FAILED, PaymentStatus.EXPIRED] } },
       }),
       this.prisma.folio.count({ where: { ...folioWhere, status: FolioStatus.CHECKOUT_PENDING } }),
+    ]);
+
+    const [
+      attentionRequests,
+      attentionRooms,
+      attentionCheckOuts,
+      activities,
+      acknowledgedEvents,
+      completedRequests,
+      inHouseStays,
+      activeReservations,
+      standaloneReservedStays,
+    ] = await Promise.all([
       this.prisma.guestRequest.findMany({
         where: {
           hotelId,
@@ -484,6 +493,7 @@ export class HotelDashboardService {
         where: {
           ...requestEventRequestFilter,
           toStatus: { in: [GuestRequestStatus.ACKNOWLEDGED] },
+          createdAt: { gte: thirtyDaysAgo },
         },
         _min: { createdAt: true },
       }),
