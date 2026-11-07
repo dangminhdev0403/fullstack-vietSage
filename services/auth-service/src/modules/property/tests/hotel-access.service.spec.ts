@@ -124,11 +124,11 @@ describe("HotelAccessService", () => {
     ).resolves.toMatchObject({ id: "hotel-any" });
   });
 
-  it("không yêu cầu assignment khi HOTEL_OWNER đồng thời có role HOTEL_FRONTDESK", async () => {
+  it("không yêu cầu assignment khi TENANT_OWNER đồng thời có role HOTEL_FRONTDESK", async () => {
     const repository = createRepository({
       findActorById: jest.fn().mockResolvedValue({
         id: "owner-1",
-        userRoles: [{ role: { code: "HOTEL_OWNER" } }, { role: { code: "HOTEL_FRONTDESK" } }],
+        userRoles: [{ role: { code: "TENANT_OWNER" } }, { role: { code: "HOTEL_FRONTDESK" } }],
         tenantUsers: [{ tenantId: "tenant-1" }],
         hotelAssignments: [],
       }),
@@ -137,7 +137,7 @@ describe("HotelAccessService", () => {
     const service = new HotelAccessService(repository as never);
 
     await expect(
-      service.assertHotelAccess("owner-1", "hotel-owner-role", "hotel-1"),
+      service.assertHotelAccess("owner-1", "tenant-owner-role", "hotel-1"),
     ).resolves.toMatchObject({ id: "hotel-1" });
   });
 

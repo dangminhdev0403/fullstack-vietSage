@@ -153,7 +153,7 @@ describe("HotelRoomStaffScope (Phase 1)", () => {
       expect(repository.findRoomStaffAssignment).not.toHaveBeenCalled();
     });
 
-    it("6. vai trò chủ/quản lý (TENANT_OWNER, SUPER_ADMIN, HOTEL_OWNER, HOTEL_MANAGER) giữ nguyên phạm vi toàn khách sạn (allowedRoomId: null) kể cả tại ROOM_EXCLUSIVE", async () => {
+    it("6. vai trò chủ/quản lý (TENANT_OWNER, SUPER_ADMIN, HOTEL_MANAGER) giữ nguyên phạm vi toàn khách sạn (allowedRoomId: null) kể cả tại ROOM_EXCLUSIVE", async () => {
       const repository = createRepository({
         findActorById: jest.fn().mockResolvedValue({
           id: "owner-1",

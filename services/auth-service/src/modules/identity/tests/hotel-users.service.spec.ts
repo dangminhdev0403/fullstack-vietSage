@@ -110,7 +110,7 @@ describe("HotelUsersService", () => {
   it("blocks assigning protected roles", async () => {
     hotelUsersRepository.findActorById.mockResolvedValue({
       id: "actor-1",
-      userRoles: [{ role: { code: "HOTEL_OWNER" } }],
+      userRoles: [{ role: { code: "TENANT_OWNER" } }],
       tenantUsers: [{ tenantId: "tenant-1" }],
     });
     hotelUsersRepository.findTenantUserMembership.mockResolvedValue({
@@ -229,7 +229,7 @@ describe("HotelUsersService", () => {
             none: {
               status: UserRoleStatus.ACTIVE,
               role: {
-                code: { in: ["TENANT_OWNER", "SUPER_ADMIN", "HOTEL_OWNER"] },
+                code: { in: ["TENANT_OWNER", "SUPER_ADMIN"] },
               },
             },
           },

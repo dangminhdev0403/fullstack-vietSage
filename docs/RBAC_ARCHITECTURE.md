@@ -69,7 +69,7 @@ never edited in place.
 | `SUPER_ADMIN` | Complete platform and business capability surface |
 | `PLATFORM_FINANCE` | Platform SaaS billing contracts, periods, debt statements, and hotel enumeration |
 | `LOCALMATE_MANAGER` | LocalMate network management, qualified guide profiles, and AI tour knowledge base |
-| `TENANT_OWNER`, `HOTEL_OWNER` | Executive monitoring plus hotel profile, room/QR metadata, staff, catalog, partner, and integration configuration; no daily operational execution |
+| `TENANT_OWNER` | Hotel ownership plus room, stay, reservation, request, and billing operations; BCA/KBTT and staff-account boundaries remain separate |
 | `HOTEL_MANAGER` | Rooms, stays, reservations, requests, billing view, and service operations |
 | `HOTEL_FRONTDESK` | Arrivals, stays, and guest request handling |
 | `HOTEL_HOUSEKEEPING` | Room visibility and operational request handling |
@@ -79,9 +79,13 @@ never edited in place.
 Hotel assignment and RBAC are independent: a staff user needs an active role, the required
 business capability, and an active assignment to access a hotel-scoped resource.
 
-Migration `20260918190422_owner_read_config_boundary` adds hotel-scoped profile permissions and
-removes daily-operation grants from owner templates. Shared Room, Stay, Request, Billing, and KBTT
-records remain unchanged because Front Desk, GuestOS, and owner reporting consume the same data.
+Migration `20260918190422_owner_read_config_boundary` added hotel-scoped profile permissions and
+removed daily-operation grants from owner templates. Migration
+`20261107110000_restore_owner_hotel_operations` canonicalizes legacy `HOTEL_OWNER` assignments to
+`TENANT_OWNER`, disables the legacy role, and restores the explicit hotel room, stay, reservation,
+request, and billing capabilities required by the canonical owner workspace. It does not grant
+KBTT/BCA or staff-account CRUD permissions. Shared Room, Stay, Request, Billing, and KBTT records
+remain unchanged because Front Desk, GuestOS, and owner reporting consume the same data.
 
 Migration `20260921050000_retire_hotel_finance_keep_platform_finance` establishes `PLATFORM_FINANCE` as the
 sole immutable Finance role (with `platform.billing.view`, `platform.billing.manage`, `platform.hotels.view`).

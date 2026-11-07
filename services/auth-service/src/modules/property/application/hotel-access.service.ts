@@ -96,9 +96,7 @@ export class HotelAccessService {
       permissions.has("platform.hotels.view");
     const isTenantOwner =
       (roleCodes.has("TENANT_OWNER") || baseRoleCodes.has("TENANT_OWNER")) && !isSuperAdmin;
-    const isHotelOwner = roleCodes.has("HOTEL_OWNER") || baseRoleCodes.has("HOTEL_OWNER");
-
-    const hasElevatedHotelScope = isSuperAdmin || isTenantOwner || isHotelOwner;
+    const hasElevatedHotelScope = isSuperAdmin || isTenantOwner;
     const requiresHotelAssignment = !hasElevatedHotelScope;
 
     const tenantIds = new Set(actor.tenantUsers.map((entry) => entry.tenantId));
@@ -240,14 +238,11 @@ export class HotelAccessService {
       return { hotel, allowedRoomId: null, mode: "HOTEL_WIDE" };
     }
 
-    const isHotelOwner =
-      actor.roleCodes.has("HOTEL_OWNER") || actor.baseRoleCodes?.has("HOTEL_OWNER");
     const isHotelManager =
       actor.roleCodes.has("HOTEL_MANAGER") || actor.baseRoleCodes?.has("HOTEL_MANAGER");
     if (
       actor.isSuperAdmin ||
       actor.isTenantOwner ||
-      isHotelOwner ||
       isHotelManager ||
       actor.hotelWideRoomScopeIds?.has(hotelId)
     ) {

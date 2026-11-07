@@ -25,7 +25,6 @@ const MANAGED_ROLE_CODES = new Set(["HOTEL_FRONTDESK", "HOTEL_HOUSEKEEPING"]);
 const PROTECTED_ROLE_CODES = new Set([
   "SUPER_ADMIN",
   "VIETSAGE_OPERATION",
-  "HOTEL_OWNER",
   "TENANT_OWNER",
 ]);
 
@@ -254,7 +253,7 @@ export class HotelUsersService {
         none: {
           status: UserRoleStatus.ACTIVE,
           role: {
-            code: { in: ["TENANT_OWNER", "SUPER_ADMIN", "HOTEL_OWNER"] },
+            code: { in: ["TENANT_OWNER", "SUPER_ADMIN"] },
           },
         },
       },
@@ -349,7 +348,6 @@ export class HotelUsersService {
     if (
       targetRoles.has("SUPER_ADMIN") ||
       targetRoles.has("TENANT_OWNER") ||
-      targetRoles.has("HOTEL_OWNER") ||
       targetRoles.has("HOTEL_MANAGER") ||
       !targetRoles.has("HOTEL_FRONTDESK")
     ) {

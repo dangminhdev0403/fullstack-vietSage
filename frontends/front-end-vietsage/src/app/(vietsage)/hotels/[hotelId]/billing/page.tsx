@@ -105,7 +105,6 @@ export default async function StaffBillingPage({ params }: PageProps) {
             context.permissions.includes("hotel.billing.manage") ||
             context.permissions.includes("hotel.billing.checkout") ||
             context.activeRole.code === "TENANT_OWNER" ||
-            context.activeRole.code === "HOTEL_OWNER" ||
             context.activeRole.code === "SUPER_ADMIN"
           }
         />

@@ -49,7 +49,7 @@ export async function provisionHotelSimulation(
           status: UserRoleStatus.ACTIVE,
           role: {
             status: RoleStatus.ACTIVE,
-            code: { in: ["TENANT_OWNER", "HOTEL_OWNER", "HOTEL_MANAGER", "SUPER_ADMIN"] },
+            code: { in: ["TENANT_OWNER", "HOTEL_MANAGER", "SUPER_ADMIN"] },
           },
         },
       },
@@ -62,7 +62,7 @@ export async function provisionHotelSimulation(
           status: UserRoleStatus.ACTIVE,
           role: {
             status: RoleStatus.ACTIVE,
-            code: { in: ["TENANT_OWNER", "HOTEL_OWNER", "HOTEL_MANAGER", "SUPER_ADMIN"] },
+            code: { in: ["TENANT_OWNER", "HOTEL_MANAGER", "SUPER_ADMIN"] },
           },
         },
         select: { roleId: true },

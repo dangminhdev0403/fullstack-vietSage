@@ -58,7 +58,7 @@ test("returns Go to dashboard for admin session", () => {
 
 test("returns Go to dashboard for owner session", () => {
   const action = resolveLandingAction(
-    { activeRoleCode: "HOTEL_OWNER", canRefresh: true, authError: null },
+    { activeRoleCode: "TENANT_OWNER", canRefresh: true, authError: null },
     false,
     "/owner/dashboard",
   );

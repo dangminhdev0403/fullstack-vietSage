@@ -33,8 +33,8 @@ function cleanProfileDisplayName(name: string | null | undefined): string | null
   const trimmed = name.trim();
   if (!trimmed) return null;
 
-  // Ignore raw technical role tokens like "TENANT_OWNER", "HOTEL_OWNER", "SUPER_ADMIN"
-  if (/^(?:TENANT_OWNER|HOTEL_OWNER|SUPER_ADMIN|HOTEL_STAFF|STAFF)$/i.test(trimmed)) {
+  // Ignore raw technical role tokens like "TENANT_OWNER", "SUPER_ADMIN"
+  if (/^(?:TENANT_OWNER|SUPER_ADMIN|HOTEL_STAFF|STAFF)$/i.test(trimmed)) {
     return null;
   }
 

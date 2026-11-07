@@ -27,6 +27,10 @@ const MIGRATION_FILE_PATH = resolve(
   __dirname,
   "../../../prisma/migrations/20260912144505_tenant_owner_frontdesk_execution_capabilities/migration.sql",
 );
+const OWNER_OPERATIONAL_MIGRATION_FILE_PATH = resolve(
+  __dirname,
+  "../../../prisma/migrations/20261107110000_restore_owner_hotel_operations/migration.sql",
+);
 
 describe("business-permissions.registry capability contract", () => {
   describe("registry definitions", () => {
@@ -303,6 +307,39 @@ describe("business-permissions.registry capability contract", () => {
       expect(migrationSql).toContain("hotel.rooms.ready.confirm");
       expect(migrationSql).toContain("HOTEL_FRONTDESK");
       expect(migrationSql).toContain("HOTEL_MANAGER");
+    });
+  });
+
+  describe("owner hotel-operation capability restoration", () => {
+    it("grants owner hotel operations without crossing the BCA or staff-account boundary", () => {
+      expect(existsSync(OWNER_OPERATIONAL_MIGRATION_FILE_PATH)).toBe(true);
+      const migrationSql = readFileSync(OWNER_OPERATIONAL_MIGRATION_FILE_PATH, "utf-8");
+      const operationalKeys = [
+        "hotel.rooms.status.manage",
+        "hotel.stays.manage",
+        "hotel.stays.check-in",
+        "hotel.stays.check-out",
+        "hotel.reservations.manage",
+        "hotel.requests.manage",
+        "hotel.requests.coordinate",
+        "hotel.requests.execute",
+        "hotel.billing.manage",
+        "hotel.billing.checkout",
+      ];
+
+      for (const role of ["TENANT_OWNER"]) {
+        for (const key of operationalKeys) {
+          expect(migrationSql).toContain(`('${role}', '${key}')`);
+        }
+      }
+      expect(migrationSql).toContain("role.\"code\" = 'HOTEL_OWNER'");
+      expect(migrationSql).toContain('WHERE "code" = \'TENANT_OWNER\'');
+      expect(migrationSql).toContain("SET \"status\" = 'DISABLED'");
+      expect(migrationSql).toContain('DELETE FROM "RolePermission"');
+      expect(migrationSql).toContain('ON CONFLICT ("method", "path") DO UPDATE SET');
+      expect(migrationSql).not.toContain("hotel.kbtt");
+      expect(migrationSql).not.toContain("hotel.staff");
+      expect(migrationSql).toContain('ON CONFLICT ("roleId", "permissionId") DO NOTHING;');
     });
   });
 });

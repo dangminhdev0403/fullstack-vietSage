@@ -54,6 +54,9 @@ graphify-out/
 .hermes/plans/
 .hermes/tasks/
 
+# Local agent artifacts, browser captures, and generated verification snapshots
+.local/
+
 # LocalMate raw source data
 LocalMateData/
 

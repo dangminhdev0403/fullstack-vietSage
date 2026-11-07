@@ -323,7 +323,7 @@ export class AuthService {
     const permissions = new Set<string>();
     const activeTenantIds = new Set(user.tenantUsers.map((entry) => entry.tenantId));
     const isTenantOwner = [activeUserRole.role.code, activeUserRole.role.baseRole?.code].some(
-      (code) => code === "TENANT_OWNER" || code === "HOTEL_OWNER",
+      (code) => code === "TENANT_OWNER",
     );
     const accessibleHotels = (
       isTenantOwner
