@@ -392,7 +392,6 @@ export function EditReservationModal({
   const [depositAmountInput, setDepositAmount] = useState<string | null>(null);
   const [depositPercentInput, setDepositPercent] = useState<string | null>(null);
   const [depositInputMode, setDepositInputMode] = useState<"AMOUNT" | "PERCENT" | null>(null);
-  const [depositMethod, setDepositMethod] = useState<string>("CASH");
   const [showRoomOverride, setShowRoomOverride] = useState(false);
   const [editScope, setEditScope] = useState<"SINGLE" | "GROUP">("SINGLE");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -868,7 +867,7 @@ export function EditReservationModal({
             reservationId: reservation.id,
             amount: delta,
             receivedAmount: delta,
-            paymentMethod: depositMethod,
+            paymentMethod: "MANUAL",
             paymentType: "DEPOSIT",
             intent: "DEPOSIT",
             notes: "Ghi nhận tiền cọc khi cập nhật đơn đặt phòng",
@@ -2007,7 +2006,7 @@ export function EditReservationModal({
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-slate-700 block">
                       Số tiền đã đặt cọc (₫)
@@ -2024,21 +2023,6 @@ export function EditReservationModal({
                         ₫
                       </span>
                     </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-700 block">
-                      Phương thức đặt cọc
-                    </label>
-                    <select
-                      value={depositMethod}
-                      onChange={(e) => setDepositMethod(e.target.value)}
-                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs sm:text-sm font-semibold text-slate-900 focus:border-blue-700 focus:outline-hidden focus:ring-1 focus:ring-blue-700 transition cursor-pointer"
-                    >
-                      <option value="CASH">Tiền mặt (Cash)</option>
-                      <option value="BANK_TRANSFER">Chuyển khoản (Bank Transfer)</option>
-                      <option value="CARD">Thẻ tín dụng / POS</option>
-                    </select>
                   </div>
                 </div>
 
@@ -2123,11 +2107,6 @@ export function EditReservationModal({
                     <span className="text-emerald-800">
                       Tiền cọc ghi nhận: <strong className="font-bold tabular-nums">{formatVnd(numericDeposit)}</strong>
                     </span>
-                    {numericDeposit > 0 ? (
-                      <span className="text-slate-500 font-normal">
-                        ({depositMethod === "CASH" ? "Tiền mặt" : depositMethod === "BANK_TRANSFER" ? "Chuyển khoản" : "Thẻ/POS"})
-                      </span>
-                    ) : null}
                   </div>
                   <div className="flex items-center gap-1.5 font-bold">
                     <span className="text-slate-600">Còn lại phải thu khi nhận phòng:</span>

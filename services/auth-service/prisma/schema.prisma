@@ -1741,7 +1741,7 @@ model Payment {
   paymentNumber     String               @db.VarChar(80)
   status            PaymentStatus        @default(PENDING)
   provider          PaymentProvider      @default(MANUAL)
-  method            PaymentMethod
+  method            PaymentMethod        @default(MANUAL)
   currency          String               @default("VND") @db.VarChar(3)
   amount            Decimal              @default(0) @db.Decimal(12, 2)
   paidAmount        Decimal              @default(0) @db.Decimal(12, 2)

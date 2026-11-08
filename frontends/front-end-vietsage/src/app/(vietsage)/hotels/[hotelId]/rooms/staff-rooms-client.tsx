@@ -1150,6 +1150,21 @@ export function StaffRoomsClient({
     }
   }
 
+  function handleSelectBulkStayDuration(nights: number) {
+    const baseIn = bulkCheckInDate || todayYmd;
+    if (!bulkCheckInDate) {
+      setBulkCheckInDate(baseIn);
+    }
+    const inDateObj = new Date(baseIn);
+    inDateObj.setDate(inDateObj.getDate() + nights);
+    const nextOut = new Date(
+      inDateObj.getTime() - inDateObj.getTimezoneOffset() * 60_000,
+    )
+      .toISOString()
+      .slice(0, 10);
+    setBulkCheckOutDate(nextOut);
+  }
+
   function toggleBulkRoom(roomId: string) {
     setBulkSelectedRoomIds((prev) => {
       const next = new Set(prev);
@@ -8298,113 +8313,31 @@ export function StaffRoomsClient({
                           </div>
                         </div>
 
-                        <div>
-                          <label className="block text-xs font-bold text-slate-700 mb-1">
-                            Kênh bán / Nguồn khách <span className="text-red-500">*</span>
-                          </label>
-                          <select
-                            value={bulkSourceCategory}
-                            onChange={(e) => {
-                              const val = e.target.value as "DIRECT" | "OTA" | "TA" | "CORPORATE" | "OTHER";
-                              setBulkSourceCategory(val);
-                              setBulkSourcePartnerId("");
-                              setBulkCustomPartnerName("");
-                              setBulkIsAddingNewPartner(false);
-                            }}
-                            className="w-full h-8 rounded-lg border border-slate-300 bg-white px-2.5 text-xs font-semibold text-slate-900 focus:border-purple-600 focus:ring-1 focus:ring-purple-600 outline-none cursor-pointer"
-                          >
-                            <option value="DIRECT">Trực tiếp / Vãng lai (Khách lẻ)</option>
-                            <option value="TA">Đại lý du lịch / Lữ hành (TA)</option>
-                            <option value="OTA">Kênh trực tuyến (OTA)</option>
-                            <option value="CORPORATE">Doanh nghiệp / Công ty (CO)</option>
-                            <option value="OTHER">Nguồn khác</option>
-                          </select>
-                        </div>
-
-                        {bulkSourceCategory !== "DIRECT" ? (
-                          <div className="pt-2 border-t border-slate-100">
-                            <div className="flex items-center justify-between mb-1">
-                              <label className="block text-xs font-bold text-slate-700">
-                                {bulkSourceCategory === "TA"
-                                  ? "Công ty lữ hành / Đại lý (TA)"
-                                  : bulkSourceCategory === "OTA"
-                                    ? "Nền tảng OTA cụ thể"
-                                    : bulkSourceCategory === "CORPORATE"
-                                      ? "Công ty đối tác"
-                                      : "Đối tác / Ghi chú nguồn"}
-                              </label>
-                              {!bulkIsAddingNewPartner ? (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setBulkIsAddingNewPartner(true);
-                                    setBulkSourcePartnerId("");
-                                  }}
-                                  className="text-xs font-bold text-purple-700 hover:text-purple-800 hover:underline cursor-pointer"
-                                >
-                                  + Thêm mới
-                                </button>
-                              ) : null}
-                            </div>
-
-                            {bulkIsAddingNewPartner ? (
-                              <div className="flex items-center gap-1.5">
-                                <input
-                                  type="text"
-                                  value={bulkCustomPartnerName}
-                                  onChange={(e) => setBulkCustomPartnerName(e.target.value)}
-                                  placeholder={
-                                    bulkSourceCategory === "TA"
-                                      ? "VD: Vietravel, Saigontourist..."
-                                      : bulkSourceCategory === "OTA"
-                                        ? "VD: Agoda, Booking.com..."
-                                        : "VD: FPT Telecom, Viettel..."
-                                  }
-                                  className="flex-1 h-8 rounded-lg border border-purple-300 bg-white px-2.5 text-xs font-semibold text-slate-900 focus:border-purple-600 focus:ring-1 focus:ring-purple-600 outline-none"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setBulkIsAddingNewPartner(false);
-                                    setBulkCustomPartnerName("");
-                                  }}
-                                  className="h-8 px-2 rounded-lg border border-slate-300 text-xs font-semibold text-slate-600 hover:bg-slate-100 whitespace-nowrap cursor-pointer"
-                                  title="Quay lại danh sách có sẵn"
-                                >
-                                  Hủy
-                                </button>
-                              </div>
-                            ) : (
-                              <select
-                                value={bulkSourcePartnerId}
-                                onChange={(e) => {
-                                  if (e.target.value === "NEW") {
-                                    setBulkIsAddingNewPartner(true);
-                                    setBulkSourcePartnerId("");
-                                  } else {
-                                    setBulkSourcePartnerId(e.target.value);
-                                  }
-                                }}
-                                className="w-full h-8 rounded-lg border border-slate-300 bg-white px-2.5 text-xs font-semibold text-slate-900 focus:border-purple-600 focus:ring-1 focus:ring-purple-600 outline-none cursor-pointer"
-                              >
-                                <option value="">-- Chọn công ty / đối tác --</option>
-                                {bookingPartnersList
-                                  .filter(
-                                    (p) =>
-                                      !p.category ||
-                                      p.category === bulkSourceCategory ||
-                                      (bulkSourceCategory === "TA" && p.category === "TRAVEL_AGENCY"),
-                                  )
-                                  .map((p) => (
-                                    <option key={p.id} value={p.id}>
-                                      {p.name} {p.code ? `(${p.code})` : ""}
-                                    </option>
-                                  ))}
-                                <option value="NEW">+ Nhập đối tác mới...</option>
-                              </select>
-                            )}
+                        {/* Chọn nhanh số đêm lưu trú cho đoàn */}
+                        <div className="space-y-1.5 pt-2 border-t border-slate-100">
+                          <div className="flex items-center justify-between text-xs text-slate-600">
+                            <span className="font-bold">Thời gian lưu trú:</span>
+                            <span className="font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-200 whitespace-nowrap">
+                              {bulkNightsCount} đêm
+                            </span>
                           </div>
-                        ) : null}
+                          <div className="grid grid-cols-3 sm:grid-cols-6 gap-1">
+                            {[1, 2, 3, 4, 5, 7].map((nights) => (
+                              <button
+                                key={nights}
+                                type="button"
+                                onClick={() => handleSelectBulkStayDuration(nights)}
+                                className={`py-1 px-1.5 text-xs font-bold rounded-lg transition cursor-pointer text-center whitespace-nowrap ${
+                                  bulkNightsCount === nights
+                                    ? "bg-purple-700 text-white shadow-2xs ring-1 ring-purple-600"
+                                    : "bg-white hover:bg-purple-50 text-slate-700 hover:text-purple-900 border border-slate-200"
+                                }`}
+                              >
+                                {nights} đêm
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       </div>
 
                       {/* Bulk Uniform Price Toolbar (only for manual mode) */}
