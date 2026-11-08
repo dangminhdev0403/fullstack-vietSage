@@ -8215,182 +8215,208 @@ export function StaffRoomsClient({
                   onSubmit={submitBulkReservations}
                   className="flex-1 flex flex-col min-h-0 overflow-hidden"
                 >
-                  {/* Split Layout: Left Sidebar + Right Canvas */}
-                  <div className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden">
-                    {/* Left Column: Booking Info, Settings, Rates & Services */}
-                    <div className="w-full lg:w-[360px] xl:w-[390px] shrink-0 border-b lg:border-b-0 lg:border-r border-slate-200 bg-slate-50/70 overflow-y-auto p-4 space-y-3.5 min-h-0">
-                      {/* Mode Selector Tabs */}
+                  {/* Top Controls: Lead Name + Dates + Duration + Channel (Full Width Layout) */}
+                  <div className="px-5 sm:px-6 pt-3.5 pb-3 border-b border-slate-100 bg-slate-50/70 shrink-0 space-y-2.5">
+                    {/* Row 1: Lead Name and Dates (Spacious 3-Column Grid) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div>
-                        <label className="block text-xs font-bold text-slate-600 mb-1.5 uppercase tracking-wider">
-                          Chế độ đặt đoàn
+                        <label
+                          htmlFor="bulk-lead-name"
+                          className="block text-xs font-bold text-slate-700 mb-1"
+                        >
+                          Trưởng đoàn / Đại diện <span className="text-red-500">*</span>
                         </label>
-                        <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-200/70 rounded-xl">
-                          <button
-                            type="button"
-                            onClick={() => setBulkMode("auto")}
-                            className={`flex items-center justify-center gap-1.5 py-1.5 px-2 text-xs font-bold rounded-lg transition whitespace-nowrap cursor-pointer ${
-                              bulkMode === "auto"
-                                ? "bg-white text-purple-900 shadow-2xs"
-                                : "text-slate-600 hover:text-slate-900"
-                            }`}
-                          >
-                            <VsIcon name="auto_awesome" className="text-sm text-purple-700" />
-                            <span>Tự động gán</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setBulkMode("manual")}
-                            className={`flex items-center justify-center gap-1.5 py-1.5 px-2 text-xs font-bold rounded-lg transition whitespace-nowrap cursor-pointer ${
-                              bulkMode === "manual"
-                                ? "bg-white text-purple-900 shadow-2xs"
-                                : "text-slate-600 hover:text-slate-900"
-                            }`}
-                          >
-                            <VsIcon name="checklist" className="text-sm text-purple-700" />
-                            <span>Chọn từng phòng</span>
-                          </button>
-                        </div>
+                        <input
+                          id="bulk-lead-name"
+                          type="text"
+                          required
+                          value={bulkLeadName}
+                          onChange={(e) => setBulkLeadName(e.target.value)}
+                          placeholder="VD: Nguyễn Văn A (Đoàn lữ hành Saigontourist)"
+                          className="w-full rounded-xl border border-slate-300 px-3 py-1.5 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:border-purple-600 focus:ring-1 focus:ring-purple-600 outline-none transition"
+                        />
                       </div>
 
-                      {/* Guest Info Card */}
-                      <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs space-y-3">
-                        <div>
-                          <label
-                            htmlFor="bulk-lead-name"
-                            className="block text-xs font-bold text-slate-700 mb-1"
-                          >
-                            Trưởng đoàn / Đại diện <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            id="bulk-lead-name"
-                            type="text"
-                            required
-                            value={bulkLeadName}
-                            onChange={(e) => setBulkLeadName(e.target.value)}
-                            placeholder="VD: Nguyễn Văn A (Saigontourist)"
-                            className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:border-purple-600 focus:ring-1 focus:ring-purple-600 outline-none transition"
-                          />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <label
-                              htmlFor="bulk-checkin-date"
-                              className="block text-xs font-bold text-slate-700 mb-1"
-                            >
-                              Nhận phòng <span className="text-red-500">*</span>
-                            </label>
-                            <input
-                              id="bulk-checkin-date"
-                              name="bulkCheckInDate"
-                              aria-label="Ngày nhận phòng"
-                              type="date"
-                              required
-                              min={todayYmd}
-                              value={bulkCheckInDate}
-                              onChange={(e) => handleBulkCheckInChange(e.target.value)}
-                              className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs text-slate-900 focus:border-purple-600 focus:ring-1 focus:ring-purple-600 outline-none transition"
-                            />
-                          </div>
-                          <div>
-                            <label
-                              htmlFor="bulk-checkout-date"
-                              className="block text-xs font-bold text-slate-700 mb-1"
-                            >
-                              Trả phòng <span className="text-red-500">*</span>
-                            </label>
-                            <input
-                              id="bulk-checkout-date"
-                              name="bulkCheckOutDate"
-                              aria-label="Ngày trả phòng"
-                              type="date"
-                              required
-                              min={bulkCheckInDate || todayYmd}
-                              value={bulkCheckOutDate}
-                              onChange={(e) => setBulkCheckOutDate(e.target.value)}
-                              className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs text-slate-900 focus:border-purple-600 focus:ring-1 focus:ring-purple-600 outline-none transition"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Chọn nhanh số đêm lưu trú cho đoàn */}
-                        <div className="space-y-1.5 pt-2 border-t border-slate-100">
-                          <div className="flex items-center justify-between text-xs text-slate-600">
-                            <span className="font-bold">Thời gian lưu trú:</span>
-                            <span className="font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-200 whitespace-nowrap">
-                              {bulkNightsCount} đêm
-                            </span>
-                          </div>
-                          <div className="grid grid-cols-3 sm:grid-cols-6 gap-1">
-                            {[1, 2, 3, 4, 5, 7].map((nights) => (
-                              <button
-                                key={nights}
-                                type="button"
-                                onClick={() => handleSelectBulkStayDuration(nights)}
-                                className={`py-1 px-1.5 text-xs font-bold rounded-lg transition cursor-pointer text-center whitespace-nowrap ${
-                                  bulkNightsCount === nights
-                                    ? "bg-purple-700 text-white shadow-2xs ring-1 ring-purple-600"
-                                    : "bg-white hover:bg-purple-50 text-slate-700 hover:text-purple-900 border border-slate-200"
-                                }`}
-                              >
-                                {nights} đêm
-                              </button>
-                            ))}
-                          </div>
-                        </div>
+                      <div>
+                        <label
+                          htmlFor="bulk-checkin-date"
+                          className="block text-xs font-bold text-slate-700 mb-1"
+                        >
+                          Ngày nhận phòng <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          id="bulk-checkin-date"
+                          name="bulkCheckInDate"
+                          aria-label="Ngày nhận phòng"
+                          type="date"
+                          required
+                          min={todayYmd}
+                          value={bulkCheckInDate}
+                          onChange={(e) => handleBulkCheckInChange(e.target.value)}
+                          className="w-full rounded-xl border border-slate-300 px-3 py-1.5 text-xs sm:text-sm text-slate-900 focus:border-purple-600 focus:ring-1 focus:ring-purple-600 outline-none transition"
+                        />
                       </div>
 
-                      {/* Bulk Uniform Price Toolbar (only for manual mode) */}
-                      {bulkMode === "manual" && (
-                        <div className="bg-purple-50/80 p-3 rounded-xl border border-purple-200/90 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-purple-950">
-                              Giá thỏa thuận đoàn:
-                            </span>
-                            <span className="text-xs text-purple-800/80 font-medium">đ/đêm</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <div className="relative flex-1">
-                              <input
-                                type="text"
-                                inputMode="numeric"
-                                value={formatPriceInput(bulkUniformPrice)}
-                                onChange={(e) => setBulkUniformPrice(e.target.value)}
-                                placeholder="VD: 600.000"
-                                className="w-full text-xs font-bold text-purple-950 bg-white border border-purple-300 rounded-lg px-2.5 py-1.5 focus:border-purple-600 focus:ring-1 focus:ring-purple-600 outline-none"
-                              />
-                            </div>
-                            <button
-                              type="button"
-                              onClick={applyUniformPriceToAllSelected}
-                              disabled={
-                                bulkSelectedRoomIds.size === 0 ||
-                                !bulkUniformPrice.replace(/\D/g, "")
-                              }
-                              className="px-2.5 py-1.5 text-xs font-bold text-white bg-purple-700 hover:bg-purple-800 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition cursor-pointer whitespace-nowrap shadow-2xs"
-                              title="Áp dụng giá này cho các phòng đang chọn"
-                            >
-                              Áp dụng ({bulkSelectedRoomIds.size})
-                            </button>
-                          </div>
-                          <p className="text-xs text-purple-900/70 text-pretty">
-                            Có thể tùy chỉnh giá riêng cho từng phòng ngay trên thẻ phòng bên phải.
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Nightly Rates & Prebooked Services */}
-                      <div className="space-y-2.5 pt-1">
-                        {renderBulkNightlyRatesSection()}
-                        {renderBulkPrebookedServicesSection()}
+                      <div>
+                        <label
+                          htmlFor="bulk-checkout-date"
+                          className="block text-xs font-bold text-slate-700 mb-1"
+                        >
+                          Ngày trả phòng <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          id="bulk-checkout-date"
+                          name="bulkCheckOutDate"
+                          aria-label="Ngày trả phòng"
+                          type="date"
+                          required
+                          min={bulkCheckInDate || todayYmd}
+                          value={bulkCheckOutDate}
+                          onChange={(e) => setBulkCheckOutDate(e.target.value)}
+                          className="w-full rounded-xl border border-slate-300 px-3 py-1.5 text-xs sm:text-sm text-slate-900 focus:border-purple-600 focus:ring-1 focus:ring-purple-600 outline-none transition"
+                        />
                       </div>
                     </div>
 
-                    {/* Right Column: Room Selection Canvas / Auto Assignment List */}
-                    <div className="flex-1 flex flex-col min-h-0 bg-white p-3.5 sm:p-5 overflow-hidden">
+                    {/* Row 2: Booking Channel Source + Quick Duration Selector */}
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pt-0.5">
+                      {/* Channel / Source */}
+                      <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[280px]">
+                        <label className="text-xs font-bold text-slate-700 whitespace-nowrap">
+                          Nguồn đặt phòng (Kênh bán) <span className="text-red-500">*</span>:
+                        </label>
+                        <select
+                          value={bulkSourceCategory}
+                          onChange={(e) => {
+                            const val = e.target.value as "DIRECT" | "OTA" | "TA" | "CORPORATE" | "OTHER";
+                            setBulkSourceCategory(val);
+                            setBulkSourcePartnerId("");
+                            setBulkCustomPartnerName("");
+                            setBulkIsAddingNewPartner(false);
+                          }}
+                          className="h-8.5 rounded-lg border border-slate-300 bg-white px-2.5 text-xs font-semibold text-slate-900 focus:border-purple-600 focus:ring-1 focus:ring-purple-600 outline-none cursor-pointer flex-1 min-w-[190px] max-w-xs"
+                        >
+                          <option value="DIRECT">Trực tiếp / Vãng lai (Khách lẻ)</option>
+                          <option value="TA">Đại lý du lịch / Lữ hành (TA)</option>
+                          <option value="OTA">Kênh trực tuyến (OTA)</option>
+                          <option value="CORPORATE">Doanh nghiệp / Công ty (CO)</option>
+                          <option value="OTHER">Nguồn khác</option>
+                        </select>
 
+                        {bulkSourceCategory !== "DIRECT" && (
+                          <div className="flex-1 min-w-[180px] max-w-sm">
+                            {bookingPartnersList.filter((p) => p.category === bulkSourceCategory).length > 0 &&
+                            !bulkIsAddingNewPartner ? (
+                              <select
+                                value={bulkSourcePartnerId}
+                                onChange={(e) => {
+                                  if (e.target.value === "NEW") {
+                                    setBulkIsAddingNewPartner(true);
+                                    setBulkSourcePartnerId("NEW");
+                                  } else {
+                                    setBulkSourcePartnerId(e.target.value);
+                                  }
+                                }}
+                                className="w-full h-8.5 rounded-lg border border-slate-300 bg-white px-2.5 text-xs font-semibold text-slate-900 focus:border-purple-600 focus:ring-1 focus:ring-purple-600 outline-none cursor-pointer"
+                              >
+                                <option value="">-- Chọn đối tác --</option>
+                                {bookingPartnersList
+                                  .filter((p) => p.category === bulkSourceCategory)
+                                  .map((p) => (
+                                    <option key={p.id} value={p.id}>
+                                      {p.name}
+                                    </option>
+                                  ))}
+                                <option value="NEW">+ Thêm đối tác mới...</option>
+                              </select>
+                            ) : (
+                              <div className="flex items-center gap-1.5">
+                                <input
+                                  type="text"
+                                  value={bulkCustomPartnerName}
+                                  onChange={(e) => setBulkCustomPartnerName(e.target.value)}
+                                  placeholder="Tên đối tác / công ty..."
+                                  className="w-full h-8.5 rounded-lg border border-slate-300 bg-white px-2.5 text-xs font-semibold text-slate-900 focus:border-purple-600 focus:ring-1 focus:ring-purple-600 outline-none"
+                                />
+                                {bookingPartnersList.filter((p) => p.category === bulkSourceCategory).length > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setBulkIsAddingNewPartner(false);
+                                      setBulkSourcePartnerId("");
+                                    }}
+                                    className="text-xs text-slate-500 hover:text-slate-800 underline whitespace-nowrap cursor-pointer"
+                                  >
+                                    Chọn có sẵn
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Stay Duration Quick Selector */}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-xs font-bold text-slate-600 whitespace-nowrap">
+                          Thời gian lưu trú:
+                        </span>
+                        <span className="text-xs font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-200 whitespace-nowrap">
+                          {bulkNightsCount} đêm
+                        </span>
+                        <div className="inline-flex items-center gap-1">
+                          {[1, 2, 3, 4, 5, 7].map((nights) => (
+                            <button
+                              key={nights}
+                              type="button"
+                              onClick={() => handleSelectBulkStayDuration(nights)}
+                              className={`py-1 px-2 text-xs font-bold rounded-lg transition cursor-pointer text-center whitespace-nowrap ${
+                                bulkNightsCount === nights
+                                  ? "bg-purple-700 text-white shadow-2xs ring-1 ring-purple-600"
+                                  : "bg-white hover:bg-purple-50 text-slate-700 hover:text-purple-900 border border-slate-200"
+                              }`}
+                            >
+                              {nights} đêm
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Mode Selector Tabs (Full Width) */}
+                  <div className="px-5 sm:px-6 py-2 border-b border-slate-200 shrink-0 bg-white flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setBulkMode("auto")}
+                        className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs sm:text-sm font-bold rounded-xl transition whitespace-nowrap cursor-pointer ${
+                          bulkMode === "auto"
+                            ? "bg-purple-100 text-purple-900 border border-purple-300 shadow-2xs"
+                            : "text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-transparent"
+                        }`}
+                      >
+                        <VsIcon name="auto_awesome" className="text-base text-purple-700" />
+                        <span>Tự động gán phòng nhanh</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setBulkMode("manual")}
+                        className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs sm:text-sm font-bold rounded-xl transition whitespace-nowrap cursor-pointer ${
+                          bulkMode === "manual"
+                            ? "bg-purple-100 text-purple-900 border border-purple-300 shadow-2xs"
+                            : "text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-transparent"
+                        }`}
+                      >
+                        <VsIcon name="checklist" className="text-base text-purple-700" />
+                        <span>Chọn từng phòng</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Main Modal Content */}
                   {bulkMode === "auto" ? (
-                    <div className="flex-1 overflow-y-auto py-3 space-y-3 min-h-0 pr-1.5">
+                    <div className="flex-1 overflow-y-auto px-5 sm:px-6 py-3 space-y-3.5 min-h-0">
                       <div className="p-3 bg-purple-50/60 border border-purple-200/80 rounded-xl text-xs sm:text-sm text-purple-900 flex items-start justify-between gap-2">
                         <div className="flex items-start gap-2 min-w-0">
                           <VsIcon name="info" className="text-base text-purple-700 shrink-0 mt-0.5" />
@@ -8766,173 +8792,212 @@ export function StaffRoomsClient({
                         </div>
                       )}
 
+                      {/* Nightly Rates & Prebooked Services at bottom of auto mode */}
+                      <div className="mt-3.5 space-y-3 pb-2">
+                        {renderBulkNightlyRatesSection()}
+                        {renderBulkPrebookedServicesSection()}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex-1 flex flex-col min-h-0 px-5 sm:px-6 pt-2.5 pb-2 overflow-hidden bg-white">
+                      {/* Row 1: Bulk Uniform Price Toolbar (full width!) */}
+                      <div className="bg-purple-50/80 px-3.5 py-2 rounded-xl border border-purple-200/90 flex flex-wrap items-center justify-between gap-2.5 shrink-0 mb-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-xs font-bold text-purple-950 whitespace-nowrap">
+                            Giá thỏa thuận đoàn:
+                          </span>
+                          <div className="relative flex items-center w-36 sm:w-40">
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              value={formatPriceInput(bulkUniformPrice)}
+                              onChange={(e) => setBulkUniformPrice(e.target.value)}
+                              placeholder="VD: 600.000"
+                              className="w-full text-xs font-bold text-purple-950 bg-white border border-purple-300 rounded-lg pl-2.5 pr-11 py-1.5 focus:border-purple-600 focus:ring-1 focus:ring-purple-600 outline-none"
+                            />
+                            <span className="absolute right-2 text-xs font-semibold text-slate-500 pointer-events-none">
+                              đ/đêm
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={applyUniformPriceToAllSelected}
+                            disabled={
+                              bulkSelectedRoomIds.size === 0 ||
+                              !bulkUniformPrice.replace(/\D/g, "")
+                            }
+                            className="px-3 py-1.5 text-xs font-bold text-white bg-purple-700 hover:bg-purple-800 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition cursor-pointer whitespace-nowrap shadow-2xs"
+                            title="Áp dụng giá này cho các phòng đang chọn"
+                          >
+                            Áp dụng cho {bulkSelectedRoomIds.size} phòng đã chọn
+                          </button>
                         </div>
-                      ) : (
-                        <div className="flex-1 flex flex-col min-h-0">
-                          {/* Compact Unified Toolbar for manual mode */}
-                          <div className="pb-2.5 border-b border-slate-100 shrink-0 space-y-2">
-                            {/* Row 1: Search, Filters, View Mode & Batch Buttons */}
-                            <div className="flex flex-wrap items-center justify-between gap-2.5">
-                              <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[280px]">
-                                <div className="relative flex-1 min-w-[140px] max-w-xs">
-                                  <input
-                                    type="text"
-                                    placeholder="Tìm số phòng, loại phòng..."
-                                    value={bulkSearchQuery}
-                                    onChange={(e) => setBulkSearchQuery(e.target.value)}
-                                    className="w-full pl-8 pr-3 py-1.5 text-xs sm:text-sm rounded-lg border border-slate-200 focus:border-purple-600 focus:ring-1 focus:ring-purple-600 outline-none"
-                                  />
-                                  <VsIcon
-                                    name="search"
-                                    className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"
-                                  />
-                                </div>
-                                <select
-                                  value={bulkFloorFilter}
-                                  onChange={(e) => setBulkFloorFilter(e.target.value)}
-                                  className="py-1.5 px-2 text-xs sm:text-sm rounded-lg border border-slate-200 text-slate-700 bg-white cursor-pointer"
-                                >
-                                  <option value="all">Tất cả tầng</option>
-                                  {floors.map((f) => (
-                                    <option key={f} value={f}>
-                                      Tầng {f}
-                                    </option>
-                                  ))}
-                                </select>
-                                <select
-                                  value={bulkTypeFilter}
-                                  onChange={(e) => setBulkTypeFilter(e.target.value)}
-                                  className="py-1.5 px-2 text-xs sm:text-sm rounded-lg border border-slate-200 text-slate-700 bg-white cursor-pointer"
-                                >
-                                  <option value="all">Tất cả loại phòng</option>
-                                  {types.map((t) => (
-                                    <option key={t} value={t}>
-                                      {t}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
+                        <span className="text-xs text-purple-900/80 text-pretty">
+                          Có thể tùy chỉnh giá riêng cho từng phòng ngay trên thẻ phòng bên dưới.
+                        </span>
+                      </div>
 
-                              <div className="flex items-center gap-2">
-                                {/* View Mode Toggle */}
-                                <div className="inline-flex items-center gap-0.5 bg-slate-100 p-0.5 rounded-lg border border-slate-200 shrink-0">
-                                  <button
-                                    type="button"
-                                    onClick={() => setBulkManualViewMode("grid")}
-                                    className={`px-2 py-1 text-xs font-bold rounded-md flex items-center gap-1 transition cursor-pointer whitespace-nowrap ${
-                                      bulkManualViewMode === "grid"
-                                        ? "bg-white text-purple-900 shadow-2xs"
-                                        : "text-slate-600 hover:text-slate-900"
-                                    }`}
-                                    title="Hiển thị dạng thẻ chi tiết"
-                                  >
-                                    <VsIcon name="grid_view" className="text-xs" />
-                                    <span className="hidden sm:inline">Lưới thẻ</span>
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => setBulkManualViewMode("compact")}
-                                    className={`px-2 py-1 text-xs font-bold rounded-md flex items-center gap-1 transition cursor-pointer whitespace-nowrap ${
-                                      bulkManualViewMode === "compact"
-                                        ? "bg-white text-purple-900 shadow-2xs"
-                                        : "text-slate-600 hover:text-slate-900"
-                                    }`}
-                                    title="Hiển thị dạng ô thu gọn (xem được 40-50 phòng cùng lúc)"
-                                  >
-                                    <VsIcon name="apps" className="text-xs" />
-                                    <span className="hidden sm:inline">Thu gọn</span>
-                                  </button>
-                                </div>
+                      {/* Row 2: Search, Filters, View Mode & Batch Buttons */}
+                      <div className="pb-2 flex flex-wrap items-center justify-between gap-2 shrink-0">
+                        <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[280px]">
+                          <div className="relative flex-1 min-w-[140px] max-w-xs">
+                            <input
+                              type="text"
+                              placeholder="Tìm số phòng, loại phòng..."
+                              value={bulkSearchQuery}
+                              onChange={(e) => setBulkSearchQuery(e.target.value)}
+                              className="w-full pl-8 pr-3 py-1.5 text-xs sm:text-sm rounded-lg border border-slate-200 focus:border-purple-600 focus:ring-1 focus:ring-purple-600 outline-none"
+                            />
+                            <VsIcon
+                              name="search"
+                              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"
+                            />
+                          </div>
+                          <select
+                            value={bulkFloorFilter}
+                            onChange={(e) => setBulkFloorFilter(e.target.value)}
+                            className="py-1.5 px-2 text-xs sm:text-sm rounded-lg border border-slate-200 text-slate-700 bg-white cursor-pointer"
+                          >
+                            <option value="all">Tất cả tầng</option>
+                            {floors.map((f) => (
+                              <option key={f} value={f}>
+                                Tầng {f}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            value={bulkTypeFilter}
+                            onChange={(e) => setBulkTypeFilter(e.target.value)}
+                            className="py-1.5 px-2 text-xs sm:text-sm rounded-lg border border-slate-200 text-slate-700 bg-white cursor-pointer"
+                          >
+                            <option value="all">Tất cả loại phòng</option>
+                            {types.map((t) => (
+                              <option key={t} value={t}>
+                                {t}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
 
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    selectAllAvailableBulkRooms(
-                                      filteredBulkRooms
-                                        .filter((c) => c.isSelectable)
-                                        .map((c) => c.room),
-                                    )
-                                  }
-                                  className="px-2.5 py-1 text-xs font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg border border-purple-200 transition cursor-pointer whitespace-nowrap"
-                                >
-                                  Chọn tất cả trống
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={clearAllBulkRooms}
-                                  className="px-2.5 py-1 text-xs font-bold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-200 transition cursor-pointer whitespace-nowrap"
-                                >
-                                  Bỏ chọn
-                                </button>
-                              </div>
-                            </div>
-
-                            {/* Row 2: Status & Legend */}
-                            <div className="flex flex-wrap items-center justify-between px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs gap-2 shrink-0">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className="font-bold text-slate-700">
-                                  Đã chọn:{" "}
-                                  <span
-                                    className={`font-black ${
-                                      bulkSelectedRoomIds.size >= 2 &&
-                                      bulkSelectedRoomIds.size <= 50
-                                        ? "text-purple-700"
-                                        : "text-amber-600"
-                                    }`}
-                                  >
-                                    {bulkSelectedRoomIds.size} / 50 phòng
-                                  </span>
-                                </span>
-                                {bulkSelectedRoomIds.size < 2 ? (
-                                  <span className="text-amber-600 font-medium whitespace-nowrap">
-                                    (Cần chọn tối thiểu 2 phòng)
-                                  </span>
-                                ) : null}
-                                {bulkConflictRoomIds.size > 0 ? (
-                                  <span className="text-rose-600 font-bold whitespace-nowrap">
-                                    ({bulkConflictRoomIds.size} phòng bị xung đột)
-                                  </span>
-                                ) : null}
-                              </div>
-
-                              <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 text-xs font-semibold text-slate-600 whitespace-nowrap">
-                                <span className="flex items-center gap-1" title="Phòng trống sẵn sàng đón khách">
-                                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block ring-2 ring-emerald-200" />
-                                  <span>Sẵn sàng</span>
-                                </span>
-                                <span className="flex items-center gap-1" title="Phòng đang có khách lưu trú">
-                                  <span className="w-2.5 h-2.5 rounded-full bg-sky-500 inline-block ring-2 ring-sky-200" />
-                                  <span>Đang ở</span>
-                                </span>
-                                <span className="flex items-center gap-1" title="Phòng đã có lịch đặt trước">
-                                  <span className="w-2.5 h-2.5 rounded-full bg-purple-500 inline-block ring-2 ring-purple-200" />
-                                  <span>Đã đặt</span>
-                                </span>
-                                <span className="flex items-center gap-1" title="Phòng đang chờ dọn buồng">
-                                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block ring-2 ring-amber-200" />
-                                  <span>Chờ dọn</span>
-                                </span>
-                                <span className="flex items-center gap-1" title="Phòng quá hạn trả hoặc xung đột lịch">
-                                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block ring-2 ring-rose-200" />
-                                  <span>Quá hạn / Xung đột</span>
-                                </span>
-                                <span className="flex items-center gap-1" title="Phòng đang tạm khóa hoặc bảo trì">
-                                  <span className="w-2.5 h-2.5 rounded-full bg-slate-400 inline-block ring-2 ring-slate-200" />
-                                  <span>Khóa / Bảo trì</span>
-                                </span>
-                              </div>
-                            </div>
+                        <div className="flex items-center gap-2">
+                          {/* View Mode Toggle */}
+                          <div className="inline-flex items-center gap-0.5 bg-slate-100 p-0.5 rounded-lg border border-slate-200 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => setBulkManualViewMode("grid")}
+                              className={`px-2 py-1 text-xs font-bold rounded-md flex items-center gap-1 transition cursor-pointer whitespace-nowrap ${
+                                bulkManualViewMode === "grid"
+                                  ? "bg-white text-purple-900 shadow-2xs"
+                                  : "text-slate-600 hover:text-slate-900"
+                              }`}
+                              title="Hiển thị dạng thẻ chi tiết"
+                            >
+                              <VsIcon name="grid_view" className="text-xs" />
+                              <span className="hidden sm:inline">Lưới thẻ</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setBulkManualViewMode("compact")}
+                              className={`px-2 py-1 text-xs font-bold rounded-md flex items-center gap-1 transition cursor-pointer whitespace-nowrap ${
+                                bulkManualViewMode === "compact"
+                                  ? "bg-white text-purple-900 shadow-2xs"
+                                  : "text-slate-600 hover:text-slate-900"
+                              }`}
+                              title="Hiển thị dạng ô thu gọn (xem được nhiều phòng cùng lúc)"
+                            >
+                              <VsIcon name="apps" className="text-xs" />
+                              <span className="hidden sm:inline">Thu gọn</span>
+                            </button>
                           </div>
 
-                          {/* Room Cards Canvas (Scrollable) */}
-                          <div className="flex-1 overflow-y-auto min-h-0 pr-1.5 pt-2 pb-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              selectAllAvailableBulkRooms(
+                                filteredBulkRooms
+                                  .filter((c) => c.isSelectable)
+                                  .map((c) => c.room),
+                              )
+                            }
+                            className="px-2.5 py-1.5 text-xs font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg border border-purple-200 transition cursor-pointer whitespace-nowrap"
+                          >
+                            Chọn tất cả trống
+                          </button>
+                          <button
+                            type="button"
+                            onClick={clearAllBulkRooms}
+                            className="px-2.5 py-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-200 transition cursor-pointer whitespace-nowrap"
+                          >
+                            Bỏ chọn
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Row 3: Status & Legend */}
+                      <div className="flex flex-wrap items-center justify-between px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs gap-2 shrink-0 mb-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-bold text-slate-700">
+                            Đã chọn:{" "}
+                            <span
+                              className={`font-black ${
+                                bulkSelectedRoomIds.size >= 2 &&
+                                bulkSelectedRoomIds.size <= 50
+                                  ? "text-purple-700"
+                                  : "text-amber-600"
+                              }`}
+                            >
+                              {bulkSelectedRoomIds.size} / 50 phòng
+                            </span>
+                          </span>
+                          {bulkSelectedRoomIds.size < 2 ? (
+                            <span className="text-amber-600 font-medium whitespace-nowrap">
+                              (Cần chọn tối thiểu 2 phòng)
+                            </span>
+                          ) : null}
+                          {bulkConflictRoomIds.size > 0 ? (
+                            <span className="text-rose-600 font-bold whitespace-nowrap">
+                              ({bulkConflictRoomIds.size} phòng bị xung đột)
+                            </span>
+                          ) : null}
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 text-xs font-semibold text-slate-600 whitespace-nowrap">
+                          <span className="flex items-center gap-1" title="Phòng trống sẵn sàng đón khách">
+                            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block ring-2 ring-emerald-200" />
+                            <span>Sẵn sàng</span>
+                          </span>
+                          <span className="flex items-center gap-1" title="Phòng đang có khách lưu trú">
+                            <span className="w-2.5 h-2.5 rounded-full bg-sky-500 inline-block ring-2 ring-sky-200" />
+                            <span>Đang ở</span>
+                          </span>
+                          <span className="flex items-center gap-1" title="Phòng đã có lịch đặt trước">
+                            <span className="w-2.5 h-2.5 rounded-full bg-purple-500 inline-block ring-2 ring-purple-200" />
+                            <span>Đã đặt</span>
+                          </span>
+                          <span className="flex items-center gap-1" title="Phòng đang chờ dọn buồng">
+                            <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block ring-2 ring-amber-200" />
+                            <span>Chờ dọn</span>
+                          </span>
+                          <span className="flex items-center gap-1" title="Phòng quá hạn trả hoặc xung đột lịch">
+                            <span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block ring-2 ring-rose-200" />
+                            <span>Quá hạn / Xung đột</span>
+                          </span>
+                          <span className="flex items-center gap-1" title="Phòng đang tạm khóa hoặc bảo trì">
+                            <span className="w-2.5 h-2.5 rounded-full bg-slate-400 inline-block ring-2 ring-slate-200" />
+                            <span>Khóa / Bảo trì</span>
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Room Cards Canvas (Scrollable) */}
+                      <div className="flex-1 overflow-y-auto min-h-0 pr-1 pb-2">
                         {filteredBulkRooms.length === 0 ? (
                           <div className="py-16 text-center text-slate-400 text-sm">
                             Không tìm thấy phòng nào phù hợp với bộ lọc hiện tại.
                           </div>
                         ) : bulkManualViewMode === "compact" ? (
                           /* Compact Matrix View */
-                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2 pb-2">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-2 pb-2">
                             {filteredBulkRooms.map(
                               ({
                                 room,
@@ -9019,8 +9084,8 @@ export function StaffRoomsClient({
                             )}
                           </div>
                         ) : (
-                          /* Detailed Grid View */
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-4 gap-3 pb-2">
+                          /* Detailed Grid View (Spacious Full Width) */
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-3.5 pb-2">
                             {filteredBulkRooms.map(
                               ({
                                 room,
@@ -9188,11 +9253,15 @@ export function StaffRoomsClient({
                             )}
                           </div>
                         )}
-                          </div>
+
+                        {/* Nightly Rates & Prebooked Services at bottom of manual mode */}
+                        <div className="mt-3.5 space-y-3 pb-2">
+                          {renderBulkNightlyRatesSection()}
+                          {renderBulkPrebookedServicesSection()}
                         </div>
-                      )}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* Shared Modal Footer */}
                   <div className="px-5 sm:px-6 py-3 border-t border-slate-200 bg-white flex flex-wrap items-center justify-between gap-3 shrink-0">
