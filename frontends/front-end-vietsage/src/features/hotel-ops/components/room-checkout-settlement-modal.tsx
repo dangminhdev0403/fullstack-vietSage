@@ -11,7 +11,7 @@ import type {
   StayFolioContext,
 } from "@/features/hotel-ops/types/hotel-ops-contract";
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
-import { showConfirmDialog, showErrorAlert, showSuccessAlert, showWarningAlert } from "@/libs/swal";
+import { showErrorAlert, showSuccessAlert } from "@/libs/swal";
 import {
   settleCheckout,
   checkoutErrorMessage,
@@ -72,8 +72,6 @@ function CheckoutSettlementForm({
   const titleId = useId();
   const descId = useId();
 
-  // Mode: "PAYMENT" (Thu nốt tiền khách) vs "RECEIVABLE" (Chuyển sang công nợ)
-  const [settlementMode, setSettlementMode] = useState<"PAYMENT" | "RECEIVABLE">("PAYMENT");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submittingRef = useRef(false);
   const paymentAttempt = useRef<string | null>(null);
@@ -81,16 +79,6 @@ function CheckoutSettlementForm({
   // Form states for Payment
   const [paymentAmount, setPaymentAmount] = useState<string | undefined>(undefined);
   const [paymentNote, setPaymentNote] = useState("");
-
-  // Form states for Receivable
-  const [debtorType, setDebtorType] = useState<"GUEST" | "PARTNER" | "COMPANY">("GUEST");
-  const [debtorName, setDebtorName] = useState(stay.guestDisplayName || "");
-  const [partnerName, setPartnerName] = useState("");
-  const [assigneeStaff, setAssigneeStaff] = useState("");
-  const [receivableDueDate, setReceivableDueDate] = useState(() => {
-    const date = new Date(); date.setDate(date.getDate() + 7); return date.toISOString().slice(0, 10);
-  });
-  const [receivableNotes, setReceivableNotes] = useState("");
 
   // Option to auto-mark room as clean/ready after checkout to immediately receive next guest
   const [autoMarkReady, setAutoMarkReady] = useState(true);
@@ -103,14 +91,6 @@ function CheckoutSettlementForm({
     staleTime: 5000,
   });
   const effectiveFolioContext = folioContext ?? fetchedFolioContext;
-
-  const staffQuery = useQuery({
-    ...staffRoomsResource.bind({ hotelId }).queries.staffAssignments.options(undefined),
-    enabled: isOpen && settlementMode === "RECEIVABLE",
-  });
-  const staffOptions = Array.from(new Map((staffQuery.data ?? [])
-    .filter((assignment) => assignment.status === "ACTIVE")
-    .map((assignment) => [assignment.userId, assignment])).values());
 
   // Query prior booking payments / deposits for this reservation or stay
   const reservationId = "reservationId" in stay && typeof stay.reservationId === "string" ? stay.reservationId : undefined;
@@ -225,75 +205,6 @@ function CheckoutSettlementForm({
     }
   }
 
-  // Handler for Option 2: Chuyển sang công nợ & Trả phòng
-  async function handleTransferToReceivableAndCheckout() {
-    if (submittingRef.current || isCheckoutBlocked || !effectiveFolioContext) return;
-    const finalDebtorName =
-      debtorType === "PARTNER"
-        ? partnerName.trim() || debtorName.trim()
-        : debtorName.trim() || stay.guestDisplayName || "Khách lưu trú";
-
-    if (!finalDebtorName) {
-      await showWarningAlert("Thiếu thông tin", "Vui lòng nhập tên đối tượng ghi nhận công nợ.");
-      return;
-    }
-
-    const confirm = await showConfirmDialog({
-      icon: "warning",
-      title: "Chuyển số dư vào sổ công nợ?",
-      text: `Ghi nhận công nợ ${formatVnd(remainingDue)} cho ${finalDebtorName}. Phòng ${room.roomNumber} sẽ được trả và chuyển sang chờ dọn.`,
-      confirmText: "Xác nhận chuyển nợ",
-      cancelText: "Quay lại",
-    });
-    if (!confirm.isConfirmed) return;
-
-    submittingRef.current = true;
-    setIsSubmitting(true);
-    try {
-      const assignedStaffMember = staffOptions.find((s) => s.userId === assigneeStaff);
-      await staffRoomsRepository.transferStayToReceivable(hotelId, stay.id, {
-        debtorName: finalDebtorName,
-        debtorType: debtorType,
-        assigneeUserId: assigneeStaff.trim() || undefined,
-        dueDate: receivableDueDate ? new Date(receivableDueDate).toISOString() : undefined,
-        notes: [
-          debtorType === "PARTNER" && partnerName ? `Đối tác/Đại lý: ${partnerName.trim()}` : "",
-          assignedStaffMember ? `Nhân viên theo dõi đòi tiền: ${assignedStaffMember.user.fullName}` : "",
-          receivableNotes.trim(),
-        ].filter(Boolean).join(" - ") || undefined,
-      });
-
-      let roomReady = false;
-      if (autoMarkReady) {
-        try {
-          await staffRoomsRepository.markRoomReady(hotelId, room.id, room.updatedAt);
-          roomReady = true;
-        } catch { /* The debt transfer completed; readiness is independently unconfirmed. */ }
-      }
-
-      await showSuccessAlert(
-        "Đã chuyển công nợ thành công",
-        roomReady
-          ? `Đã chuyển ${formatVnd(remainingDue)} sang sổ công nợ của ${finalDebtorName}. Phòng ${room.roomNumber} đã chuyển sang SẴN SÀNG.`
-          : `Đã chuyển ${formatVnd(remainingDue)} sang sổ công nợ của ${finalDebtorName}. Phòng ${room.roomNumber} đã hoàn tất trả phòng.`,
-      );
-
-      await invalidateHotelRealtimeQueries(queryClient, hotelId);
-      if (onCheckoutSuccess) {
-        await onCheckoutSuccess();
-      }
-      onClose();
-    } catch (err) {
-      await showErrorAlert(
-        "Không thể chuyển công nợ",
-        checkoutErrorMessage(err),
-      );
-    } finally {
-      submittingRef.current = false;
-      setIsSubmitting(false);
-    }
-  }
-
   return (
     <div
       className="fixed inset-0 z-[70] grid place-items-center overflow-y-auto bg-slate-900/60 backdrop-blur-xs p-3 sm:p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:pb-6 pointer-events-auto"
@@ -379,7 +290,7 @@ function CheckoutSettlementForm({
                 {formatVnd(remainingDue)}
               </div>
               <span className="text-xs font-bold block">
-                {remainingDue === 0 ? "✓ Đã thanh toán đủ 100%" : "⚠ Cần thu khách hoặc chuyển công nợ"}
+                {remainingDue === 0 ? "✓ Đã thanh toán đủ 100%" : "⚠ Cần thu nốt số dư"}
               </span>
             </div>
           </div>
@@ -438,40 +349,7 @@ function CheckoutSettlementForm({
             </div>
           </div>
 
-          {/* Mode Switcher Tabs */}
-          <div className="border-b border-slate-200 pt-1">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setSettlementMode("PAYMENT")}
-                className={`inline-flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer ${
-                  settlementMode === "PAYMENT"
-                    ? "border-blue-700 text-blue-700"
-                    : "border-transparent text-slate-500 hover:text-slate-800"
-                }`}
-              >
-                <VsIcon name="payments" className="text-base" />
-                <span>Phương án 1: Thu nốt tiền khách</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setSettlementMode("RECEIVABLE")}
-                className={`inline-flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer ${
-                  settlementMode === "RECEIVABLE"
-                    ? "border-amber-600 text-amber-800"
-                    : "border-transparent text-slate-500 hover:text-slate-800"
-                }`}
-              >
-                <VsIcon name="account_balance_wallet" className="text-base" />
-                <span>Phương án 2: Chuyển sang công nợ (City Ledger)</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Tab 1: Thu nốt tiền khách */}
-          {settlementMode === "PAYMENT" ? (
-            <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/50 p-5">
+          <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/50 p-5">
               {remainingDue === 0 ? (
                 <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-xs font-semibold text-emerald-800 flex items-center gap-2">
                   <VsIcon name="check_circle" className="text-lg text-emerald-600" />
@@ -508,101 +386,7 @@ function CheckoutSettlementForm({
                   </div>
                 </div>
               )}
-            </div>
-          ) : (
-            /* Tab 2: Chuyển sang công nợ */
-            <div className="space-y-4 rounded-xl border border-amber-200 bg-amber-50/40 p-5">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Đối tượng nợ <span className="text-rose-600">*</span>
-                  </label>
-                  <select
-                    value={debtorType}
-                    onChange={(e) => setDebtorType(e.target.value as "GUEST" | "PARTNER" | "COMPANY")}
-                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 focus:border-blue-600 focus:outline-hidden"
-                  >
-                    <option value="GUEST">👤 Khách lẻ</option>
-                    <option value="PARTNER">🏢 Đối tác / Đại lý / OTA</option>
-                    <option value="COMPANY">🏬 Doanh nghiệp</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    {debtorType === "PARTNER" ? "Tên đối tác / Đại lý *" : "Tên đối tượng nợ *"}
-                  </label>
-                  {debtorType === "PARTNER" ? (
-                    <input
-                      type="text"
-                      value={partnerName}
-                      onChange={(e) => setPartnerName(e.target.value)}
-                      placeholder="VD: Agoda, Vietravel, Cty ABC..."
-                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 focus:border-blue-600 focus:outline-hidden"
-                    />
-                  ) : (
-                    <input
-                      type="text"
-                      value={debtorName}
-                      onChange={(e) => setDebtorName(e.target.value)}
-                      placeholder="Tên khách hàng nợ"
-                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 focus:border-blue-600 focus:outline-hidden"
-                    />
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Nhân viên theo dõi công nợ
-                  </label>
-                  <select
-                    value={assigneeStaff}
-                    onChange={(event) => setAssigneeStaff(event.target.value)}
-                    aria-label="Nhân viên theo dõi công nợ"
-                    disabled={staffQuery.isLoading}
-                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 focus:border-blue-600 focus:outline-hidden"
-                  >
-                    <option value="">Chưa phân công</option>
-                    {staffOptions.map((assignment) => (
-                      <option key={assignment.id} value={assignment.userId}>
-                        {assignment.user?.fullName || assignment.userId}
-                      </option>
-                    ))}
-                  </select>
-                  {staffQuery.isError ? (
-                    <p className="mt-1 text-xs text-amber-700" role="alert">
-                      Không thể tải danh sách nhân viên. Có thể để trống để phân công sau.
-                    </p>
-                  ) : null}
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Hạn thanh toán công nợ
-                  </label>
-                  <input
-                    type="date"
-                    value={receivableDueDate}
-                    onChange={(e) => setReceivableDueDate(e.target.value)}
-                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 focus:border-blue-600 focus:outline-hidden"
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Ghi chú / Cam kết thanh toán
-                  </label>
-                  <input
-                    type="text"
-                    value={receivableNotes}
-                    onChange={(e) => setReceivableNotes(e.target.value)}
-                    placeholder="VD: Hợp đồng số 12/2026, đối tác hẹn chuyển khoản ngày 05/11"
-                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 focus:border-blue-600 focus:outline-hidden"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
+          </div>
         </div>
 
         {/* Footer */}
@@ -627,27 +411,15 @@ function CheckoutSettlementForm({
               <span>Hủy bỏ</span>
             </button>
 
-            {settlementMode === "PAYMENT" ? (
-              <button
-                type="button"
-                disabled={isSubmitting || isCheckoutBlocked || !effectiveFolioContext}
-                onClick={() => void handleSettlePaymentAndCheckout()}
-                className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-6 py-2 text-xs sm:text-sm font-bold text-white shadow-md transition active:scale-[0.98] cursor-pointer disabled:opacity-50 whitespace-nowrap"
-              >
-                <VsIcon name="done_all" className="text-base" />
-                <span>{isSubmitting ? "Đang xử lý..." : remainingDue === 0 ? "Hoàn tất trả phòng" : "Xác nhận thu nốt & Trả phòng"}</span>
-              </button>
-            ) : (
-              <button
-                type="button"
-                disabled={isSubmitting || isCheckoutBlocked || !effectiveFolioContext}
-                onClick={() => void handleTransferToReceivableAndCheckout()}
-                className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-xl bg-amber-700 hover:bg-amber-800 px-6 py-2 text-xs sm:text-sm font-bold text-white shadow-md transition active:scale-[0.98] cursor-pointer disabled:opacity-50 whitespace-nowrap"
-              >
-                <VsIcon name="account_balance_wallet" className="text-base" />
-                <span>{isSubmitting ? "Đang lưu..." : "Xác nhận chuyển công nợ & Trả phòng"}</span>
-              </button>
-            )}
+            <button
+              type="button"
+              disabled={isSubmitting || isCheckoutBlocked || !effectiveFolioContext}
+              onClick={() => void handleSettlePaymentAndCheckout()}
+              className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-6 py-2 text-xs sm:text-sm font-bold text-white shadow-md transition active:scale-[0.98] cursor-pointer disabled:opacity-50 whitespace-nowrap"
+            >
+              <VsIcon name="done_all" className="text-base" />
+              <span>{isSubmitting ? "Đang xử lý..." : remainingDue === 0 ? "Hoàn tất trả phòng" : "Xác nhận thu nốt & Trả phòng"}</span>
+            </button>
           </div>
         </footer>
       </div>
