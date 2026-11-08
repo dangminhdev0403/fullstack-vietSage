@@ -62,6 +62,7 @@ docker compose -f docker-compose.prod.yml run --rm migrate
 docker compose -f docker-compose.prod.yml run --rm seed
 
 echo "=== [5/6] Starting / Updating Services ==="
+docker compose -f docker-compose.prod.yml up -d --force-recreate frontend auth-service
 docker compose -f docker-compose.prod.yml up -d
 
 echo "=== [6/6] Verifying container health and live endpoints ==="
