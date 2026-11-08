@@ -20,8 +20,6 @@ import {
 } from "@tanstack/react-query";
 
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
-import { CheckInWorkspace } from "@/features/local-biometric/components/check-in-workspace";
-import type { CheckInStayFields } from "@/features/local-biometric/types/check-in-workspace";
 import { BrandedRoomQr } from "@/features/hotel-ops/components/branded-room-qr";
 import { formatFriendlyCheckInError, formatFriendlyHotelOpsError } from "@/features/hotel-ops/utils/check-in-error";
 import {
@@ -851,22 +849,6 @@ export function StaffRoomsClient({
     }
     setSelectedContextRoom(room);
   }
-  const [isCheckInOpen, setIsCheckInOpen] = useState(
-    initialFlow === "check-in" &&
-      canManageStays &&
-      !isHousekeeping &&
-      initialRoomsPage.items.some(isAvailable),
-  );
-  const [submitError, setSubmitError] = useState<string | undefined>();
-  const [saving, setSaving] = useState(false);
-  const [activeReservationCheckIn, setActiveReservationCheckIn] = useState<{
-    reservationId: string;
-    guestDisplayName?: string;
-    roomId: string | null;
-    updatedAt?: string | null;
-  } | null>(null);
-  const [customCheckInInitialFields, setCustomCheckInInitialFields] =
-    useState<Partial<CheckInStayFields> | null>(null);
 
   // Available Room Action Choice Modal
   const [availableRoomChoice, setAvailableRoomChoice] =
@@ -1856,24 +1838,18 @@ export function StaffRoomsClient({
       return;
     }
 
-    setSelectedRoom(room);
-    setActiveReservationCheckIn({
+    setIsArrivalsOpen(false);
+    openUnifiedCheckInModal({
+      room,
       reservationId: arrival.id,
+      reservationCode: arrival.reservationCode,
+      groupCode: arrival.groupCode || null,
       guestDisplayName: arrival.guestDisplayName,
-      roomId: arrival.roomId,
+      guestPhone: arrival.guestPhone || null,
+      plannedCheckInAt: arrival.plannedCheckInAt,
+      plannedCheckOutAt: arrival.plannedCheckOutAt,
       updatedAt: arrival.updatedAt,
     });
-    setCustomCheckInInitialFields({
-      guestDisplayName: arrival.guestDisplayName,
-      guestPhone: arrival.guestPhone || "",
-      plannedCheckOutAt: arrival.plannedCheckOutAt,
-      reservationCode: arrival.reservationCode,
-      plannedCheckInAt: arrival.plannedCheckInAt,
-      notes: arrival.notes ?? undefined,
-    });
-    setSubmitError(undefined);
-    setIsArrivalsOpen(false);
-    setIsCheckInOpen(true);
   }
 
   useEffect(() => {
@@ -2106,27 +2082,86 @@ export function StaffRoomsClient({
     }
   }, [query, rooms, arrivalsList, hotelId, businessDate]);
 
-  const openGroupCheckIn = useCallback((code?: string | null, targetRooms?: GroupRoomItem[]) => {
-    let resolvedCode = code?.trim() || null;
-    if (!resolvedCode) {
-      // User clicked "Check-in đoàn" on toolbar without specifying a group:
-      // Open the Group Arrivals List Modal with pagination so user can browse, filter and select!
-      setIsGroupListModalOpen(true);
-      return;
-    }
+  const openUnifiedCheckInModal = useCallback(
+    (options: {
+      room?: HotelRoomSummary | null;
+      reservationId?: string | null;
+      reservationCode?: string | null;
+      groupCode?: string | null;
+      guestDisplayName?: string | null;
+      guestPhone?: string | null;
+      plannedCheckInAt?: string | null;
+      plannedCheckOutAt?: string | null;
+      updatedAt?: string | null;
+      targetRooms?: GroupRoomItem[];
+    }) => {
+      if (!canCheckInStay) return;
 
-    const roomsToUse = targetRooms && targetRooms.length > 0
-      ? targetRooms
-      : buildGroupRoomItems({
-          activeGroupCode: resolvedCode,
+      const resolvedGroupCode =
+        options.groupCode?.trim() ||
+        (options.reservationCode?.trim()
+          ? `RES-${options.reservationCode.trim()}`
+          : null) ||
+        `WI-${options.room ? getRoomNumber(options.room) : todayYmd.replace(/-/g, "").slice(2)}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
+      let roomsToUse: GroupRoomItem[] = [];
+
+      if (options.targetRooms && options.targetRooms.length > 0) {
+        roomsToUse = options.targetRooms;
+      } else if (options.room) {
+        roomsToUse = [
+          {
+            reservationId:
+              options.reservationId ||
+              `walkin-${options.room.id}-${Date.now()}`,
+            reservationCode:
+              options.reservationCode || `WI-${getRoomNumber(options.room)}`,
+            groupCode: resolvedGroupCode,
+            roomId: options.room.id,
+            roomNumber: getRoomNumber(options.room),
+            floor: options.room.floor || null,
+            roomType: options.room.type || null,
+            guestDisplayName: options.guestDisplayName || "",
+            guestPhone: options.guestPhone || null,
+            plannedCheckInAt:
+              options.plannedCheckInAt || new Date().toISOString(),
+            plannedCheckOutAt:
+              options.plannedCheckOutAt || localDateTime(1, 12),
+            rate: null,
+            status: "CONFIRMED",
+            stayId: null,
+          },
+        ];
+      } else if (options.groupCode) {
+        roomsToUse = buildGroupRoomItems({
+          activeGroupCode: options.groupCode,
           initialArrivals: groupArrivalsList,
           rooms,
-        }).filter((r) => r.status === "ARRIVAL_READY" || r.status === "CONFIRMED");
+        }).filter(
+          (r) => r.status === "ARRIVAL_READY" || r.status === "CONFIRMED",
+        );
+      }
 
-    setGroupCheckInCode(resolvedCode);
-    setGroupCheckInRooms(roomsToUse);
-    setIsGroupCheckInOpen(true);
-  }, [groupArrivalsList, rooms]);
+      setGroupCheckInCode(resolvedGroupCode);
+      setGroupCheckInRooms(roomsToUse);
+      setIsGroupCheckInOpen(true);
+    },
+    [canCheckInStay, groupArrivalsList, rooms, todayYmd],
+  );
+
+  const openGroupCheckIn = useCallback(
+    (code?: string | null, targetRooms?: GroupRoomItem[]) => {
+      let resolvedCode = code?.trim() || null;
+      if (!resolvedCode) {
+        // User clicked "Check-in đoàn" on toolbar without specifying a group:
+        // Open the Group Arrivals List Modal with pagination so user can browse, filter and select!
+        setIsGroupListModalOpen(true);
+        return;
+      }
+      openUnifiedCheckInModal({ groupCode: resolvedCode, targetRooms });
+    },
+    [openUnifiedCheckInModal],
+  );
 
   const openGroupOperations = useCallback((code?: string | null) => {
     openGroupCheckIn(code);
@@ -4371,24 +4406,17 @@ export function StaffRoomsClient({
       room.projectedReservation?.id ||
       room.upcomingReservation?.id ||
       "";
-    setSelectedRoom(room);
-    setActiveReservationCheckIn({
-      reservationId,
-      guestDisplayName: res.guestDisplayName,
-      roomId: res.arrival?.roomId ?? room.id,
-      updatedAt: res.arrival?.updatedAt,
-    });
-    setCustomCheckInInitialFields({
-      guestDisplayName: res.guestDisplayName,
-      guestPhone: res.guestPhone || "",
-      plannedCheckOutAt: res.plannedCheckOutAt,
-      reservationCode: res.reservationCode,
-      plannedCheckInAt: res.arrival?.plannedCheckInAt,
-      notes: res.arrival?.notes ?? undefined,
-    });
-    setSubmitError(undefined);
     setIsArrivalsOpen(false);
-    setIsCheckInOpen(true);
+    openUnifiedCheckInModal({
+      room,
+      reservationId: reservationId,
+      reservationCode: res.reservationCode,
+      groupCode: res.groupCode || null,
+      guestDisplayName: res.guestDisplayName,
+      guestPhone: res.guestPhone || null,
+      plannedCheckInAt: res.arrival?.plannedCheckInAt,
+      plannedCheckOutAt: res.plannedCheckOutAt,
+    });
   }
 
   function openWalkIn(room: HotelRoomSummary) {
@@ -4420,11 +4448,7 @@ export function StaffRoomsClient({
       return;
     }
 
-    setActiveReservationCheckIn(null);
-    setCustomCheckInInitialFields(null);
-    setSelectedRoom(room);
-    setSubmitError(undefined);
-    setIsCheckInOpen(true);
+    openUnifiedCheckInModal({ room });
   }
 
   async function toggleRoomBlocked(room: HotelRoomSummary) {
@@ -4760,19 +4784,13 @@ export function StaffRoomsClient({
       return;
     }
 
-    setSelectedRoom(room);
-    setActiveReservationCheckIn({
+    openUnifiedCheckInModal({
+      room,
       reservationId: booking.reservationId,
       guestDisplayName: booking.guestName,
-      roomId: room.id,
-    });
-    setCustomCheckInInitialFields({
-      guestDisplayName: booking.guestName,
-      guestPhone: booking.guestPhone || "",
+      guestPhone: booking.guestPhone || null,
       plannedCheckOutAt: booking.checkOutDate || localDateTime(1, 12),
     });
-    setSubmitError(undefined);
-    setIsCheckInOpen(true);
   }
 
   const handledFlowCheckInRef = useRef(false);
@@ -4812,25 +4830,15 @@ export function StaffRoomsClient({
         handleOtaFastCheckIn(matchingOta, targetRoom);
       } else if (targetRoom && targetRoom.projectedReservation) {
         handledFlowCheckInRef.current = true;
-        setSelectedRoom(targetRoom);
-        setActiveReservationCheckIn({
+        openUnifiedCheckInModal({
+          room: targetRoom,
           reservationId: targetRoom.projectedReservation.id,
-          guestDisplayName: targetRoom.projectedReservation.guestDisplayName,
-          roomId: targetRoom.id,
-        });
-        setCustomCheckInInitialFields({
           guestDisplayName: targetRoom.projectedReservation.guestDisplayName,
           plannedCheckOutAt: targetRoom.projectedReservation.plannedCheckOutAt,
         });
-        setSubmitError(undefined);
-        setIsCheckInOpen(true);
       } else if (targetRoom && isAvailable(targetRoom) && canManageStays) {
         handledFlowCheckInRef.current = true;
-        setActiveReservationCheckIn(null);
-        setCustomCheckInInitialFields(null);
-        setSelectedRoom(targetRoom);
-        setSubmitError(undefined);
-        setIsCheckInOpen(true);
+        openUnifiedCheckInModal({ room: targetRoom });
       } else {
         handledFlowCheckInRef.current = true;
       }
@@ -4905,234 +4913,6 @@ export function StaffRoomsClient({
       }
     } else if (roomStatus === "maintenance") {
       void handleMaintenanceRoomClick(room);
-    }
-  }
-
-  async function submitWalkIn(fields: CheckInStayFields) {
-    if (!selectedRoom) return;
-
-    const plannedCheckOutAt = new Date(fields.plannedCheckOutAt).toISOString();
-    if (isNaN(new Date(plannedCheckOutAt).getTime())) {
-      setSubmitError("Thời gian trả phòng không hợp lệ.");
-      return;
-    }
-
-    if (activeReservationCheckIn) {
-      setSaving(true);
-      setSubmitError(undefined);
-      try {
-        const result = await requestInternalApiEnvelope<HotelCheckInResult>(
-          `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/reservations/${encodeURIComponent(activeReservationCheckIn.reservationId)}/check-in`,
-          {
-            method: "POST",
-            body: {
-              guestDisplayName: fields.guestDisplayName.trim(),
-              ...(fields.guestPhone?.trim()
-                ? { guestPhone: fields.guestPhone.trim() }
-                : {}),
-              ...(fields.guestIdentityNumber?.trim()
-                ? { guestIdentityNumber: fields.guestIdentityNumber.trim() }
-                : {}),
-              ...(fields.guestDateOfBirth?.trim()
-                ? { guestDateOfBirth: fields.guestDateOfBirth.trim() }
-                : {}),
-              ...(fields.guestGender?.trim()
-                ? { guestGender: fields.guestGender.trim() }
-                : {}),
-              ...(fields.guestNationality?.trim()
-                ? { guestNationality: fields.guestNationality.trim() }
-                : {}),
-              ...(fields.guestResidencePlace?.trim()
-                ? { guestResidencePlace: fields.guestResidencePlace.trim() }
-                : {}),
-              ...(fields.occupants?.length
-                ? { occupants: fields.occupants }
-                : {}),
-              plannedCheckOutAt,
-              expectedRoomId: activeReservationCheckIn.roomId,
-              ...(activeReservationCheckIn.updatedAt
-                ? { expectedUpdatedAt: activeReservationCheckIn.updatedAt }
-                : {}),
-            },
-          },
-        );
-
-        setIsCheckInOpen(false);
-        setSelectedRoom(null);
-        setActiveReservationCheckIn(null);
-        setCustomCheckInInitialFields(null);
-        await showSuccessAlert(
-          "Nhận phòng thành công",
-          result.data?.accessCode ? `Mã truy cập: ${result.data.accessCode}` : "",
-        );
-        await invalidateHotelRealtimeQueries(queryClient, hotelId);
-        void boundChannelResource.invalidate(queryClient);
-        void refetch();
-        if (isArrivalsOpen) {
-          void loadArrivals(arrivalsRange);
-        }
-      } catch (error) {
-        const rawMsg = error instanceof Error ? error.message : "";
-        const isEarlyConfirmation =
-          rawMsg.includes("EARLY_CHECK_IN_CONFIRMATION_REQUIRED") ||
-          rawMsg.includes("EARLY_CHECK_IN_NOT_ALLOWED");
-        const isLateConfirmation = rawMsg.includes(
-          "LATE_CHECK_IN_CONFIRMATION_REQUIRED",
-        );
-        if (isEarlyConfirmation || isLateConfirmation) {
-          const earlyConfirm = await showConfirmDialog({
-            icon: "question",
-            title: isEarlyConfirmation
-              ? "Nhận phòng sớm?"
-              : "Nhận phòng muộn?",
-            html: formatEarlyCheckInConfirmHtml({
-              guestName:
-                activeReservationCheckIn?.guestDisplayName ||
-                fields.guestDisplayName ||
-                "Khách đặt trước",
-              roomNumber: selectedRoom
-                ? getRoomNumber(selectedRoom)
-                : "Phòng đã chọn",
-              scheduledDate: "Theo lịch hẹn",
-              isEarly: isEarlyConfirmation,
-            }),
-            confirmText: isEarlyConfirmation
-              ? "Nhận phòng sớm"
-              : "Nhận phòng muộn",
-            cancelText: "Hủy bỏ",
-            reverseButtons: false,
-          });
-          if (earlyConfirm.isConfirmed) {
-            setSaving(true);
-            try {
-              const retryResult = await requestInternalApiEnvelope<HotelCheckInResult>(
-                `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/reservations/${encodeURIComponent(activeReservationCheckIn.reservationId)}/check-in`,
-                {
-                  method: "POST",
-                  body: {
-                    guestDisplayName: fields.guestDisplayName.trim(),
-                    ...(fields.guestPhone?.trim()
-                      ? { guestPhone: fields.guestPhone.trim() }
-                      : {}),
-                    ...(fields.guestIdentityNumber?.trim()
-                      ? { guestIdentityNumber: fields.guestIdentityNumber.trim() }
-                      : {}),
-                    ...(fields.guestDateOfBirth?.trim()
-                      ? { guestDateOfBirth: fields.guestDateOfBirth.trim() }
-                      : {}),
-                    ...(fields.guestGender?.trim()
-                      ? { guestGender: fields.guestGender.trim() }
-                      : {}),
-                    ...(fields.guestNationality?.trim()
-                      ? { guestNationality: fields.guestNationality.trim() }
-                      : {}),
-                    ...(fields.guestResidencePlace?.trim()
-                      ? { guestResidencePlace: fields.guestResidencePlace.trim() }
-                      : {}),
-                    ...(fields.occupants?.length
-                      ? { occupants: fields.occupants }
-                      : {}),
-                    plannedCheckOutAt,
-                    ...(isEarlyConfirmation
-                      ? { confirmEarlyCheckIn: true }
-                      : { confirmLateCheckIn: true }),
-                    expectedRoomId: activeReservationCheckIn.roomId,
-                    ...(activeReservationCheckIn.updatedAt
-                      ? { expectedUpdatedAt: activeReservationCheckIn.updatedAt }
-                      : {}),
-                  },
-                },
-              );
-
-              setIsCheckInOpen(false);
-              setSelectedRoom(null);
-              setActiveReservationCheckIn(null);
-              setCustomCheckInInitialFields(null);
-              await showSuccessAlert(
-                "Nhận phòng thành công",
-                retryResult.data?.accessCode ? `Mã truy cập: ${retryResult.data.accessCode}` : "",
-              );
-              await invalidateHotelRealtimeQueries(queryClient, hotelId);
-              void boundChannelResource.invalidate(queryClient);
-              void refetch();
-              if (isArrivalsOpen) {
-                void loadArrivals(arrivalsRange);
-              }
-              return;
-            } catch (retryError) {
-              const friendlyRetry = formatFriendlyCheckInError(retryError);
-              setSubmitError(friendlyRetry);
-              await showErrorAlert("Không thể nhận phòng", friendlyRetry);
-              return;
-            } finally {
-              setSaving(false);
-            }
-          }
-        }
-        const friendlyMsg = formatFriendlyCheckInError(error);
-        setSubmitError(friendlyMsg);
-        await showErrorAlert("Không thể nhận phòng", friendlyMsg);
-      } finally {
-        setSaving(false);
-      }
-      return;
-    }
-
-    setSaving(true);
-    setSubmitError(undefined);
-    try {
-      const result = await requestInternalApiEnvelope<HotelCheckInResult>(
-        `${apiBase}/stays`,
-        {
-          method: "POST",
-          body: {
-            roomId: selectedRoom.id,
-            guestDisplayName: fields.guestDisplayName.trim(),
-            ...(fields.guestPhone?.trim()
-              ? { guestPhone: fields.guestPhone.trim() }
-              : {}),
-            ...(fields.guestIdentityNumber?.trim()
-              ? { guestIdentityNumber: fields.guestIdentityNumber.trim() }
-              : {}),
-            ...(fields.guestDateOfBirth?.trim()
-              ? { guestDateOfBirth: fields.guestDateOfBirth.trim() }
-              : {}),
-            ...(fields.guestGender?.trim()
-              ? { guestGender: fields.guestGender.trim() }
-              : {}),
-            ...(fields.guestNationality?.trim()
-              ? { guestNationality: fields.guestNationality.trim() }
-              : {}),
-            ...(fields.guestResidencePlace?.trim()
-              ? { guestResidencePlace: fields.guestResidencePlace.trim() }
-              : {}),
-            ...(fields.occupants?.length
-              ? { occupants: fields.occupants }
-              : {}),
-            plannedCheckInAt: new Date().toISOString(),
-            plannedCheckOutAt,
-          },
-        },
-      );
-
-      setIsCheckInOpen(false);
-      setSelectedRoom(null);
-      await showSuccessAlert(
-        "Đã mở phòng",
-        `Mã truy cập: ${result.data.accessCode}`,
-      );
-      await invalidateHotelRealtimeQueries(queryClient, hotelId);
-      void refetch();
-    } catch (error) {
-      setSubmitError(
-        error instanceof Error ? error.message : "Vui lòng thử lại.",
-      );
-      await showErrorAlert(
-        "Không thể mở phòng",
-        error instanceof Error ? error.message : "Vui lòng thử lại.",
-      );
-    } finally {
-      setSaving(false);
     }
   }
 
@@ -6672,11 +6452,10 @@ export function StaffRoomsClient({
             await handleProcessingRoomClick(fullRoom);
           }}
           onOpenCheckIn={(room) => {
-            setSelectedRoom(room);
-            setActiveReservationCheckIn(null);
-            setCustomCheckInInitialFields(null);
-            setSubmitError(undefined);
-            setIsCheckInOpen(true);
+            const fullRoom =
+              rooms.find((r) => r.id === room.id) ??
+              (room as unknown as HotelRoomSummary);
+            openUnifiedCheckInModal({ room: fullRoom });
           }}
           onCheckInReservation={(block, options) => {
             if (block.groupCode && !options?.forceSingleRoom) {
@@ -7297,40 +7076,6 @@ export function StaffRoomsClient({
             document.body,
           )
         : null}
-
-      {/* Check-in Workspace (Walk-in & Reservation) */}
-      {isCheckInOpen && selectedRoom ? (
-        <CheckInWorkspace
-          key={selectedRoom.id}
-          open={isCheckInOpen}
-          hotelId={hotelId}
-          room={{
-            id: selectedRoom.id,
-            roomNumber: getRoomNumber(selectedRoom),
-            type: selectedRoom.type ?? undefined,
-            maxOccupancy: selectedRoom.maxOccupancy,
-            status: "available",
-          }}
-          canManageStays={canManageStays}
-          enabledFeatures={enabledFeatures}
-          initialStayFields={
-            customCheckInInitialFields ?? {
-              plannedCheckOutAt: localDateTime(1, 12),
-            }
-          }
-          submitState={saving ? "submitting" : "idle"}
-          submitError={submitError}
-          onSubmit={submitWalkIn}
-          onClose={() => {
-            if (saving) return;
-            setIsCheckInOpen(false);
-            setSelectedRoom(null);
-            setActiveReservationCheckIn(null);
-            setCustomCheckInInitialFields(null);
-            setSubmitError(undefined);
-          }}
-        />
-      ) : null}
 
       {/* Arrivals Modal Portal */}
       {isArrivalsOpen
@@ -9754,23 +9499,17 @@ export function StaffRoomsClient({
             return;
           }
           setSelectedContextRoom(null);
-          setSelectedRoom(targetRoom);
-          setActiveReservationCheckIn({
+          openUnifiedCheckInModal({
+            room: targetRoom,
             reservationId,
+            reservationCode: arr?.reservationCode,
+            groupCode: arr?.groupCode || null,
             guestDisplayName: arr?.guestDisplayName,
-            roomId: arr?.roomId ?? targetRoom.id,
+            guestPhone: arr?.guestPhone || null,
+            plannedCheckInAt: arr?.plannedCheckInAt,
+            plannedCheckOutAt: arr?.plannedCheckOutAt,
             updatedAt: arr?.updatedAt,
           });
-          setCustomCheckInInitialFields({
-            guestDisplayName: arr?.guestDisplayName,
-            guestPhone: arr?.guestPhone || "",
-            plannedCheckOutAt: arr?.plannedCheckOutAt,
-            reservationCode: arr?.reservationCode,
-            plannedCheckInAt: arr?.plannedCheckInAt,
-            notes: arr?.notes ?? undefined,
-          });
-          setSubmitError(undefined);
-          setIsCheckInOpen(true);
         }}
         triggerElementRef={activeTriggerRef}
       />
@@ -9860,6 +9599,7 @@ export function StaffRoomsClient({
         canCheckInStay={canCheckInStay}
         canManageReservations={canManageReservations}
         canOperateArrivals={Boolean(canManageReservations || canCheckInStay)}
+        onCheckIn={(arr) => void handleCheckInArrival(arr)}
       />
 
       <GroupOperationsDrawer
@@ -9895,6 +9635,15 @@ export function StaffRoomsClient({
         onSelectGroup={(code) => {
           setIsGroupListModalOpen(false);
           openGroupCheckIn(code);
+        }}
+        onDirectWalkInGroup={() => {
+          setIsGroupListModalOpen(false);
+          const dateStr = todayYmd.replace(/-/g, "").slice(2);
+          const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+          const newGroupCode = `GRP-WI-${dateStr}-${randomSuffix}`;
+          setGroupCheckInCode(newGroupCode);
+          setGroupCheckInRooms([]);
+          setIsGroupCheckInOpen(true);
         }}
         onCreateBulkReservation={() => {
           setIsGroupListModalOpen(false);

@@ -27,7 +27,7 @@ import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/inval
 import { checkInRecovery, formatFriendlyCheckInError, isEarlyCheckInError, isLateCheckInError } from "@/features/hotel-ops/utils/check-in-error";
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import { RoomCheckoutSettlementModal } from "./room-checkout-settlement-modal";
-import type { HotelRoomSummary } from "@/features/hotel-ops/types/hotel-ops-contract";
+import type { HotelCheckInResult, HotelRoomSummary } from "@/features/hotel-ops/types/hotel-ops-contract";
 import {
   showConfirmDialog,
   showErrorAlert,
@@ -349,6 +349,13 @@ function GroupCheckInForm({
   const [targetSwapRoomId, setTargetSwapRoomId] = useState<string>("");
   const [isSwappingRoom, setIsSwappingRoom] = useState<boolean>(false);
 
+  // Add Room to Group Modal State
+  const [isAddRoomModalOpen, setIsAddRoomModalOpen] = useState<boolean>(false);
+  const [selectedAddRoomIds, setSelectedAddRoomIds] = useState<Set<string>>(new Set());
+  const [addRoomSearch, setAddRoomSearch] = useState<string>("");
+  const [addRoomFloorFilter, setAddRoomFloorFilter] = useState<string>("all");
+  const [addRoomTypeFilter, setAddRoomTypeFilter] = useState<string>("all");
+
   // Target room type info for the room currently being swapped (cùng loại, cùng hạng)
   const currentAssignedSwapRoom = reassigningItem?.roomId
     ? allHotelRooms.find((room) => room.id === reassigningItem.roomId) ?? null : null;
@@ -408,6 +415,36 @@ function GroupCheckInForm({
     });
   }, [reassigningItem, currentAssignedSwapRoom, targetRoomTypeLabel, availableRooms]);
 
+  const differentTypeAvailableRooms = useMemo(() => {
+    if (!reassigningItem) return [];
+    const sameIds = new Set(sameTypeAvailableRooms.map((r) => r.id));
+    return availableRooms.filter(
+      (candidate) => candidate.id !== reassigningItem.roomId && !sameIds.has(candidate.id),
+    );
+  }, [reassigningItem, availableRooms, sameTypeAvailableRooms]);
+
+  const [allowDifferentRoomType, setAllowDifferentRoomType] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (reassigningItem) {
+      if (sameTypeAvailableRooms.length === 0 && differentTypeAvailableRooms.length > 0) {
+        setAllowDifferentRoomType(true);
+      } else {
+        setAllowDifferentRoomType(false);
+      }
+    }
+  }, [reassigningItem, sameTypeAvailableRooms.length, differentTypeAvailableRooms.length]);
+
+  const chosenSwapRoom = useMemo(() => {
+    if (!targetSwapRoomId) return null;
+    return availableRooms.find((r) => r.id === targetSwapRoomId) ?? null;
+  }, [targetSwapRoomId, availableRooms]);
+
+  const isExceptionSwap = useMemo(() => {
+    if (!chosenSwapRoom) return false;
+    return differentTypeAvailableRooms.some((r) => r.id === chosenSwapRoom.id);
+  }, [chosenSwapRoom, differentTypeAvailableRooms]);
+
   // Initialize room states strictly from eligibleRooms (active rooms with QR only)
   const [roomsState, setRoomsState] = useState<GroupRoomCheckInState[]>(() => {
     return eligibleRooms.map((r) => ({
@@ -421,8 +458,8 @@ function GroupCheckInForm({
       updatedAt: r.updatedAt || null,
       guests: [
         {
-          fullName: "",
-          phone: "",
+          fullName: r.guestDisplayName || "",
+          phone: r.guestPhone || "",
           identityNumber: "",
           dateOfBirth: "",
           gender: "Nam",
@@ -436,22 +473,123 @@ function GroupCheckInForm({
     }));
   });
 
+  const assignedRoomIdSet = useMemo(() => new Set(roomsState.map((r) => r.roomId)), [roomsState]);
+
+  const candidateRoomsToAdd = useMemo(() => {
+    return availableRooms.filter((r) => {
+      if (assignedRoomIdSet.has(r.id)) return false;
+      if (addRoomFloorFilter !== "all" && String(r.floor || "") !== addRoomFloorFilter) return false;
+      const rType = r.type || r.roomTypeName || "";
+      if (addRoomTypeFilter !== "all" && rType !== addRoomTypeFilter) return false;
+      if (addRoomSearch.trim()) {
+        const q = addRoomSearch.trim().toLowerCase();
+        const matchNum = String(r.roomNumber).toLowerCase().includes(q);
+        const matchType = rType.toLowerCase().includes(q);
+        if (!matchNum && !matchType) return false;
+      }
+      return true;
+    });
+  }, [availableRooms, assignedRoomIdSet, addRoomFloorFilter, addRoomTypeFilter, addRoomSearch]);
+
+  const addRoomFloors = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of availableRooms) {
+      if (r.floor) set.add(String(r.floor));
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  }, [availableRooms]);
+
+  const addRoomTypes = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of availableRooms) {
+      const t = r.type || r.roomTypeName;
+      if (t) set.add(t);
+    }
+    return Array.from(set).sort();
+  }, [availableRooms]);
+
+  const handleConfirmAddRooms = () => {
+    if (selectedAddRoomIds.size === 0) return;
+    const now = Date.now();
+    let counter = 0;
+    const defaultCheckIn = roomsState[0]?.plannedCheckInAt || new Date().toISOString();
+    const defaultCheckOut =
+      roomsState[0]?.plannedCheckOutAt ||
+      new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+    const newItems: GroupRoomCheckInState[] = [];
+    for (const roomId of selectedAddRoomIds) {
+      const roomObj = availableRooms.find((r) => r.id === roomId);
+      if (!roomObj) continue;
+      counter++;
+      newItems.push({
+        reservationId: `walkin-${roomObj.id}-${now}-${counter}`,
+        reservationCode: `WI-${roomObj.roomNumber}`,
+        roomId: roomObj.id,
+        roomNumber: String(roomObj.roomNumber),
+        roomType: roomObj.type || roomObj.roomTypeName || undefined,
+        plannedCheckInAt: defaultCheckIn,
+        plannedCheckOutAt: defaultCheckOut,
+        updatedAt: null,
+        guests: [
+          {
+            fullName: "",
+            phone: "",
+            identityNumber: "",
+            dateOfBirth: "",
+            gender: "Nam",
+            nationality: "Việt Nam",
+            residencePlace: "",
+            isPrimary: true,
+          },
+        ],
+        capturesByGuest: {},
+        activeGuestIndex: 0,
+      });
+    }
+
+    const nextIndex = roomsState.length;
+    setRoomsState((prev) => [...prev, ...newItems]);
+    setActiveRoomIndex(nextIndex);
+    setSelectedAddRoomIds(new Set());
+    setIsAddRoomModalOpen(false);
+  };
+
+  const handleRemoveActiveRoom = async () => {
+    if (!activeRoom || roomsState.length <= 1) return;
+    const confirm = await showConfirmDialog({
+      icon: "warning",
+      title: `Bỏ phòng ${activeRoom.roomNumber}?`,
+      text: "Phòng này sẽ được loại khỏi đợt nhận phòng đoàn hiện tại.",
+      confirmText: "Xác nhận bỏ phòng",
+      cancelText: "Giữ lại",
+    });
+    if (!confirm.isConfirmed) return;
+
+    setRoomsState((prev) => prev.filter((_, idx) => idx !== activeRoomIndex));
+    setActiveRoomIndex((prev) => (prev > 0 ? prev - 1 : 0));
+  };
+
   const roomSourceKey = eligibleRooms.map((room) => [room.reservationId, room.roomId, room.updatedAt].join(":" )).join("|");
   const [lastRoomSourceKey, setLastRoomSourceKey] = useState(roomSourceKey);
   if (lastRoomSourceKey !== roomSourceKey) {
     setLastRoomSourceKey(roomSourceKey);
-    setRoomsState((previous) => eligibleRooms.filter((room) => !completedIds.has(room.reservationId)).map((room) => {
-      const draft = previous.find((item) => item.reservationId === room.reservationId);
-      return {
-        reservationId: room.reservationId, reservationCode: room.reservationCode,
-        roomId: room.roomId || "", roomNumber: room.roomNumber || room.reservationCode,
-        roomType: room.roomType || undefined, plannedCheckOutAt: room.plannedCheckOutAt || "",
-        plannedCheckInAt: room.plannedCheckInAt || "",
-        updatedAt: room.updatedAt || null,
-        guests: draft?.guests ?? [{ fullName: "", gender: "Nam", nationality: "Việt Nam", isPrimary: true }],
-        capturesByGuest: draft?.capturesByGuest ?? {}, activeGuestIndex: draft?.activeGuestIndex ?? 0,
-      };
-    }));
+    setRoomsState((previous) => {
+      const walkinRooms = previous.filter((r) => r.reservationId.startsWith("walkin-"));
+      const mapped = eligibleRooms.filter((room) => !completedIds.has(room.reservationId)).map((room) => {
+        const draft = previous.find((item) => item.reservationId === room.reservationId);
+        return {
+          reservationId: room.reservationId, reservationCode: room.reservationCode,
+          roomId: room.roomId || "", roomNumber: room.roomNumber || room.reservationCode,
+          roomType: room.roomType || undefined, plannedCheckOutAt: room.plannedCheckOutAt || "",
+          plannedCheckInAt: room.plannedCheckInAt || "",
+          updatedAt: room.updatedAt || null,
+          guests: draft?.guests ?? [{ fullName: room.guestDisplayName || "", phone: room.guestPhone || "", gender: "Nam", nationality: "Việt Nam", isPrimary: true }],
+          capturesByGuest: draft?.capturesByGuest ?? {}, activeGuestIndex: draft?.activeGuestIndex ?? 0,
+        };
+      });
+      return [...mapped, ...walkinRooms];
+    });
     setActiveRoomIndex(0);
   }
 
@@ -465,11 +603,15 @@ function GroupCheckInForm({
 
     setIsSwappingRoom(true);
     try {
-      const assigned = await staffRoomsRepository.assignReservationRoom(hotelId, reassigningItem.reservationId, {
-        roomId: targetSwapRoomId,
-        expectedRoomId: reassigningItem.roomId,
-        ...(reassigningItem.updatedAt ? { expectedUpdatedAt: reassigningItem.updatedAt } : {}),
-      });
+      let updatedUpdatedAt = reassigningItem.updatedAt;
+      if (!reassigningItem.reservationId.startsWith("walkin-")) {
+        const assigned = await staffRoomsRepository.assignReservationRoom(hotelId, reassigningItem.reservationId, {
+          roomId: targetSwapRoomId,
+          expectedRoomId: reassigningItem.roomId,
+          ...(reassigningItem.updatedAt ? { expectedUpdatedAt: reassigningItem.updatedAt } : {}),
+        });
+        updatedUpdatedAt = assigned.updatedAt;
+      }
 
       // Instantly update room in local roomsState while preserving all guest data & captures
       setRoomsState((prev) =>
@@ -480,7 +622,7 @@ function GroupCheckInForm({
                 roomId: targetSwapRoomId,
                 roomNumber: chosenRoom?.roomNumber || r.roomNumber,
                 roomType: chosenRoom?.type || chosenRoom?.roomTypeName || r.roomType,
-                updatedAt: assigned.updatedAt,
+                updatedAt: updatedUpdatedAt,
               }
             : r,
         ),
@@ -493,15 +635,26 @@ function GroupCheckInForm({
         return next;
       });
 
+      const isDiffType =
+        chosenRoom &&
+        targetRoomTypeLabel &&
+        (chosenRoom.type || chosenRoom.roomTypeName) &&
+        (chosenRoom.type || chosenRoom.roomTypeName)?.trim().toLowerCase() !==
+          targetRoomTypeLabel.toLowerCase();
+
       await showSuccessAlert(
-        "Đổi phòng thành công",
-        `Đã chuyển sang ${roomName} cho khách ${reassigningItem.guestDisplayName}.`,
+        isDiffType ? "Đổi phòng ngoại lệ thành công" : "Đổi phòng thành công",
+        isDiffType
+          ? `Đã chuyển sang ${roomName} (${chosenRoom?.type || chosenRoom?.roomTypeName || "Khác loại"}) cho khách ${reassigningItem.guestDisplayName} theo diện ngoại lệ.`
+          : `Đã chuyển sang ${roomName} cho khách ${reassigningItem.guestDisplayName}.`,
       );
 
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
       await allRoomsQuery.refetch();
       await availableRoomsQuery.refetch();
       setReassigningItem(null);
+      setAllowDifferentRoomType(false);
+      setTargetSwapRoomId("");
       await onSuccess?.();
     } catch (err: unknown) {
       await showErrorAlert(
@@ -1016,44 +1169,93 @@ function GroupCheckInForm({
         isPrimary: false,
       }));
 
-      const payload = {
-        guestDisplayName: primary.fullName.trim(),
-        guestPhone: primary.phone?.trim() || undefined,
-        guestIdentityNumber: primary.identityNumber?.trim() || undefined,
-        guestDateOfBirth: toIsoDate(primary.dateOfBirth?.trim()) || undefined,
-        guestGender: primary.gender?.trim() || undefined,
-        guestNationality: matchBcaNationalityCode(primary.nationality || "Việt Nam", nationalities),
-        guestResidencePlace: primary.residencePlace?.trim() || undefined,
-        plannedCheckOutAt: room.plannedCheckOutAt,
-        occupants: extraOccupants.length > 0 ? extraOccupants : undefined,
-        expectedRoomId: room.roomId?.trim() ? room.roomId.trim() : undefined,
-        ...(room.updatedAt ? { expectedUpdatedAt: room.updatedAt } : {}),
-      };
+      if (room.reservationId.startsWith("walkin-")) {
+        try {
+          const stayRes = await requestInternalApiEnvelope<HotelCheckInResult>(
+            `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/stays`,
+            {
+              method: "POST",
+              body: {
+                roomId: room.roomId,
+                guestDisplayName: primary.fullName.trim(),
+                guestPhone: primary.phone?.trim() || undefined,
+                guestIdentityNumber: primary.identityNumber?.trim() || undefined,
+                guestDateOfBirth: toIsoDate(primary.dateOfBirth?.trim()) || undefined,
+                guestGender: primary.gender?.trim() || undefined,
+                guestNationality: matchBcaNationalityCode(primary.nationality || "Việt Nam", nationalities),
+                guestResidencePlace: primary.residencePlace?.trim() || undefined,
+                plannedCheckInAt: new Date().toISOString(),
+                plannedCheckOutAt: room.plannedCheckOutAt,
+                groupCode: groupCode || undefined,
+                groupLeadGuestName: roomsState[0]?.guests[0]?.fullName?.trim() || undefined,
+                groupLeadGuestPhone: roomsState[0]?.guests[0]?.phone?.trim() || undefined,
+                occupants: extraOccupants.length > 0 ? extraOccupants : undefined,
+              },
+            },
+          );
 
-      try {
-        const result = await checkInGroupRoom(hotelId, room, payload, primary.fullName.trim());
+          successCount++;
+          newResults[room.reservationId] = {
+            reservationId: room.reservationId,
+            success: true,
+            message: `Nhận phòng thành công${stayRes.data?.accessCode ? ` · Mã GuestOS: ${stayRes.data.accessCode}` : ""}`,
+            action: "CHECK_IN",
+            timestamp: Date.now(),
+          };
+          setCompletedIds((previous) => new Set([...previous, room.reservationId]));
+        } catch (err: unknown) {
+          failCount++;
+          const friendlyMsg = resolveFrontDeskCheckInReason(err);
+          failedRooms.push({ reservationId: room.reservationId, reason: friendlyMsg });
 
-        successCount++;
-        newResults[room.reservationId] = {
-          reservationId: room.reservationId,
-          success: true,
-          message: `Nhận phòng thành công${result.accessCode ? ` · Mã GuestOS: ${result.accessCode}` : ""}`,
-          action: "CHECK_IN",
-          timestamp: Date.now(),
+          newResults[room.reservationId] = {
+            reservationId: room.reservationId,
+            success: false,
+            message: friendlyMsg,
+            action: "CHECK_IN",
+            timestamp: Date.now(),
+          };
+        }
+      } else {
+        const payload = {
+          guestDisplayName: primary.fullName.trim(),
+          guestPhone: primary.phone?.trim() || undefined,
+          guestIdentityNumber: primary.identityNumber?.trim() || undefined,
+          guestDateOfBirth: toIsoDate(primary.dateOfBirth?.trim()) || undefined,
+          guestGender: primary.gender?.trim() || undefined,
+          guestNationality: matchBcaNationalityCode(primary.nationality || "Việt Nam", nationalities),
+          guestResidencePlace: primary.residencePlace?.trim() || undefined,
+          plannedCheckOutAt: room.plannedCheckOutAt,
+          occupants: extraOccupants.length > 0 ? extraOccupants : undefined,
+          expectedRoomId: room.roomId?.trim() ? room.roomId.trim() : undefined,
+          ...(room.updatedAt ? { expectedUpdatedAt: room.updatedAt } : {}),
         };
-        setCompletedIds((previous) => new Set([...previous, room.reservationId]));
-      } catch (err: unknown) {
-        failCount++;
-        const friendlyMsg = resolveFrontDeskCheckInReason(err);
-        failedRooms.push({ reservationId: room.reservationId, reason: friendlyMsg });
 
-        newResults[room.reservationId] = {
-          reservationId: room.reservationId,
-          success: false,
-          message: friendlyMsg,
-          action: "CHECK_IN",
-          timestamp: Date.now(),
-        };
+        try {
+          const result = await checkInGroupRoom(hotelId, room, payload, primary.fullName.trim());
+
+          successCount++;
+          newResults[room.reservationId] = {
+            reservationId: room.reservationId,
+            success: true,
+            message: `Nhận phòng thành công${result.accessCode ? ` · Mã GuestOS: ${result.accessCode}` : ""}`,
+            action: "CHECK_IN",
+            timestamp: Date.now(),
+          };
+          setCompletedIds((previous) => new Set([...previous, room.reservationId]));
+        } catch (err: unknown) {
+          failCount++;
+          const friendlyMsg = resolveFrontDeskCheckInReason(err);
+          failedRooms.push({ reservationId: room.reservationId, reason: friendlyMsg });
+
+          newResults[room.reservationId] = {
+            reservationId: room.reservationId,
+            success: false,
+            message: friendlyMsg,
+            action: "CHECK_IN",
+            timestamp: Date.now(),
+          };
+        }
       }
     }
 
@@ -1189,10 +1391,14 @@ function GroupCheckInForm({
                 id={titleId}
                 className="text-base sm:text-lg font-bold text-slate-900 text-balance"
               >
-                Check-in đoàn: #{groupCode}
+                {roomsState.length === 1
+                  ? `Check-in phòng ${activeRoom?.roomNumber || roomsState[0]?.roomNumber}${activeRoom?.roomType ? ` · ${activeRoom.roomType}` : ""}`
+                  : `Check-in đoàn: #${groupCode}`}
               </h2>
               <p id={descId} className="text-xs text-slate-600 text-pretty">
-                Xác thực căn cước / hộ chiếu cho từng phòng trước khi hoàn tất nhận phòng
+                {roomsState.length === 1
+                  ? "Xác thực căn cước / hộ chiếu khách lưu trú và hoàn tất nhận phòng"
+                  : "Xác thực căn cước / hộ chiếu cho từng phòng trước khi hoàn tất nhận phòng"}
               </p>
             </div>
           </div>
@@ -1211,7 +1417,7 @@ function GroupCheckInForm({
         <section className="border-b border-slate-200 bg-slate-100/70 px-6 py-2.5 overflow-x-auto">
           <div className="flex items-center gap-2 min-w-max">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500 mr-1 whitespace-nowrap">
-              Phòng đoàn:
+              {roomsState.length > 1 ? "Phòng đoàn:" : "Phòng nhận:"}
             </span>
             {roomsState.map((r, idx) => {
               const isActive = idx === activeRoomIndex;
@@ -1261,6 +1467,24 @@ function GroupCheckInForm({
                 </button>
               );
             })}
+
+            {/* Nút + Thêm phòng */}
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedAddRoomIds(new Set());
+                setAddRoomSearch("");
+                setAddRoomFloorFilter("all");
+                setAddRoomTypeFilter("all");
+                setIsAddRoomModalOpen(true);
+              }}
+              disabled={isSubmitting || isRefreshing}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-dashed border-purple-400 bg-purple-50/80 px-3 py-1.5 text-xs font-bold text-purple-900 hover:bg-purple-100 hover:border-purple-600 transition cursor-pointer min-h-[40px] whitespace-nowrap shadow-2xs shrink-0"
+              title="Bổ sung thêm phòng khả dụng vào đợt nhận phòng đoàn này"
+            >
+              <VsIcon name="add" className="text-base text-purple-700" />
+              <span>+ Thêm phòng</span>
+            </button>
           </div>
         </section>
 
@@ -1319,23 +1543,43 @@ function GroupCheckInForm({
 
           {!activeRoom ? (
             <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-100 text-amber-600 mb-4">
-                <VsIcon name="warning" className="text-3xl" />
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-purple-100 text-purple-700 mb-4">
+                <VsIcon name="group_add" className="text-3xl" />
               </div>
               <h3 className="text-base font-bold text-slate-800 text-balance mb-2">
-                Không có phòng nào đủ điều kiện nhận phòng ngay
+                {roomsState.length === 0
+                  ? `Đợt nhận phòng đoàn ${groupCode ? `(#${groupCode})` : ""}`
+                  : "Không có phòng nào đủ điều kiện nhận phòng ngay"}
               </h3>
               <p className="text-xs text-slate-600 max-w-md text-pretty mb-6">
-                Tất cả các phòng trong đoàn hiện chưa kích hoạt (đang bảo trì hoặc ngừng hoạt động) hoặc chưa có mã QR khả dụng. Vui lòng đổi sang phòng khả dụng khác từ danh sách phía trên trước khi nhận phòng.
+                {roomsState.length === 0
+                  ? "Chưa có phòng nào trong đợt nhận phòng này. Vui lòng bấm '+ Thêm phòng' để chọn các phòng trống làm thủ tục check-in."
+                  : "Tất cả các phòng trong đoàn hiện chưa kích hoạt hoặc chưa có mã QR khả dụng. Vui lòng đổi sang phòng khả dụng khác từ danh sách phía trên."}
               </p>
-              <button
-                type="button"
-                onClick={handleSafeClose}
-                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-xs sm:text-sm font-bold text-white shadow-xs hover:bg-blue-700 transition cursor-pointer min-h-[44px]"
-              >
-                <VsIcon name="arrow_back" className="text-base" />
-                <span>Quay lại sơ đồ phòng</span>
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedAddRoomIds(new Set());
+                    setAddRoomSearch("");
+                    setAddRoomFloorFilter("all");
+                    setAddRoomTypeFilter("all");
+                    setIsAddRoomModalOpen(true);
+                  }}
+                  className="inline-flex items-center gap-2 rounded-xl bg-purple-700 hover:bg-purple-800 px-5 py-2.5 text-xs sm:text-sm font-bold text-white shadow-xs transition cursor-pointer min-h-[44px]"
+                >
+                  <VsIcon name="add" className="text-base" />
+                  <span>+ Thêm phòng ngay</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSafeClose}
+                  className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs sm:text-sm font-bold text-slate-700 hover:bg-slate-50 transition cursor-pointer min-h-[44px]"
+                >
+                  <VsIcon name="arrow_back" className="text-base" />
+                  <span>Quay lại</span>
+                </button>
+              </div>
             </div>
           ) : (
             <>
@@ -1411,7 +1655,7 @@ function GroupCheckInForm({
 
               {/* Active Room Sub-banner */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-xl bg-blue-50/60 border border-blue-200 px-4 py-3">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="font-black text-slate-900 text-sm sm:text-base">
                     Phòng {activeRoom.roomNumber}
                   </span>
@@ -1420,10 +1664,34 @@ function GroupCheckInForm({
                       · Hạng {activeRoom.roomType}
                     </span>
                   )}
-              <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-bold text-blue-800 whitespace-nowrap">
-                <span>{activeRoom.guests.length} khách trong phòng</span>
-              </span>
-            </div>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-bold text-blue-800 whitespace-nowrap">
+                    <span>{activeRoom.guests.length} khách trong phòng</span>
+                  </span>
+
+                  {/* Nút Đổi phòng (Ngoại lệ) trực tiếp tại đây */}
+                  <button
+                    type="button"
+                    onClick={handleOpenSwapModalForActiveRoom}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-purple-300 bg-purple-50/60 hover:bg-purple-100 hover:border-purple-400 px-3 py-1 text-xs font-bold text-purple-900 transition shadow-2xs cursor-pointer min-h-[32px] whitespace-nowrap"
+                    title="Đổi sang phòng khác (hỗ trợ ngoại lệ chọn khác loại phòng)"
+                  >
+                    <VsIcon name="swap_horiz" className="text-sm text-purple-700" />
+                    <span>Đổi phòng (Ngoại lệ)</span>
+                  </button>
+
+                  {/* Nút Bỏ phòng (khi đoàn có >= 2 phòng) */}
+                  {roomsState.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => void handleRemoveActiveRoom()}
+                      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white hover:bg-rose-50 hover:text-rose-700 text-slate-600 px-2 py-1 text-xs font-semibold shadow-2xs transition cursor-pointer min-h-[30px] whitespace-nowrap"
+                      title="Bỏ phòng này khỏi đợt nhận phòng đoàn"
+                    >
+                      <VsIcon name="delete" className="text-xs text-rose-500" />
+                      <span>Bỏ phòng</span>
+                    </button>
+                  )}
+                </div>
 
             {/* Quick Switch Slot Button */}
             <div className="flex items-center gap-1 overflow-x-auto">
@@ -1463,6 +1731,93 @@ function GroupCheckInForm({
               </button>
             </div>
           </div>
+
+          {/* STAY CONTACT & CHECKOUT DATE BAR */}
+          <section className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-2xs">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                <VsIcon name="calendar_today" className="text-base" />
+              </div>
+              <div>
+                <span className="text-xs font-bold text-slate-800 block leading-tight">
+                  Liên hệ & Hạn trả phòng
+                </span>
+                <span className="text-xs text-slate-500">
+                  Thông tin lưu trú của Phòng {activeRoom.roomNumber}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              {/* SĐT khách */}
+              <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50/70 px-2.5 py-1 text-xs">
+                <span className="font-bold text-slate-600 uppercase tracking-wider text-xs whitespace-nowrap">SĐT:</span>
+                <input
+                  type="tel"
+                  placeholder="09xx..."
+                  value={activeRoom.guests[0]?.phone || ""}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setRoomsState((prev) => {
+                      const next = [...prev];
+                      const r = { ...next[activeRoomIndex] };
+                      const guests = [...r.guests];
+                      if (guests[0]) {
+                        guests[0] = { ...guests[0], phone: val };
+                      }
+                      r.guests = guests;
+                      next[activeRoomIndex] = r;
+                      return next;
+                    });
+                  }}
+                  className="w-28 sm:w-32 bg-transparent text-xs font-semibold text-slate-900 outline-none"
+                />
+              </div>
+
+              {/* Hạn trả phòng */}
+              <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50/70 px-2.5 py-1 text-xs">
+                <span className="font-bold text-slate-600 uppercase tracking-wider text-xs whitespace-nowrap">Hạn trả:</span>
+                <input
+                  type="datetime-local"
+                  value={activeRoom.plannedCheckOutAt ? activeRoom.plannedCheckOutAt.slice(0, 16) : ""}
+                  onChange={(e) => {
+                    const val = e.target.value ? new Date(e.target.value).toISOString() : "";
+                    setRoomsState((prev) => {
+                      const next = [...prev];
+                      next[activeRoomIndex] = {
+                        ...next[activeRoomIndex],
+                        plannedCheckOutAt: val,
+                      };
+                      return next;
+                    });
+                  }}
+                  className="bg-transparent text-xs font-semibold text-slate-900 outline-none cursor-pointer"
+                />
+              </div>
+
+              {/* Nút áp dụng ngày trả phòng cho tất cả phòng nếu đoàn có > 1 phòng */}
+              {roomsState.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const currentOut = activeRoom.plannedCheckOutAt;
+                    if (!currentOut) return;
+                    setRoomsState((prev) =>
+                      prev.map((r) => ({ ...r, plannedCheckOutAt: currentOut })),
+                    );
+                    void showSuccessAlert(
+                      "Đã áp dụng",
+                      `Đã đồng bộ hạn trả phòng cho tất cả ${roomsState.length} phòng trong đoàn.`,
+                    );
+                  }}
+                  className="text-xs font-bold text-purple-700 hover:text-purple-900 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-2 py-1 rounded-lg transition cursor-pointer whitespace-nowrap"
+                  title="Đồng bộ thời hạn trả phòng này cho tất cả các phòng trong đoàn"
+                >
+                  Áp dụng cho cả đoàn
+                </button>
+              )}
+            </div>
+          </section>
 
           {/* SCANNER TABS & WORKSPACE */}
           <section className="rounded-xl border border-slate-200 bg-white p-3 space-y-3">
@@ -1760,7 +2115,9 @@ function GroupCheckInForm({
               <span>
                 {isSubmitting
                   ? "Đang xử lý..."
-                  : `Nhận ${roomsState.length} phòng${completedIds.size > 0 ? " còn lại" : " trong đoàn"}`}
+                  : roomsState.length === 1
+                    ? `Hoàn tất nhận phòng ${roomsState[0]?.roomNumber}`
+                    : `Nhận ${roomsState.length} phòng${completedIds.size > 0 ? " còn lại" : " trong đoàn"}`}
               </span>
             </button>
           </div>
@@ -1787,36 +2144,99 @@ function GroupCheckInForm({
               ) : null}
             </p>
 
-            <div className="mt-4 space-y-2">
-              <label htmlFor="swap-target-room" className="block text-xs font-bold text-slate-700">
-                Chọn phòng khả dụng cùng hạng{targetRoomTypeLabel ? ` (${targetRoomTypeLabel})` : ""}
-              </label>
+            <div className="mt-4 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <label htmlFor="swap-target-room" className="block text-xs font-bold text-slate-700">
+                  {allowDifferentRoomType
+                    ? "Chọn phòng khả dụng (Bao gồm ngoại lệ khác loại)"
+                    : `Chọn phòng khả dụng cùng loại${targetRoomTypeLabel ? ` (${targetRoomTypeLabel})` : ""}`}
+                </label>
+                <label className="inline-flex items-center gap-1.5 cursor-pointer text-xs font-bold text-purple-700 hover:text-purple-900 select-none">
+                  <input
+                    type="checkbox"
+                    checked={allowDifferentRoomType}
+                    onChange={(e) => {
+                      setAllowDifferentRoomType(e.target.checked);
+                      if (!e.target.checked && isExceptionSwap) {
+                        setTargetSwapRoomId("");
+                      }
+                    }}
+                    className="h-4 w-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+                  />
+                  <span>Chọn loại phòng khác (Ngoại lệ)</span>
+                </label>
+              </div>
+
               <select
                 id="swap-target-room"
                 value={targetSwapRoomId}
                 onChange={(e) => setTargetSwapRoomId(e.target.value)}
                 className={cellSelectClass}
               >
-                <option value="">-- Chọn phòng khả dụng cùng hạng --</option>
-                {sameTypeAvailableRooms.map((room) => (
-                  <option key={room.id} value={room.id}>
-                    Phòng {room.roomNumber} ({room.type || room.roomTypeName || targetRoomTypeLabel || "Tiêu chuẩn"}) · Tầng {room.floor || "-"}
-                  </option>
-                ))}
+                <option value="">-- Vui lòng chọn phòng trống --</option>
+                {sameTypeAvailableRooms.length > 0 && (
+                  <optgroup label={`Cùng loại phòng (${targetRoomTypeLabel || "Tiêu chuẩn"}) · ${sameTypeAvailableRooms.length} phòng`}>
+                    {sameTypeAvailableRooms.map((room) => (
+                      <option key={room.id} value={room.id}>
+                        Phòng {room.roomNumber} ({room.type || room.roomTypeName || targetRoomTypeLabel || "Tiêu chuẩn"}) · Tầng {room.floor || "-"}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                {allowDifferentRoomType && differentTypeAvailableRooms.length > 0 && (
+                  <optgroup label={`Loại phòng khác (Ngoại lệ) · ${differentTypeAvailableRooms.length} phòng`}>
+                    {differentTypeAvailableRooms.map((room) => (
+                      <option key={room.id} value={room.id}>
+                        Phòng {room.roomNumber} ({room.type || room.roomTypeName || "Khác loại"}) · Tầng {room.floor || "-"} [Ngoại lệ]
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
-              {sameTypeAvailableRooms.length === 0 && (
-                <p className="text-xs text-amber-600 font-medium pt-1">
-                  {targetRoomTypeLabel
-                    ? `Hiện không có phòng trống nào cùng hạng (${targetRoomTypeLabel}) sẵn sàng để đổi.`
-                    : "Hiện không có phòng trống nào sẵn sàng để đổi."}
-                </p>
+
+              {sameTypeAvailableRooms.length === 0 && !allowDifferentRoomType && (
+                <div className="rounded-xl border border-amber-300 bg-amber-50/80 p-3 text-xs text-amber-900 space-y-1.5">
+                  <p className="font-semibold text-pretty">
+                    {targetRoomTypeLabel
+                      ? `Hiện không có phòng trống nào cùng loại (${targetRoomTypeLabel}) sẵn sàng để đổi.`
+                      : "Hiện không có phòng trống nào cùng loại sẵn sàng để đổi."}
+                  </p>
+                  {differentTypeAvailableRooms.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setAllowDifferentRoomType(true)}
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-purple-700 hover:text-purple-900 underline cursor-pointer"
+                    >
+                      <VsIcon name="tune" className="text-sm" />
+                      <span>Bật ngoại lệ để chọn loại phòng khác ({differentTypeAvailableRooms.length} phòng khả dụng)</span>
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {isExceptionSwap && chosenSwapRoom && (
+                <div className="rounded-xl border border-purple-300 bg-purple-50/90 p-3 text-xs text-purple-950 flex items-start gap-2.5 animate-in fade-in">
+                  <VsIcon name="info" className="text-base text-purple-700 shrink-0 mt-0.5" />
+                  <div className="space-y-0.5">
+                    <p className="font-bold text-balance">
+                      Ngoại lệ chọn khác loại phòng: {targetRoomTypeLabel || "Gốc"} ➔ {chosenSwapRoom.type || chosenSwapRoom.roomTypeName || "Khác loại"}
+                    </p>
+                    <p className="text-purple-800 text-pretty">
+                      Phòng {chosenSwapRoom.roomNumber} thuộc loại phòng khác với đặt trước ban đầu của khách đoàn.
+                    </p>
+                  </div>
+                </div>
               )}
             </div>
 
             <div className="mt-6 flex items-center justify-end gap-3">
               <button
                 type="button"
-                onClick={() => setReassigningItem(null)}
+                onClick={() => {
+                  setReassigningItem(null);
+                  setAllowDifferentRoomType(false);
+                  setTargetSwapRoomId("");
+                }}
                 disabled={isSwappingRoom}
                 className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs sm:text-sm font-bold text-slate-700 hover:bg-slate-50 transition cursor-pointer min-h-[44px]"
               >
@@ -1829,7 +2249,7 @@ function GroupCheckInForm({
                 className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2 text-xs sm:text-sm font-bold text-white shadow-xs hover:bg-blue-700 transition cursor-pointer disabled:opacity-50 min-h-[44px]"
               >
                 {isSwappingRoom && <VsIcon name="progress_activity" className="animate-spin text-base" />}
-                <span>Xác nhận đổi phòng</span>
+                <span>{isExceptionSwap ? "Xác nhận đổi ngoại lệ" : "Xác nhận đổi phòng"}</span>
               </button>
             </div>
           </div>
@@ -1858,6 +2278,163 @@ function GroupCheckInForm({
             }
           }}
         />
+      )}
+
+      {/* ADD ROOM TO GROUP MODAL */}
+      {isAddRoomModalOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="add-room-title"
+          className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs"
+        >
+          <div className="relative w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl bg-white shadow-2xl border border-slate-200">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+              <div>
+                <h3 id="add-room-title" className="text-base font-bold text-slate-900 text-balance">
+                  Thêm phòng vào đợt nhận phòng đoàn
+                </h3>
+                <p className="text-xs text-slate-500 text-pretty mt-0.5">
+                  Chọn các phòng trống khả dụng từ danh sách bên dưới để bổ sung vào đoàn
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAddRoomModalOpen(false);
+                  setSelectedAddRoomIds(new Set());
+                }}
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition cursor-pointer min-h-[36px] min-w-[36px]"
+              >
+                <VsIcon name="close" className="text-lg" />
+              </button>
+            </div>
+
+            {/* Filter controls */}
+            <div className="px-6 py-3 border-b border-slate-100 bg-slate-50/70 flex flex-wrap items-center gap-2.5">
+              <div className="relative flex-1 min-w-[160px]">
+                <VsIcon name="search" className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm" />
+                <input
+                  type="text"
+                  placeholder="Tìm số phòng, loại phòng..."
+                  value={addRoomSearch}
+                  onChange={(e) => setAddRoomSearch(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:border-purple-600 focus:ring-1 focus:ring-purple-600 outline-none"
+                />
+              </div>
+              <select
+                value={addRoomFloorFilter}
+                onChange={(e) => setAddRoomFloorFilter(e.target.value)}
+                className="py-1.5 px-2.5 text-xs rounded-lg border border-slate-200 bg-white text-slate-700"
+              >
+                <option value="all">Tất cả tầng</option>
+                {addRoomFloors.map((f) => (
+                  <option key={f} value={f}>
+                    Tầng {f}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={addRoomTypeFilter}
+                onChange={(e) => setAddRoomTypeFilter(e.target.value)}
+                className="py-1.5 px-2.5 text-xs rounded-lg border border-slate-200 bg-white text-slate-700"
+              >
+                <option value="all">Tất cả loại phòng</option>
+                {addRoomTypes.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Room list */}
+            <div className="flex-1 overflow-y-auto p-6 min-h-[200px] max-h-[50vh]">
+              {candidateRoomsToAdd.length === 0 ? (
+                <div className="py-12 text-center text-slate-400 text-xs sm:text-sm">
+                  Không tìm thấy phòng trống nào phù hợp với bộ lọc hiện tại.
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                  {candidateRoomsToAdd.map((room) => {
+                    const isSelected = selectedAddRoomIds.has(room.id);
+                    const roomTypeLabel = room.type || room.roomTypeName || "Tiêu chuẩn";
+                    return (
+                      <button
+                        key={room.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedAddRoomIds((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(room.id)) {
+                              next.delete(room.id);
+                            } else {
+                              next.add(room.id);
+                            }
+                            return next;
+                          });
+                        }}
+                        className={`p-3 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between gap-1.5 ${
+                          isSelected
+                            ? "bg-purple-50/90 border-purple-500 ring-2 ring-purple-300 shadow-xs"
+                            : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="font-extrabold text-sm text-slate-900">
+                            Phòng {room.roomNumber}
+                          </span>
+                          <span
+                            className={`w-4 h-4 rounded-md border flex items-center justify-center text-xs ${
+                              isSelected
+                                ? "bg-purple-600 border-purple-600 text-white"
+                                : "border-slate-300 bg-white"
+                            }`}
+                          >
+                            {isSelected && <VsIcon name="check" className="text-xs" />}
+                          </span>
+                        </div>
+                        <div className="text-xs text-slate-500 space-y-0.5">
+                          <p className="font-semibold text-purple-900 truncate">{roomTypeLabel}</p>
+                          <p>Tầng {room.floor || "-"} · Sẵn sàng</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-between border-t border-slate-200 px-6 py-3.5 bg-slate-50/60">
+              <span className="text-xs font-bold text-slate-700">
+                Đã chọn: <strong className="text-purple-700">{selectedAddRoomIds.size} phòng</strong>
+              </span>
+              <div className="flex items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsAddRoomModalOpen(false);
+                    setSelectedAddRoomIds(new Set());
+                  }}
+                  className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs sm:text-sm font-bold text-slate-700 hover:bg-slate-50 transition cursor-pointer min-h-[40px]"
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmAddRooms}
+                  disabled={selectedAddRoomIds.size === 0}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-purple-700 hover:bg-purple-800 px-5 py-2 text-xs sm:text-sm font-bold text-white shadow-xs transition cursor-pointer disabled:opacity-50 min-h-[40px]"
+                >
+                  <VsIcon name="add" className="text-base" />
+                  <span>Xác nhận thêm {selectedAddRoomIds.size} phòng</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -16,6 +16,8 @@ export type GroupArrivalsListModalProps = {
   arrivals: HotelArrival[];
   todayYmd: string;
   onSelectGroup: (groupCode: string) => void;
+  onCreateBulkReservation?: () => void;
+  onDirectWalkInGroup?: () => void;
 };
 
 const ITEMS_PER_PAGE = 5;
@@ -35,6 +37,8 @@ export function GroupArrivalsListModal({
   onClose,
   arrivals,
   onSelectGroup,
+  onCreateBulkReservation,
+  onDirectWalkInGroup,
 }: GroupArrivalsListModalProps) {
   const titleId = useId();
   const descId = useId();
@@ -152,14 +156,44 @@ export function GroupArrivalsListModal({
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Đóng cửa sổ"
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-200 hover:text-slate-700 transition cursor-pointer min-h-[44px] min-w-[44px]"
-          >
-            <VsIcon name="close" className="text-lg" />
-          </button>
+          <div className="flex items-center gap-2">
+            {onDirectWalkInGroup && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onDirectWalkInGroup();
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white px-3 py-1.5 text-xs font-bold transition shadow-xs cursor-pointer min-h-[36px] whitespace-nowrap"
+                title="Làm thủ tục nhận phòng trực tiếp ngay cho đoàn khách vừa đến (chưa đặt trước)"
+              >
+                <VsIcon name="login" className="text-base" />
+                <span>+ Nhận phòng đoàn ngay</span>
+              </button>
+            )}
+            {onCreateBulkReservation && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onCreateBulkReservation();
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-purple-300 bg-purple-50 hover:bg-purple-100 text-purple-900 px-3 py-1.5 text-xs font-bold transition shadow-2xs cursor-pointer min-h-[36px] whitespace-nowrap"
+                title="Tạo đặt phòng mới cho đoàn khách"
+              >
+                <VsIcon name="group_add" className="text-base text-purple-700" />
+                <span>Đặt phòng đoàn mới</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Đóng cửa sổ"
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-200 hover:text-slate-700 transition cursor-pointer min-h-[44px] min-w-[44px]"
+            >
+              <VsIcon name="close" className="text-lg" />
+            </button>
+          </div>
         </header>
 
         {/* SEARCH & FILTER CONTROLS */}
@@ -254,6 +288,34 @@ export function GroupArrivalsListModal({
                   ? "Không có đoàn khách nào khớp với từ khóa tìm kiếm. Vui lòng kiểm tra lại mã đoàn hoặc số điện thoại."
                   : "Hiện chưa có đoàn khách nào có lịch nhận phòng trong khoảng thời gian này."}
               </p>
+              <div className="flex flex-wrap items-center justify-center gap-2.5 pt-2">
+                {onDirectWalkInGroup && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onDirectWalkInGroup();
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white px-4 py-2 text-xs sm:text-sm font-bold shadow-xs transition cursor-pointer min-h-[40px] whitespace-nowrap"
+                  >
+                    <VsIcon name="login" className="text-base" />
+                    <span>+ Nhận phòng đoàn ngay (Walk-in)</span>
+                  </button>
+                )}
+                {onCreateBulkReservation && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onCreateBulkReservation();
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-purple-300 bg-purple-50 hover:bg-purple-100 text-purple-900 px-4 py-2 text-xs sm:text-sm font-bold shadow-2xs transition cursor-pointer min-h-[40px] whitespace-nowrap"
+                  >
+                    <VsIcon name="group_add" className="text-base text-purple-700" />
+                    <span>Tạo đặt trước đoàn mới</span>
+                  </button>
+                )}
+              </div>
             </div>
           ) : (
             <div className="overflow-hidden rounded-xl border border-slate-200 shadow-2xs">

@@ -11,8 +11,7 @@ import { staffRoomsRepository } from "@/features/hotel-ops/repositories/staff-ro
 import { staffRoomsResource } from "@/features/hotel-ops/resources/staff-rooms-resource";
 import type { HotelArrival } from "@/features/hotel-ops/types/hotel-ops-contract";
 import { getArrivalStatusDisplay } from "@/features/hotel-ops/utils/hotel-ops-display";
-import { CheckInWorkspace } from "@/features/local-biometric/components/check-in-workspace";
-import type { CheckInStayFields } from "@/features/local-biometric/types/check-in-workspace";
+import { GroupCheckInModal } from "@/features/hotel-ops/components/group-check-in-modal";
 import { BookingConfirmationModal } from "@/features/hotel-ops/components/booking-confirmation-modal";
 import { EditReservationModal } from "@/features/hotel-ops/components/edit-reservation-modal";
 import { GroupOperationsDrawer } from "@/features/hotel-ops/components/group-operations-drawer";
@@ -43,6 +42,7 @@ export type FrontDeskArrivalDetailPanelProps = {
   canCheckInStay?: boolean;
   canManageReservations?: boolean;
   canOperateArrivals?: boolean;
+  onCheckIn?: (arrival: HotelArrival) => void;
   triggerElementRef?: React.RefObject<HTMLElement | null>;
 };
 
@@ -89,6 +89,7 @@ export function FrontDeskArrivalDetailPanel({
   canCheckInStay = false,
   canManageReservations = false,
   canOperateArrivals = false,
+  onCheckIn,
   triggerElementRef,
 }: FrontDeskArrivalDetailPanelProps) {
   const router = useRouter();
@@ -105,7 +106,7 @@ export function FrontDeskArrivalDetailPanel({
   const [isCheckingIn, setIsCheckingIn] = useState<boolean>(false);
   const [isCancelling, setIsCancelling] = useState<boolean>(false);
   const [isMarkingNoShow, setIsMarkingNoShow] = useState<boolean>(false);
-  const [isCheckInWorkspaceOpen, setIsCheckInWorkspaceOpen] = useState<boolean>(false);
+  const [isCheckInModalOpen, setIsCheckInModalOpen] = useState<boolean>(false);
   const [checkInError, setCheckInError] = useState<string | undefined>();
   const [isConfirmationOpen, setIsConfirmationOpen] = useState<boolean>(false);
   const [isGroupDrawerOpen, setIsGroupDrawerOpen] = useState<boolean>(false);
@@ -125,7 +126,7 @@ export function FrontDeskArrivalDetailPanel({
     setLocalArrival(suppliedArrival);
     setSelectedRoomId(suppliedArrival.roomId || "");
     setIsAssigningMode(!suppliedArrival.roomId);
-    setIsCheckInWorkspaceOpen(false);
+    setIsCheckInModalOpen(false);
     setIsEditModalOpen(false);
     setCheckInError(undefined);
     setIsCancelling(false);
@@ -371,159 +372,16 @@ export function FrontDeskArrivalDetailPanel({
       );
       return;
     }
-    setCheckInError(undefined);
-    setIsCheckInWorkspaceOpen(true);
-  }
-
-  async function handleCheckInWorkspaceSubmit(fields: CheckInStayFields) {
-    if (!arrival) return;
-
-    setIsCheckingIn(true);
-    setCheckInError(undefined);
-
-    const basePayload = {
-      guestDisplayName: fields.guestDisplayName?.trim() || arrival.guestDisplayName,
-      ...(fields.guestPhone?.trim() ? { guestPhone: fields.guestPhone.trim() } : {}),
-      ...(fields.guestIdentityNumber?.trim() ? { guestIdentityNumber: fields.guestIdentityNumber.trim() } : {}),
-      ...(fields.guestDateOfBirth?.trim() ? { guestDateOfBirth: fields.guestDateOfBirth.trim() } : {}),
-      ...(fields.guestGender?.trim() ? { guestGender: fields.guestGender.trim() } : {}),
-      ...(fields.guestNationality?.trim() ? { guestNationality: fields.guestNationality.trim() } : {}),
-      ...(fields.guestResidencePlace?.trim() ? { guestResidencePlace: fields.guestResidencePlace.trim() } : {}),
-      ...(fields.plannedCheckOutAt ? { plannedCheckOutAt: fields.plannedCheckOutAt } : {}),
-      ...(fields.occupants?.length ? { occupants: fields.occupants } : {}),
-      expectedRoomId: arrival.roomId,
-      ...(arrival.updatedAt ? { expectedUpdatedAt: arrival.updatedAt } : {}),
-    };
-
-    const assignedRoom = availableRooms.find((r) => r.id === arrival.roomId);
-    const roomLabel = arrival.room?.roomNumber
-      ? `Phòng ${arrival.room.roomNumber}`
-      : (assignedRoom?.roomNumber ? `Phòng ${assignedRoom.roomNumber}` : (arrival.roomId ? `Phòng ${arrival.roomId}` : "Chưa rõ"));
-    const roomType = assignedRoom?.type || arrival.room?.type || "Tiêu chuẩn";
-    const maxOccupancy = assignedRoom?.maxOccupancy ?? arrival.room?.maxOccupancy;
-    const capacityLabel = maxOccupancy ? `${maxOccupancy} khách` : "Chưa thiết lập";
-    const scheduleLabel = `${formatDateTime(arrival.plannedCheckInAt)} – ${formatDateTime(fields.plannedCheckOutAt || arrival.plannedCheckOutAt)} (${nights} đêm)`;
-    const partyCount = 1 + (fields.occupants?.length || 0);
-    const partyLabel = `${partyCount} khách (1 khách chính${fields.occupants?.length ? ` + ${fields.occupants.length} khách đi cùng` : ""})`;
-    const notesLabel = arrival.notes || (arrival.groupCode ? `Mã đoàn: ${arrival.groupCode}` : "Không có ghi chú");
-
-    const formatSuccessSummary = (isReplay: boolean, accessCode?: string) => {
-      return [
-        isReplay
-          ? `Đơn đặt phòng #${arrival.reservationCode} đã được hoàn tất nhận phòng trước đó (phản hồi trùng lặp). Dữ liệu lưu trú đã được đồng bộ an toàn.`
-          : `Đã hoàn tất nhận phòng thành công cho đơn đặt #${arrival.reservationCode}.`,
-        `• Khách đại diện: ${fields.guestDisplayName || arrival.guestDisplayName}`,
-        `• Mã đặt phòng: #${arrival.reservationCode}`,
-        `• Phòng: ${roomLabel}`,
-        `• Hạng phòng: ${roomType}`,
-        `• Sức chứa: ${capacityLabel}`,
-        `• Lịch trình: ${scheduleLabel}`,
-        `• Đoàn lưu trú: ${partyLabel}`,
-        `• Ghi chú: ${notesLabel}`,
-        accessCode ? `• Mã GuestOS: ${accessCode}` : "",
-      ]
-        .filter(Boolean)
-        .join("\n");
-    };
-
-    try {
-      // First request NEVER sends early/late override
-      const resData = await staffRoomsRepository.checkInReservation(
-        hotelId,
-        arrival.id,
-        basePayload,
-      );
-
-      setIsCheckInWorkspaceOpen(false);
-
-      if (resData?.idempotent) {
-        await showSuccessAlert(
-          "Đã nhận phòng trước đó",
-          formatSuccessSummary(true, resData?.accessCode),
-        );
-      } else {
-        await showSuccessAlert(
-          "Nhận phòng thành công",
-          formatSuccessSummary(false, resData?.accessCode),
-        );
-      }
-
-      await invalidateHotelRealtimeQueries(queryClient, hotelId);
+    if (onCheckIn) {
       onClose();
-
-    } catch (err) {
-      if (isEarlyCheckInError(err) || isLateCheckInError(err)) {
-        const isEarly = isEarlyCheckInError(err);
-        const warningConfirm = await showConfirmDialog({
-          icon: "warning",
-          title: isEarly ? "Xác nhận nhận phòng sớm?" : "Xác nhận nhận phòng quá hạn?",
-          html: formatEarlyCheckInConfirmHtml({
-            guestName: arrival.guestDisplayName,
-            roomNumber: arrival.room?.roomNumber || "Chưa gán",
-            scheduledDate: arrival.plannedCheckInAt ? arrival.plannedCheckInAt.slice(0, 10) : "Theo lịch hẹn",
-            reservationCode: arrival.reservationCode,
-            isEarly,
-          }),
-          confirmText: isEarly ? "Đồng ý nhận phòng sớm" : "Đồng ý nhận phòng trễ",
-          cancelText: "Hủy bỏ",
-          reverseButtons: false,
-        });
-
-        if (warningConfirm.isConfirmed) {
-          setIsCheckingIn(true);
-          try {
-            // Only explicit warning confirmation retries with matching flag
-            const retryData = await staffRoomsRepository.checkInReservation(
-              hotelId,
-              arrival.id,
-              {
-                ...basePayload,
-                ...(isEarly
-                  ? { confirmEarlyCheckIn: true }
-                  : { confirmLateCheckIn: true }),
-              },
-            );
-
-            setIsCheckInWorkspaceOpen(false);
-
-            if (retryData?.idempotent) {
-              await showSuccessAlert(
-                "Đã nhận phòng trước đó",
-                formatSuccessSummary(true, retryData?.accessCode),
-              );
-            } else {
-              await showSuccessAlert(
-                "Nhận phòng thành công",
-                formatSuccessSummary(false, retryData?.accessCode),
-              );
-            }
-
-            await invalidateHotelRealtimeQueries(queryClient, hotelId);
-            onClose();
-
-            return;
-          } catch (retryErr) {
-            await invalidateHotelRealtimeQueries(queryClient, hotelId);
-            const retryMsg = formatFriendlyCheckInError(retryErr);
-            setCheckInError(retryMsg);
-            await showErrorAlert("Không thể nhận phòng", retryMsg);
-            return;
-          } finally {
-            setIsCheckingIn(false);
-          }
-        } else {
-          return;
-        }
-      }
-
-      await invalidateHotelRealtimeQueries(queryClient, hotelId);
-      const msg = formatFriendlyCheckInError(err);
-      setCheckInError(msg);
-      await showErrorAlert("Không thể nhận phòng", msg);
-    } finally {
-      setIsCheckingIn(false);
+      onCheckIn(arrival);
+      return;
     }
+    setCheckInError(undefined);
+    setIsCheckInModalOpen(true);
   }
+
+
 
   async function handleCancelReservation() {
     if (!arrival) return;
@@ -1623,33 +1481,48 @@ export function FrontDeskArrivalDetailPanel({
         </div>
       </div>
 
-      {isCheckInWorkspaceOpen && arrival.roomId ? (
-        <CheckInWorkspace
-          open={isCheckInWorkspaceOpen}
+      {isCheckInModalOpen && arrival.roomId ? (
+        <GroupCheckInModal
+          isOpen={isCheckInModalOpen}
           hotelId={hotelId}
-          room={{
-            id: arrival.roomId,
-            roomNumber: arrival.room?.roomNumber ? String(arrival.room.roomNumber) : arrival.roomId,
-            type: availableRooms.find((r) => r.id === arrival.roomId)?.type ?? undefined,
-            status: "available",
-            maxOccupancy: availableRooms.find((r) => r.id === arrival.roomId)?.maxOccupancy ?? arrival.room?.maxOccupancy ?? null,
-          }}
-          canManageStays={Boolean(canCheckInStay || canOperateArrivals)}
-          initialStayFields={{
-            guestDisplayName: arrival.guestDisplayName,
-            guestPhone: arrival.guestPhone || "",
-            plannedCheckOutAt: arrival.plannedCheckOutAt,
-            reservationCode: arrival.reservationCode,
-            plannedCheckInAt: arrival.plannedCheckInAt,
-            notes: arrival.groupCode ? `Mã đoàn: ${arrival.groupCode}` : undefined,
-          }}
-          submitState={isCheckingIn ? "submitting" : "idle"}
-          submitError={checkInError}
-          onSubmit={handleCheckInWorkspaceSubmit}
+          groupCode={
+            arrival.groupCode ||
+            (arrival.reservationCode
+              ? `RES-${arrival.reservationCode}`
+              : `ARR-${arrival.id.slice(0, 8)}`)
+          }
+          rooms={[
+            {
+              reservationId: arrival.id,
+              reservationCode: arrival.reservationCode,
+              groupCode: arrival.groupCode || arrival.reservationCode || "DIRECT",
+              roomId: arrival.roomId,
+              roomNumber: arrival.room?.roomNumber
+                ? String(arrival.room.roomNumber)
+                : arrival.roomId,
+              floor:
+                availableRooms.find((r) => r.id === arrival.roomId)?.floor ?? null,
+              roomType:
+                availableRooms.find((r) => r.id === arrival.roomId)?.type ?? null,
+              guestDisplayName: arrival.guestDisplayName || "",
+              guestPhone: arrival.guestPhone || null,
+              plannedCheckInAt:
+                arrival.plannedCheckInAt || new Date().toISOString(),
+              plannedCheckOutAt: arrival.plannedCheckOutAt || "",
+              rate: null,
+              status: "CONFIRMED",
+              stayId: null,
+            },
+          ]}
+          initialArrivals={[arrival]}
           onClose={() => {
-            if (isCheckingIn) return;
-            setIsCheckInWorkspaceOpen(false);
+            setIsCheckInModalOpen(false);
             setCheckInError(undefined);
+          }}
+          onSuccess={async () => {
+            setIsCheckInModalOpen(false);
+            onClose();
+            await invalidateHotelRealtimeQueries(queryClient, hotelId);
           }}
         />
       ) : null}
@@ -1727,7 +1600,7 @@ export function FrontDeskArrivalDetailPanel({
           setLocalArrival(updated);
           setIsEditModalOpen(false);
           setCheckInError(undefined);
-          setIsCheckInWorkspaceOpen(true);
+          setIsCheckInModalOpen(true);
         }}
         onViewDetails={() => setIsEditModalOpen(false)}
         onOpenGroupOperations={
