@@ -348,13 +348,10 @@ export function StaffBillingWorkspaceClient({
   const [surchargeInput, setSurchargeInput] = useState<string>("");
   const [discountNote, setDiscountNote] = useState<string>("");
   const [surchargeNote, setSurchargeNote] = useState<string>("");
-  const [cashGivenInput, setCashGivenInput] = useState<string>("");
-  const [checkoutPaymentMethod, setCheckoutPaymentMethod] = useState<"CASH" | "BANK_TRANSFER" | "CARD">("CASH");
   const checkoutAttemptIdsRef = useRef<Record<string, string>>({});
   const checkoutPaymentAttemptRef = useRef<{
     invoiceId: string;
     amount: number;
-    cashReceived: number;
     clientRequestId: string;
   } | null>(null);
 
@@ -367,7 +364,6 @@ export function StaffBillingWorkspaceClient({
       setSurchargeInput("");
       setDiscountNote("");
       setSurchargeNote("");
-      setCashGivenInput("");
       setReconciliations({});
       setCheckoutError("");
   }
@@ -1055,19 +1051,15 @@ export function StaffBillingWorkspaceClient({
 
       const invoiceBalance = toNumber(invoice.balanceAmount ?? invoice.totalAmount);
       if (invoiceBalance > 0) {
-        const enteredCash = parseFormattedNumber(cashGivenInput);
-        const cashReceived = enteredCash > 0 ? enteredCash : invoiceBalance;
-        const appliedAmount = Math.min(cashReceived, invoiceBalance);
+        const appliedAmount = invoiceBalance;
         const previousAttempt = checkoutPaymentAttemptRef.current;
         const paymentAttempt =
           previousAttempt?.invoiceId === invoice.id &&
-          previousAttempt.amount === appliedAmount &&
-          previousAttempt.cashReceived === cashReceived
+          previousAttempt.amount === appliedAmount
             ? previousAttempt
             : {
                 invoiceId: invoice.id,
                 amount: appliedAmount,
-                cashReceived,
                 clientRequestId: generateFallbackAttemptId("pay"),
               };
         checkoutPaymentAttemptRef.current = paymentAttempt;
@@ -1081,15 +1073,9 @@ export function StaffBillingWorkspaceClient({
           {
             method: "POST",
             body: {
-              method: checkoutPaymentMethod,
-              note:
-                checkoutPaymentMethod === "CASH"
-                  ? "Thu tiền mặt tại quầy lễ tân"
-                  : checkoutPaymentMethod === "BANK_TRANSFER"
-                  ? "Thu chuyển khoản ngân hàng"
-                  : "Thu quẹt thẻ POS tại quầy",
+              method: "MANUAL",
+              note: "Thu tiền tại quầy lễ tân",
               amount: appliedAmount,
-              cashReceived,
               clientRequestId: paymentAttempt.clientRequestId,
             },
           },
@@ -1103,7 +1089,7 @@ export function StaffBillingWorkspaceClient({
         const remainingBalance = toNumber(
           updatedInvoice?.balanceAmount ?? Math.max(0, invoiceBalance - appliedAmount),
         );
-        const changeAmount = resData?.changeAmount ?? Math.max(0, cashReceived - appliedAmount);
+        const changeAmount = resData?.changeAmount ?? 0;
 
         if (appliedAmount < invoiceBalance || remainingBalance > 0) {
           await showSuccessAlert(
@@ -1177,8 +1163,6 @@ export function StaffBillingWorkspaceClient({
       details: [
         { label: "Phòng", value: roomNames },
         { label: "Tổng tiền", value: formatMoney(computedGroupTotal, currency) },
-        { label: "Thanh toán", value: checkoutPaymentMethod === "CASH"
-          ? "Tiền mặt" : checkoutPaymentMethod === "BANK_TRANSFER" ? "Chuyển khoản" : "Thẻ POS" },
       ],
       confirmText: `Thanh toán ${foliosToSettle.length} phòng`,
       cancelText: "Hủy bỏ",
@@ -1246,10 +1230,9 @@ export function StaffBillingWorkspaceClient({
             {
               method: "POST",
               body: {
-                method: checkoutPaymentMethod,
+                method: "MANUAL",
                 note: `Thanh toán gộp đoàn (${foliosToSettle.length} phòng: ${roomNames})`,
                 amount: invoiceBalance,
-                cashReceived: invoiceBalance,
                 clientRequestId: generateFallbackAttemptId(`grp-pay-${invoice.id}`),
               },
             },
@@ -2757,49 +2740,6 @@ export function StaffBillingWorkspaceClient({
                   </>
                 )}
 
-                {/* Phương thức thanh toán khi checkout */}
-                {selectedFolio?.status !== "CLOSED" ? (
-                  <div className="flex items-center justify-between gap-2 border-t border-[#d4af37]/25 pt-2.5">
-                    <dt className="text-amber-100 font-extrabold text-xs uppercase tracking-wider min-w-0">
-                      Hình thức
-                    </dt>
-                    <dd className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => setCheckoutPaymentMethod("CASH")}
-                        className={`rounded-lg px-2.5 py-1 text-xs font-bold transition cursor-pointer whitespace-nowrap ${
-                          checkoutPaymentMethod === "CASH"
-                            ? "bg-primary text-on-primary font-black shadow-xs"
-                            : "bg-primary-fixed text-on-primary-fixed border border-primary/30 hover:bg-primary-fixed-dim"
-                        }`}
-                      >
-                        💵 TM
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setCheckoutPaymentMethod("BANK_TRANSFER")}
-                        className={`rounded-lg px-2.5 py-1 text-xs font-bold transition cursor-pointer whitespace-nowrap ${
-                          checkoutPaymentMethod === "BANK_TRANSFER"
-                            ? "bg-primary text-on-primary font-black shadow-xs"
-                            : "bg-primary-fixed text-on-primary-fixed border border-primary/30 hover:bg-primary-fixed-dim"
-                        }`}
-                      >
-                        🏦 CK
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setCheckoutPaymentMethod("CARD")}
-                        className={`rounded-lg px-2.5 py-1 text-xs font-bold transition cursor-pointer whitespace-nowrap ${
-                          checkoutPaymentMethod === "CARD"
-                            ? "bg-primary text-on-primary font-black shadow-xs"
-                            : "bg-primary-fixed text-on-primary-fixed border border-primary/30 hover:bg-primary-fixed-dim"
-                        }`}
-                      >
-                        💳 Thẻ
-                      </button>
-                    </dd>
-                  </div>
-                ) : null}
               </dl>
             </div>
 

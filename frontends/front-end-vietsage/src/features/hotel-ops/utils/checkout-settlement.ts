@@ -1,5 +1,16 @@
 type InvoiceBalance = { id: string; balanceAmount: number | string };
 
+export function isFolioMissingRoomCharge(input: {
+  items: ReadonlyArray<{ itemType?: string | null }>;
+  folioTotal: number;
+  expectedRoomCharge: number;
+}): boolean {
+  if (input.items.some((item) => item.itemType === "ROOM_CHARGE" || item.itemType === "ROOM_NIGHT")) {
+    return false;
+  }
+  return input.expectedRoomCharge > 0 && input.folioTotal + 0.5 < input.expectedRoomCharge;
+}
+
 export function checkoutRemainingBalance(input: {
   invoice?: { balanceAmount?: number | string } | null;
   total: number;

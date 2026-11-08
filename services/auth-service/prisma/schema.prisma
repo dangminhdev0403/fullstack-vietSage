@@ -2962,7 +2962,7 @@ model BookingPayment {
   percentValue         Decimal?                   @db.Decimal(5, 2)
   requestedAmount      Decimal                    @db.Decimal(12, 2)
   receivedAmount       Decimal                    @db.Decimal(12, 2)
-  paymentMethod        PaymentMethod              @default(CASH)
+  paymentMethod        PaymentMethod              @default(MANUAL)
   status               BookingPaymentStatus       @default(COMPLETED)
   transactionReference String?                    @db.VarChar(120)
   notes                String?
@@ -3042,7 +3042,7 @@ model ReceivableCollection {
   hotelId           String
   receivableId      String
   collectedAmount   Decimal         @db.Decimal(12, 2)
-  paymentMethod     PaymentMethod   @default(CASH)
+  paymentMethod     PaymentMethod   @default(MANUAL)
   collectedAt       DateTime        @default(now())
   collectedByUserId String?
   reference         String?         @db.VarChar(120)

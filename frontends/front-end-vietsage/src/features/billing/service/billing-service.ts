@@ -203,10 +203,9 @@ export class BillingService {
     hotelId: string,
     invoiceId: string,
     input: {
-      method: "CASH" | "CARD" | "BANK_TRANSFER" | "MANUAL";
+      method: "MANUAL";
       note?: string;
       amount?: number;
-      cashReceived?: number;
       clientRequestId?: string;
     },
     options: AuthRequestOptions = {},

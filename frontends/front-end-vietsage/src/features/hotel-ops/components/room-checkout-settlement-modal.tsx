@@ -12,7 +12,12 @@ import type {
 } from "@/features/hotel-ops/types/hotel-ops-contract";
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
 import { showConfirmDialog, showErrorAlert, showSuccessAlert, showWarningAlert } from "@/libs/swal";
-import { settleCheckout, checkoutErrorMessage, checkoutRemainingBalance } from "@/features/hotel-ops/utils/checkout-settlement";
+import {
+  settleCheckout,
+  checkoutErrorMessage,
+  checkoutRemainingBalance,
+  isFolioMissingRoomCharge,
+} from "@/features/hotel-ops/utils/checkout-settlement";
 
 export type RoomCheckoutSettlementModalProps = {
   isOpen: boolean;
@@ -74,7 +79,6 @@ function CheckoutSettlementForm({
   const paymentAttempt = useRef<string | null>(null);
 
   // Form states for Payment
-  const [paymentMethod, setPaymentMethod] = useState<"CASH" | "BANK_TRANSFER" | "CARD">("BANK_TRANSFER");
   const [paymentAmount, setPaymentAmount] = useState<string | undefined>(undefined);
   const [paymentNote, setPaymentNote] = useState("");
 
@@ -121,20 +125,10 @@ function CheckoutSettlementForm({
   const bookingPayments = bookingPaymentsPage?.items ?? [];
 
   // Calculate deposit summary breakdown
-  const paidDepositsSummary = useMemo(() => {
-    return bookingPayments.reduce(
-      (acc, p) => {
-        const val = Number(p.receivedAmount ?? p.amount ?? 0);
-        acc.total += val;
-        const method = (p.paymentMethod || "CASH").toUpperCase();
-        if (method === "CASH") acc.cash += val;
-        else if (method === "BANK_TRANSFER" || method === "QR") acc.bankTransfer += val;
-        else if (method === "CARD") acc.card += val;
-        else acc.other += val;
-        return acc;
-      },
-      { total: 0, cash: 0, bankTransfer: 0, card: 0, other: 0 },
-    );
+  const paidDepositsTotal = useMemo(() => {
+    return bookingPayments.reduce((total, payment) => {
+      return total + Number(payment.receivedAmount ?? payment.amount ?? 0);
+    }, 0);
   }, [bookingPayments]);
 
   const currentInvoice = effectiveFolioContext?.summary?.invoice;
@@ -154,7 +148,6 @@ function CheckoutSettlementForm({
   const folioMissingRoomCharge = useMemo(() => {
     const items = effectiveFolioContext?.items ?? [];
     if (isFolioLoading || isFolioError) return false;
-    if (items.some((item) => item.itemType === "ROOM_CHARGE" || item.itemType === "ROOM_NIGHT")) return false;
     const roomRate = Number(
       stay.nightlyRateSnapshot ??
         room.effectivePrice ??
@@ -170,14 +163,14 @@ function CheckoutSettlementForm({
         ? Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86_400_000))
         : 1;
     const expectedRoomCharge = Number.isFinite(roomRate) && roomRate > 0 ? roomRate * nights : 0;
-    return expectedRoomCharge > 0 && (items.length === 0 || folioTotal + 0.5 < expectedRoomCharge);
+    return isFolioMissingRoomCharge({ items, folioTotal, expectedRoomCharge });
   }, [effectiveFolioContext?.items, folioTotal, isFolioError, isFolioLoading, room, stay]);
 
   const isCheckoutBlocked = isFolioLoading || isFolioError || folioMissingRoomCharge;
 
   // Remaining balance
   const remainingDue = checkoutRemainingBalance({
-    invoice: currentInvoice, total: folioTotal, deposits: paidDepositsSummary.total,
+    invoice: currentInvoice, total: folioTotal, deposits: paidDepositsTotal,
   });
 
   // Focus trap and Escape key listener
@@ -209,7 +202,7 @@ function CheckoutSettlementForm({
         autoMarkReady,
         issueInvoice: () => staffRoomsRepository.issueCheckoutInvoice(hotelId, effectiveFolioContext.folio!.id, remainingDue),
         confirmPayment: (invoiceId, amount) => staffRoomsRepository.confirmCheckoutPayment(hotelId, invoiceId, {
-          method: paymentMethod, amount, cashReceived: amount,
+          method: "MANUAL", amount,
           note: paymentNote.trim() || "Thanh toán trả phòng tại quầy",
           clientRequestId: paymentAttempt.current!,
         }),
@@ -370,21 +363,8 @@ function CheckoutSettlementForm({
                 {currentInvoice ? "Đã thanh toán" : "Đã đặt cọc / Trả trước"}
               </span>
               <div className="text-2xl font-black text-emerald-700 tabular-nums">
-                {formatVnd(currentInvoice ? currentInvoice.paidAmount : paidDepositsSummary.total)}
+                {formatVnd(currentInvoice ? currentInvoice.paidAmount : paidDepositsTotal)}
               </div>
-              {!currentInvoice ? <div className="flex flex-wrap items-center gap-1.5 pt-0.5 text-xs font-semibold text-emerald-900">
-                <span className="bg-emerald-100/90 px-2 py-0.5 rounded text-emerald-800 whitespace-nowrap">
-                  TM: {formatVnd(paidDepositsSummary.cash)}
-                </span>
-                <span className="bg-emerald-100/90 px-2 py-0.5 rounded text-emerald-800 whitespace-nowrap">
-                  CK: {formatVnd(paidDepositsSummary.bankTransfer)}
-                </span>
-                {paidDepositsSummary.card > 0 ? (
-                  <span className="bg-emerald-100/90 px-2 py-0.5 rounded text-emerald-800 whitespace-nowrap">
-                    Thẻ: {formatVnd(paidDepositsSummary.card)}
-                  </span>
-                ) : null}
-              </div> : null}
             </div>
 
             <div className={`rounded-2xl border p-4 space-y-1 ${
@@ -498,22 +478,7 @@ function CheckoutSettlementForm({
                   <span>Khách đã thanh toán đủ 100% tiền cọc/trả trước. Không còn số dư nợ cần thu thêm.</span>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      Nguồn tiền thu <span className="text-rose-600">*</span>
-                    </label>
-                    <select
-                      value={paymentMethod}
-                      onChange={(e) => setPaymentMethod(e.target.value as "CASH" | "BANK_TRANSFER" | "CARD")}
-                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 focus:border-blue-600 focus:outline-hidden"
-                    >
-                      <option value="BANK_TRANSFER">🏦 Chuyển khoản (CK)</option>
-                      <option value="CASH">💵 Tiền mặt (TM)</option>
-                      <option value="CARD">💳 Quẹt thẻ (POS)</option>
-                    </select>
-                  </div>
-
+                <div className="grid grid-cols-1 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1">
                       Số tiền thực thu (VND) <span className="text-rose-600">*</span>
@@ -529,7 +494,7 @@ function CheckoutSettlementForm({
                     />
                   </div>
 
-                  <div className="sm:col-span-2">
+                  <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1">
                       Ghi chú thanh toán
                     </label>
@@ -537,7 +502,7 @@ function CheckoutSettlementForm({
                       type="text"
                       value={paymentNote}
                       onChange={(e) => setPaymentNote(e.target.value)}
-                      placeholder="VD: Khách thanh toán nốt bằng chuyển khoản"
+                      placeholder="VD: Thu tiền tại quầy"
                       className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 focus:border-blue-600 focus:outline-hidden"
                     />
                   </div>

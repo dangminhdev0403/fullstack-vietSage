@@ -104,23 +104,14 @@ export const confirmManualPaymentBodySchema = z
   .object({
     method: z
       .enum([
-        PaymentMethod.CASH,
-        PaymentMethod.CARD,
-        PaymentMethod.BANK_TRANSFER,
         PaymentMethod.MANUAL,
       ])
-      .default(PaymentMethod.CASH),
+      .default(PaymentMethod.MANUAL),
     note: z.string().trim().max(500).optional(),
     amount: z
       .preprocess(
         (val) => (typeof val === "string" && val.trim() !== "" ? Number(val) : val),
         z.number().positive(),
-      )
-      .optional(),
-    cashReceived: z
-      .preprocess(
-        (val) => (typeof val === "string" && val.trim() !== "" ? Number(val) : val),
-        z.number().nonnegative(),
       )
       .optional(),
     clientRequestId: z.string().trim().min(1).optional(),
@@ -172,7 +163,7 @@ export const createBookingPaymentBodySchema = z
         PaymentMethod.BANK_TRANSFER,
         PaymentMethod.MANUAL,
       ])
-      .default(PaymentMethod.CASH),
+      .default(PaymentMethod.MANUAL),
     notes: z.string().trim().max(1000).optional(),
     idempotencyKey: z.string().trim().min(1).max(120).optional(),
   })
@@ -229,7 +220,7 @@ export const collectReceivableBodySchema = z
         PaymentMethod.BANK_TRANSFER,
         PaymentMethod.MANUAL,
       ])
-      .default(PaymentMethod.CASH),
+      .default(PaymentMethod.MANUAL),
     reference: z.string().trim().max(120).optional(),
     notes: z.string().trim().max(1000).optional(),
   })

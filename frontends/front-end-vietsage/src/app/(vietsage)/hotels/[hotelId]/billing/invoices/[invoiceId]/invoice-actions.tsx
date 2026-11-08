@@ -22,19 +22,16 @@ export function InvoiceActions({ hotelId, invoiceId, isPaid: initialIsPaid, show
     const result = await SwalVietSage.fire({
       title: "Xác nhận đã thu tiền",
       text: "Thao tác này sẽ đóng folio, check-out khách, tắt QR và chuyển phòng sang chờ dọn.",
-      input: "select",
-      inputOptions: { CASH: "Tiền mặt", BANK_TRANSFER: "Chuyển khoản", CARD: "Thẻ tại quầy", MANUAL: "Khác" },
-      inputValue: "CASH",
       showCancelButton: true,
       confirmButtonText: "Đã thu đủ tiền",
       cancelButtonText: "Hủy",
     });
-    if (!result.isConfirmed || !result.value) return;
+    if (!result.isConfirmed) return;
     setSaving(true);
     try {
       await requestInternalApiEnvelope(
         `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/billing/invoices/${encodeURIComponent(invoiceId)}/manual-payment`,
-        { method: "POST", body: { method: result.value } },
+        { method: "POST", body: { method: "MANUAL" } },
       );
       setPaid(true);
       await showSuccessAlert("Checkout hoàn tất", "Hóa đơn đã thanh toán và phòng đang chờ dọn.");

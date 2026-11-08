@@ -13,7 +13,10 @@ import {
   RoomStatus,
 } from "@prisma/client";
 import { BillingService } from "./billing.service";
-import { createBookingPaymentBodySchema } from "../domain/schemas/billing.schema";
+import {
+  confirmManualPaymentBodySchema,
+  createBookingPaymentBodySchema,
+} from "../domain/schemas/billing.schema";
 
 describe("BillingService - Commercial Ledger, Deposit Modes, Idempotency & Receivables", () => {
   let service: BillingService;
@@ -121,6 +124,19 @@ describe("BillingService - Commercial Ledger, Deposit Modes, Idempotency & Recei
   });
 
   describe("AUD-06 & AUD-08: createBookingPayment / recordBookingPayment", () => {
+    it("accepts only the neutral manual method for checkout confirmation", () => {
+      expect(confirmManualPaymentBodySchema.parse({}).method).toBe(PaymentMethod.MANUAL);
+      expect(
+        confirmManualPaymentBodySchema.safeParse({ method: PaymentMethod.CASH }).success,
+      ).toBe(false);
+      expect(
+        confirmManualPaymentBodySchema.safeParse({
+          method: PaymentMethod.MANUAL,
+          cashReceived: 100000,
+        }).success,
+      ).toBe(false);
+    });
+
     it("rejects orphan booking payment when neither reservationId nor groupId is provided", async () => {
       const schemaCheck = createBookingPaymentBodySchema.safeParse({
         inputMode: "AMOUNT",

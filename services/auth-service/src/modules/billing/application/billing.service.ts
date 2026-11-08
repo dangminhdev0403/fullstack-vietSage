@@ -1333,7 +1333,7 @@ export class BillingService {
       }
 
       const paymentNumber = await this.codesService.generateEntityCode("PAYMENT", tx);
-      const method = allocation.bookingPayment?.paymentMethod ?? PaymentMethod.CASH;
+      const method = allocation.bookingPayment?.paymentMethod ?? PaymentMethod.MANUAL;
       const provider =
         method === PaymentMethod.BANK_TRANSFER
           ? PaymentProvider.BANK_TRANSFER
@@ -1420,7 +1420,7 @@ export class BillingService {
         }
 
         const paymentNumber = await this.codesService.generateEntityCode("PAYMENT", tx);
-        const method = p.paymentMethod ?? PaymentMethod.CASH;
+        const method = p.paymentMethod ?? PaymentMethod.MANUAL;
         const provider =
           method === PaymentMethod.BANK_TRANSFER
             ? PaymentProvider.BANK_TRANSFER
@@ -3507,7 +3507,7 @@ export class BillingService {
                 input.percentValue != null ? new Prisma.Decimal(input.percentValue) : null,
               requestedAmount: requestedDecimal,
               receivedAmount: receivedDecimal,
-              paymentMethod: input.paymentMethod ?? PaymentMethod.CASH,
+              paymentMethod: input.paymentMethod ?? PaymentMethod.MANUAL,
               status: BookingPaymentStatus.COMPLETED,
               notes: input.notes ?? null,
               idempotencyKey: idempotencyKey || null,
@@ -4045,7 +4045,7 @@ export class BillingService {
             hotelId,
             receivableId: receivable.id,
             collectedAmount: collectAmount,
-            paymentMethod: input.paymentMethod ?? PaymentMethod.CASH,
+            paymentMethod: input.paymentMethod ?? PaymentMethod.MANUAL,
             reference: input.reference ?? null,
             notes: input.notes ?? null,
             collectedByUserId: actorUserId,

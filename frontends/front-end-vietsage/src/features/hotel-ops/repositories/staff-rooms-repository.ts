@@ -209,9 +209,8 @@ export const staffRoomsRepository = {
   },
 
   async confirmCheckoutPayment(hotelId: string, invoiceId: string, input: {
-    method: "CASH" | "BANK_TRANSFER" | "CARD";
+    method: "MANUAL";
     amount?: number;
-    cashReceived?: number;
     note: string;
     clientRequestId: string;
   }) {

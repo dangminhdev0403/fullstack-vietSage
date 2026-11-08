@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 // @ts-expect-error Node strip-types requires explicit extensions.
-import { settleCheckout, checkoutErrorMessage, checkoutRemainingBalance } from "./checkout-settlement.ts";
+import { settleCheckout, checkoutErrorMessage, checkoutRemainingBalance, isFolioMissingRoomCharge } from "./checkout-settlement.ts";
 
 function fixture() {
   const calls: string[] = [];
@@ -115,4 +115,15 @@ test("missing invoice balance fails closed instead of estimating another payment
   const due = checkoutRemainingBalance({ invoice: {}, total: 500000, deposits: 100000 });
   await assert.rejects(settleCheckout({ ...f.input, amount: due, expectedBalanceAmount: due }), /CHECKOUT_AMOUNT_MISMATCH/);
   assert.deepEqual(f.calls, []);
+});
+
+test("allows checkout when the folio summary already includes the estimated room charge", () => {
+  assert.equal(
+    isFolioMissingRoomCharge({ items: [], folioTotal: 1_000_000, expectedRoomCharge: 1_000_000 }),
+    false,
+  );
+  assert.equal(
+    isFolioMissingRoomCharge({ items: [], folioTotal: 0, expectedRoomCharge: 1_000_000 }),
+    true,
+  );
 });

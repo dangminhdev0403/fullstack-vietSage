@@ -41,6 +41,8 @@
 
 ## Unreleased
 
+- **Checkout manual settlement**: `POST /hotels/{hotelId}/invoices/{invoiceId}/payments/manual-confirm` now accepts only `method: MANUAL` and no longer accepts `cashReceived`; omitted booking-payment and receivable-collection methods default to `MANUAL`. Existing historical payment-method values are preserved.
+
 - **LocalMate platform-fee Checkout (implementation in progress)**:
   - `MarketplacePricingConfig.localMatePlatformFeeRate` defaults to `15.00`; it is independent from `deliveryServiceFeeRate` and is snapshotted per LocalMate order.
   - LocalMate guest orders expose `payment` with string monetary fields: `status`, `currency`, `tourTotalAmount`, `platformFeeRateSnapshot`, `platformFeeAmount`, `guideRemainingAmount`, nullable `checkoutUrl`, and nullable `expiresAt`.
