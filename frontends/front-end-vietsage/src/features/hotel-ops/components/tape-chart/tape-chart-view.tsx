@@ -4857,10 +4857,6 @@ export function TapeChartView({
             <span className="text-xs text-slate-500 font-bold uppercase tracking-wider mr-0.5">
               Chú thích:
             </span>
-            <span className="inline-flex items-center gap-1.5 whitespace-nowrap" title="Phòng trống sẵn sàng đón khách">
-              <span className="size-2 rounded-full bg-emerald-500 ring-2 ring-emerald-200" />
-              <span>Trống</span>
-            </span>
             <span className="inline-flex items-center gap-1.5 whitespace-nowrap" title="Phòng đang có khách lưu trú">
               <span className="size-2 rounded-full bg-sky-500 ring-2 ring-sky-200" />
               <span>Đang ở</span>
@@ -5643,10 +5639,6 @@ export function TapeChartView({
                   Ý nghĩa màu trạng thái
                 </h4>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  <div className="flex items-center gap-2 p-1.5 rounded bg-emerald-50 text-emerald-950 font-bold border border-emerald-200">
-                    <span className="size-2 rounded-full bg-emerald-600" />
-                    <span>Sẵn sàng (Trống)</span>
-                  </div>
                   <div className="flex items-center gap-2 p-1.5 rounded bg-sky-50 text-sky-950 font-bold border border-sky-200">
                     <span className="size-2 rounded-full bg-sky-600" />
                     <span>Đang ở (Stay)</span>
