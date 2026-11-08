@@ -237,6 +237,7 @@ function VnDateInput({
 export function CheckInWorkspace(props: CheckInWorkspaceProps) {
   const {
     open,
+    mode = "check-in",
     hotelId,
     room,
     canManageStays,
@@ -764,7 +765,7 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                   tabIndex={-1}
                   className="text-xl sm:text-2xl font-black tracking-tight text-slate-950 outline-none"
                 >
-                  Check-in phòng {room.roomNumber}
+                  {mode === "draft" ? "Thông tin khách phòng" : "Check-in phòng"} {room.roomNumber}
                   {room.type ? ` · ${room.type}` : ""}
                 </h2>
                 <span className="rounded-full bg-emerald-50 px-3 py-0.5 text-xs sm:text-sm font-bold text-emerald-800 border border-emerald-200">
@@ -1179,7 +1180,7 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                 return;
               }
 
-              const confirmed = await showConfirmDialog({
+              const confirmed = mode === "draft" ? { isConfirmed: true } : await showConfirmDialog({
                 title: "Nhận phòng?",
                 icon: "question",
                 details: (() => {
@@ -1720,7 +1721,7 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
             >
               {submitState === "submitting"
                 ? "Đang xử lý..."
-                : `Hoàn tất check-in (${totalGuests} khách)`}
+                : mode === "draft" ? `Lưu ${totalGuests} khách` : `Hoàn tất check-in (${totalGuests} khách)`}
             </button>
           </div>
         </footer>

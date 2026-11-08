@@ -1630,6 +1630,9 @@ export class HotelRoomsRepository {
     hotelId: string;
     roomId: string;
     guestDisplayName: string;
+    groupCode?: string;
+    groupLeadGuestName?: string;
+    groupLeadGuestPhone?: string;
     guestPhone?: string;
     guestIdentityNumber?: string;
     guestDateOfBirth?: string;
@@ -1729,8 +1732,59 @@ export class HotelRoomsRepository {
         input.reservationCode?.trim() || (await input.generateReservationCode(tx));
       const appliedNightlyRate =
         input.nightlyRateSnapshot !== undefined ? input.nightlyRateSnapshot : room.price;
+      const groupCode = input.groupCode?.trim() || null;
+      let reservationId: string | undefined;
+
+      if (groupCode && tx.reservationGroup?.upsert && tx.reservation?.create) {
+        const groupLeadGuestName = input.groupLeadGuestName?.trim() || input.guestDisplayName.trim();
+        const group = await tx.reservationGroup.upsert({
+          where: {
+            hotelId_groupCode: { hotelId: input.hotelId, groupCode },
+          },
+          update: {
+            leadGuestName: groupLeadGuestName,
+            leadGuestPhone: input.groupLeadGuestPhone?.trim() || input.guestPhone || null,
+          },
+          create: {
+            hotelId: input.hotelId,
+            groupCode,
+            groupName: `Đoàn ${groupLeadGuestName}`,
+            leadGuestName: groupLeadGuestName,
+            leadGuestPhone: input.groupLeadGuestPhone?.trim() || input.guestPhone || null,
+            sourceCategory: "DIRECT",
+            createdByUserId: input.createdByUserId,
+          },
+        });
+
+        const reservation = await tx.reservation.create({
+          data: {
+            hotelId: input.hotelId,
+            roomId: input.roomId,
+            roomTypeId: room.roomTypeId,
+            reservationCode,
+            groupCode,
+            groupId: group.id,
+            guestDisplayName: input.guestDisplayName.trim(),
+            guestPhone: input.guestPhone,
+            guestCount: totalOccupants,
+            plannedCheckInAt: input.plannedCheckInAt,
+            plannedCheckOutAt: input.plannedCheckOutAt,
+            baseNightlyRateSnapshot: room.price,
+            nightlyRateSnapshot: appliedNightlyRate,
+            status: ReservationStatus.CHECKED_IN,
+            assignedAt: now,
+            assignedByUserId: input.createdByUserId,
+            checkedInAt: now,
+            checkedInByUserId: input.actorUserId,
+            createdByUserId: input.createdByUserId,
+          },
+        });
+        reservationId = reservation.id;
+      }
+
       const stay = await tx.guestStay.create({
         data: {
+          reservationId,
           hotelId: input.hotelId,
           roomId: input.roomId,
           reservationCode,

@@ -302,7 +302,29 @@ export class HotelRoomsController {
   @RequirePermission("hotel.stays.check-in")
   @ApiDescript("Check-in khách")
   @ApiParam({ name: "hotelId", type: String })
-  @ApiBody({ schema: { type: "object" } })
+  @ApiBody({
+    schema: {
+      type: "object",
+      required: ["roomId", "guestDisplayName", "plannedCheckInAt", "plannedCheckOutAt"],
+      properties: {
+        roomId: { type: "string" },
+        guestDisplayName: { type: "string" },
+        guestPhone: { type: "string" },
+        guestIdentityNumber: { type: "string" },
+        guestDateOfBirth: { type: "string" },
+        guestGender: { type: "string" },
+        guestNationality: { type: "string" },
+        guestResidencePlace: { type: "string" },
+        groupCode: { type: "string" },
+        groupLeadGuestName: { type: "string" },
+        groupLeadGuestPhone: { type: "string" },
+        plannedCheckInAt: { type: "string", format: "date-time" },
+        plannedCheckOutAt: { type: "string", format: "date-time" },
+        nightlyRateSnapshot: { type: "number", minimum: 0 },
+        occupants: { type: "array", items: { type: "object" } },
+      },
+    },
+  })
   @ApiCreatedResponse({ description: "Đã tạo và check-in lượt lưu trú" })
   @Post(":hotelId/stays/check-in")
   async createAndCheckInStay(

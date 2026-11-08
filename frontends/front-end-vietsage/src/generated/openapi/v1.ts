@@ -7417,7 +7417,25 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": Record<string, never>;
+                "application/json": {
+                    roomId: string;
+                    guestDisplayName: string;
+                    guestPhone?: string;
+                    guestIdentityNumber?: string;
+                    guestDateOfBirth?: string;
+                    guestGender?: string;
+                    guestNationality?: string;
+                    guestResidencePlace?: string;
+                    groupCode?: string;
+                    groupLeadGuestName?: string;
+                    groupLeadGuestPhone?: string;
+                    /** Format: date-time */
+                    plannedCheckInAt: string;
+                    /** Format: date-time */
+                    plannedCheckOutAt: string;
+                    nightlyRateSnapshot?: number;
+                    occupants?: Record<string, never>[];
+                };
             };
         };
         responses: {

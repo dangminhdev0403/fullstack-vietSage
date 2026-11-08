@@ -89,18 +89,19 @@ test("GroupOperationsDrawer implements individual room result feedback without a
   assert.match(drawerSource, /result\.message/);
 });
 
-test("FrontDeskArrivalDetailPanel and FrontDeskArrivalsTable wire GroupOperationsDrawer with 'Mở quản lý đoàn'", () => {
+test("FrontDeskArrivalDetailPanel and FrontDeskArrivalsTable expose group operations from the selected arrival detail", () => {
   // FrontDeskArrivalDetailPanel wires button when groupCode is present
   assert.match(panelSource, /arrival\.groupCode\s*\?/);
   assert.match(panelSource, /Mở quản lý đoàn/);
   assert.match(panelSource, /<GroupOperationsDrawer/);
   assert.match(panelSource, /setIsGroupDrawerOpen\(true\)/);
 
-  // FrontDeskArrivalsTable wires button and mounts drawer
+  // FrontDeskArrivalsTable opens the detail panel, which owns the group drawer.
   assert.match(arrivalsTableSource, /arrival\.groupCode\s*\?/);
-  assert.match(arrivalsTableSource, /Mở quản lý đoàn/);
-  assert.match(arrivalsTableSource, /<GroupOperationsDrawer/);
-  assert.match(arrivalsTableSource, /setActiveGroupCode/);
+  assert.match(arrivalsTableSource, /<FrontDeskArrivalDetailPanel/);
+  assert.match(arrivalsTableSource, /setSelectedArrival/);
+  assert.match(panelSource, /Mở quản lý đoàn/);
+  assert.match(panelSource, /<GroupOperationsDrawer/);
 });
 
 test("GroupOperationsDrawer satisfies UI Design Gate standards", () => {

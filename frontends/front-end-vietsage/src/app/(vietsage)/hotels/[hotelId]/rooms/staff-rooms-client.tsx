@@ -1087,10 +1087,16 @@ export function StaffRoomsClient({
     staleTime: 30_000,
   });
 
-  function openBulkReservationModal() {
+  const [bulkCheckInImmediately, setBulkCheckInImmediately] = useState(false);
+
+  function openBulkReservationModal(options?: {
+    defaultCheckInDate?: string;
+    checkInImmediately?: boolean;
+  }) {
     if (isHousekeeping) return;
     const defaultIn =
-      businessDate && businessDate > todayYmd ? businessDate : tomorrowYmd;
+      options?.defaultCheckInDate ||
+      (businessDate && businessDate > todayYmd ? businessDate : todayYmd);
     const inDateObj = new Date(defaultIn);
     inDateObj.setDate(inDateObj.getDate() + 1);
     const defaultOut = new Date(
@@ -1099,6 +1105,7 @@ export function StaffRoomsClient({
       .toISOString()
       .slice(0, 10);
 
+    setBulkCheckInImmediately(Boolean(options?.checkInImmediately));
     setBulkMode("auto");
     setBulkRoomTypeCounts({});
     setBulkLeadName("");
@@ -3460,7 +3467,10 @@ export function StaffRoomsClient({
     );
   }
 
-  async function submitBulkReservations(e?: React.FormEvent) {
+  async function submitBulkReservations(
+    e?: React.FormEvent,
+    checkInImmediately = false,
+  ) {
     if (e) e.preventDefault();
     if (isBulkSubmitting) return;
 
@@ -3695,6 +3705,17 @@ export function StaffRoomsClient({
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
       await refetch();
 
+      if (checkInImmediately || bulkCheckInImmediately) {
+        setBulkCheckInImmediately(false);
+        const targetRooms = buildGroupRoomItems({
+          activeGroupCode: result.groupCode,
+          initialArrivals: result.reservations,
+          rooms,
+        });
+        openGroupCheckIn(result.groupCode, targetRooms);
+        return;
+      }
+
       await SwalVietSage.fire({
         icon: "success",
         title: "Đã tạo đặt trước",
@@ -3713,6 +3734,12 @@ export function StaffRoomsClient({
                 <span id="swal-copy-label">Sao chép</span>
               </button>
             </div>
+            ${canCheckInStay ? `
+            <button id="swal-btn-check-in-group" type="button" style="display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:10px 16px;border-radius:12px;background:#7e22ce;color:#ffffff;font-weight:700;font-size:13px;cursor:pointer;border:none;box-shadow:0 1px 3px rgba(0,0,0,0.1);transition:background 0.15s ease;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              <span>Làm thủ tục nhận phòng ngay (Check-in)</span>
+            </button>
+            ` : ""}
             <button id="swal-btn-print-bulk-voucher" type="button" style="display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:10px 16px;border-radius:12px;background:#1e3a8a;color:#ffffff;font-weight:700;font-size:13px;cursor:pointer;border:none;box-shadow:0 1px 3px rgba(0,0,0,0.1);transition:background 0.15s ease;">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="14" y="14"/></svg>
               <span>In / Tải phiếu xác nhận đoàn</span>
@@ -3737,6 +3764,19 @@ export function StaffRoomsClient({
                 btn.style.color = "#1e293b";
                 btn.style.backgroundColor = "#ffffff";
               }, 2000);
+            });
+          }
+
+          const checkInBtn = document.getElementById("swal-btn-check-in-group");
+          if (checkInBtn) {
+            checkInBtn.addEventListener("click", () => {
+              SwalVietSage.close();
+              const targetRooms = buildGroupRoomItems({
+                activeGroupCode: result.groupCode,
+                initialArrivals: result.reservations,
+                rooms,
+              });
+              openGroupCheckIn(result.groupCode, targetRooms);
             });
           }
 
@@ -3833,6 +3873,8 @@ export function StaffRoomsClient({
           "Không thể tạo đặt phòng hàng loạt. Vui lòng kiểm tra lại.";
         await showErrorAlert("Lỗi đặt phòng", msg);
       }
+    } finally {
+      setBulkCheckInImmediately(false);
     }
   }
 
@@ -6423,7 +6465,7 @@ export function StaffRoomsClient({
               <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={openBulkReservationModal}
+                onClick={() => openBulkReservationModal()}
                 className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-purple-700 hover:bg-purple-800 active:bg-purple-900 px-3.5 text-sm font-bold text-white whitespace-nowrap shadow-xs border border-purple-800/40 transition cursor-pointer min-h-[40px]"
                 title="Đặt trước nhanh theo số lượng loại phòng hoặc chọn phòng theo đoàn"
               >
@@ -6434,11 +6476,12 @@ export function StaffRoomsClient({
               <button
                 type="button"
                 onClick={() => openGroupCheckIn()}
-                className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-300 text-purple-900 px-3.5 text-sm font-bold shadow-xs transition cursor-pointer min-h-[40px] whitespace-nowrap"
+                disabled={!canCheckInStay}
+                className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-300 text-purple-900 px-3.5 text-sm font-bold shadow-xs transition cursor-pointer min-h-[40px] whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50"
                 title="Quản lý và làm thủ tục nhận phòng theo đoàn"
               >
                 <VsIcon name="groups" className="text-base text-purple-700" />
-                <span>Check-in đoàn</span>
+                <span>Nhận phòng đoàn</span>
               </button>
               </div>
             </div>
@@ -8524,7 +8567,7 @@ export function StaffRoomsClient({
                         <div className="flex items-start gap-2 min-w-0">
                           <VsIcon name="info" className="text-base text-purple-700 shrink-0 mt-0.5" />
                           <span className="text-pretty">
-                            Chọn số lượng theo từng loại phòng và tùy chỉnh giá đặt cho đoàn. Hệ thống sẽ tự động gán các phòng còn trống phù hợp.
+                             Chọn số lượng theo từng loại phòng; một đoàn có thể kết hợp nhiều loại phòng và mức giá riêng. Hệ thống sẽ tự động gán các phòng còn trống phù hợp.
                           </span>
                         </div>
                         {isBulkPlanFetching ? (
@@ -9333,7 +9376,7 @@ export function StaffRoomsClient({
                             : bulkSelectedRoomIds.size < 1 ||
                               bulkSelectedRoomIds.size > 50)
                         }
-                        className="px-5 py-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-sm font-bold text-white shadow-sm hover:shadow transition min-h-[42px] cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-5 py-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-sm font-bold text-white shadow-sm hover:shadow transition min-h-[42px] cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                       >
                         {isBulkSubmitting ? (
                           <>
@@ -9352,6 +9395,30 @@ export function StaffRoomsClient({
                           </span>
                         )}
                       </button>
+                      {canCheckInStay ? (
+                        <button
+                          type="button"
+                          onClick={(e) => submitBulkReservations(e, true)}
+                          disabled={
+                            isBulkSubmitting ||
+                            !bulkLeadName.trim() ||
+                            !bulkCheckInDate ||
+                            !bulkCheckOutDate ||
+                            bulkCheckInDate >= bulkCheckOutDate ||
+                            (bulkMode === "auto"
+                              ? bulkTotalAutoCount < 1 ||
+                                bulkTotalAutoCount > 50 ||
+                                hasOverallocatedRoomType
+                              : bulkSelectedRoomIds.size < 1 ||
+                                bulkSelectedRoomIds.size > 50)
+                          }
+                          className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-sm font-bold text-white shadow-sm hover:shadow transition min-h-[42px] cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                          title="Tạo đặt trước và mở ngay giao diện làm thủ tục nhận phòng cho đoàn"
+                        >
+                          <VsIcon name="how_to_reg" className="text-base" />
+                          <span>Đặt trước & Nhận phòng ngay</span>
+                        </button>
+                      ) : null}
                     </div>
                   </div>
                 </form>
@@ -9828,6 +9895,10 @@ export function StaffRoomsClient({
         onSelectGroup={(code) => {
           setIsGroupListModalOpen(false);
           openGroupCheckIn(code);
+        }}
+        onCreateBulkReservation={() => {
+          setIsGroupListModalOpen(false);
+          openBulkReservationModal({ checkInImmediately: true });
         }}
       />
 

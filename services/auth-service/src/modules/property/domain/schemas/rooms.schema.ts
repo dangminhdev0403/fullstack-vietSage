@@ -260,6 +260,9 @@ export const createStayBodySchema = z
       .trim()
       .min(2, "Tên khách hàng phải từ 2 ký tự")
       .max(120, "Tên khách hàng tối đa 120 ký tự"),
+    groupCode: z.string().trim().max(80).optional(),
+    groupLeadGuestName: z.string().trim().max(120).optional(),
+    groupLeadGuestPhone: z.string().trim().max(40).optional(),
     guestPhone: z.string().trim().max(40, "Số điện thoại tối đa 40 ký tự").optional(),
     guestIdentityNumber: identityNumberSchema.optional(),
     guestDateOfBirth: birthDateSchema,
@@ -276,7 +279,6 @@ export const createStayBodySchema = z
       .optional(),
     occupants: z.array(stayOccupantInputSchema).optional(),
     reservationCode: z.string().trim().max(80).optional(),
-    groupCode: z.string().trim().max(80).optional(),
   })
   .strict()
   .refine((value) => value.plannedCheckOutAt > value.plannedCheckInAt, {

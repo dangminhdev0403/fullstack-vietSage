@@ -24,6 +24,9 @@ const occupantSchema = z.object({
 const schema = z.object({
   roomId: z.string().trim().min(1),
   guestDisplayName: z.string().trim().min(1),
+  groupCode: z.string().trim().max(80).optional(),
+  groupLeadGuestName: z.string().trim().max(120).optional(),
+  groupLeadGuestPhone: z.string().trim().max(40).optional(),
   guestPhone: z.string().trim().optional(),
   guestIdentityNumber: z.string().trim().max(32).optional(),
   guestDateOfBirth: z.string().trim().max(20).optional(),
@@ -32,6 +35,7 @@ const schema = z.object({
   guestResidencePlace: z.string().trim().max(500).optional(),
   plannedCheckInAt: z.string().trim().min(1),
   plannedCheckOutAt: z.string().trim().min(1),
+  nightlyRateSnapshot: z.number().finite().nonnegative().optional(),
   occupants: z.array(occupantSchema).optional(),
 }).strict();
 

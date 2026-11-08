@@ -619,6 +619,9 @@ export type UpdateHotelRoomInput = {
 export type CreateHotelStayInput = {
   roomId: string;
   guestDisplayName: string;
+  groupCode?: string;
+  groupLeadGuestName?: string;
+  groupLeadGuestPhone?: string;
   guestPhone?: string;
   guestIdentityNumber?: string;
   guestDateOfBirth?: string;

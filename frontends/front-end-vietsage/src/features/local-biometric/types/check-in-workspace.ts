@@ -34,6 +34,7 @@ export type CheckInStayFields = {
 };
 
 export type CheckInWorkspaceProps = {
+  mode?: 'check-in' | 'draft';
   open: boolean;
   hotelId: string;
   room: CheckInWorkspaceRoom;

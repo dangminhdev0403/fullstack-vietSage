@@ -22,8 +22,10 @@ import {
 import type {
   BulkReservationInput,
   BulkReservationResult,
+  CreateHotelStayInput,
   GroupConfirmationData,
   HotelOpsPage,
+  HotelCheckInResult,
   HotelRoomSummary,
   HotelConfirmationTemplateConfig,
   ReservationConfirmationData,
@@ -247,6 +249,10 @@ const baseStaffRoomsResource = createResource<{ hotelId: string }>()({
       >): Promise<BulkReservationResult> =>
         staffRoomsRepository.createBulkReservations(scope.hotelId, variables),
       invalidates: [{ type: "query", operation: "list" }],
+    }),
+    createAndCheckInStay: defineMutation({
+      mutationFn: ({ scope, variables }: ResourceMutationContext<{ hotelId: string }, CreateHotelStayInput>): Promise<HotelCheckInResult> =>
+        staffRoomsRepository.createAndCheckInStay(scope.hotelId, variables),
     }),
     createBookingPayment: defineMutation({
       mutationFn: ({

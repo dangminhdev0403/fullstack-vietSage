@@ -12,7 +12,9 @@ import type {
   UpdateReservationInput,
   BookingSourcePartnerItem,
   CreateBookingSourcePartnerInput,
+  CreateHotelStayInput,
   HotelStaffAssignmentItem,
+  HotelCheckInResult,
 } from "@/features/hotel-ops/types/hotel-ops-contract";
 import type {
   BillingPage,
@@ -356,6 +358,22 @@ export const staffRoomsRepository = {
   ): Promise<BulkReservationResult> {
     const response = await requestInternalApiEnvelope<BulkReservationResult>(
       `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/reservations/bulk`,
+      {
+        method: "POST",
+        body: input,
+        signal,
+      },
+    );
+    return response.data;
+  },
+
+  async createAndCheckInStay(
+    hotelId: string,
+    input: CreateHotelStayInput,
+    signal?: AbortSignal,
+  ): Promise<HotelCheckInResult> {
+    const response = await requestInternalApiEnvelope<HotelCheckInResult>(
+      `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/stays/check-in`,
       {
         method: "POST",
         body: input,
