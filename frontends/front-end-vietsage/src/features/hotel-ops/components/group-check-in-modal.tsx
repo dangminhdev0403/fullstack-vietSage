@@ -1451,7 +1451,15 @@ function GroupCheckInForm({
                   />
                   <span>Phòng {r.roomNumber}</span>
                   {hasIssue && (
-                    <span className="rounded-md bg-amber-200/90 text-amber-950 px-1.5 py-0.2 text-xs font-black">
+                    <span
+                      className={`rounded-md px-1.5 py-0.2 text-xs font-black border ${
+                        conflict?.type === "CONFLICTING_STAY" || conflict?.type === "OCCUPIED"
+                          ? "bg-sky-100 text-sky-900 border-sky-300"
+                          : conflict?.type === "PROCESSING"
+                            ? "bg-amber-100 text-amber-950 border-amber-300"
+                            : "bg-rose-100 text-rose-950 border-rose-300"
+                      }`}
+                    >
                       {conflict?.type === "PROCESSING" ? "Chờ dọn" : conflict?.type === "CONFLICTING_STAY" || conflict?.type === "OCCUPIED" ? "Đang có khách" : checkInRecovery(conflict?.reason || "").label}
                     </span>
                   )}

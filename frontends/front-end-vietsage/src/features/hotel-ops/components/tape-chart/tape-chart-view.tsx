@@ -530,7 +530,7 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
             </span>
           )}
           {isOccupiedToday && !isHardVetoRoom && !isProcessing && (
-            <span className="px-1.5 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 whitespace-nowrap">
+            <span className="px-1.5 py-0.5 rounded text-xs font-bold bg-sky-100 text-sky-900 border border-sky-300 whitespace-nowrap">
               Đang ở
             </span>
           )}
@@ -1163,7 +1163,7 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
                   isGhostOverdue
                     ? "border-rose-400 bg-rose-600 text-white ring-2 ring-rose-400/40"
                     : isGhostStay
-                      ? "border-emerald-400 bg-emerald-600 text-white ring-2 ring-emerald-400/40"
+                      ? "border-sky-400 bg-sky-600 text-white ring-2 ring-sky-400/40"
                       : "border-purple-300 bg-gradient-to-r from-purple-700 via-indigo-700 to-purple-800 text-white ring-2 ring-purple-400/40"
                 }`}
               >
@@ -1247,11 +1247,11 @@ const DraggableRoomRow = memo(function DraggableRoomRow({
           const canResizeRight = isStay || isOverdue || b.kind === "RESERVATION";
           const canResizeLeft = b.kind === "RESERVATION" && b.startDate >= todayYmd;
 
-          // Màu thanh theo trạng thái: Đang ở (xanh lá), Đặt trước (tím), Quá hạn (đỏ)
+          // Màu thanh theo trạng thái: Đang ở (xanh dương / sky), Đặt trước (tím), Quá hạn (đỏ)
           const barBg = isOverdue
             ? "bg-rose-600 hover:bg-rose-700 border-rose-800 text-white"
             : isStay
-              ? "bg-emerald-600 hover:bg-emerald-700 border-emerald-800 text-white"
+              ? "bg-sky-600 hover:bg-sky-700 border-sky-800 text-white"
               : "bg-purple-600 hover:bg-purple-700 border-purple-800 text-white";
 
           const isBeingResized = Boolean(activeBlockResize && activeBlockResize.block.id === b.id);
@@ -1723,7 +1723,7 @@ const BookingDetailPanel = memo(function BookingDetailPanel({
     block.status === "OVERDUE"
       ? "bg-rose-100 text-rose-800 border-rose-300"
       : block.kind === "STAY"
-        ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+        ? "bg-sky-100 text-sky-900 border-sky-300"
         : "bg-purple-100 text-purple-900 border-purple-300";
 
   return (
@@ -1740,7 +1740,7 @@ const BookingDetailPanel = memo(function BookingDetailPanel({
                 block.status === "OVERDUE"
                   ? "bg-rose-600"
                   : block.kind === "STAY"
-                    ? "bg-emerald-600"
+                    ? "bg-sky-600"
                     : "bg-purple-600"
               }`}
             />
@@ -4849,6 +4849,40 @@ export function TapeChartView({
             )}
           </div>
 
+          {/* Status Color Legend (Giải thích trực quan các trạng thái đồng màu với Sơ đồ phòng) */}
+          <div
+            className="hidden xl:flex items-center gap-2.5 px-3 py-1 rounded-xl bg-slate-50 border border-slate-200/90 text-xs font-semibold text-slate-700 shadow-2xs shrink-0 select-none"
+            title="Ý nghĩa màu trạng thái trên sơ đồ và kế hoạch phòng"
+          >
+            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider mr-0.5">
+              Chú thích:
+            </span>
+            <span className="inline-flex items-center gap-1.5 whitespace-nowrap" title="Phòng trống sẵn sàng đón khách">
+              <span className="size-2 rounded-full bg-emerald-500 ring-2 ring-emerald-200" />
+              <span>Trống</span>
+            </span>
+            <span className="inline-flex items-center gap-1.5 whitespace-nowrap" title="Phòng đang có khách lưu trú">
+              <span className="size-2 rounded-full bg-sky-500 ring-2 ring-sky-200" />
+              <span>Đang ở</span>
+            </span>
+            <span className="inline-flex items-center gap-1.5 whitespace-nowrap" title="Phòng đã có khách đặt trước">
+              <span className="size-2 rounded-full bg-purple-500 ring-2 ring-purple-200" />
+              <span>Đặt trước</span>
+            </span>
+            <span className="inline-flex items-center gap-1.5 whitespace-nowrap" title="Phòng đang chờ nhân viên dọn dẹp buồng">
+              <span className="size-2 rounded-full bg-amber-500 ring-2 ring-amber-200" />
+              <span>Chờ dọn</span>
+            </span>
+            <span className="inline-flex items-center gap-1.5 whitespace-nowrap" title="Phòng đã quá hạn trả nhưng chưa check-out">
+              <span className="size-2 rounded-full bg-rose-500 ring-2 ring-rose-200" />
+              <span>Quá hạn</span>
+            </span>
+            <span className="inline-flex items-center gap-1.5 whitespace-nowrap" title="Phòng tạm ngưng đón khách hoặc đang bảo trì">
+              <span className="size-2 rounded-full bg-slate-400 ring-2 ring-slate-200" />
+              <span>Khóa / Bảo trì</span>
+            </span>
+          </div>
+
           {/* Right: Overdue Alerts, Primary CTA & Secondary Menu */}
           <div className="flex flex-nowrap shrink-0 items-center gap-2 ml-auto">
             {/* Overdue Rooms Interactive Alert Pill */}
@@ -5608,22 +5642,30 @@ export function TapeChartView({
                 <h4 className="font-bold text-slate-900 uppercase tracking-wider text-xs">
                   Ý nghĩa màu trạng thái
                 </h4>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   <div className="flex items-center gap-2 p-1.5 rounded bg-emerald-50 text-emerald-950 font-bold border border-emerald-200">
                     <span className="size-2 rounded-full bg-emerald-600" />
+                    <span>Sẵn sàng (Trống)</span>
+                  </div>
+                  <div className="flex items-center gap-2 p-1.5 rounded bg-sky-50 text-sky-950 font-bold border border-sky-200">
+                    <span className="size-2 rounded-full bg-sky-600" />
                     <span>Đang ở (Stay)</span>
                   </div>
                   <div className="flex items-center gap-2 p-1.5 rounded bg-purple-50 text-purple-950 font-bold border border-purple-200">
                     <span className="size-2 rounded-full bg-purple-600" />
                     <span>Đặt trước (Reservation)</span>
                   </div>
+                  <div className="flex items-center gap-2 p-1.5 rounded bg-amber-50 text-amber-950 font-bold border border-amber-200">
+                    <span className="size-2 rounded-full bg-amber-500" />
+                    <span>Chờ dọn (Cleaning)</span>
+                  </div>
                   <div className="flex items-center gap-2 p-1.5 rounded bg-rose-50 text-rose-950 font-bold border border-rose-200">
                     <span className="size-2 rounded-full bg-rose-600" />
                     <span>Quá hạn trả (Overdue)</span>
                   </div>
-                  <div className="flex items-center gap-2 p-1.5 rounded bg-amber-50 text-amber-950 font-bold border border-amber-200">
-                    <span className="size-2 rounded-full bg-amber-500" />
-                    <span>Chờ dọn (Cleaning)</span>
+                  <div className="flex items-center gap-2 p-1.5 rounded bg-slate-100 text-slate-800 font-bold border border-slate-300">
+                    <span className="size-2 rounded-full bg-slate-500" />
+                    <span>Khóa / Bảo trì</span>
                   </div>
                 </div>
               </div>
