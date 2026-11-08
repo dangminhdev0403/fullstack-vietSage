@@ -1265,7 +1265,7 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
 
             {/* Grid Table: Clean, readable, spacious layout without overflowing or truncating */}
             <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
-              <table className="w-full text-left text-sm sm:text-base text-slate-900">
+              <table className="w-full min-w-[880px] text-left text-sm sm:text-base text-slate-900">
                 <thead className="border-b border-slate-200 bg-slate-100/90 font-bold text-slate-800 text-sm sm:text-base whitespace-nowrap">
                   <tr>
                     <th className="w-10 px-2 py-3 text-center">
@@ -1295,8 +1295,11 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                     <th className="min-w-[180px] px-2.5 py-3 font-bold text-slate-900">
                       Quê quán / Địa chỉ
                     </th>
-                    <th className="min-w-[200px] px-2.5 py-3 font-bold text-slate-900">
-                      Ngày sinh & Giới tính
+                    <th className="min-w-[140px] px-2.5 py-3 font-bold text-slate-900">
+                      Ngày sinh
+                    </th>
+                    <th className="min-w-[95px] px-2.5 py-3 font-bold text-slate-900">
+                      Giới tính
                     </th>
                     <th className="w-12 px-2 py-3 text-center font-bold text-slate-900">
                       Xóa
@@ -1404,35 +1407,35 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                         />
                       </td>
                       <td className="px-2 py-2">
-                        <div className="flex items-center gap-1.5">
-                          <VnDateInput
-                            id="ciw-dob"
-                            allowYearOnly
-                            error={validationErrors["ciw-dob"]}
-                            value={fields.guestDateOfBirth || ""}
-                            onChange={(val) =>
-                              setFields((f) => ({ ...f, guestDateOfBirth: val }))
-                            }
-                            className={`${cellInputClass} flex-1 min-w-[105px]`}
-                            placeholder="ngày/tháng/năm"
-                          />
-                          <select
-                            id="ciw-gender"
-                            value={fields.guestGender || "Nam"}
-                            onChange={(e) =>
-                              setFields({
-                                ...fields,
-                                guestGender: e.target.value,
-                              })
-                            }
-                            className={`${cellSelectClass} w-20 shrink-0`}
-                          >
-                            <option value="Nam">Nam</option>
-                            <option value="Nữ">Nữ</option>
-                            <option value="Khác">Khác</option>
-                          </select>
-                        </div>
+                        <VnDateInput
+                          id="ciw-dob"
+                          allowYearOnly
+                          error={validationErrors["ciw-dob"]}
+                          value={fields.guestDateOfBirth || ""}
+                          onChange={(val) =>
+                            setFields((f) => ({ ...f, guestDateOfBirth: val }))
+                          }
+                          className={cellInputClass}
+                          placeholder="ngày/tháng/năm"
+                        />
                         {validationErrors["ciw-dob"] ? <p id="ciw-dob-error" role="alert" className="mt-1 text-sm text-red-700">{validationErrors["ciw-dob"]}</p> : null}
+                      </td>
+                      <td className="px-2 py-2">
+                        <select
+                          id="ciw-gender"
+                          value={fields.guestGender || "Nam"}
+                          onChange={(e) =>
+                            setFields({
+                              ...fields,
+                              guestGender: e.target.value,
+                            })
+                          }
+                          className={cellSelectClass}
+                        >
+                          <option value="Nam">Nam</option>
+                          <option value="Nữ">Nữ</option>
+                          <option value="Khác">Khác</option>
+                        </select>
                       </td>
                       <td className="px-2 py-2 text-center">
                         <button
@@ -1620,36 +1623,36 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                           />
                         </td>
                         <td className="px-2 py-2">
-                          <div className="flex items-center gap-1.5">
-                            <VnDateInput
-                              id={`occ-dob-${slotIdx}`}
-                              allowYearOnly
-                              error={validationErrors[`occ-dob-${slotIdx}`]}
-                              value={occ.dateOfBirth || ""}
-                              onChange={(val) =>
-                                handleOccupantChange(occIdx, "dateOfBirth", val)
-                              }
-                              className={`${cellInputClass} flex-1 min-w-[105px]`}
-                              placeholder="ngày/tháng/năm"
-                            />
-                            <select
-                              id={`occ-gender-${slotIdx}`}
-                              value={occ.gender || "Nam"}
-                              onChange={(e) =>
-                                handleOccupantChange(
-                                  occIdx,
-                                  "gender",
-                                  e.target.value,
-                                )
-                              }
-                              className={`${cellSelectClass} w-20 shrink-0`}
-                            >
-                              <option value="Nam">Nam</option>
-                              <option value="Nữ">Nữ</option>
-                              <option value="Khác">Khác</option>
-                            </select>
-                          </div>
+                          <VnDateInput
+                            id={`occ-dob-${slotIdx}`}
+                            allowYearOnly
+                            error={validationErrors[`occ-dob-${slotIdx}`]}
+                            value={occ.dateOfBirth || ""}
+                            onChange={(val) =>
+                              handleOccupantChange(occIdx, "dateOfBirth", val)
+                            }
+                            className={cellInputClass}
+                            placeholder="ngày/tháng/năm"
+                          />
                           {validationErrors[`occ-dob-${slotIdx}`] ? <p id={`occ-dob-${slotIdx}-error`} role="alert" className="mt-1 text-sm text-red-700">{validationErrors[`occ-dob-${slotIdx}`]}</p> : null}
+                        </td>
+                        <td className="px-2 py-2">
+                          <select
+                            id={`occ-gender-${slotIdx}`}
+                            value={occ.gender || "Nam"}
+                            onChange={(e) =>
+                              handleOccupantChange(
+                                occIdx,
+                                "gender",
+                                e.target.value,
+                              )
+                            }
+                            className={cellSelectClass}
+                          >
+                            <option value="Nam">Nam</option>
+                            <option value="Nữ">Nữ</option>
+                            <option value="Khác">Khác</option>
+                          </select>
                         </td>
                         <td className="px-2 py-2 text-center">
                           <button

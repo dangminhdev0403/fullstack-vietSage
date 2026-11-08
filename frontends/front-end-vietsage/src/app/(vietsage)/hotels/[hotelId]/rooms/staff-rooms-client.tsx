@@ -9391,7 +9391,7 @@ export function StaffRoomsClient({
 
                       {/* Header */}
                       <div className="relative flex items-start justify-between gap-3 border-b border-slate-100 pb-4">
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
                           <div
                             className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl shadow-2xs ${
                               modalResDetails
@@ -9408,7 +9408,7 @@ export function StaffRoomsClient({
                               className="text-2xl"
                             />
                           </div>
-                          <div>
+                          <div className="min-w-0">
                             <div className="flex items-center gap-2">
                               <h2
                                 id="available-room-modal-title"
@@ -9417,7 +9417,7 @@ export function StaffRoomsClient({
                                 Phòng {getRoomNumber(availableRoomChoice)}
                               </h2>
                               <span
-                                className={`rounded-full border px-2.5 py-0.5 text-xs font-bold ${
+                                className={`rounded-full border px-2.5 py-0.5 text-xs font-bold whitespace-nowrap ${
                                   modalResDetails
                                     ? "bg-purple-100 text-purple-900 border-purple-300"
                                     : "bg-emerald-100 text-emerald-900 border-emerald-300"
@@ -9435,7 +9435,7 @@ export function StaffRoomsClient({
                                 : "Không gian nghỉ"}
                               {availableRoomChoice.price &&
                               Number(availableRoomChoice.price) > 0 ? (
-                                <span className="ml-2 font-bold text-slate-900">
+                                <span className="ml-1.5 font-bold text-slate-900 whitespace-nowrap">
                                   ·{" "}
                                   {formatMoney({
                                     price: availableRoomChoice.price,
