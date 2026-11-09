@@ -45,11 +45,16 @@ export function ServiceTenantRealtimeNotifier() {
           duration: 12000,
           action: {
             label: "👉 Xem ngay",
-            onClick: () => router.push("/service/orders"),
+            onClick: () => {
+              void queryClient.invalidateQueries({ queryKey: ["vietsage", "service-portal"] });
+              router.refresh();
+              router.push("/service/orders");
+            },
           },
         });
 
         void queryClient.invalidateQueries({ queryKey: ["vietsage", "service-portal"] });
+        router.refresh();
       },
       onExternalOrderStatusChanged: (event: unknown) => {
         const raw = event as { orderId?: string; status?: string } | null;

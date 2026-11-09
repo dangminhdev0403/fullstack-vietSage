@@ -139,13 +139,13 @@ function buildConfirmHtml(
       ? null
       : Number(service.price);
   const quantityLine = service.quantityEnabled
-    ? `<section class="vs-service-confirm-item"><span class="vs-service-confirm-bullet">&bull;</span><span class="vs-service-confirm-label">${escapeHtml(t("services.quantity"))}</span><p class="vs-service-confirm-copy">${quantity}</p></section>`
+    ? `<section class="vs-service-confirm-item"><span class="vs-service-confirm-bullet">&bull;</span><span class="vs-service-confirm-label">${escapeHtml(t("services.quantityLabel"))}</span><p class="vs-service-confirm-copy">${quantity}</p></section>`
     : "";
   const totalLine =
     numericPrice !== null && Number.isFinite(numericPrice) && service.quantityEnabled
-      ? ` · Thành tiền: ${(numericPrice * quantity).toLocaleString(intlLocale)}${service.currency ? ` ${escapeHtml(service.currency)}` : ""}`
+      ? ` · ${t("services.totalPrice")}: ${(numericPrice * quantity).toLocaleString(intlLocale)}${service.currency ? ` ${service.currency}` : ""}`
       : "";
-  const priceLine = `<section class="vs-service-confirm-item"><span class="vs-service-confirm-bullet">&bull;</span><span class="vs-service-confirm-label">${escapeHtml(t("services.price"))}</span><p class="vs-service-confirm-copy">${escapeHtml(getServicePrice(service, t, intlLocale))}${escapeHtml(totalLine)}</p></section>`;
+  const priceLine = `<section class="vs-service-confirm-item"><span class="vs-service-confirm-bullet">&bull;</span><span class="vs-service-confirm-label">${escapeHtml(t("services.priceLabel"))}</span><p class="vs-service-confirm-copy">${escapeHtml(getServicePrice(service, t, intlLocale))}${escapeHtml(totalLine)}</p></section>`;
   const noteLine = note.trim()
     ? `<section class="vs-service-confirm-item"><span class="vs-service-confirm-bullet">&bull;</span><span class="vs-service-confirm-label">${escapeHtml(t("services.noteLabel"))}</span><p class="vs-service-confirm-copy">${escapeHtml(note.trim())}</p></section>`
     : "";

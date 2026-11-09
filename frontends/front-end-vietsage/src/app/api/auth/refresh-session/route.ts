@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 
 import { runtimeConsole } from "@/core/logging/runtime-console";
 import { AuthServiceError } from "@/features/auth/service/auth-service";
@@ -9,6 +10,46 @@ import { sanitizeInternalCallbackUrl } from "@/libs/rbac";
 import { readServerSessionTokens } from "@/libs/server-session-tokens";
 
 export const dynamic = "force-dynamic";
+
+const nextAuthCookiePrefixes = [
+  "next-auth.",
+  "__Secure-next-auth.",
+  "__Host-next-auth.",
+  "authjs.",
+  "__Secure-authjs.",
+  "__Host-authjs.",
+] as const;
+
+function isNextAuthCookie(cookieName: string): boolean {
+  return nextAuthCookiePrefixes.some((prefix) => cookieName.startsWith(prefix));
+}
+
+function clearNextAuthCookies(
+  request: NextRequest,
+  response: NextResponse,
+): NextResponse {
+  const nextAuthCookieNames = request.cookies
+    .getAll()
+    .concat(response.cookies.getAll())
+    .map((cookie) => cookie.name)
+    .filter((cookieName) => isNextAuthCookie(cookieName));
+
+  for (const cookieName of new Set(nextAuthCookieNames)) {
+    const requiresSecureFlag =
+      cookieName.startsWith("__Secure-") || cookieName.startsWith("__Host-");
+
+    response.cookies.set({
+      name: cookieName,
+      value: "",
+      path: "/",
+      maxAge: 0,
+      expires: new Date(0),
+      secure: requiresSecureFlag,
+    });
+  }
+
+  return response;
+}
 
 function unauthorizedResponse() {
   return NextResponse.json(
@@ -56,7 +97,8 @@ function buildLoginRedirect(request: NextRequest, callbackUrl: string): NextResp
   loginUrl.searchParams.set("reauth", "1");
   loginUrl.searchParams.set("callbackUrl", sanitizeInternalCallbackUrl(callbackUrl));
 
-  return NextResponse.redirect(loginUrl);
+  const response = NextResponse.redirect(loginUrl);
+  return clearNextAuthCookies(request, response);
 }
 
 function isExpectedRefreshFailure(error: unknown): boolean {
@@ -92,7 +134,25 @@ export async function GET(request: NextRequest) {
       timestamp: Date.now(),
     });
 
-    return NextResponse.redirect(createRequestRedirectUrl(callbackUrl, request));
+    const redirectUrl = createRequestRedirectUrl(callbackUrl, request);
+    redirectUrl.searchParams.set("__refreshed", "1");
+
+    const response = NextResponse.redirect(redirectUrl);
+
+    response.cookies.set({
+      name: "__vs_refresh_at",
+      value: String(Date.now()),
+      path: "/",
+      maxAge: 15,
+      sameSite: "lax",
+    });
+
+    const cookieStore = await cookies();
+    for (const cookie of cookieStore.getAll()) {
+      response.cookies.set(cookie);
+    }
+
+    return response;
   } catch (error) {
     console.warn("[AUTH_REFRESH_GATE_FAILED]", {
       source: "refresh-session-route",
@@ -115,7 +175,7 @@ export async function POST() {
   try {
     const refreshedTokens = await refreshAndSaveSessionTokens(refreshToken);
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       ok: true,
       status: 200,
       message: "Session refreshed successfully",
@@ -123,6 +183,13 @@ export async function POST() {
         accessTokenExpiresAt: refreshedTokens.accessTokenExpiresAt,
       },
     });
+
+    const cookieStore = await cookies();
+    for (const cookie of cookieStore.getAll()) {
+      response.cookies.set(cookie);
+    }
+
+    return response;
   } catch (error) {
     const expectedRefreshFailure = isExpectedRefreshFailure(error);
     console.warn("[AUTH_REFRESH_GATE_FAILED]", {

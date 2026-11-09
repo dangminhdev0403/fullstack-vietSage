@@ -153,8 +153,10 @@ function getExternalOrderStatusBadge(
     case "COMPLETED":
       return { label: t("requests.completed"), className: "bg-[#e7f4eb] text-[#16562c] border-[#bde2c7]" };
     case "CANCELLED":
-    case "REJECTED":
       return { label: t("requests.cancelled"), className: "bg-[#ffe4e6] text-[#9f1239] border-[#fecdd3]" };
+    case "REJECTED":
+    case "FAILED":
+      return { label: t("requests.rejected"), className: "bg-[#ffe4e6] text-[#9f1239] border-[#fecdd3]" };
     default:
       return { label: status, className: "bg-[#f2efe9] text-[#46534b] border-[#e5ddcd]" };
   }

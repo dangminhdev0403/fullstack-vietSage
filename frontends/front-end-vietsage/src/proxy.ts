@@ -84,6 +84,7 @@ function buildLoginRedirect(request: NextRequest): NextResponse {
 
   // Prevent callbackUrl nesting growth when a protected URL already carries callbackUrl
   callbackSource.searchParams.delete("callbackUrl");
+  callbackSource.searchParams.delete("__refreshed");
 
   const callbackUrl = sanitizeInternalCallbackUrl(
     `${callbackSource.pathname}${callbackSource.search}`,
@@ -123,6 +124,7 @@ function buildRefreshSessionRedirect(request: NextRequest): NextResponse {
   const callbackSource = request.nextUrl.clone();
 
   callbackSource.searchParams.delete("callbackUrl");
+  callbackSource.searchParams.delete("__refreshed");
   refreshUrl.searchParams.set(
     "callbackUrl",
     sanitizeInternalCallbackUrl(
@@ -216,8 +218,15 @@ const authenticatedProxy = auth((request) => {
     return buildLoginRedirect(request);
   }
 
+  const lastRefreshAt = Number(request.cookies.get("__vs_refresh_at")?.value);
+  const recentlyRefreshed =
+    Number.isFinite(lastRefreshAt) && Date.now() - lastRefreshAt < 15_000;
+  const hasRefreshed =
+    request.nextUrl.searchParams.has("__refreshed") || recentlyRefreshed;
+
   if (
     isProtectedRoute &&
+    !hasRefreshed &&
     typeof accessTokenExpiresAt === "number" &&
     accessTokenExpiresAt <= Date.now() + REFRESH_SESSION_EARLY_MS
   ) {

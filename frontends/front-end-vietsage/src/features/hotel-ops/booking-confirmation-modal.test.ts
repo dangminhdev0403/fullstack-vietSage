@@ -20,8 +20,8 @@ test("BookingConfirmationModal complies with accessibility, dialog role and prin
   assert.match(modalSource, /no-print/);
   assert.match(modalSource, /@media print/);
 
-  // QR Code integration
-  assert.match(modalSource, /QRCodeSVG/);
+  // Confirmation code & Header identity
+  assert.match(modalSource, /Mã xác nhận/);
 
   // Sàn font >= 12px (không dùng font micro-classes)
   assert.doesNotMatch(modalSource, /text-\[10px\]/);

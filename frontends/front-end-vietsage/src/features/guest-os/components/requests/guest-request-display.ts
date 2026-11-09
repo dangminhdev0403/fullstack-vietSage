@@ -40,7 +40,8 @@ export function getRequestStatusLabel(status: GuestPortalRequestStatus, t: Guest
   if (status === "COMPLETED") return t("requests.completed");
   if (status === "CANCELLED") return t("requests.cancelled");
   if (status === "REJECTED" || (status as string) === "FAILED") return t("requests.rejected");
-  return requestStatusLabelMap[status] ?? t("requests.sent");
+  const fallbackKey = requestStatusLabelMap[status];
+  return fallbackKey ? t(fallbackKey) : t("requests.sent");
 }
 
 export function getRequestCurrency(request: GuestRequest): string {

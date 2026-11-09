@@ -450,8 +450,10 @@ export function RequestQueueClient({
       params.delete("tab");
     } else if (nextTab === "EXTERNAL_ORDERS") {
       params.set("tab", "external");
+      void externalOrdersQuery.refetch();
     } else {
       params.set("tab", "all");
+      void externalOrdersQuery.refetch();
     }
     const nextUrl = `${basePath}${params.size ? `?${params.toString()}` : ""}`;
     window.history.pushState({}, "", nextUrl);
@@ -469,6 +471,91 @@ export function RequestQueueClient({
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
+
+  useEffect(() => {
+    if (initialDetailRequestId) {
+      setActiveDetailRequestId(initialDetailRequestId);
+    }
+  }, [initialDetailRequestId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const reqId = params.get("requestId");
+    if (reqId && reqId !== activeDetailRequestId) {
+      setActiveDetailRequestId(reqId);
+    }
+    const tabParam = params.get("tab");
+    if (tabParam) {
+      const normalized = normalizeInitialTab(tabParam);
+      if (normalized !== inboxTab) {
+        setInboxTab(normalized);
+      }
+    }
+  }, [activeDetailRequestId, inboxTab]);
+
+  useEffect(() => {
+    function handleOpenRequest(event: Event) {
+      const customEvent = event as CustomEvent<{ requestId?: string; hotelId?: string }>;
+      const targetRequestId = customEvent.detail?.requestId;
+      if (targetRequestId) {
+        selectInboxTab("HOTEL_REQUESTS");
+        setFilters((prev) => ({
+          ...prev,
+          status: "",
+          roomNumber: "",
+          q: "",
+        }));
+        setActiveDetailRequestId(targetRequestId);
+        const url = new URL(window.location.href);
+        url.searchParams.set("requestId", targetRequestId);
+        url.searchParams.delete("tab");
+        window.history.replaceState({}, "", url.toString());
+      }
+    }
+    window.addEventListener("vietsage:open-request", handleOpenRequest);
+    return () => window.removeEventListener("vietsage:open-request", handleOpenRequest);
+  }, []);
+
+  const externalOrdersQuery = useQuery({
+    ...localPartnersResource.bind({ hotelId }).queries.marketplaceOrders.options(undefined as never),
+    enabled: inboxTab !== "HOTEL_REQUESTS",
+    refetchOnWindowFocus: true,
+  });
+  const externalOrders = useMemo(
+    () => externalOrdersQuery.data ?? [],
+    [externalOrdersQuery.data],
+  );
+
+  const externalOrdersById = useMemo(() => {
+    return new Map<string, HotelMarketplaceOrder>(
+      externalOrders.map((order) => [order.id, order]),
+    );
+  }, [externalOrders]);
+
+  useEffect(() => {
+    function handleOpenExternalOrder(event: Event) {
+      const customEvent = event as CustomEvent<{ orderId?: string; hotelId?: string }>;
+      selectInboxTab("EXTERNAL_ORDERS");
+      setFilters((prev) => ({
+        ...prev,
+        status: "",
+        roomNumber: "",
+        q: "",
+      }));
+      void localPartnersResource.bind({ hotelId }).queries.marketplaceOrders.invalidateAll(queryClient);
+      void externalOrdersQuery.refetch();
+      const targetOrderId = customEvent.detail?.orderId;
+      if (targetOrderId) {
+        const found = externalOrdersById.get(targetOrderId);
+        if (found) {
+          openExternalOrderDetailModal(found);
+        }
+      }
+    }
+    window.addEventListener("vietsage:open-external-order", handleOpenExternalOrder);
+    return () => window.removeEventListener("vietsage:open-external-order", handleOpenExternalOrder);
+  }, [externalOrdersById, externalOrdersQuery, hotelId, queryClient]);
 
   const {
     data: detailRequest,
@@ -488,21 +575,6 @@ export function RequestQueueClient({
     });
   }, [initialFilters]);
 
-  const externalOrdersQuery = useQuery({
-    ...localPartnersResource.bind({ hotelId }).queries.marketplaceOrders.options(undefined as never),
-    enabled: inboxTab !== "HOTEL_REQUESTS",
-  });
-  const externalOrders = useMemo(
-    () => externalOrdersQuery.data ?? [],
-    [externalOrdersQuery.data],
-  );
-
-  const externalOrdersById = useMemo(() => {
-    return new Map<string, HotelMarketplaceOrder>(
-      externalOrders.map((order) => [order.id, order]),
-    );
-  }, [externalOrders]);
-
   const applyLiveRequestChange = useCallback(
     (request: Partial<StaffRequestListItem> & { id: string }) => {
       setLiveRequestChanges((currentChanges) => ({
@@ -516,21 +588,60 @@ export function RequestQueueClient({
     [],
   );
 
+  useEffect(() => {
+    function handleLiveRequestCreated(event: Event) {
+      const customEvent = event as CustomEvent<StaffRequestListItem>;
+      if (customEvent.detail?.id) {
+        applyLiveRequestChange(customEvent.detail);
+      }
+    }
+    window.addEventListener("vietsage:live-request-created", handleLiveRequestCreated);
+    return () => window.removeEventListener("vietsage:live-request-created", handleLiveRequestCreated);
+  }, [applyLiveRequestChange]);
+
   const realtimeHandlers = useMemo(
     () => ({
       onCreated: (request: StaffRequestListItem) => {
         applyLiveRequestChange(request);
+        router.refresh();
       },
       onUpdated: (request: Partial<StaffRequestListItem> & { id: string }) => {
         applyLiveRequestChange(request);
+        router.refresh();
       },
       onAnswered: (request?: Partial<StaffRequestListItem> & { id?: string }) => {
         if (request?.id) {
           applyLiveRequestChange(request as Partial<StaffRequestListItem> & { id: string });
         }
+        router.refresh();
+      },
+      onExternalOrderCreated: () => {
+        void localPartnersResource.bind({ hotelId }).queries.marketplaceOrders.invalidateAll(queryClient);
+        void externalOrdersQuery.refetch();
+        router.refresh();
+      },
+      onExternalOrderStatusChanged: () => {
+        void localPartnersResource.bind({ hotelId }).queries.marketplaceOrders.invalidateAll(queryClient);
+        void externalOrdersQuery.refetch();
+        router.refresh();
+      },
+      onExternalOrderHotelAcknowledged: () => {
+        void localPartnersResource.bind({ hotelId }).queries.marketplaceOrders.invalidateAll(queryClient);
+        void externalOrdersQuery.refetch();
+        router.refresh();
+      },
+      onExternalOrderVoucherIssued: () => {
+        void localPartnersResource.bind({ hotelId }).queries.marketplaceOrders.invalidateAll(queryClient);
+        void externalOrdersQuery.refetch();
+        router.refresh();
+      },
+      onReconnect: () => {
+        void invalidateHotelRequestRealtimeQueries(queryClient, hotelId);
+        void externalOrdersQuery.refetch();
+        router.refresh();
       },
     }),
-    [applyLiveRequestChange],
+    [applyLiveRequestChange, externalOrdersQuery, hotelId, queryClient, router],
   );
 
   useOwnerRequestRealtime(hotelId, realtimeHandlers);
@@ -801,8 +912,7 @@ export function RequestQueueClient({
     toast.dismiss(`hotel-ops-request-created-${updated.id}`);
     toast.dismiss(`owner-request-created-${updated.id}`);
     void invalidateHotelRequestRealtimeQueries(queryClient, hotelId);
-
-
+    router.refresh();
   }
 
   const { status: statusMutation, acknowledgeOrder, cancelOrder } = useRequestQueueActions(

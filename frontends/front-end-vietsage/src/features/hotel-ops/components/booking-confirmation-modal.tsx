@@ -2,7 +2,6 @@
 
 import React, { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { QRCodeSVG } from "qrcode.react";
 
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import type { Hotel } from "@/features/admin/types/admin-contract";
@@ -671,32 +670,26 @@ export function BookingConfirmationPrintView({
               </div>
             </div>
 
-            <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2 bg-slate-50 sm:bg-transparent p-3 sm:p-0 rounded-xl border border-slate-200 sm:border-none shrink-0">
+            <div className="flex flex-col sm:items-end gap-2.5 shrink-0">
               <div className="text-left sm:text-right">
-                <div className="inline-block rounded-lg bg-blue-900 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white whitespace-nowrap">
+                <span className="inline-block rounded-lg bg-blue-900 px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider text-white shadow-2xs whitespace-nowrap">
                   {titleText}
-                </div>
-                <div className="text-xs text-slate-500 pt-1 font-medium whitespace-nowrap">
-                  Ngày lập: {formatDateVi(new Date())}
-                </div>
+                </span>
               </div>
 
-              <div className="flex flex-col items-center sm:items-end gap-1.5 pt-0.5">
-                <div className="p-1.5 bg-white border border-slate-200 rounded-lg shadow-2xs">
-                  <QRCodeSVG
-                    value={codeValue}
-                    size={72}
-                    fgColor="#0f172a"
-                    bgColor="#ffffff"
-                    level="M"
-                  />
-                </div>
-                <div className="text-center sm:text-right">
-                  <span className="text-xs text-slate-400 font-semibold block uppercase tracking-wider">
+              <div className="rounded-xl border border-slate-200/90 bg-slate-50/70 p-3 sm:px-4 sm:py-2.5 space-y-1.5 min-w-[210px]">
+                <div className="flex items-center justify-between sm:justify-end gap-3 text-xs">
+                  <span className="text-slate-500 font-semibold uppercase tracking-wider whitespace-nowrap">
                     Mã xác nhận
                   </span>
-                  <span className="font-mono text-sm font-black tracking-wider text-slate-900 whitespace-nowrap">
+                  <span className="font-mono text-sm sm:text-base font-black tracking-wider text-slate-900 whitespace-nowrap">
                     {codeValue}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between sm:justify-end gap-3 text-xs text-slate-500 border-t border-slate-200/60 pt-1.5">
+                  <span className="font-medium whitespace-nowrap">Ngày lập</span>
+                  <span className="font-semibold text-slate-700 whitespace-nowrap">
+                    {formatDateVi(new Date())}
                   </span>
                 </div>
               </div>
@@ -713,36 +706,19 @@ export function BookingConfirmationPrintView({
           {!isGroup ? (
             (() => {
               const res = (data as ReservationConfirmationData).reservation;
-              const statusObj = mapReservationStatus(res.status);
               return (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
                   <div>
-                    <span className="text-slate-500 block">Khách đại diện:</span>
+                    <span className="text-slate-500 block mb-1">Khách đại diện:</span>
                     <strong className="text-sm font-bold text-slate-900">{res.guestDisplayName}</strong>
-                    {res.guestPhone ? <div className="text-slate-600">{res.guestPhone}</div> : null}
                   </div>
                   <div>
-                    <span className="text-slate-500 block">Ngày nhận phòng:</span>
-                    <strong className="text-slate-900 font-semibold">{formatDateTimeVi(res.plannedCheckInAt)}</strong>
-                    {policies.checkInTime ? (
-                      <div className="text-slate-500">Giờ nhận: {cleanPolicyTime(policies.checkInTime)}</div>
-                    ) : null}
+                    <span className="text-slate-500 block mb-1">Ngày nhận phòng:</span>
+                    <strong className="text-sm font-bold text-slate-900">{formatDateTimeVi(res.plannedCheckInAt)}</strong>
                   </div>
                   <div>
-                    <span className="text-slate-500 block">Ngày trả phòng:</span>
-                    <strong className="text-slate-900 font-semibold">{formatDateTimeVi(res.plannedCheckOutAt)}</strong>
-                    {policies.checkOutTime ? (
-                      <div className="text-slate-500">Giờ trả: {cleanPolicyTime(policies.checkOutTime)}</div>
-                    ) : null}
-                  </div>
-                  <div>
-                    <span className="text-slate-500 block">Thời gian lưu trú:</span>
-                    <strong className="text-slate-900 font-semibold">{res.nights} đêm · {res.guestCount} khách</strong>
-                    <div>
-                      <span className={`inline-block px-2 py-0.5 mt-1 rounded-md text-xs font-bold border whitespace-nowrap ${statusObj.className}`}>
-                        {statusObj.label}
-                      </span>
-                    </div>
+                    <span className="text-slate-500 block mb-1">Ngày trả phòng:</span>
+                    <strong className="text-sm font-bold text-slate-900">{formatDateTimeVi(res.plannedCheckOutAt)}</strong>
                   </div>
                 </div>
               );
@@ -751,30 +727,22 @@ export function BookingConfirmationPrintView({
             (() => {
               const grp = (data as GroupConfirmationData).group;
               return (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
                   <div>
-                    <span className="text-slate-500 block">Tên đoàn / Trưởng đoàn:</span>
+                    <span className="text-slate-500 block mb-1">Tên đoàn / Trưởng đoàn:</span>
                     <strong className="text-sm font-bold text-slate-900">{grp.leadGuestName}</strong>
-                    {grp.leadGuestPhone ? <div className="text-slate-600">{grp.leadGuestPhone}</div> : null}
                   </div>
                   <div>
-                    <span className="text-slate-500 block">Ngày đến dự kiến:</span>
-                    <strong className="text-slate-900 font-semibold">{formatDateVi(grp.checkInDate)}</strong>
-                    {policies.checkInTime ? (
-                      <div className="text-slate-500">Giờ nhận: {cleanPolicyTime(policies.checkInTime)}</div>
-                    ) : null}
+                    <span className="text-slate-500 block mb-1">Ngày nhận phòng:</span>
+                    <strong className="text-sm font-bold text-slate-900">
+                      {grp.checkInDate ? (grp.checkInDate.includes("T") ? formatDateTimeVi(grp.checkInDate) : `${cleanPolicyTime(policies.checkInTime || "14:00")} ${formatDateVi(grp.checkInDate)}`) : "-"}
+                    </strong>
                   </div>
                   <div>
-                    <span className="text-slate-500 block">Ngày đi dự kiến:</span>
-                    <strong className="text-slate-900 font-semibold">{formatDateVi(grp.checkOutDate)}</strong>
-                    {policies.checkOutTime ? (
-                      <div className="text-slate-500">Giờ trả: {cleanPolicyTime(policies.checkOutTime)}</div>
-                    ) : null}
-                  </div>
-                  <div>
-                    <span className="text-slate-500 block">Quy mô đoàn:</span>
-                    <strong className="text-slate-900 font-semibold">{grp.totalRooms} phòng · {grp.nights} đêm</strong>
-                    <div className="text-slate-500">Mã đoàn: {grp.groupCode}</div>
+                    <span className="text-slate-500 block mb-1">Ngày trả phòng:</span>
+                    <strong className="text-sm font-bold text-slate-900">
+                      {grp.checkOutDate ? (grp.checkOutDate.includes("T") ? formatDateTimeVi(grp.checkOutDate) : `${cleanPolicyTime(policies.checkOutTime || "12:00")} ${formatDateVi(grp.checkOutDate)}`) : "-"}
+                    </strong>
                   </div>
                 </div>
               );
@@ -1072,7 +1040,7 @@ export function BookingConfirmationPrintView({
         )}
 
         {/* Policies and guidelines */}
-        {policies?.cancellationPolicy || (policies?.terms && policies.terms.length > 0) ? (
+        {policies?.cancellationPolicy || (policies?.terms && policies.terms.length > 0) || policies?.checkInTime || policies?.checkOutTime ? (
           <section className="print-break-inside-avoid rounded-xl border border-slate-200 bg-slate-50/40 p-4 mb-6 text-xs text-slate-600 space-y-2">
             <div className="flex items-center gap-2 font-bold text-slate-900 uppercase tracking-wide">
               <VsIcon name="info" className="text-base text-blue-800" />
@@ -1080,6 +1048,11 @@ export function BookingConfirmationPrintView({
             </div>
 
             <div className="space-y-1 text-pretty">
+              {policies.checkInTime || policies.checkOutTime ? (
+                <div>
+                  <strong className="text-slate-800">Quy định giờ:</strong> Nhận phòng từ {cleanPolicyTime(policies.checkInTime || "14:00")}, trả phòng trước {cleanPolicyTime(policies.checkOutTime || "12:00")}
+                </div>
+              ) : null}
               {policies.cancellationPolicy ? (
                 <div>
                   <strong className="text-slate-800">Chính sách hủy phòng:</strong> {policies.cancellationPolicy}

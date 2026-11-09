@@ -44,6 +44,26 @@ export async function invalidateHotelRequestRealtimeQueries(
     }).queries.detail.invalidateAll(queryClient),
     localPartnersBound.queries.marketplaceOrders.invalidateAll(queryClient),
     messagesBound.invalidate(queryClient),
+    queryClient.invalidateQueries({
+      queryKey: ["requests"],
+      refetchType: "active",
+    }),
+    queryClient.invalidateQueries({
+      queryKey: ["hotel-requests"],
+      refetchType: "active",
+    }),
+    queryClient.invalidateQueries({
+      queryKey: ["marketplace-orders"],
+      refetchType: "active",
+    }),
+    queryClient.invalidateQueries({
+      queryKey: ["vietsage", "local-partners"],
+      refetchType: "active",
+    }),
+    queryClient.invalidateQueries({
+      queryKey: ["vietsage", "request-queue"],
+      refetchType: "active",
+    }),
   ]);
 }
 

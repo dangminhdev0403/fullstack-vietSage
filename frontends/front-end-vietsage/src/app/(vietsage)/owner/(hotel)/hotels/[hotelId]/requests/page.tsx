@@ -58,7 +58,7 @@ export default async function OwnerHotelRequestsPage({ params, searchParams }: P
   ]);
 
   const initialFilters = Object.fromEntries(
-    ["status", "roomNumber", "serviceItemId", "priority", "assignedToUserId", "from", "to"].map((key) => [key, getFirst(resolvedSearchParams[key]) ?? ""]),
+    ["status", "roomNumber", "serviceItemId", "priority", "assignedToUserId", "from", "to", "tab"].map((key) => [key, getFirst(resolvedSearchParams[key]) ?? ""]),
   );
 
   return (
