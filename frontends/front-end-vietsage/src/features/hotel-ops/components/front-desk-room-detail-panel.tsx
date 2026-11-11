@@ -34,6 +34,7 @@ export type FrontDeskRoomDetailPanelProps = {
   onOpenQrPreview?: (room: HotelRoomSummary) => void;
   onExtendStay?: (room: HotelRoomSummary) => void;
   onCheckInReservation?: (reservationId: string, arrival?: unknown) => Promise<void>;
+  onOpenFutureReservation?: (room: HotelRoomSummary) => void;
   arrival?: HotelArrival | null;
   triggerElementRef?: React.RefObject<HTMLElement | null>;
 };
@@ -196,14 +197,16 @@ export function resolveRoomStatusModel(
     // Compatibility fallback for older room responses.
     const statusUc = room?.status?.toUpperCase();
 
-    if (room?.activeStay || statusUc === "OCCUPIED") {
+    if (room?.projectedStay) {
       opStatus = "occupied";
     } else if (
-      statusUc === "RESERVED" ||
-      (!room?.activeStay && Boolean(room?.projectedReservation))
+      room?.projectedReservation ||
+      statusUc === "RESERVED"
     ) {
       opStatus = "reserved";
-    } else if (statusUc === "PROCESSING") {
+    } else if (!isFuture && (room?.activeStay || statusUc === "OCCUPIED")) {
+      opStatus = "occupied";
+    } else if (!isFuture && statusUc === "PROCESSING") {
       opStatus = "processing";
     } else if (
       statusUc === "BLOCKED" ||
@@ -367,6 +370,7 @@ export function FrontDeskRoomDetailPanel({
   onOpenQrPreview,
   onExtendStay,
   onCheckInReservation,
+  onOpenFutureReservation,
   arrival,
   triggerElementRef,
 }: FrontDeskRoomDetailPanelProps) {
@@ -1548,7 +1552,21 @@ export function FrontDeskRoomDetailPanel({
                 )}
               </div>
 
-              <div className="flex items-center justify-end gap-2.5">
+              <div className="flex flex-wrap items-center justify-end gap-2.5">
+                {onOpenFutureReservation && room && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onOpenFutureReservation(room);
+                    }}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-purple-200 bg-purple-50 hover:bg-purple-100 px-4 py-2.5 text-purple-900 font-bold text-sm transition cursor-pointer min-h-[46px] whitespace-nowrap shadow-2xs"
+                    title="Tạo lịch đặt trước phòng này cho ngày khác"
+                  >
+                    <VsIcon name="event" className="text-base text-purple-700" />
+                    <span>Đặt trước ngày khác</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={onClose}

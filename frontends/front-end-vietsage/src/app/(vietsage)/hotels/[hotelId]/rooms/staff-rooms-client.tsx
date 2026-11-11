@@ -1402,14 +1402,13 @@ export function StaffRoomsClient({
   function openFutureReservationModal(room?: HotelRoomSummary) {
     if (room?.id) {
       const physicalStatus = getRoomStatus(room);
-      const isPhysicallyBusy =
-        physicalStatus === "occupied" ||
-        physicalStatus === "overdue" ||
-        Boolean(room.activeStay && !room.activeStay.checkedOutAt);
-      if (isPhysicallyBusy) {
+      const isPermanentlyUnavailable =
+        physicalStatus === "blocked" ||
+        physicalStatus === "maintenance";
+      if (isPermanentlyUnavailable) {
         void showWarningAlert(
-          "Phòng đang có khách",
-          `P.${getRoomNumber(room)} chưa trả phòng. Chọn phòng trống khác.`,
+          "Phòng đang tạm ngừng hoạt động",
+          `P.${getRoomNumber(room)} đang ${physicalStatus === "blocked" ? "khóa" : "bảo trì"}. Vui lòng chọn phòng khác.`,
         );
         return;
       }
@@ -1417,6 +1416,33 @@ export function StaffRoomsClient({
       setInitialReservationRoomId(room.id);
       if (room.price) {
         setReservationNightlyRate(String(room.price));
+      }
+
+      // Nếu phòng đang có khách ở, tự động gợi ý nhận phòng từ ngày khách cũ trả phòng
+      if (room.activeStay?.plannedCheckOutAt) {
+        const outDate = new Date(room.activeStay.plannedCheckOutAt);
+        if (!isNaN(outDate.getTime())) {
+          const checkInD = new Date(outDate);
+          checkInD.setHours(14, 0, 0, 0);
+          const tomorrowD = new Date();
+          tomorrowD.setDate(tomorrowD.getDate() + 1);
+          tomorrowD.setHours(14, 0, 0, 0);
+
+          const effectiveInD = checkInD.getTime() > tomorrowD.getTime() ? checkInD : tomorrowD;
+          setReservationCheckIn(
+            new Date(effectiveInD.getTime() - effectiveInD.getTimezoneOffset() * 60_000)
+              .toISOString()
+              .slice(0, 16),
+          );
+          const checkOutD = new Date(effectiveInD);
+          checkOutD.setDate(checkOutD.getDate() + 1);
+          checkOutD.setHours(12, 0, 0, 0);
+          setReservationCheckOut(
+            new Date(checkOutD.getTime() - checkOutD.getTimezoneOffset() * 60_000)
+              .toISOString()
+              .slice(0, 16),
+          );
+        }
       }
     } else {
       setReservationRoomId("");
@@ -1457,6 +1483,21 @@ export function StaffRoomsClient({
         "Vui lòng chọn thời gian nhận và trả phòng.",
       );
       return;
+    }
+
+    if (selectedReservationRoom) {
+      const isConflicting = isRoomConflictingForDates(
+        selectedReservationRoom,
+        reservationCheckIn,
+        reservationCheckOut,
+      );
+      if (isConflicting) {
+        await showWarningAlert(
+          "Trùng lịch phòng",
+          `P.${getRoomNumber(selectedReservationRoom)} đã có khách hoặc đơn đặt trước trong khoảng thời gian đã chọn. Vui lòng chọn ngày khác hoặc chọn phòng trống khác.`,
+        );
+        return;
+      }
     }
 
     const confirmResult = await showConfirmDialog({
@@ -2249,24 +2290,11 @@ export function StaffRoomsClient({
 
   const availableReservationRooms = rooms.filter((r) => {
     const physicalStatus = getRoomStatus(r);
-    const isPhysicallyBusy =
-      physicalStatus === "occupied" ||
-      physicalStatus === "overdue" ||
-      Boolean(r.activeStay && !r.activeStay.checkedOutAt);
-    if (isPhysicallyBusy) return false;
-
     if (
-      physicalStatus === "processing" ||
       physicalStatus === "maintenance" ||
       physicalStatus === "blocked"
     ) {
       return false;
-    }
-
-    if (isFutureDate) {
-      if (r.projectedStay || r.projectedReservation) return false;
-      const effective = getEffectiveRoomStatus(r, true);
-      if (effective !== "available") return false;
     }
 
     return true;
@@ -4972,7 +5000,7 @@ export function StaffRoomsClient({
     }
 
     const effectiveStatus = getEffectiveRoomStatus(room, isFutureDate);
-    const hasProjectedStay = Boolean(room.projectedStay || room.activeStay);
+    const hasProjectedStay = Boolean(room.projectedStay || (!isFutureDate && room.activeStay));
     const isReserved = effectiveStatus === "reserved";
 
     if (
@@ -4985,17 +5013,10 @@ export function StaffRoomsClient({
     }
 
     if (isFutureDate) {
-      const physicalStatus = getRoomStatus(room);
-      const isPhysicallyBusy =
-        physicalStatus === "occupied" ||
-        physicalStatus === "overdue" ||
-        Boolean(room.activeStay);
-      if (isPhysicallyBusy) {
-        openRoomContextPanel(room, triggerEl);
-        return;
-      }
       if (effectiveStatus === "available") {
         setAvailableRoomChoice(room);
+      } else {
+        openRoomContextPanel(room, triggerEl);
       }
       return;
     }
@@ -5695,17 +5716,31 @@ export function StaffRoomsClient({
               </button>
             </div>
           ) : stateCategory === "departing_today" ? (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                openRoomContextPanel(room, e.currentTarget);
-              }}
-              className="flex w-full h-9 sm:h-[38px] items-center justify-center gap-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs sm:text-sm shadow-xs transition active:scale-[0.98] cursor-pointer"
-            >
-              <VsIcon name="logout" className="text-base shrink-0" />
-              <span>Chi tiết & Trả phòng</span>
-            </button>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openRoomContextPanel(room, e.currentTarget);
+                }}
+                className="flex h-9 sm:h-[38px] items-center justify-center gap-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs sm:text-sm shadow-xs transition active:scale-[0.98] cursor-pointer"
+              >
+                <VsIcon name="logout" className="text-base shrink-0" />
+                <span className="truncate">Trả phòng</span>
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openFutureReservationModal(room);
+                }}
+                className="flex h-9 sm:h-[38px] items-center justify-center gap-1.5 rounded-xl border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-900 font-bold text-xs sm:text-sm shadow-2xs transition active:scale-[0.98] cursor-pointer"
+                title="Tạo lịch đặt trước phòng này cho ngày khác"
+              >
+                <VsIcon name="event" className="text-base shrink-0 text-purple-700" />
+                <span>Đặt trước</span>
+              </button>
+            </div>
           ) : stateCategory === "arriving_today" ? (
             <button
               type="button"
@@ -5729,17 +5764,31 @@ export function StaffRoomsClient({
               <span>{incomingGroupCode ? "Check-in cho đoàn" : "Làm thủ tục nhận phòng"}</span>
             </button>
           ) : stateCategory === "occupied" ? (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                openRoomContextPanel(room, e.currentTarget);
-              }}
-              className="flex w-full h-9 sm:h-[38px] items-center justify-center gap-2 rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-extrabold text-xs sm:text-sm shadow-xs transition active:scale-[0.98] cursor-pointer"
-            >
-              <VsIcon name="info" className="text-base shrink-0" />
-              <span>Chi tiết lưu trú & Hóa đơn</span>
-            </button>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openRoomContextPanel(room, e.currentTarget);
+                }}
+                className="flex h-9 sm:h-[38px] items-center justify-center gap-1.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-extrabold text-xs sm:text-sm shadow-xs transition active:scale-[0.98] cursor-pointer"
+              >
+                <VsIcon name="info" className="text-base shrink-0" />
+                <span className="truncate">Chi tiết & Hóa đơn</span>
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openFutureReservationModal(room);
+                }}
+                className="flex h-9 sm:h-[38px] items-center justify-center gap-1.5 rounded-xl border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-900 font-bold text-xs sm:text-sm shadow-2xs transition active:scale-[0.98] cursor-pointer"
+                title="Tạo lịch đặt trước phòng này cho ngày khác"
+              >
+                <VsIcon name="event" className="text-base shrink-0 text-purple-700" />
+                <span>Đặt trước</span>
+              </button>
+            </div>
           ) : stateCategory === "overdue" ? (
             <button
               type="button"
@@ -9706,6 +9755,7 @@ export function StaffRoomsClient({
         onExtendStay={(r) => {
           void handleExtendStayModal(r);
         }}
+        onOpenFutureReservation={openFutureReservationModal}
         onCheckInReservation={async (reservationId, arrival) => {
           const arr = arrival as HotelArrival | undefined;
           const targetRoom =

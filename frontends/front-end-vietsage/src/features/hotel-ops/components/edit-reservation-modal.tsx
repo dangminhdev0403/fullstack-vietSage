@@ -535,13 +535,32 @@ export function EditReservationModal({
       reservationRoomId: reservation?.roomId,
       liveRoom: roomsPage?.items.find((room) => room.id === effectiveRoomId),
       fallbackStay: conflictingStay,
+      checkInDate: plannedCheckInAt || reservation?.plannedCheckInAt,
+      checkOutDate: plannedCheckOutAt || reservation?.plannedCheckOutAt,
     });
-  }, [effectiveRoomId, reservation?.roomId, conflictingStay, roomsPage?.items]);
+  }, [
+    effectiveRoomId,
+    reservation?.roomId,
+    conflictingStay,
+    roomsPage?.items,
+    plannedCheckInAt,
+    plannedCheckOutAt,
+    reservation?.plannedCheckInAt,
+    reservation?.plannedCheckOutAt,
+  ]);
+
+  const isCheckInTodayOrPast = useMemo(() => {
+    const today = toVietnamYmd(new Date());
+    const effectiveIn = plannedCheckInAt || reservation?.plannedCheckInAt;
+    if (!effectiveIn) return true;
+    const inYmd = effectiveIn.includes("T") ? effectiveIn.slice(0, 10) : effectiveIn;
+    return Boolean(inYmd && inYmd <= today);
+  }, [plannedCheckInAt, reservation?.plannedCheckInAt]);
 
   const isRoomOccupiedConflict = Boolean(
     effectiveRoomId &&
       (Boolean(effectiveConflictingStay) ||
-        selectedRoomStatus === "OCCUPIED" ||
+        (isCheckInTodayOrPast && selectedRoomStatus === "OCCUPIED") ||
         selectedRoomStatus === "OVERDUE"),
   );
 
