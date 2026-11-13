@@ -449,7 +449,7 @@ export class ReservationsController {
 
   @RequirePermission("hotel.stays.check-in")
   @SuccessMessage("Check-in đặt phòng thành công")
-  @ApiDescript("Tạo stay và folio theo transaction")
+  @ApiDescript("Tạo lượt lưu trú và hóa đơn lưu trú trong cùng giao dịch")
   @ApiParam({ name: "hotelId", type: String })
   @ApiParam({ name: "reservationId", type: String })
   @ApiBody({

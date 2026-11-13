@@ -2025,9 +2025,9 @@ export class MarketplaceOrderService {
       where: { hotelId: order.hotelId, stayId: order.stayId, status: FolioStatus.OPEN },
       orderBy: { openedAt: "desc" },
     });
-    if (!folio) throw new ConflictException("Không có folio mở cho khách lưu trú");
+    if (!folio) throw new ConflictException("Không có hóa đơn lưu trú đang mở cho khách lưu trú");
     if (folio.currency !== order.currency)
-      throw new ConflictException("Đơn vị tiền tệ không khớp folio");
+      throw new ConflictException("Đơn vị tiền tệ không khớp với hóa đơn lưu trú");
 
     const partnerProfile = await tx.serviceTenantProfile?.findUnique({
       where: { tenantId: order.serviceTenantId },

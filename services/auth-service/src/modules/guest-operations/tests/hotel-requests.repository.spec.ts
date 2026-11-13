@@ -294,6 +294,6 @@ describe("HotelRequestsRepository normal completion posting (H2)", () => {
         expectedStatus: GuestRequestStatus.PENDING,
         status: GuestRequestStatus.COMPLETED,
       }),
-    ).rejects.toThrow("Đơn vị tiền tệ của dịch vụ không khớp với folio");
+    ).rejects.toThrow("Đơn vị tiền tệ của dịch vụ không khớp với hóa đơn lưu trú");
   });
 });

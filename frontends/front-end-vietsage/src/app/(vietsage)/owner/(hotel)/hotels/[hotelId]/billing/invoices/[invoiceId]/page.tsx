@@ -25,7 +25,7 @@ const invoiceStatusLabels: Record<string, string> = {
 
 const folioStatusLabels: Record<string, string> = {
   OPEN: "Đang mở",
-  CHECKOUT_PENDING: "Chờ checkout",
+  CHECKOUT_PENDING: "Chờ trả phòng",
   CLOSED: "Đã đóng",
   VOID: "Đã hủy",
 };
@@ -73,10 +73,10 @@ function InvoiceDetailView({ detail }: { detail: InvoiceDetail }) {
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p className="text-sm font-black uppercase tracking-[0.18em] text-emerald-700">HÓA ĐƠN KHÁCH SẠN VIETSAGE</p>
-            <h1 className="mt-2 text-[30px] font-black leading-none tracking-[-0.02em] text-slate-950">
+            <h1 className="mt-2 text-[30px] font-black leading-none tracking-[-0.02em] text-slate-950 text-balance">
               {invoice.invoiceNumber}
             </h1>
-            <p className="mt-2 text-base font-semibold text-slate-600">
+            <p className="mt-2 text-base font-semibold text-slate-600 text-pretty">
               Phòng {stay.roomNumber ?? "-"} · {stay.guestName ?? "Khách lưu trú"}
             </p>
           </div>
@@ -90,12 +90,12 @@ function InvoiceDetailView({ detail }: { detail: InvoiceDetail }) {
 
       <section className="invoice-section grid gap-5 border-b border-slate-200 px-8 py-5 md:grid-cols-[1fr_240px] print:grid-cols-[1fr_220px] print:px-0">
         <dl className="grid grid-cols-2 gap-x-5 gap-y-3 sm:grid-cols-3">
-          <InvoiceInfo label="Folio" value={folio.folioNumber} />
-          <InvoiceInfo label="Trạng thái folio" value={labelStatus(folioStatusLabels, folio.status)} />
+          <InvoiceInfo label="Hóa đơn lưu trú" value={folio.folioNumber} />
+          <InvoiceInfo label="Trạng thái hóa đơn lưu trú" value={labelStatus(folioStatusLabels, folio.status)} />
           <InvoiceInfo label="Khách" value={stay.guestName ?? "Khách lưu trú"} />
           <InvoiceInfo label="Phòng" value={stay.roomNumber ?? "-"} />
-          <InvoiceInfo label="Check-in" value={formatDateTime(stay.checkInAt)} />
-          <InvoiceInfo label="Check-out" value={formatDateTime(stay.checkOutAt)} />
+          <InvoiceInfo label="Nhận phòng" value={formatDateTime(stay.checkInAt)} />
+          <InvoiceInfo label="Trả phòng" value={formatDateTime(stay.checkOutAt)} />
           <InvoiceInfo label="Tiền tệ" value={currency} />
         </dl>
 
@@ -315,10 +315,10 @@ export default async function OwnerInvoiceDetailPage({ params }: PageProps) {
       <div className="space-y-6 print:space-y-0">
         <div className="mx-auto flex w-full max-w-[794px] flex-col justify-between gap-4 print:hidden md:flex-row md:items-end">
           <div>
-            <Link href={`/owner/hotels/${hotelId}/billing`} className="text-sm font-black text-[var(--primary)] hover:underline">
-              Quay lại folio
+            <Link href={`/owner/hotels/${hotelId}/billing`} className="inline-block whitespace-nowrap text-sm font-black text-[var(--primary)] hover:underline">
+              Quay lại hóa đơn lưu trú
             </Link>
-            <h1 className="mt-2 text-3xl font-black text-[var(--on-surface)]">Hóa đơn {invoiceDetail.invoice.invoiceNumber}</h1>
+            <h1 className="mt-2 text-3xl font-black text-[var(--on-surface)] text-balance">Hóa đơn {invoiceDetail.invoice.invoiceNumber}</h1>
           </div>
           <div className="flex flex-wrap gap-2">
             <InvoicePrintButton />

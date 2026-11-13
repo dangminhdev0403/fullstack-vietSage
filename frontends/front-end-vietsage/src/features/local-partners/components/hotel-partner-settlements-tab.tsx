@@ -326,7 +326,7 @@ export function HotelPartnerSettlementsTab({
             </span>
           </div>
           <p className="text-xs font-medium text-slate-500">
-            Tổng tiền dịch vụ thu qua folio phòng
+            Tổng tiền dịch vụ thu qua hóa đơn phòng
           </p>
         </div>
 

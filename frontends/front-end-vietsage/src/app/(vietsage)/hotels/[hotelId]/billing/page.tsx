@@ -46,11 +46,11 @@ export default async function StaffBillingPage({ params }: PageProps) {
       <header className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--secondary)]">THANH TOÁN & THU DOANH THU</p>
-          <h1 className="vs-display mt-0.5 text-2xl font-semibold text-[var(--primary)] md:text-3xl">Folio, checkout &amp; Doanh thu</h1>
+          <h1 className="vs-display mt-0.5 text-2xl font-semibold text-[var(--primary)] md:text-3xl">Hóa đơn lưu trú &amp; Doanh thu</h1>
         </div>
         <div className="flex items-center gap-2">
           <span className="rounded-full bg-[#17201b] px-3.5 py-1.5 text-xs font-bold text-white shadow-sm">
-            {folios.items.length} Folio hoạt động
+            {folios.items.length} hóa đơn lưu trú
           </span>
         </div>
       </header>
@@ -81,7 +81,7 @@ export default async function StaffBillingPage({ params }: PageProps) {
             <VsIcon name="meeting_room" className="text-lg" />
           </div>
           <div className="min-w-0">
-            <p className="text-xs font-semibold text-[var(--on-surface-variant)] truncate">Check-out hôm nay</p>
+            <p className="text-xs font-semibold text-[var(--on-surface-variant)] truncate">Trả phòng hôm nay</p>
             <p className="text-base font-black text-[var(--primary)]">{dashboard.stays.todayCheckOuts} lượt</p>
           </div>
         </article>
@@ -91,7 +91,7 @@ export default async function StaffBillingPage({ params }: PageProps) {
             <VsIcon name="pending_actions" className="text-lg" />
           </div>
           <div className="min-w-0">
-            <p className="text-xs font-semibold text-[var(--on-surface-variant)] truncate">Đang chờ checkout</p>
+            <p className="text-xs font-semibold text-[var(--on-surface-variant)] truncate">Đang chờ trả phòng</p>
             <p className="text-base font-black text-amber-700">{dashboard.stays.pendingCheckOuts} phòng</p>
           </div>
         </article>

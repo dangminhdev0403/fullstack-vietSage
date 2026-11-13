@@ -250,7 +250,7 @@ function CheckoutSettlementForm({
         {isFolioError ? <p role="alert" className="px-6 py-3 text-red-700">Không thể tải thông tin thanh toán. Vui lòng đóng và mở lại để thử lại.</p> : null}
         {folioMissingRoomCharge ? (
           <p role="alert" className="px-6 py-3 text-amber-800 bg-amber-50 border-b border-amber-200">
-            Bảng kê chưa có đủ tiền phòng. Đã khóa quyết toán để tránh thu sai; vui lòng tải lại folio sau khi cập nhật giá phòng.
+            Bảng kê chưa có đủ tiền phòng. Đã khóa quyết toán để tránh thu sai; vui lòng tải lại hóa đơn lưu trú sau khi cập nhật giá phòng.
           </p>
         ) : null}
         {/* Modal Body */}
@@ -305,7 +305,7 @@ function CheckoutSettlementForm({
                 </span>
                 {effectiveFolioContext?.folio?.folioNumber && (
                   <span className="rounded-md bg-slate-200/80 px-2 py-0.5 text-xs font-mono font-bold text-slate-700 whitespace-nowrap">
-                    Folio: {effectiveFolioContext.folio.folioNumber}
+                    Hóa đơn: {effectiveFolioContext.folio.folioNumber}
                   </span>
                 )}
               </div>

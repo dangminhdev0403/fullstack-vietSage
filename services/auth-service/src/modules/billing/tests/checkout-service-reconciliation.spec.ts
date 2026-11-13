@@ -184,7 +184,7 @@ describe("Checkout Service Reconciliation & Idempotent Billing TDD", () => {
       service.issueInvoice("user-1", "role-1", "hotel-1", "folio-1", {
         reconciliations: [{ requestId: "req-active-1", action: "provided" }],
       }),
-    ).rejects.toThrow("Đơn vị tiền tệ của dịch vụ không khớp với folio");
+    ).rejects.toThrow("Đơn vị tiền tệ của dịch vụ không khớp với hóa đơn lưu trú");
   });
 
   it("H2: catalog price changes after request creation cannot alter posted unit price in checkout reconciliation", async () => {

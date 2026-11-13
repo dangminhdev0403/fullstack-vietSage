@@ -180,7 +180,7 @@ function getStatusBadge(status: string | undefined) {
   }
   if (status === "CHECKOUT_PENDING") {
     return {
-      label: "Chờ checkout",
+      label: "Chờ trả phòng",
       colorClass: "bg-amber-50 text-amber-800 border-amber-200 animate-pulse",
     };
   }
@@ -917,7 +917,7 @@ export function StaffBillingWorkspaceClient({
       })
       .catch((error) => {
         if (cancelled) return;
-        void showErrorAlert("Không thể tải chi tiết folio", error);
+        void showErrorAlert("Không thể tải chi tiết hóa đơn lưu trú", error);
       });
 
     const interval = setInterval(() => {
@@ -1128,7 +1128,7 @@ export function StaffBillingWorkspaceClient({
       }
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
     } catch (error) {
-      await showErrorAlert("Không thể hoàn tất checkout", error);
+      await showErrorAlert("Không thể hoàn tất trả phòng", error);
     } finally {
       await refreshActiveFolio(true);
       router.refresh();
@@ -1291,9 +1291,9 @@ export function StaffBillingWorkspaceClient({
       const cleanErrors = errors.map((e) =>
         e
           .replace(/MISSING_AGREED_ROOM_RATE_SNAPSHOT/g, "Chưa có thông tin đơn giá phòng thỏa thuận")
-          .replace(/FOLIO_NOT_OPEN_FOR_CHECKOUT/g, "Phòng đã đóng hoặc chưa sẵn sàng checkout")
+          .replace(/FOLIO_NOT_OPEN_FOR_CHECKOUT/g, "Phòng đã đóng hoặc chưa sẵn sàng trả phòng")
           .replace(/ADJUSTMENT_CLIENT_REQUEST_ID_CONFLICT/g, "Xung đột thông tin phụ thu / giảm giá")
-          .replace(/ROOM_CHECKOUT_STATUS_CONFLICT/g, "Trạng thái phòng đã thay đổi hoặc đã checkout")
+          .replace(/ROOM_CHECKOUT_STATUS_CONFLICT/g, "Trạng thái phòng đã thay đổi hoặc đã trả phòng")
           .replace(/DUPLICATE_CLIENT_REQUEST_ID_CONFLICT/g, "Yêu cầu thanh toán trùng lặp")
           .replace(/INVALID_PAYMENT_AMOUNT/g, "Số tiền thanh toán không hợp lệ")
           .replace(/INVOICE_ALREADY_PAID/g, "Hóa đơn đã được thanh toán trước đó")
@@ -1411,7 +1411,7 @@ export function StaffBillingWorkspaceClient({
                     : "bg-amber-50 text-amber-900 border border-amber-200/80 hover:bg-amber-100"
                 }`}
               >
-                Chờ checkout
+                Chờ trả phòng
               </button>
               <button
                 type="button"
@@ -1459,7 +1459,7 @@ export function StaffBillingWorkspaceClient({
                         </p>
                         {grp.pendingCount > 0 ? (
                           <span className="inline-block text-xs font-bold text-amber-700 whitespace-nowrap">
-                            {grp.pendingCount} chờ out
+                            {grp.pendingCount} chờ trả phòng
                           </span>
                         ) : (
                           <span className="inline-block text-xs font-medium text-emerald-700 whitespace-nowrap">
@@ -1526,7 +1526,7 @@ export function StaffBillingWorkspaceClient({
 
               {filteredFolios.length === 0 ? (
                 <div className="p-8 text-center text-xs text-[var(--on-surface-variant)]">
-                  Không tìm thấy folio phù hợp với bộ lọc.
+                  Không tìm thấy hóa đơn lưu trú phù hợp với bộ lọc.
                 </div>
               ) : null}
             </>
@@ -1607,7 +1607,7 @@ export function StaffBillingWorkspaceClient({
                       : "bg-amber-50 text-amber-900 border border-amber-200/80 hover:bg-amber-100"
                   }`}
                 >
-                  Chờ out ({activeGroup?.pendingCount ?? 0})
+                  Chờ trả phòng ({activeGroup?.pendingCount ?? 0})
                 </button>
                 <button
                   type="button"
@@ -1823,7 +1823,7 @@ export function StaffBillingWorkspaceClient({
                   </div>
                   <p className="mt-0.5 text-xs text-[var(--on-surface-variant)] flex items-center gap-2">
                     <span>
-                      Mã Folio:{" "}
+                      Mã hóa đơn:{" "}
                       <span className="font-mono text-xs font-bold text-[var(--primary)]">
                         {selectedFolio?.folioNumber ?? selectedFolio?.id ?? "-"}
                       </span>
@@ -2093,7 +2093,7 @@ export function StaffBillingWorkspaceClient({
                     className="text-4xl text-[var(--outline)] mb-2"
                   />
                   <p className="text-sm font-bold text-[var(--primary)]">
-                    Chưa có khoản phí nào trong folio
+                    Chưa có khoản phí nào trong hóa đơn
                   </p>
                   <p className="text-xs mt-1 text-[var(--on-surface-variant)] max-w-sm text-pretty">
                     Vui lòng kiểm tra lại thông tin lưu trú hoặc thêm phụ thu/dịch vụ nếu cần.
@@ -2344,7 +2344,7 @@ export function StaffBillingWorkspaceClient({
                     className={`text-lg ${saving ? "animate-spin" : ""}`}
                   />
                   {saving
-                    ? "Đang xử lý checkout..."
+                    ? "Đang xử lý trả phòng..."
                     : `Thanh toán (${selectedGroupFolios.filter((f) => f.status !== "CLOSED").length} phòng)`}
                 </button>
               )}
@@ -2570,7 +2570,7 @@ export function StaffBillingWorkspaceClient({
                   <div className="rounded-xl border border-emerald-500/40 bg-emerald-950/60 p-3 text-center space-y-1">
                     <div className="flex items-center justify-center gap-1.5 text-xs font-black text-emerald-400">
                       <VsIcon name="check_circle" className="text-base" />
-                      <span>Folio đã hoàn tất thanh toán &amp; đóng</span>
+                      <span>Hóa đơn lưu trú đã hoàn tất thanh toán &amp; đóng</span>
                     </div>
                     <p className="text-xs text-emerald-300/80">
                       Hóa đơn đã được phát hành. Bấm nút bên dưới để xem hoặc in lại hóa đơn.
@@ -2795,7 +2795,7 @@ export function StaffBillingWorkspaceClient({
                     name={saving ? "sync" : "payments"}
                     className={`text-xl ${saving ? "animate-spin" : ""}`}
                   />
-                  {saving ? "Đang xử lý checkout..." : "Thanh toán & Trả phòng"}
+                  {saving ? "Đang xử lý trả phòng..." : "Thanh toán & Trả phòng"}
                 </button>
               )}
             </div>
@@ -2828,7 +2828,7 @@ export function StaffBillingWorkspaceClient({
                     </span>
                   </div>
                   <p className="text-xs text-[var(--on-surface-variant)] font-mono font-bold">
-                    Mã Folio: {previewFolioItem.folioNumber ?? previewFolioItem.id}
+                    Mã hóa đơn: {previewFolioItem.folioNumber ?? previewFolioItem.id}
                   </p>
                 </div>
               </div>

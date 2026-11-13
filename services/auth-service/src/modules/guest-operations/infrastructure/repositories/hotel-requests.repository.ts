@@ -398,7 +398,7 @@ export class HotelRequestsRepository {
     });
 
     if (!folio) {
-      throw new ConflictException("Không tìm thấy folio đang mở cho lượt lưu trú");
+      throw new ConflictException("Không tìm thấy hóa đơn lưu trú đang mở cho lượt lưu trú");
     }
 
     const priceSnapshot = extractBillingPriceSnapshot(request.metadata);
@@ -407,7 +407,7 @@ export class HotelRequestsRepository {
     }
 
     if (priceSnapshot.currency !== folio.currency) {
-      throw new ConflictException("Đơn vị tiền tệ của dịch vụ không khớp với folio");
+      throw new ConflictException("Đơn vị tiền tệ của dịch vụ không khớp với hóa đơn lưu trú");
     }
 
     const unitPrice = priceSnapshot.unitPrice;

@@ -80,7 +80,7 @@ export function formatFriendlyCheckInError(error: unknown): string {
   }
 
   if (normalized.includes("ROOM_ALREADY_HAS_ACTIVE_STAY_OR_FOLIO")) {
-    return "Phòng còn lượt lưu trú hoặc hồ sơ hóa đơn (Folio) chưa tất toán. Vui lòng kiểm tra trả phòng/đóng folio trước hoặc đổi phòng trống khác.";
+    return "Phòng còn lượt lưu trú hoặc hóa đơn lưu trú chưa tất toán. Vui lòng kiểm tra trả phòng, đóng hóa đơn trước hoặc đổi phòng trống khác.";
   }
 
   if (normalized.includes("ROOM_NOT_READY_FOR_CHECK_IN")) {

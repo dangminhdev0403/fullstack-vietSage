@@ -711,7 +711,7 @@ function PnlReportPanel({
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
                 <tr>
                   <td className="py-2.5 pr-4 font-medium text-slate-700 dark:text-slate-300">
-                    Doanh thu lưu trú &amp; dịch vụ (Folio)
+                    Doanh thu lưu trú &amp; dịch vụ (Hóa đơn phòng)
                   </td>
                   <td className="py-2.5 text-right font-semibold text-slate-900 tabular-nums whitespace-nowrap dark:text-white">
                     {formatVnd(folioRevenue)}

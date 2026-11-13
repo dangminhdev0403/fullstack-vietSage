@@ -162,7 +162,7 @@ export function BillingTabSwitcher({
           }`}
         >
           <span className="text-base">📄</span>
-          <span>Hóa đơn Folio Khách</span>
+          <span>Hóa đơn lưu trú</span>
         </button>
         <button
           type="button"

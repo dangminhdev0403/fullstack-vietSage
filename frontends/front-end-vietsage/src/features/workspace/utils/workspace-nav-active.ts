@@ -129,7 +129,7 @@ function getSubNavCandidatesForItem(
     /^\/owner\/hotels\/[^/]+\/billing$/.test(basePath)
   ) {
     return [
-      { key: "folios", label: "Hóa đơn Folio Khách", tabValue: "folios", icon: "receipt_long" },
+      { key: "folios", label: "Hóa đơn lưu trú", tabValue: "folios", icon: "receipt_long" },
       { key: "receivables", label: "Sổ Công nợ Phải thu", tabValue: "receivables", icon: "account_balance_wallet" },
       { key: "expenses", label: "Chi phí vận hành", tabValue: "expenses", icon: "payments" },
       { key: "saas", label: "Đối soát Phí VietSage SaaS", tabValue: "saas", icon: "analytics" },

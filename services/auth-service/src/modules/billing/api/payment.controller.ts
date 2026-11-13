@@ -72,7 +72,7 @@ export class PaymentController {
   @ApiParam({ name: "hotelId", type: String })
   @ApiParam({ name: "invoiceId", type: String })
   @ApiBody({ schema: { type: "object" } })
-  @ApiOkResponse({ description: "Payment, invoice, folio và stay đã hoàn tất" })
+  @ApiOkResponse({ description: "Thanh toán, hóa đơn tài chính, hóa đơn lưu trú và lượt lưu trú đã hoàn tất" })
   @Post("hotels/:hotelId/invoices/:invoiceId/payments/manual-confirm")
   async confirmManualPayment(
     @Req() request: RequestWithUser,

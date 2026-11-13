@@ -433,7 +433,7 @@ export class BillingService {
     const folio = await this.billingRepository.findFolioDetail(hotelId, folioId);
 
     if (!folio) {
-      throw new NotFoundException("Không tìm thấy folio");
+      throw new NotFoundException("Không tìm thấy hóa đơn lưu trú");
     }
     this.hotelAccessService.assertRoomAccess?.(scope, folio.roomId);
 
@@ -470,7 +470,7 @@ export class BillingService {
     const folios = await this.billingRepository.findActiveFoliosByStay(hotelId, stayId);
 
     if (folios.length === 0) {
-      throw new NotFoundException("Không tìm thấy folio đang mở cho lượt lưu trú");
+      throw new NotFoundException("Không tìm thấy hóa đơn lưu trú đang mở cho lượt lưu trú");
     }
     this.hotelAccessService.assertRoomAccess?.(scope, folios[0].roomId);
 
@@ -558,11 +558,11 @@ export class BillingService {
         where: { id: folioId, hotelId },
       });
       if (!folio) {
-        throw new NotFoundException("Không tìm thấy folio");
+        throw new NotFoundException("Không tìm thấy hóa đơn lưu trú");
       }
       this.hotelAccessService.assertRoomAccess?.(scope, folio.roomId);
       if (folio.status !== FolioStatus.OPEN) {
-        throw new BadRequestException("Folio không ở trạng thái Mở để thêm mục");
+        throw new BadRequestException("Hóa đơn lưu trú không ở trạng thái Mở để thêm mục");
       }
 
       const qty = input.quantity ?? 1;
@@ -662,18 +662,18 @@ export class BillingService {
         where: { id: folioId, hotelId },
       });
       if (!folio) {
-        throw new NotFoundException("Không tìm thấy folio");
+        throw new NotFoundException("Không tìm thấy hóa đơn lưu trú");
       }
       this.hotelAccessService.assertRoomAccess?.(scope, folio.roomId);
       if (folio.status !== FolioStatus.OPEN) {
-        throw new BadRequestException("Folio không ở trạng thái Mở để hủy mục");
+        throw new BadRequestException("Hóa đơn lưu trú không ở trạng thái Mở để hủy mục");
       }
 
       const item = await tx.folioItem.findFirst({
         where: { id: itemId, folioId, hotelId },
       });
       if (!item) {
-        throw new NotFoundException("Không tìm thấy mục folio");
+        throw new NotFoundException("Không tìm thấy mục hóa đơn lưu trú");
       }
       if (item.voidedAt) {
         throw new BadRequestException("Mục này đã bị hủy trước đó");
@@ -880,7 +880,7 @@ export class BillingService {
     const result = await this.billingRepository.getFolioSummary(hotelId, folioId);
 
     if (!result) {
-      throw new NotFoundException("Không tìm thấy folio");
+      throw new NotFoundException("Không tìm thấy hóa đơn lưu trú");
     }
 
     const counts = result.grouped.reduce(
@@ -1103,7 +1103,7 @@ export class BillingService {
         });
 
         if (!folio) {
-          throw new NotFoundException("Không tìm thấy folio");
+          throw new NotFoundException("Không tìm thấy hóa đơn lưu trú");
         }
 
         const existingInvoice = await tx.invoice.findFirst({ where: { hotelId, folioId } });
@@ -3191,7 +3191,7 @@ export class BillingService {
         }
 
         if (priceSnapshot.currency !== folio.currency) {
-          throw new ConflictException("Đơn vị tiền tệ của dịch vụ không khớp với folio");
+          throw new ConflictException("Đơn vị tiền tệ của dịch vụ không khớp với hóa đơn lưu trú");
         }
 
         const existingItem = await tx.folioItem.findFirst({
@@ -3310,7 +3310,7 @@ export class BillingService {
       const folio = await this.billingRepository.folioExists(hotelId, folioId);
 
       if (!folio) {
-        throw new NotFoundException("Không tìm thấy folio");
+        throw new NotFoundException("Không tìm thấy hóa đơn lưu trú");
       }
       if (scope && (folio as any).roomId) {
         this.hotelAccessService.assertRoomAccess?.(scope, (folio as any).roomId);
@@ -3785,7 +3785,7 @@ export class BillingService {
           }));
 
         if (!folio) {
-          throw new NotFoundException("Không tìm thấy folio cho lượt lưu trú này");
+          throw new NotFoundException("Không tìm thấy hóa đơn lưu trú cho lượt lưu trú này");
         }
 
         const invoice = await tx.invoice.findFirst({

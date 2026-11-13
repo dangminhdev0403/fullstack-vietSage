@@ -106,8 +106,8 @@ export function BillingFolioTableClient({
   async function exportOrder(folio: FolioListItem) {
     const confirmation = await showConfirmDialog({
       icon: "question",
-      title: "Xuất order?",
-      text: `Xuất order cho folio ${folio.folioNumber ?? folio.id}.`,
+      title: "Xuất phiếu thanh toán?",
+      text: `Xuất phiếu thanh toán cho hóa đơn ${folio.folioNumber ?? folio.id}.`,
       confirmText: "Đồng ý xuất",
       cancelText: "Hủy",
     });
@@ -123,22 +123,14 @@ export function BillingFolioTableClient({
   return (
     <>
       <section className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
-        <div className="relative overflow-hidden border-b border-slate-200/80 bg-gradient-to-br from-emerald-50/90 via-teal-50/40 to-slate-50 p-6 sm:p-7">
-          <div className="absolute right-0 top-0 h-48 w-48 rounded-full bg-emerald-500/10 blur-3xl" />
-          <div className="relative grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
-            <div className="space-y-1">
-              <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 text-balance dark:text-white">
-                Theo dõi doanh thu lưu trú
-              </h2>
-            </div>
-            <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
-              <Metric label="Tổng giá trị Folio" value={formatMoney(totals.totalValue, summaryCurrency)} icon="payments" />
-              <Metric label="Đã thực thu" value={formatMoney(totals.collectedAmount, summaryCurrency)} tone="emerald" icon="account_balance_wallet" />
-              <Metric label="Đang mở / Chưa thu" value={formatMoney(totals.outstandingAmount, summaryCurrency)} tone="amber" icon="hourglass_top" />
-              <Metric label="Tổng folio" value={String(totals.totalFolios)} icon="receipt_long" />
-              <Metric label="Đang mở" value={String(totals.openFolios)} tone="amber" icon="pending_actions" />
-              <Metric label="Đã phát hành/đóng" value={String(totals.closedFolios)} tone="emerald" icon="task_alt" />
-            </div>
+        <div className="border-b border-slate-200/80 bg-gradient-to-br from-emerald-50/90 via-teal-50/40 to-slate-50 p-6 sm:p-7">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <Metric label="Tổng giá trị hóa đơn" value={formatMoney(totals.totalValue, summaryCurrency)} icon="payments" />
+            <Metric label="Đã thực thu" value={formatMoney(totals.collectedAmount, summaryCurrency)} tone="emerald" icon="account_balance_wallet" />
+            <Metric label="Đang mở / Chưa thu" value={formatMoney(totals.outstandingAmount, summaryCurrency)} tone="amber" icon="hourglass_top" />
+            <Metric label="Tổng hóa đơn" value={String(totals.totalFolios)} icon="receipt_long" />
+            <Metric label="Đang mở" value={String(totals.openFolios)} tone="amber" icon="pending_actions" />
+            <Metric label="Đã phát hành/đóng" value={String(totals.closedFolios)} tone="emerald" icon="task_alt" />
           </div>
         </div>
 
@@ -148,7 +140,7 @@ export function BillingFolioTableClient({
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Tìm kiếm Folio, phòng, khách..."
+              placeholder="Tìm kiếm mã hóa đơn, phòng, khách..."
               className="min-w-0 flex-1 bg-transparent text-sm font-medium text-slate-900 outline-none placeholder:text-slate-400"
             />
             {query ? (
@@ -171,7 +163,7 @@ export function BillingFolioTableClient({
                 key={value}
                 type="button"
                 onClick={() => setStatusFilter(value)}
-                className={`rounded-xl px-4 py-2 text-sm font-bold transition-all duration-150 ${
+                className={`rounded-xl px-4 py-2 text-sm font-bold whitespace-nowrap transition-all duration-150 ${
                   statusFilter === value
                     ? "bg-emerald-700 text-white shadow-xs"
                     : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900"
@@ -194,7 +186,7 @@ export function BillingFolioTableClient({
             </colgroup>
             <thead className="border-b border-slate-200/80 bg-slate-50/90 text-sm sm:text-sm font-extrabold uppercase tracking-wider text-slate-600 dark:border-slate-800 dark:bg-slate-800/80 dark:text-slate-300">
               <tr>
-                <th className="px-6 py-4">Folio</th>
+                <th className="px-6 py-4">Mã hóa đơn</th>
                 <th className="px-6 py-4">Phòng / Khách</th>
                 <th className="px-6 py-4 text-center">Trạng thái</th>
                 <th className="px-6 py-4 text-center">Tổng cộng</th>
@@ -207,7 +199,7 @@ export function BillingFolioTableClient({
                     key={folio.id}
                     tabIndex={0}
                     role="button"
-                    aria-label={`Mở chi tiết folio ${folio.folioNumber ?? folio.id}`}
+                    aria-label={`Mở chi tiết hóa đơn lưu trú ${folio.folioNumber ?? folio.id}`}
                     onClick={() => void openFolioDetail(folio)}
                     onKeyDown={(event) => {
                       if (event.key === "Enter" || event.key === " ") {
@@ -249,26 +241,26 @@ export function BillingFolioTableClient({
           {filteredFolios.length === 0 ? (
             <div className="p-12 text-center text-sm text-slate-500 space-y-2">
               <div className="text-3xl">📋</div>
-              <div className="font-medium">Không tìm thấy folio phù hợp trong trang này.</div>
+              <div className="font-medium text-pretty">Không tìm thấy hóa đơn lưu trú phù hợp trong trang này.</div>
             </div>
           ) : null}
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-4 border-t border-[var(--outline-variant)] bg-slate-50/50 p-4 text-sm font-semibold text-slate-600 dark:bg-slate-900/50 dark:text-slate-400">
           <div>
-            Trang <span className="font-bold text-slate-900 dark:text-white">{page}</span> / <span className="font-bold text-slate-900 dark:text-white">{totalPages}</span> ({totalItems} folio)
+            Trang <span className="font-bold text-slate-900 dark:text-white">{page}</span> / <span className="font-bold text-slate-900 dark:text-white">{totalPages}</span> ({totalItems} hóa đơn)
           </div>
           <div className="flex items-center gap-2">
             {page > 1 ? (
               <Link
                 href={`/owner/hotels/${encodeURIComponent(hotelId)}/billing?folioPage=${page - 1}`}
                 scroll={false}
-                className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-200"
+                className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm font-bold text-slate-700 whitespace-nowrap shadow-sm transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-200"
               >
                 Trang trước
               </Link>
             ) : (
-              <span className="inline-flex items-center justify-center rounded-xl border border-slate-100 bg-slate-100 px-3 py-1.5 text-sm font-bold text-slate-400 cursor-not-allowed dark:border-slate-800/40 dark:bg-slate-800/40 dark:text-slate-600">
+              <span className="inline-flex items-center justify-center rounded-xl border border-slate-100 bg-slate-100 px-3 py-1.5 text-sm font-bold text-slate-400 whitespace-nowrap cursor-not-allowed dark:border-slate-800/40 dark:bg-slate-800/40 dark:text-slate-600">
                 Trang trước
               </span>
             )}
@@ -276,12 +268,12 @@ export function BillingFolioTableClient({
               <Link
                 href={`/owner/hotels/${encodeURIComponent(hotelId)}/billing?folioPage=${page + 1}`}
                 scroll={false}
-                className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-200"
+                className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm font-bold text-slate-700 whitespace-nowrap shadow-sm transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-200"
               >
                 Trang sau
               </Link>
             ) : (
-              <span className="inline-flex items-center justify-center rounded-xl border border-slate-100 bg-slate-100 px-3 py-1.5 text-sm font-bold text-slate-400 cursor-not-allowed dark:border-slate-800/40 dark:bg-slate-800/40 dark:text-slate-600">
+              <span className="inline-flex items-center justify-center rounded-xl border border-slate-100 bg-slate-100 px-3 py-1.5 text-sm font-bold text-slate-400 whitespace-nowrap cursor-not-allowed dark:border-slate-800/40 dark:bg-slate-800/40 dark:text-slate-600">
                 Trang sau
               </span>
             )}
@@ -326,12 +318,12 @@ function Metric({
       : "text-slate-900";
 
   return (
-    <div className={`rounded-2xl border p-4 shadow-xs backdrop-blur-sm ${toneClass}`}>
-      <div className="flex items-center justify-between gap-1">
-        <div className="text-sm font-extrabold uppercase tracking-[0.14em] opacity-70">{label}</div>
-        {icon ? <VsIcon name={icon} className="text-base opacity-60" /> : null}
+    <div className={`flex flex-col justify-between rounded-2xl border p-4 sm:p-5 shadow-xs backdrop-blur-sm min-w-0 ${toneClass}`}>
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs sm:text-sm font-extrabold uppercase tracking-wider opacity-75 text-balance">{label}</div>
+        {icon ? <VsIcon name={icon} className="shrink-0 text-base opacity-60" /> : null}
       </div>
-      <div className={`mt-1.5 text-2xl font-black ${numClass}`}>{value}</div>
+      <div className={`mt-2 text-2xl font-black tabular-nums tracking-tight break-words ${numClass}`}>{value}</div>
     </div>
   );
 }
@@ -344,7 +336,7 @@ function StatusBadge({ status }: { status?: string }) {
       : "bg-slate-100 text-slate-700 border border-slate-200/60";
 
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-3 py-0.5 text-sm font-bold ${tone}`}>
+    <span className={`inline-flex items-center gap-1 rounded-full px-3 py-0.5 text-sm font-bold whitespace-nowrap ${tone}`}>
       <span className={`h-1.5 w-1.5 rounded-full ${displayStatus === "OPEN" ? "bg-emerald-600 animate-pulse" : "bg-slate-400"}`} />
       <span>{statusLabels[displayStatus]}</span>
     </span>
@@ -367,13 +359,13 @@ function FolioModal({
           <div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-white/20 blur-2xl" />
           <div className="relative flex items-start justify-between gap-4">
             <div>
-              <p className="text-sm font-black uppercase tracking-[0.24em] text-white/80">Chi tiết folio</p>
-              <h2 className="mt-2 text-3xl font-black">{folio.folioNumber ?? folio.id}</h2>
-              <p className="mt-1 text-sm text-white/80">
+              <p className="text-sm font-black uppercase tracking-[0.24em] text-white/80">Chi tiết hóa đơn lưu trú</p>
+              <h2 className="mt-2 text-3xl font-black text-balance">{folio.folioNumber ?? folio.id}</h2>
+              <p className="mt-1 text-sm text-white/80 text-pretty">
                 Phòng {folio.room?.roomNumber ?? "-"} · {folio.stay?.guestNameSnapshot ?? "Khách lưu trú"}
               </p>
             </div>
-            <button type="button" onClick={onClose} className="rounded-full bg-white/15 px-4 py-2 text-sm font-black text-white hover:bg-white/25">
+            <button type="button" onClick={onClose} className="rounded-full bg-white/15 px-4 py-2 text-sm font-black text-white whitespace-nowrap hover:bg-white/25">
               Đóng
             </button>
           </div>
@@ -390,16 +382,16 @@ function FolioModal({
 
         <div className="space-y-4 border-t border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-[var(--on-surface-variant)]">
-              Thông tin đối soát doanh thu chi tiết cho folio lưu trú.
+            <p className="text-sm text-[var(--on-surface-variant)] text-pretty">
+              Thông tin đối soát doanh thu chi tiết cho hóa đơn lưu trú.
             </p>
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={onExportOrder}
-                className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[var(--outline-variant)] bg-white px-4 text-sm font-black text-[var(--primary)]"
+                className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[var(--outline-variant)] bg-white px-4 text-sm font-black text-[var(--primary)] whitespace-nowrap"
               >
-                Xuất order
+                Xuất phiếu thanh toán
               </button>
             </div>
           </div>

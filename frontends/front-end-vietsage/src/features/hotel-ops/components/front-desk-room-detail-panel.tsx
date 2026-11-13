@@ -1374,7 +1374,7 @@ export function FrontDeskRoomDetailPanel({
                                     href={`/hotels/${encodeURIComponent(hotelId)}/billing?stayId=${encodeURIComponent(stay.id)}&roomId=${encodeURIComponent(room?.id || "")}&roomNumber=${encodeURIComponent(room?.roomNumber || "")}`}
                                     className="font-bold text-blue-700 hover:text-blue-900 flex items-center gap-1 transition"
                                   >
-                                    <span>Chi tiết Folio</span>
+                                    <span>Chi tiết hóa đơn</span>
                                     <VsIcon name="arrow_forward" className="text-xs" />
                                   </Link>
                                 )}

@@ -351,7 +351,7 @@ export const IMMUTABLE_D3_PERMISSION_CATALOG: readonly D3CatalogPermission[] = [
   {
     key: "hotel.billing.checkout",
     label: "Quyết toán thanh toán trả phòng",
-    description: "Quyết toán folio, xác nhận thanh toán cuối cùng và in biên lai trả phòng",
+    description: "Quyết toán hóa đơn lưu trú, xác nhận thanh toán cuối cùng và in biên lai trả phòng",
     bounded_context: "billing",
     risk: "CRITICAL",
   },

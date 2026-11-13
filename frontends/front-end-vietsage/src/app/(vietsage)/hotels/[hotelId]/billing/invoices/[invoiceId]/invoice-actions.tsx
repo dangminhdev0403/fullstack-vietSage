@@ -21,7 +21,7 @@ export function InvoiceActions({ hotelId, invoiceId, isPaid: initialIsPaid, show
   async function collectPayment() {
     const result = await SwalVietSage.fire({
       title: "Xác nhận đã thu tiền",
-      text: "Thao tác này sẽ đóng folio, check-out khách, tắt QR và chuyển phòng sang chờ dọn.",
+      text: "Thao tác này sẽ đóng hóa đơn lưu trú, hoàn tất trả phòng cho khách, tắt mã QR phòng và chuyển phòng sang chờ dọn.",
       showCancelButton: true,
       confirmButtonText: "Đã thu đủ tiền",
       cancelButtonText: "Hủy",
@@ -34,7 +34,7 @@ export function InvoiceActions({ hotelId, invoiceId, isPaid: initialIsPaid, show
         { method: "POST", body: { method: "MANUAL" } },
       );
       setPaid(true);
-      await showSuccessAlert("Checkout hoàn tất", "Hóa đơn đã thanh toán và phòng đang chờ dọn.");
+      await showSuccessAlert("Trả phòng hoàn tất", "Hóa đơn đã thanh toán và phòng đang chờ dọn.");
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
     } catch (error) {
       await showErrorAlert("Không thể xác nhận thanh toán", error);
@@ -45,7 +45,7 @@ export function InvoiceActions({ hotelId, invoiceId, isPaid: initialIsPaid, show
 
   return (
     <div className="flex flex-wrap gap-2 print:hidden">
-      {!paid ? <button type="button" disabled={saving} onClick={() => void collectPayment()} className="rounded-xl bg-[var(--primary)] px-4 py-3 text-sm font-bold text-white disabled:opacity-50">{saving ? "Đang xử lý..." : "Xác nhận đã thu tiền"}</button> : <span className="rounded-xl bg-emerald-100 px-4 py-3 text-sm font-bold text-emerald-800">Đã thanh toán và checkout</span>}
+      {!paid ? <button type="button" disabled={saving} onClick={() => void collectPayment()} className="rounded-xl bg-[var(--primary)] px-4 py-3 text-sm font-bold text-white disabled:opacity-50">{saving ? "Đang xử lý..." : "Xác nhận đã thu tiền"}</button> : <span className="rounded-xl bg-emerald-100 px-4 py-3 text-sm font-bold text-emerald-800">Đã thanh toán và trả phòng</span>}
       {showPrint ? <button type="button" onClick={() => window.print()} className="rounded-xl border border-[var(--outline-variant)] bg-white px-4 py-3 text-sm font-bold text-[var(--primary)]">In hóa đơn</button> : null}
     </div>
   );

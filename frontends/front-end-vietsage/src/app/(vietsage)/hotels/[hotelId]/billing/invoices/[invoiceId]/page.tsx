@@ -67,7 +67,7 @@ export default async function StaffInvoicePage({ params }: PageProps) {
 
         <section className="grid gap-5 border-b border-slate-200 py-5 sm:grid-cols-2">
           <dl className="grid grid-cols-2 gap-3 text-sm">
-            <div><dt className="text-xs text-slate-500">Folio</dt><dd className="font-bold">{folio.folioNumber}</dd></div>
+            <div><dt className="text-xs text-slate-500">Hóa đơn lưu trú</dt><dd className="font-bold">{folio.folioNumber}</dd></div>
             <div><dt className="text-xs text-slate-500">Khách</dt><dd className="font-bold">{stay.guestName ?? "-"}</dd></div>
             <div><dt className="text-xs text-slate-500">Nhận phòng</dt><dd className="font-bold">{formatDateTime(stay.checkInAt)}</dd></div>
             <div><dt className="text-xs text-slate-500">Trả phòng</dt><dd className="font-bold">{formatDateTime(stay.checkOutAt)}</dd></div>

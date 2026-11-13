@@ -26,12 +26,12 @@ interface RequestWithUser extends Request {
 export class FolioController {
   constructor(private readonly billingService: BillingService) {}
 
-  @SuccessMessage("Lấy danh sách folio thành công")
+  @SuccessMessage("Lấy danh sách hóa đơn lưu trú thành công")
   @RequirePermission("hotel.billing.view")
-  @ApiDescript("Xem danh sách folio")
+  @ApiDescript("Xem danh sách hóa đơn lưu trú")
   @ApiParam({ name: "hotelId", type: String })
   @ApiQuery({ name: "status", required: false, enum: FolioStatus })
-  @ApiOkResponse({ description: "Danh sách folio" })
+  @ApiOkResponse({ description: "Danh sách hóa đơn lưu trú" })
   @Get(":hotelId/folios")
   async listFolios(
     @Req() request: RequestWithUser,
@@ -49,12 +49,12 @@ export class FolioController {
     );
   }
 
-  @SuccessMessage("Lấy folio đang mở của lượt lưu trú thành công")
+  @SuccessMessage("Lấy hóa đơn lưu trú đang mở của lượt lưu trú thành công")
   @RequirePermission("hotel.billing.view")
-  @ApiDescript("Xem folio đang mở")
+  @ApiDescript("Xem hóa đơn lưu trú đang mở")
   @ApiParam({ name: "hotelId", type: String })
   @ApiParam({ name: "stayId", type: String })
-  @ApiOkResponse({ description: "Folio đang mở" })
+  @ApiOkResponse({ description: "Hóa đơn lưu trú đang mở" })
   @Get(":hotelId/stays/:stayId/active-folio")
   async getActiveFolioByStay(
     @Req() request: RequestWithUser,
@@ -72,12 +72,12 @@ export class FolioController {
     );
   }
 
-  @SuccessMessage("Lấy tổng quan folio thành công")
+  @SuccessMessage("Lấy tổng quan hóa đơn lưu trú thành công")
   @RequirePermission("hotel.billing.view")
-  @ApiDescript("Xem tổng quan folio")
+  @ApiDescript("Xem tổng quan hóa đơn lưu trú")
   @ApiParam({ name: "hotelId", type: String })
   @ApiParam({ name: "folioId", type: String })
-  @ApiOkResponse({ description: "Tổng quan folio" })
+  @ApiOkResponse({ description: "Tổng quan hóa đơn lưu trú" })
   @Get(":hotelId/folios/:folioId/summary")
   async getFolioSummary(
     @Req() request: RequestWithUser,
@@ -157,12 +157,12 @@ export class FolioController {
     );
   }
 
-  @SuccessMessage("Lấy danh sách dòng folio thành công")
+  @SuccessMessage("Lấy danh sách mục hóa đơn lưu trú thành công")
   @RequirePermission("hotel.billing.view")
-  @ApiDescript("Xem danh sách dòng folio")
+  @ApiDescript("Xem danh sách mục hóa đơn lưu trú")
   @ApiParam({ name: "hotelId", type: String })
   @ApiParam({ name: "folioId", type: String })
-  @ApiOkResponse({ description: "Danh sách FolioItem" })
+  @ApiOkResponse({ description: "Danh sách mục hóa đơn lưu trú" })
   @Get(":hotelId/folios/:folioId/items")
   async listFolioItems(
     @Req() request: RequestWithUser,
@@ -183,12 +183,12 @@ export class FolioController {
     );
   }
 
-  @SuccessMessage("Lấy chi tiết folio thành công")
+  @SuccessMessage("Lấy chi tiết hóa đơn lưu trú thành công")
   @RequirePermission("hotel.billing.view")
-  @ApiDescript("Xem chi tiết folio")
+  @ApiDescript("Xem chi tiết hóa đơn lưu trú")
   @ApiParam({ name: "hotelId", type: String })
   @ApiParam({ name: "folioId", type: String })
-  @ApiOkResponse({ description: "Chi tiết folio" })
+  @ApiOkResponse({ description: "Chi tiết hóa đơn lưu trú" })
   @Get(":hotelId/folios/:folioId")
   async getFolioDetail(
     @Req() request: RequestWithUser,
@@ -206,12 +206,12 @@ export class FolioController {
     );
   }
 
-  @SuccessMessage("Thêm mục phụ thu / giảm giá vào folio thành công")
+  @SuccessMessage("Thêm mục phụ thu / giảm giá vào hóa đơn lưu trú thành công")
   @RequirePermission("hotel.billing.manage")
-  @ApiDescript("Thêm khoản phụ thu hoặc giảm giá vào folio")
+  @ApiDescript("Thêm khoản phụ thu hoặc giảm giá vào hóa đơn lưu trú")
   @ApiParam({ name: "hotelId", type: String })
   @ApiParam({ name: "folioId", type: String })
-  @ApiOkResponse({ description: "Mục FolioItem đã tạo" })
+  @ApiOkResponse({ description: "Mục hóa đơn lưu trú đã tạo" })
   @Post(":hotelId/folios/:folioId/items")
   async addFolioItem(
     @Req() request: RequestWithUser,
@@ -232,9 +232,9 @@ export class FolioController {
     );
   }
 
-  @SuccessMessage("Hủy mục folio thành công")
+  @SuccessMessage("Hủy mục hóa đơn lưu trú thành công")
   @RequirePermission("hotel.billing.manage")
-  @ApiDescript("Hủy một khoản mục trong folio")
+  @ApiDescript("Hủy một khoản mục trong hóa đơn lưu trú")
   @ApiParam({ name: "hotelId", type: String })
   @ApiParam({ name: "folioId", type: String })
   @ApiParam({ name: "itemId", type: String })
