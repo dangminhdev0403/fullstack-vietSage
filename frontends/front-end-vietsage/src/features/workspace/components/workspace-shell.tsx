@@ -9,7 +9,10 @@ import { VsDashboardSidebar } from "@/app/(vietsage)/_components/vs-dashboard-si
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { VsTopBar } from "@/app/(vietsage)/_components/vs-top-bar";
 import type { DashboardNavItem } from "@/features/workspace/types/workspace-navigation";
-import { isNavItemActive } from "@/features/workspace/utils/workspace-nav-active";
+import {
+  isNavItemActive,
+  resolveWorkspaceSubNavigation,
+} from "@/features/workspace/utils/workspace-nav-active";
 import { useHotelMessageUnread } from "@/features/hotel-ops/hooks/use-hotel-message-unread";
 import { useWorkspaceUIStore } from "../store/workspace-ui-store";
 import { useWorkspaceProfile } from "./workspace-profile-context";
@@ -91,18 +94,24 @@ export function WorkspaceShell({
     hotelName ?? matchedHotel?.name ?? inheritedProfile.hotelName ?? null;
 
   const effectiveNavItems = useMemo(() => {
-    if (!hotelId) return navItems;
-    return navItems.map((item) => {
-      if (item.href.includes("/owner/hotels/") || item.href.includes("/hotels/")) {
-        const updatedHref = item.href.replace(
-          /(\/(?:owner\/)?hotels\/)[^/]+(\/.*)?$/,
-          `$1${hotelId}$2`,
-        ) as `/${string}`;
-        return { ...item, href: updatedHref };
-      }
-      return item;
+    const resolvedHotelItems = !hotelId
+      ? navItems
+      : navItems.map((item) => {
+          if (item.href.includes("/owner/hotels/") || item.href.includes("/hotels/")) {
+            const updatedHref = item.href.replace(
+              /(\/(?:owner\/)?hotels\/)[^/]+(\/.*)?$/,
+              `$1${hotelId}$2`,
+            ) as `/${string}`;
+            return { ...item, href: updatedHref };
+          }
+          return item;
+        });
+
+    return resolveWorkspaceSubNavigation(resolvedHotelItems, {
+      persona: definition.persona,
+      permissions: inheritedProfile.permissions,
     });
-  }, [navItems, hotelId]);
+  }, [navItems, hotelId, definition.persona, inheritedProfile.permissions]);
 
   const showMobileNavigation =
     definition.persona !== "housekeeping" || effectiveNavItems.length > 1;

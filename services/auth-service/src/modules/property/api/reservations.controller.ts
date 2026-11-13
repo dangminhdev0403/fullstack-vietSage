@@ -27,6 +27,7 @@ import {
   updateReservationDatesBodySchema,
   updateReservationBodySchema,
   groupCodeParamSchema,
+  partnerIdParamSchema,
   updateGroupReservationBodySchema,
   createBookingSourcePartnerBodySchema,
   updateBookingSourcePartnerBodySchema,
@@ -370,8 +371,9 @@ export class ReservationsController {
   @SuccessMessage("Lấy danh sách khách đặt trước thành công")
   @ApiDescript("Danh sách khách đặt trước theo khoảng thời gian")
   @ApiParam({ name: "hotelId", type: String })
-  @ApiQuery({ name: "from", required: true, type: String })
-  @ApiQuery({ name: "to", required: true, type: String })
+  @ApiQuery({ name: "from", required: false, type: String })
+  @ApiQuery({ name: "to", required: false, type: String })
+  @ApiQuery({ name: "includeOverdue", required: false, type: Boolean })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "limit", required: false, type: Number })
   @ApiQuery({ name: "q", required: false, type: String })
@@ -979,12 +981,13 @@ export class ReservationsController {
     @Body() body: unknown,
   ) {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
+    const partnerId = parseWithZod(partnerIdParamSchema, partnerIdParam);
     const dto = parseWithZod(updateBookingSourcePartnerBodySchema, body);
     return this.reservationsService.updateBookingSourcePartner(
       request.user.userId,
       request.user.roleId,
       hotelId,
-      partnerIdParam,
+      partnerId,
       dto,
     );
   }
@@ -1001,11 +1004,12 @@ export class ReservationsController {
     @Param("partnerId") partnerIdParam: string,
   ) {
     const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
+    const partnerId = parseWithZod(partnerIdParamSchema, partnerIdParam);
     return this.reservationsService.deleteBookingSourcePartner(
       request.user.userId,
       request.user.roleId,
       hotelId,
-      partnerIdParam,
+      partnerId,
     );
   }
 }

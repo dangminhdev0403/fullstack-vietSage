@@ -1,4 +1,4 @@
-import { FolioItemType, GuestStayStatus, PaymentMethod } from "@prisma/client";
+import { FolioItemType, GuestStayStatus, PaymentMethod, Prisma } from "@prisma/client";
 import { Temporal } from "@js-temporal/polyfill";
 import { HotelReportsService } from "../application/hotel-reports.service";
 
@@ -297,5 +297,113 @@ describe("HotelReportsService", () => {
     // Ngày 21/10 là ngày check-out trưa (12:00), không tính lố thêm 1 đêm ở
     expect(oct21.dayLabel).toBe("21/10");
     expect(oct21.roomsOccupied).toBe(0);
+  });
+
+  it("tính đúng P&L (doanh thu folio + sổ phát sinh, chi phí vận hành, phí SaaS, lãi lỗ & dòng tiền)", async () => {
+    mockPrisma.room.count.mockResolvedValueOnce(10).mockResolvedValueOnce(1);
+    mockPrisma.payment.findMany.mockResolvedValue([
+      {
+        id: "pay-1",
+        paidAmount: 3000000,
+        method: PaymentMethod.BANK_TRANSFER,
+        confirmedAt: new Date("2026-10-20T10:00:00.000+07:00"),
+        createdByUserId: "user-1",
+        createdBy: { id: "user-1", fullName: "Lễ tân", email: "lt@hotel.vn" },
+      },
+    ]);
+    mockPrisma.folioItem.findMany.mockResolvedValue([
+      {
+        id: "fi-1",
+        itemType: "ROOM_CHARGE",
+        totalSnapshot: 4000000,
+        postedAt: new Date("2026-10-20T10:00:00.000+07:00"),
+        postedByUserId: "user-1",
+      },
+    ]);
+    mockPrisma.guestStay.findMany.mockResolvedValue([]);
+    mockPrisma.hotelStaffAssignment.findMany.mockResolvedValue([]);
+    const extendedPrisma = mockPrisma as unknown as Record<string, unknown>;
+    extendedPrisma.hotelRevenueEntry = {
+      findMany: jest.fn().mockResolvedValue([
+        {
+          id: "rev-1",
+          date: new Date("2026-10-20T00:00:00.000Z"),
+          category: "OTHER",
+          amount: new Prisma.Decimal(1000000),
+          collections: [
+            {
+              amount: new Prisma.Decimal(1000000),
+              receivedAt: new Date("2026-10-20T11:00:00.000+07:00"),
+            },
+          ],
+        },
+      ]),
+    };
+    extendedPrisma.hotelExpense = {
+      findMany: jest.fn().mockResolvedValue([
+        {
+          id: "exp-1",
+          expenseDate: new Date("2026-10-20T00:00:00.000Z"),
+          category: "PAYROLL",
+          amount: new Prisma.Decimal(2000000),
+          paidAmount: new Prisma.Decimal(1500000),
+          paymentStatus: "PARTIAL",
+        },
+        {
+          id: "exp-2",
+          expenseDate: new Date("2026-10-21T00:00:00.000Z"),
+          category: "UTILITIES",
+          amount: new Prisma.Decimal(500000),
+          paidAmount: new Prisma.Decimal(0),
+          paymentStatus: "UNPAID",
+        },
+      ]),
+    };
+    extendedPrisma.platformBillableDay = {
+      findMany: jest.fn().mockResolvedValue([
+        {
+          serviceDate: new Date("2026-10-20T00:00:00.000Z"),
+          amount: new Prisma.Decimal(150000),
+        },
+      ]),
+    };
+    extendedPrisma.receivableCollection = {
+      findMany: jest.fn().mockResolvedValue([
+        {
+          collectedAmount: new Prisma.Decimal(500000),
+          collectedAt: new Date("2026-10-20T14:00:00.000+07:00"),
+        },
+      ]),
+    };
+
+    const result = await service.getReports("user-1", "role-1", "hotel-1", {
+      range: "30d",
+      from: "2026-10-19",
+      to: "2026-10-21",
+    });
+
+    // Doanh thu: 4,000,000 (folio) + 1,000,000 (manual) = 5,000,000
+    expect(result.summary.manualRevenue).toBe(1000000);
+    expect(result.summary.totalRevenue).toBe(5000000);
+    // Thực thu: 3,000,000 (folio payment) + 500,000 (receivable) + 1,000,000 (manual) = 4,500,000
+    expect(result.summary.collectedRevenue).toBe(4500000);
+    expect(result.summary.uncollectedRevenue).toBe(500000);
+    // Chi phí: 2,500,000 (operating: 1,500,000 paid + 1,000,000 unpaid) + 150,000 SaaS = 2,650,000
+    expect(result.summary.operatingExpense).toBe(2500000);
+    expect(result.summary.paidOperatingExpense).toBe(1500000);
+    expect(result.summary.unpaidOperatingExpense).toBe(1000000);
+    expect(result.summary.saasFeeExpense).toBe(150000);
+    expect(result.summary.totalExpense).toBe(2650000);
+    // Lãi ròng = 5,000,000 - 2,650,000 = 2,350,000 (47%)
+    expect(result.summary.netProfit).toBe(2350000);
+    expect(result.summary.profitMargin).toBe(47);
+    // Dòng tiền thực = 4,500,000 - 1,500,000 = 3,000,000
+    expect(result.summary.netCashFlow).toBe(3000000);
+    expect(result.expenseByCategory.find((c) => c.category === "SAAS_FEE")?.amount).toBe(150000);
+
+    const oct20 = result.revenueByDay.find((d) => d.date === "2026-10-20")!;
+    expect(oct20.totalRevenue).toBe(5000000);
+    expect(oct20.expense).toBe(2150000);
+    expect(oct20.netProfit).toBe(2850000);
   });
 });

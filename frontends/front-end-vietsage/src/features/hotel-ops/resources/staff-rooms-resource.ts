@@ -28,6 +28,7 @@ import type {
   HotelCheckInResult,
   HotelRoomSummary,
   HotelConfirmationTemplateConfig,
+  HotelPriorityAlertsResponse,
   ReservationConfirmationData,
   UpdateReservationInput,
   BookingSourcePartnerItem,
@@ -40,10 +41,45 @@ const baseStaffRoomsResource = createResource<{ hotelId: string }>()({
   name: "staff-rooms",
   scopeKey: ({ hotelId }) => ["hotel", hotelId],
   queries: {
+    priorityAlerts: defineQuery({
+      inputKey: () => ["priority-alerts"],
+      queryFn: ({
+        scope,
+        signal,
+      }: ResourceQueryContext<{ hotelId: string }, void>): Promise<HotelPriorityAlertsResponse> =>
+        staffRoomsRepository.getPriorityAlerts(scope.hotelId, signal),
+    }),
     arrivals: defineQuery({
-      inputKey: (input: { from: string; to: string }) => [input.from, input.to],
-      queryFn: ({ scope, input, signal }: ResourceQueryContext<{ hotelId: string }, { from: string; to: string }>) =>
-        staffRoomsRepository.listArrivals(scope.hotelId, input, signal),
+      inputKey: (input: {
+        from?: string;
+        to?: string;
+        includeOverdue?: boolean;
+        q?: string;
+        limit?: number;
+        page?: number;
+      }) => [
+        input.from ?? "",
+        input.to ?? "",
+        input.includeOverdue ?? false,
+        input.q ?? "",
+        input.limit ?? 100,
+        input.page ?? 1,
+      ],
+      queryFn: ({
+        scope,
+        input,
+        signal,
+      }: ResourceQueryContext<
+        { hotelId: string },
+        {
+          from?: string;
+          to?: string;
+          includeOverdue?: boolean;
+          q?: string;
+          limit?: number;
+          page?: number;
+        }
+      >) => staffRoomsRepository.listArrivals(scope.hotelId, input, signal),
     }),
     allRooms: defineQuery({
       inputKey: () => [],

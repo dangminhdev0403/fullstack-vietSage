@@ -69,6 +69,7 @@ export async function PUT(request: Request, context: Params) {
     const data = await executeHotelOpsBackendRequest("update reservation placement", (accessToken) =>
       hotelOpsService.updateReservationPlacement(hotelId, cleanReservationId, backendPayload, { accessToken }),
     );
+    if (data instanceof Response) return data;
 
     return successResponse(data);
   } catch (error) {

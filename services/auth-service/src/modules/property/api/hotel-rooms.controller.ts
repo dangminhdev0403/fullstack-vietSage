@@ -197,6 +197,24 @@ export class HotelRoomsController {
     );
   }
 
+  @SuccessMessage("Lấy danh sách phòng cần ưu tiên xử lý thành công")
+  @RequirePermission("hotel.rooms.view")
+  @ApiDescript("Danh sách đặt trước đến ngày/quá hạn, khách quá giờ trả phòng và phòng chờ dọn")
+  @ApiParam({ name: "hotelId", type: String })
+  @ApiOkResponse({ description: "Danh sách ưu tiên điều hành lễ tân" })
+  @Get(":hotelId/rooms/priority-alerts")
+  async listPriorityAlerts(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+  ) {
+    const hotelId = parseWithZod(hotelIdParamSchema, hotelIdParam);
+    return this.hotelRoomsService.listPriorityAlerts(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+    );
+  }
+
   @SuccessMessage("Cập nhật phòng thành công")
   @RequireActiveRole(CANONICAL_OWNER_ROLE)
   @RequirePermission("hotel.rooms.manage")

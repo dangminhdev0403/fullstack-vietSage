@@ -42,20 +42,16 @@ every sibling caller still broken. Fix it once, where all callers route through.
 - No boilerplate, no scaffolding "for later", later can scaffold for itself.
 - Deletion over addition. Boring over clever, clever is what someone decodes at 3am.
 - Fewest files possible. Shortest working diff wins — but only once you understand the problem. The smallest change in the wrong place isn't lazy, it's a second bug.
-- Complex request? Ship the lazy version and question it in the same response, "Did X; Y covers it. Need full X? Say so." Never stall on an answer you can default.
+- Complex request? Deliver the smallest complete solution that satisfies the approved outcome. Resolve routine choices autonomously; name a genuine blocker rather than shipping an avoidable partial result.
 - Two stdlib options, same size? Take the one that's correct on edge cases. Lazy means writing less code, not picking the flimsier algorithm.
 - Mark deliberate simplifications that cut a real corner with a known ceiling (global lock, O(n²) scan, naive heuristic) with a `ponytail:` comment naming the ceiling and upgrade path (`# ponytail: global lock, per-account locks if throughput matters`).
 
 ## Output
 
-Code first. Then at most three short lines: what was skipped, when to add it.
-No essays, no feature tours, no design notes. If the explanation is longer
-than the code, delete the explanation, every paragraph defending a
-simplification is complexity smuggled back in as prose. Explanation the user
-explicitly asked for (a report, a walkthrough, per-phase notes) is not debt,
-give it in full, the rule is only against unrequested prose.
-
-Pattern: `[code] → skipped: [X], add when [Y].`
+Lead with the result, then actual checks and remaining gaps. Keep routine prose
+short; provide the detail the user requested or the evidence needs. Runtime-required
+progress, approval and runner lifecycle messages take precedence over brevity.
+Do not add a partial-solution offer when the approved outcome can be completed.
 
 ## Intensity
 
@@ -84,16 +80,14 @@ Hardware is never the ideal on paper: a real clock drifts, a real sensor
 reads off, a PCA9685 runs a few percent fast. Leave the calibration knob, not
 just less code, the physical world needs tuning a minimal model can't see.
 
-Lazy code without its check is unfinished. Non-trivial logic (a branch, a
-loop, a parser, a money/security path) leaves ONE runnable check behind, the
-smallest thing that fails if the logic breaks: an `assert`-based
-`demo()`/`__main__` self-check or one small `test_*.py`. No frameworks, no
-fixtures, no per-function suites unless asked. Trivial one-liners need no
-test, YAGNI applies to tests too.
+Lazy code without sufficient verification is unfinished. Reuse the project's
+existing scoped tests and fixtures; add a focused regression only when needed
+to prove changed behavior. Follow [project validation policy](.agents/rules/zero-waste-validation.md)
+for the necessary checks, without a fixed count or standalone self-test mandate.
 
 ## Concurrent Subagent Orchestration
 
-Default to one agent. Delegate only when authorized and when substantial independent slices justify the overhead. Keep disjoint file ownership, freeze shared contracts before parallel writes, and obtain a writes-stopped acknowledgement before takeover.
+Apply the shared [parallel execution contract](C:/Users/Dangminhdev0403/.agents/skills/focused-execution/SKILL.md#parallel-execution-contract), including its mandatory early-dispatch trigger and concrete solo exceptions. Keep disjoint file ownership, freeze shared contracts before parallel writes, and obtain a writes-stopped acknowledgement before takeover.
 
 Use the global [focused-execution](C:/Users/Dangminhdev0403/.agents/skills/focused-execution/SKILL.md) profile for short worker briefs and completion behavior, and [Efficient Execution and Validation](.agents/rules/zero-waste-validation.md) for project checks. Preserve Orca lifecycle commands without copying their preamble or adding settlement reports. Do not duplicate host/worker validation.
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -28,6 +28,32 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
   const router = useRouter();
   const queryClient = useSafeQueryClient();
   const targetQueryClient = queryClient ?? getQueryClient();
+
+  const recentHousekeepingTasksRef = useRef<Map<string, { type: string; timestamp: number }>>(new Map());
+  const pendingRoomStatusTimerRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  const markHousekeepingAction = useCallback((keys: Array<string | null | undefined>, type: string) => {
+    const validKeys = keys.filter((k): k is string => Boolean(k && String(k).trim()));
+    const now = Date.now();
+    for (const key of validKeys) {
+      const trimmed = String(key).trim();
+      recentHousekeepingTasksRef.current.set(trimmed, { type, timestamp: now });
+      const timer = pendingRoomStatusTimerRef.current.get(trimmed);
+      if (timer) {
+        clearTimeout(timer);
+        pendingRoomStatusTimerRef.current.delete(trimmed);
+      }
+      toast.dismiss(`hotel-ops-room-status-${trimmed}`);
+    }
+  }, []);
+
+  useEffect(() => {
+    const pendingTimers = pendingRoomStatusTimerRef.current;
+    return () => {
+      pendingTimers.forEach((timer) => clearTimeout(timer));
+      pendingTimers.clear();
+    };
+  }, []);
 
   const handlers = useMemo(
     () => ({
@@ -146,14 +172,16 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
             window.location.pathname.includes(`/hotels/${hotelId}/messages`);
 
           if (!isMessagesPage) {
+            const threadRoom = raw.thread?.roomNumber ? `Phòng ${raw.thread.roomNumber}` : "";
+            const messageKey = raw.thread?.roomNumber || raw.message.id || "guest";
             toast.info("Có tin nhắn mới từ khách", {
-              id: `hotel-ops-message-${raw.message.id ?? Date.now()}`,
-              description: `Phòng ${raw.thread?.roomNumber ?? ""}: ${raw.message.body ?? ""}`,
-              duration: 2000,
+              id: `hotel-ops-message-${messageKey}`,
+              description: threadRoom ? `${threadRoom}: ${raw.message.body ?? ""}` : (raw.message.body ?? ""),
+              duration: 3000,
               action: {
                 label: "Xem tin nhắn",
                 onClick: () => {
-                  if (raw.message?.id) toast.dismiss(`hotel-ops-message-${raw.message.id}`);
+                  toast.dismiss(`hotel-ops-message-${messageKey}`);
                   router.push(`/hotels/${hotelId}/messages`);
                 },
               },
@@ -181,15 +209,16 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
           raw?.items && raw.items.length > 1
             ? `${raw.items[0].serviceName} (+${raw.items.length - 1} mục khác)`
             : (raw?.serviceName ?? "Dịch vụ đối tác");
+        const orderKey = raw?.orderId || "latest";
 
         toast.success("Có yêu cầu dịch vụ đối tác mới", {
-          id: `hotel-ops-ext-order-created-${raw?.orderId ?? Date.now()}`,
+          id: `hotel-ops-ext-order-${orderKey}`,
           description: `${roomLabel} - ${guestName}: ${serviceName}`,
           duration: 4000,
           action: {
             label: "Xem ngay",
             onClick: () => {
-              if (raw?.orderId) toast.dismiss(`hotel-ops-ext-order-created-${raw.orderId}`);
+              toast.dismiss(`hotel-ops-ext-order-${orderKey}`);
               void invalidateHotelRequestRealtimeQueries(targetQueryClient, hotelId);
               router.refresh();
               const targetUrl = `/hotels/${hotelId}/requests?tab=external${raw?.orderId ? `&orderId=${encodeURIComponent(raw.orderId)}` : ""}`;
@@ -211,7 +240,7 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
       onExternalOrderStatusChanged: (event: unknown) => {
         const raw = event as { orderId?: string } | null;
         if (raw?.orderId) {
-          toast.dismiss(`hotel-ops-ext-order-created-${raw.orderId}`);
+          toast.dismiss(`hotel-ops-ext-order-${raw.orderId}`);
         }
         void invalidateHotelRequestRealtimeQueries(targetQueryClient, hotelId);
         router.refresh();
@@ -219,7 +248,7 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
       onExternalOrderHotelAcknowledged: (event: unknown) => {
         const raw = event as { orderId?: string } | null;
         if (raw?.orderId) {
-          toast.dismiss(`hotel-ops-ext-order-created-${raw.orderId}`);
+          toast.dismiss(`hotel-ops-ext-order-${raw.orderId}`);
         }
         void invalidateHotelRequestRealtimeQueries(targetQueryClient, hotelId);
         router.refresh();
@@ -319,23 +348,66 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
 
         void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
 
-        const statusLabels: Record<string, string> = {
-          AVAILABLE: "TRỐNG (sẵn sàng đón khách)",
-          PROCESSING: "CHỜ DỌN DẸP",
-          MAINTENANCE: "BẢO TRÌ",
-          BLOCKED: "ĐÃ KHÓA",
-          OCCUPIED: "ĐANG CÓ KHÁCH",
-          RESERVED: "ĐẶT TRƯỚC",
-        };
+        const keysToCheck = [raw?.roomNumber, raw?.roomId].filter((k): k is string => Boolean(k && String(k).trim()));
+        const primaryKey = keysToCheck[0] ?? "default";
 
-        const roomLabel = raw?.roomNumber ? `Phòng ${raw.roomNumber}` : "Phòng";
-        const targetLabel = raw?.status ? (statusLabels[raw.status] ?? raw.status) : "mới";
-
-        toast.info(`${roomLabel} đã cập nhật trạng thái`, {
-          id: `hotel-ops-room-status-${raw?.roomId ?? Date.now()}`,
-          description: `Trạng thái: ${targetLabel}. Sơ đồ phòng đã đồng bộ tự động.`,
-          duration: 4000,
+        // Check if there was a recent housekeeping task event for this room in the last 3.5 seconds
+        const now = Date.now();
+        const hasRecentHk = keysToCheck.some((key) => {
+          const entry = recentHousekeepingTasksRef.current.get(String(key).trim());
+          return entry && now - entry.timestamp < 3500;
         });
+
+        const statusUpper = (raw?.status ?? "").toUpperCase();
+        // If this status change is directly accompanied by a specific housekeeping lifecycle event,
+        // suppress the duplicate generic status toast.
+        if (
+          hasRecentHk &&
+          (statusUpper === "AVAILABLE" ||
+            statusUpper === "PROCESSING" ||
+            statusUpper === "MAINTENANCE" ||
+            statusUpper === "BLOCKED")
+        ) {
+          return;
+        }
+
+        // Cancel any pending generic toast for these keys
+        for (const key of keysToCheck) {
+          const existingTimer = pendingRoomStatusTimerRef.current.get(key);
+          if (existingTimer) {
+            clearTimeout(existingTimer);
+            pendingRoomStatusTimerRef.current.delete(key);
+          }
+        }
+
+        // Debounce generic status toast by 250ms: if a housekeeping lifecycle event arrives in this window, it cancels the timer
+        const timer = setTimeout(() => {
+          for (const key of keysToCheck) {
+            pendingRoomStatusTimerRef.current.delete(key);
+          }
+
+          const statusLabels: Record<string, string> = {
+            AVAILABLE: "TRỐNG (sẵn sàng đón khách)",
+            PROCESSING: "CHỜ DỌN DẸP",
+            MAINTENANCE: "BẢO TRÌ",
+            BLOCKED: "ĐÃ KHÓA",
+            OCCUPIED: "ĐANG CÓ KHÁCH",
+            RESERVED: "ĐẶT TRƯỚC",
+          };
+
+          const roomLabel = raw?.roomNumber ? `Phòng ${raw.roomNumber}` : "Phòng";
+          const targetLabel = raw?.status ? (statusLabels[raw.status] ?? raw.status) : "mới";
+
+          toast.info(`${roomLabel} đã cập nhật trạng thái`, {
+            id: `hotel-ops-room-status-${primaryKey}`,
+            description: `Trạng thái: ${targetLabel}. Sơ đồ phòng đã đồng bộ tự động.`,
+            duration: 4000,
+          });
+        }, 250);
+
+        for (const key of keysToCheck) {
+          pendingRoomStatusTimerRef.current.set(key, timer);
+        }
       },
       onHousekeepingTaskCreated: (event: unknown) => {
         const raw = event as {
@@ -349,12 +421,14 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
 
         if (raw?.hotelId && raw.hotelId !== hotelId) return;
 
+        markHousekeepingAction([raw?.roomNumber, raw?.taskId], "CREATED");
+
         const isUrgent = raw?.priority === "URGENT" || raw?.priority === "HIGH";
         playRequestAlertSound(isUrgent);
 
         const roomLabel = raw?.roomNumber ? `Phòng ${raw.roomNumber}` : "Buồng phòng";
         toast.info("Nhiệm vụ buồng phòng mới", {
-          id: `hotel-ops-housekeeping-created-${raw?.taskId ?? Date.now()}`,
+          id: `hotel-ops-housekeeping-created-${raw?.taskId ?? raw?.roomNumber ?? Date.now()}`,
           description: `${roomLabel} • ${raw?.taskType || "Cần dọn dẹp"}${raw?.assignedStaffName ? ` (giao cho ${raw.assignedStaffName})` : ""}`,
           duration: isUrgent ? 5000 : 3000,
         });
@@ -371,9 +445,11 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
 
         if (raw?.hotelId && raw.hotelId !== hotelId) return;
 
+        markHousekeepingAction([raw?.roomNumber, raw?.taskId], "CLAIMED");
+
         const roomLabel = raw?.roomNumber ? `Phòng ${raw.roomNumber}` : "Phòng";
         toast.info("Đã nhận nhiệm vụ dọn phòng", {
-          id: `hotel-ops-housekeeping-claimed-${raw?.taskId ?? Date.now()}`,
+          id: `hotel-ops-housekeeping-claimed-${raw?.taskId ?? raw?.roomNumber ?? Date.now()}`,
           description: `${roomLabel} • Nhân viên: ${raw?.assignedStaffName || "Nhân viên buồng phòng"}`,
           duration: 3000,
         });
@@ -390,9 +466,11 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
 
         if (raw?.hotelId && raw.hotelId !== hotelId) return;
 
+        markHousekeepingAction([raw?.roomNumber, raw?.taskId], "STARTED");
+
         const roomLabel = raw?.roomNumber ? `Phòng ${raw.roomNumber}` : "Phòng";
         toast.info("Bắt đầu dọn phòng", {
-          id: `hotel-ops-housekeeping-started-${raw?.taskId ?? Date.now()}`,
+          id: `hotel-ops-housekeeping-started-${raw?.taskId ?? raw?.roomNumber ?? Date.now()}`,
           description: `${roomLabel} • Đang tiến hành làm phòng`,
           duration: 3000,
         });
@@ -410,13 +488,15 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
 
         if (raw?.hotelId && raw.hotelId !== hotelId) return;
 
+        markHousekeepingAction([raw?.roomNumber, raw?.taskId], "BLOCKED");
+
         playRequestAlertSound(true);
 
         const roomLabel = raw?.roomNumber ? `Phòng ${raw.roomNumber}` : "Buồng phòng";
         const reasonText = raw?.reason || raw?.note || "Sự cố phát sinh";
 
         toast.warning("Buồng phòng gặp sự cố", {
-          id: `hotel-ops-housekeeping-blocked-${raw?.taskId ?? Date.now()}`,
+          id: `hotel-ops-housekeeping-blocked-${raw?.taskId ?? raw?.roomNumber ?? Date.now()}`,
           description: `${roomLabel} • Tạm hoãn: ${reasonText}`,
           duration: 6000,
         });
@@ -433,9 +513,11 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
 
         if (raw?.hotelId && raw.hotelId !== hotelId) return;
 
+        markHousekeepingAction([raw?.roomNumber, raw?.taskId], "COMPLETED");
+
         const roomLabel = raw?.roomNumber ? `Phòng ${raw.roomNumber}` : "Phòng";
         toast.success("Đã hoàn thành dọn phòng", {
-          id: `hotel-ops-housekeeping-completed-${raw?.taskId ?? Date.now()}`,
+          id: `hotel-ops-housekeeping-completed-${raw?.taskId ?? raw?.roomNumber ?? Date.now()}`,
           description: `${roomLabel} • Sẵn sàng kiểm tra / đón khách`,
           duration: 3000,
         });
@@ -453,11 +535,13 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
 
         if (raw?.hotelId && raw.hotelId !== hotelId) return;
 
+        markHousekeepingAction([raw?.roomNumber, raw?.taskId], "REOPENED");
+
         playRequestAlertSound(false);
 
         const roomLabel = raw?.roomNumber ? `Phòng ${raw.roomNumber}` : "Phòng";
         toast.warning("Mở lại nhiệm vụ buồng phòng", {
-          id: `hotel-ops-housekeeping-reopened-${raw?.taskId ?? Date.now()}`,
+          id: `hotel-ops-housekeeping-reopened-${raw?.taskId ?? raw?.roomNumber ?? Date.now()}`,
           description: `${roomLabel} • Yêu cầu kiểm tra hoặc dọn lại`,
           duration: 4000,
         });

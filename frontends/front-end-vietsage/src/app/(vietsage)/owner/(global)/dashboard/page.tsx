@@ -185,10 +185,22 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
       ).catch(() => null)
     : Promise.resolve(null);
 
-  const [dashboard, marketplaceRevenue, platformBilling] = await Promise.all([
+  const monthlyPnlReportPromise = hotel
+    ? authorizedApi("get owner monthly pnl summary", (accessToken) =>
+        hotelOpsService.getReports(hotel.id, {
+          query: { range: "this_month" },
+          accessToken,
+          accessTokenExpiresAt:
+            session?.accessTokenExpiresAt ?? tokens.accessTokenExpiresAt,
+        }),
+      ).catch(() => null)
+    : Promise.resolve(null);
+
+  const [dashboard, marketplaceRevenue, platformBilling, monthlyPnlReport] = await Promise.all([
     dashboardPromise,
     marketplaceRevenuePromise,
     platformBillingPromise,
+    monthlyPnlReportPromise,
   ]);
 
   const billingAvailable = platformBilling !== null;
@@ -454,11 +466,18 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
 
               <div className="flex flex-wrap items-center gap-2.5">
                 <Link
-                  href={`/owner/hotels/${hotel.id}/billing`}
+                  href={`/owner/hotels/${hotel.id}/reports?tab=pnl`}
                   prefetch={true}
                   className="inline-flex min-h-11 items-center justify-center rounded-full border border-[#dcd3c1] bg-[#fffdfa] px-5 text-sm font-bold text-[#215744] transition-all hover:bg-[#f4efe5] shadow-2xs"
                 >
-                  Quản lý hóa đơn &amp; phí SaaS
+                  Báo cáo Lãi/Lỗ (P&amp;L)
+                </Link>
+                <Link
+                  href={`/owner/hotels/${hotel.id}/billing?tab=expenses`}
+                  prefetch={true}
+                  className="inline-flex min-h-11 items-center justify-center rounded-full border border-[#dcd3c1] bg-[#fffdfa] px-5 text-sm font-bold text-[#215744] transition-all hover:bg-[#f4efe5] shadow-2xs"
+                >
+                  Chi phí &amp; hóa đơn
                 </Link>
                 <Link
                   href={`/owner/hotels/${hotel.id}/partners`}
@@ -480,32 +499,62 @@ export default async function OwnerDashboardPage({ searchParams }: PageProps) {
                 <p className="mt-2 text-sm font-semibold text-[#8c6d29]">Ghi nhận phát sinh trong ngày</p>
               </div>
 
-              {/* 7 ngày gần nhất */}
-              <div className="rounded-2xl border border-[#e8dfcf] bg-[#fdfbf6] p-5">
-                <p className="text-sm font-extrabold uppercase tracking-wider text-[#65726a]">7 ngày gần nhất</p>
-                <p className="mt-2 text-2xl lg:text-3xl font-extrabold tracking-tight text-[#17382F]">
-                  {dashboard.revenue.available ? formatVnd(dashboard.revenue.last7Days) : "Chưa đủ dữ liệu"}
-                </p>
-                <p className="mt-2 text-sm font-semibold text-[#5a6860]">Xu hướng tuần hiện tại</p>
-              </div>
-
               {/* Doanh thu tháng này */}
               <div className="rounded-2xl border border-[#e8dfcf] bg-[#fdfbf6] p-5">
                 <p className="text-sm font-extrabold uppercase tracking-wider text-[#65726a]">Doanh thu tháng này</p>
                 <p className="mt-2 text-2xl lg:text-3xl font-extrabold tracking-tight text-[#17382F]">
-                  {dashboard.revenue.available ? formatVnd(dashboard.revenue.currentMonth) : "Chưa đủ dữ liệu"}
+                  {monthlyPnlReport
+                    ? formatVnd(monthlyPnlReport.summary.totalRevenue)
+                    : dashboard.revenue.available
+                      ? formatVnd(dashboard.revenue.currentMonth)
+                      : "Chưa đủ dữ liệu"}
                 </p>
-                <p className="mt-2 text-sm font-semibold text-[#5a6860]">Lũy kế tháng hiện hành</p>
+                <p className="mt-2 text-sm font-semibold text-[#5a6860]">
+                  {monthlyPnlReport
+                    ? `Thực thu: ${formatVnd(monthlyPnlReport.summary.collectedRevenue ?? monthlyPnlReport.summary.totalRevenue)}`
+                    : `7 ngày gần nhất: ${dashboard.revenue.available ? formatVnd(dashboard.revenue.last7Days) : "—"}`}
+                </p>
               </div>
 
-              {/* Doanh thu Marketplace lũy kế */}
-              <div className="rounded-2xl border border-emerald-300 bg-emerald-50/70 p-5">
-                <p className="text-sm font-extrabold uppercase tracking-wider text-emerald-900">Doanh thu Marketplace lũy kế</p>
-                <p className="mt-2 text-2xl lg:text-3xl font-extrabold tracking-tight text-[#174e38]">
-                  {formatVnd(Number(marketplaceRevenue?.grossAmount ?? 0))}
+              {/* Tổng chi phí tháng này */}
+              <div className="rounded-2xl border border-[#e8dfcf] bg-[#fdfbf6] p-5">
+                <p className="text-sm font-extrabold uppercase tracking-wider text-[#65726a]">Chi phí tháng này</p>
+                <p className="mt-2 text-2xl lg:text-3xl font-extrabold tracking-tight text-rose-700">
+                  {monthlyPnlReport ? formatVnd(monthlyPnlReport.summary.totalExpense ?? 0) : "Chưa có dữ liệu"}
+                </p>
+                <p className="mt-2 text-sm font-semibold text-[#5a6860]">
+                  {monthlyPnlReport
+                    ? `Vận hành ${formatVnd(monthlyPnlReport.summary.operatingExpense ?? 0)} · SaaS ${formatVnd(monthlyPnlReport.summary.saasFeeExpense ?? 0)}`
+                    : "Gồm chi phí vận hành & phí SaaS"}
+                </p>
+              </div>
+
+              {/* Lợi nhuận ròng tháng này */}
+              <div
+                className={`rounded-2xl border p-5 ${
+                  (monthlyPnlReport?.summary.netProfit ?? 0) >= 0
+                    ? "border-emerald-300 bg-emerald-50/70"
+                    : "border-rose-300 bg-rose-50/70"
+                }`}
+              >
+                <p className="text-sm font-extrabold uppercase tracking-wider text-emerald-900">
+                  Lãi / Lỗ ròng tháng này
+                </p>
+                <p
+                  className={`mt-2 text-2xl lg:text-3xl font-extrabold tracking-tight ${
+                    (monthlyPnlReport?.summary.netProfit ?? 0) >= 0
+                      ? "text-[#174e38]"
+                      : "text-rose-700"
+                  }`}
+                >
+                  {monthlyPnlReport
+                    ? `${(monthlyPnlReport.summary.netProfit ?? 0) >= 0 ? "+" : ""}${formatVnd(monthlyPnlReport.summary.netProfit ?? 0)}`
+                    : "Chưa có dữ liệu"}
                 </p>
                 <p className="mt-2 text-sm font-bold text-emerald-800">
-                  {marketplaceRevenue?.orderCount ?? 0} đơn ngoài đã hoàn tất
+                  {monthlyPnlReport
+                    ? `Biên LN ${(monthlyPnlReport.summary.profitMargin ?? 0).toFixed(1)}% · Marketplace ${formatVnd(Number(marketplaceRevenue?.grossAmount ?? 0))}`
+                    : `${marketplaceRevenue?.orderCount ?? 0} đơn Marketplace hoàn tất`}
                 </p>
               </div>
             </div>

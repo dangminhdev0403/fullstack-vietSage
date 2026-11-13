@@ -1450,6 +1450,190 @@ describe("ReservationsRepository transactional lifecycle", () => {
     });
   });
 
+  it("blocks check-in when overdue stay has an unpaid or CHECKOUT_PENDING folio", async () => {
+    const pastCheckout = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    const reservation = {
+      id: "res-overdue-unpaid",
+      hotelId: "hotel-1",
+      roomId: "room-1",
+      status: ReservationStatus.CONFIRMED,
+      guestDisplayName: "Khach Moi",
+      guestPhone: "0901112223",
+      plannedCheckInAt: new Date(Date.now() - 60 * 60 * 1000),
+      plannedCheckOutAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      nightlyRateSnapshot: new Prisma.Decimal(600000),
+      hotel: { timezone: "Asia/Ho_Chi_Minh" },
+    };
+    const tx = {
+      $queryRawUnsafe: jest.fn(),
+      reservation: { findFirst: jest.fn().mockResolvedValue(reservation) },
+      room: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: "room-1",
+          status: RoomStatus.OCCUPIED,
+          price: new Prisma.Decimal(600000),
+        }),
+      },
+      guestStay: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: "stay-overdue",
+            reservationId: "other-res",
+            plannedCheckOutAt: pastCheckout,
+            status: GuestStayStatus.ACTIVE,
+          },
+        ]),
+        updateMany: jest.fn(),
+      },
+      folio: {
+        findMany: jest.fn().mockResolvedValue([{ id: "folio-pending", status: FolioStatus.CHECKOUT_PENDING }]),
+      },
+    };
+    const { repository } = createRepository(tx);
+
+    await expect(
+      repository.checkInReservation({
+        hotelId: "hotel-1",
+        tenantId: "tenant-1",
+        reservationId: "res-overdue-unpaid",
+        actorUserId: "actor-1",
+        accessCodeHash: "hash",
+        accessCodeExpiresAt: new Date(),
+        generateFolioNumber: jest.fn().mockResolvedValue("FOL-01"),
+        timezone: "Asia/Ho_Chi_Minh",
+      }),
+    ).rejects.toThrow("OVERDUE_STAY_HAS_UNPAID_FOLIO");
+    expect(tx.guestStay.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("auto-closes settled overdue stay, closes active guest sessions, and completes check-in", async () => {
+    const pastCheckout = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    const reservation = {
+      id: "res-overdue-settled",
+      hotelId: "hotel-1",
+      roomId: "room-1",
+      reservationCode: "RES-NEW",
+      status: ReservationStatus.CONFIRMED,
+      guestDisplayName: "Khach Moi",
+      guestPhone: "0901112223",
+      plannedCheckInAt: new Date(Date.now() - 60 * 60 * 1000),
+      plannedCheckOutAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      nightlyRateSnapshot: new Prisma.Decimal(600000),
+      hotel: { timezone: "Asia/Ho_Chi_Minh" },
+    };
+    const tx = {
+      $queryRawUnsafe: jest.fn(),
+      reservation: {
+        findFirst: jest.fn().mockResolvedValue(reservation),
+        update: jest
+          .fn()
+          .mockResolvedValue({ ...reservation, status: ReservationStatus.CHECKED_IN }),
+      },
+      room: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: "room-1",
+          status: RoomStatus.OCCUPIED,
+          price: new Prisma.Decimal(600000),
+        }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      guestStay: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: "stay-overdue",
+            reservationId: "other-res",
+            plannedCheckOutAt: pastCheckout,
+            status: GuestStayStatus.ACTIVE,
+          },
+        ]),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        create: jest.fn().mockResolvedValue({ id: "stay-new", status: "ACTIVE" }),
+      },
+      folio: {
+        findMany: jest.fn().mockResolvedValue([]),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+        count: jest.fn().mockResolvedValue(0),
+        create: jest.fn().mockResolvedValue({ id: "folio-new", status: FolioStatus.OPEN }),
+      },
+      guestSession: {
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      roomQRCode: {
+        findFirst: jest.fn().mockResolvedValue({ id: "qr-1", version: 1 }),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+        update: jest.fn().mockResolvedValue({ id: "qr-1", status: "ACTIVE" }),
+      },
+      domainEvent: { create: jest.fn() },
+    };
+    const { repository } = createRepository(tx);
+
+    const result = await repository.checkInReservation({
+      hotelId: "hotel-1",
+      tenantId: "tenant-1",
+      reservationId: "res-overdue-settled",
+      actorUserId: "actor-1",
+      accessCodeHash: "hash",
+      accessCodeExpiresAt: new Date(),
+      generateFolioNumber: jest.fn().mockResolvedValue("FOL-02"),
+      timezone: "Asia/Ho_Chi_Minh",
+    });
+
+    expect(result.stay).toMatchObject({ id: "stay-new", status: "ACTIVE" });
+    expect(tx.guestSession.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ hotelId: "hotel-1", stayId: "stay-overdue" }),
+        data: expect.objectContaining({ status: "CLOSED" }),
+      }),
+    );
+  });
+
+  it("rejects check-in when room has no usable QR code instead of silently creating one", async () => {
+    const reservation = {
+      id: "res-no-qr",
+      hotelId: "hotel-1",
+      roomId: "room-1",
+      status: ReservationStatus.CONFIRMED,
+      guestDisplayName: "Khach Khong QR",
+      guestPhone: null,
+      plannedCheckInAt: new Date("2026-08-01T07:00:00.000Z"),
+      plannedCheckOutAt: new Date("2026-08-03T05:00:00.000Z"),
+      nightlyRateSnapshot: new Prisma.Decimal(500000),
+      hotel: { timezone: "Asia/Ho_Chi_Minh" },
+    };
+    const tx = {
+      $queryRawUnsafe: jest.fn(),
+      reservation: { findFirst: jest.fn().mockResolvedValue(reservation) },
+      room: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: "room-1",
+          status: RoomStatus.AVAILABLE,
+          price: new Prisma.Decimal(500000),
+        }),
+      },
+      guestStay: { count: jest.fn().mockResolvedValue(0) },
+      folio: { count: jest.fn().mockResolvedValue(0) },
+      roomQRCode: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn(),
+      },
+    };
+    const { repository } = createRepository(tx);
+
+    await expect(
+      repository.checkInReservation({
+        hotelId: "hotel-1",
+        tenantId: "tenant-1",
+        reservationId: "res-no-qr",
+        actorUserId: "actor-1",
+        accessCodeHash: "hash",
+        accessCodeExpiresAt: new Date(),
+        generateFolioNumber: jest.fn().mockResolvedValue("FOL-NO-QR"),
+        timezone: "Asia/Ho_Chi_Minh",
+      }),
+    ).rejects.toThrow("Phòng chưa có QR khả dụng để check-in.");
+    expect(tx.roomQRCode.create).not.toHaveBeenCalled();
+  });
+
   describe("createBulkReservations transactional group booking", () => {
     it("uses the room type base price when a room has no local price override", async () => {
       const tx = {
@@ -2033,6 +2217,40 @@ describe("ReservationsRepository transactional lifecycle", () => {
           actorUserId: "user-1",
         }),
       ).rejects.toThrow("Ngày trả phòng phải sau ngày nhận phòng");
+    });
+
+    it("rejects date update when expectedUpdatedAt differs by even 1000ms (strict concurrency check)", async () => {
+      const res = {
+        id: "res-1",
+        hotelId: "hotel-1",
+        roomId: "room-1",
+        status: ReservationStatus.CONFIRMED,
+        plannedCheckInAt: new Date("2026-10-21T07:00:00.000Z"),
+        plannedCheckOutAt: new Date("2026-10-23T05:00:00.000Z"),
+        updatedAt: new Date("2026-10-21T00:00:01.000Z"),
+      };
+      const tx = {
+        $queryRawUnsafe: jest.fn(),
+        reservation: {
+          findFirst: jest.fn().mockResolvedValue(res),
+        },
+      };
+      const prisma = {
+        $transaction: jest.fn().mockImplementation(async (cb) => cb(tx)),
+      };
+      const repository = new ReservationsRepository(prisma as never);
+
+      await expect(
+        repository.updateReservationDates({
+          hotelId: "hotel-1",
+          tenantId: "tenant-1",
+          reservationId: "res-1",
+          startDate: "2026-10-22",
+          endDate: "2026-10-24",
+          expectedUpdatedAt: "2026-10-21T00:00:00.000Z",
+          actorUserId: "user-1",
+        }),
+      ).rejects.toThrow("Dữ liệu đặt phòng đã thay đổi bởi người khác, vui lòng tải lại");
     });
   });
 

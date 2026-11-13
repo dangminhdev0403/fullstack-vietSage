@@ -78,14 +78,15 @@ export const listArrivalsQuerySchema = z
   .object({
     from: z.coerce.date().optional(),
     to: z.coerce.date().optional(),
+    includeOverdue: z.coerce.boolean().optional(),
     page: z.coerce.number().int().min(1).optional(),
-    limit: z.coerce.number().int().min(1).max(100).optional(),
+    limit: z.coerce.number().int().min(1).max(200).optional(),
     q: z.string().trim().max(120).optional(),
   })
   .strict()
   .refine(
     (value) => {
-      if (value.from && value.to) {
+      if (value.from && value.to && !value.includeOverdue) {
         return value.to > value.from;
       }
       return true;
@@ -97,14 +98,14 @@ export const listArrivalsQuerySchema = z
   )
   .refine(
     (value) => {
-      if (!value.q && (!value.from || !value.to)) {
+      if (!value.q && !value.to) {
         return false;
       }
       return true;
     },
     {
-      message: "from và to là bắt buộc khi không có từ khóa tìm kiếm q",
-      path: ["from"],
+      message: "to là bắt buộc khi không có từ khóa tìm kiếm q",
+      path: ["to"],
     },
   );
 
@@ -401,6 +402,8 @@ export const groupCodeParamSchema = z
   .trim()
   .min(1, "groupCode là bắt buộc")
   .max(80, "groupCode tối đa 80 ký tự");
+
+export const partnerIdParamSchema = z.string().trim().min(1, "partnerId là bắt buộc");
 
 export const updateGroupReservationBodySchema = z
   .object({

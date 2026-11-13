@@ -457,4 +457,124 @@ describe("Authoritative Selected-Date Room Projection", () => {
     const result2 = await repo2.listRooms({ hotelId: "hotel-1" }, 0, 20);
     expect(result2.items[0].statusConflictCode).toBe("AVAILABLE_WITH_ACTIVE_STAY_CONFLICT");
   });
+
+  it("preserves PROCESSING status on today businessDate without downgrading to AVAILABLE", async () => {
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }).format(
+      new Date(),
+    );
+    const prisma = createMockPrisma({
+      room: {
+        count: jest.fn().mockResolvedValue(1),
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: "room-dirty",
+            hotelId: "hotel-1",
+            code: "VSH_ROOM_0201",
+            roomNumber: "201",
+            floor: "2",
+            type: "DELUXE",
+            roomTypeId: "rt-deluxe",
+            price: new Prisma.Decimal(1200000),
+            maxActiveGuestDevices: 3,
+            status: RoomStatus.PROCESSING,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            qrCodes: [],
+            guestStays: [],
+          },
+        ]),
+        groupBy: jest.fn().mockResolvedValue([]),
+      },
+    });
+    const repo = new HotelRoomsRepository(prisma as any);
+    const result = await repo.listRooms({ hotelId: "hotel-1" }, 0, 20, {
+      businessDate: today,
+      timezone: "Asia/Ho_Chi_Minh",
+    });
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].projectedStatus).toBe(RoomStatus.PROCESSING);
+  });
+
+  it("filters rooms by projectedStatus and computes global byStatus and totalAvailable", async () => {
+    const futureDate = "2026-12-20";
+    const room1 = {
+      id: "room-101",
+      hotelId: "hotel-1",
+      code: "VSH_ROOM_0101",
+      roomNumber: "101",
+      floor: "1",
+      type: "DELUXE",
+      roomTypeId: "rt-deluxe",
+      price: new Prisma.Decimal(1200000),
+      maxActiveGuestDevices: 3,
+      status: RoomStatus.AVAILABLE,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      qrCodes: [],
+      guestStays: [],
+    };
+    const room2 = {
+      ...room1,
+      id: "room-102",
+      code: "VSH_ROOM_0102",
+      roomNumber: "102",
+    };
+
+    let roomFindCount = 0;
+    const prisma = createMockPrisma({
+      room: {
+        count: jest.fn().mockResolvedValue(2),
+        findMany: jest.fn().mockImplementation(async () => {
+          roomFindCount += 1;
+          if (roomFindCount === 1 || roomFindCount === 2) {
+            return [
+              { id: "room-101", status: RoomStatus.AVAILABLE, floor: "1", type: "DELUXE" },
+              { id: "room-102", status: RoomStatus.AVAILABLE, floor: "1", type: "DELUXE" },
+            ];
+          }
+          return [room2];
+        }),
+        groupBy: jest.fn().mockResolvedValue([]),
+      },
+      reservation: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: "res-102",
+            hotelId: "hotel-1",
+            roomId: "room-102",
+            roomTypeSnapshot: "DELUXE",
+            reservationCode: "RES-102",
+            groupCode: null,
+            guestDisplayName: "Le Thi B",
+            guestPhone: "0901234567",
+            status: ReservationStatus.CONFIRMED,
+            plannedCheckInAt: new Date("2026-12-20T07:00:00.000Z"),
+            plannedCheckOutAt: new Date("2026-12-22T05:00:00.000Z"),
+            nightlyRateSnapshot: new Prisma.Decimal(1200000),
+            assignedAt: new Date(),
+            assignedByUserId: "u-1",
+            checkedInAt: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        ]),
+      },
+    });
+
+    const repo = new HotelRoomsRepository(prisma as any);
+    const result = await repo.listRooms({ hotelId: "hotel-1" }, 0, 20, {
+      businessDate: futureDate,
+      timezone: "Asia/Ho_Chi_Minh",
+      filterStatus: RoomStatus.OCCUPIED,
+    });
+
+    expect(result.total).toBe(1);
+    expect(result.items.map((r: any) => r.id)).toEqual(["room-102"]);
+    expect(result.items[0].projectedStatus).toBe(RoomStatus.RESERVED);
+    expect(result.items[0].projectedReservation?.reservationCode).toBe("RES-102");
+    expect(result.totalAvailable).toBe(1);
+    expect(result.byStatus.available).toBe(1);
+    expect(result.byStatus.reserved).toBe(1);
+  });
 });

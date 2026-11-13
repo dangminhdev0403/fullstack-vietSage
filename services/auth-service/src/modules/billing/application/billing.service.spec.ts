@@ -457,4 +457,88 @@ describe("BillingService - Commercial Ledger, Deposit Modes, Idempotency & Recei
       expect(result.receivable.status).toBe(ReceivableStatus.PARTIALLY_COLLECTED);
     });
   });
+
+  describe("listFolios financial summary", () => {
+    it("tổng hợp chính xác tổng giá trị folio, đã thu và còn lại trên toàn khách sạn", async () => {
+      mockBillingRepository.listFolios = jest.fn().mockResolvedValue({
+        total: 1,
+        rows: [
+          {
+            id: "f-closed",
+            status: FolioStatus.CLOSED,
+            currency: "VND",
+            subtotalAmount: new Prisma.Decimal(1333000),
+            taxAmount: new Prisma.Decimal(0),
+            discountAmount: new Prisma.Decimal(0),
+            totalAmount: new Prisma.Decimal(1333000),
+            items: [],
+            invoices: [
+              {
+                id: "inv-1",
+                status: "PAID",
+                totalAmount: new Prisma.Decimal(1333000),
+                paidAmount: new Prisma.Decimal(1333000),
+                balanceAmount: new Prisma.Decimal(0),
+              },
+            ],
+          },
+        ],
+        summaryRows: [
+          {
+            id: "f-closed",
+            status: FolioStatus.CLOSED,
+            currency: "VND",
+            subtotalAmount: new Prisma.Decimal(1333000),
+            taxAmount: new Prisma.Decimal(0),
+            discountAmount: new Prisma.Decimal(0),
+            totalAmount: new Prisma.Decimal(1333000),
+            items: [],
+            invoices: [
+              {
+                id: "inv-1",
+                status: "PAID",
+                totalAmount: new Prisma.Decimal(1333000),
+                paidAmount: new Prisma.Decimal(1333000),
+                balanceAmount: new Prisma.Decimal(0),
+              },
+            ],
+          },
+          {
+            id: "f-open",
+            status: FolioStatus.OPEN,
+            currency: "VND",
+            subtotalAmount: new Prisma.Decimal(400000),
+            taxAmount: new Prisma.Decimal(0),
+            discountAmount: new Prisma.Decimal(0),
+            totalAmount: new Prisma.Decimal(400000),
+            stay: {
+              checkedInAt: new Date("2099-01-10T14:00:00.000+07:00"),
+              checkedOutAt: null,
+              plannedCheckInAt: new Date("2099-01-10T14:00:00.000+07:00"),
+              plannedCheckOutAt: new Date("2099-01-12T12:00:00.000+07:00"),
+              nightlyRateSnapshot: new Prisma.Decimal(2000000),
+              baseNightlyRateSnapshot: new Prisma.Decimal(2000000),
+            },
+            items: [],
+            invoices: [],
+          },
+        ],
+      });
+
+      const res = await service.listFolios(actorUserId, activeRoleId, hotelId, {
+        status: FolioStatus.CLOSED,
+        page: 1,
+        limit: 1,
+      });
+
+      expect(res.summary.totalFolios).toBe(2);
+      expect(res.summary.openFolios).toBe(1);
+      expect(res.summary.closedFolios).toBe(1);
+      expect(res.summary.totalValue).toBe(5733000);
+      expect(res.summary.collectedAmount).toBe(1333000);
+      expect(res.summary.outstandingAmount).toBe(4400000);
+      expect(res.items[0].paidAmount).toBe(1333000);
+      expect(res.items[0].balanceAmount).toBe(0);
+    });
+  });
 });

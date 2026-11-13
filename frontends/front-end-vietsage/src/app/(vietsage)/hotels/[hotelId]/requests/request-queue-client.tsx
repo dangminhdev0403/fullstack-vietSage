@@ -999,7 +999,7 @@ export function RequestQueueClient({
     targetRow: StaffRequestListItem,
     action: StaffRequestAction,
   ) {
-    if (!ownerApiBasePath) return;
+    if (readOnly) return;
 
     const meta = actionMeta[action];
     const note = meta.note;
@@ -1245,7 +1245,9 @@ export function RequestQueueClient({
         }
 
         const available =
-          request.actions ?? statusActions[request.status] ?? [];
+          request.actions && request.actions.length > 0
+            ? request.actions
+            : statusActions[request.status] ?? [];
         if (readOnly || !available.length || isCheckedOutRequest(request))
           return <span className="text-xs text-slate-400">-</span>;
         return (

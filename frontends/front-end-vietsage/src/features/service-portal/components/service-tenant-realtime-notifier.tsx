@@ -60,7 +60,7 @@ export function ServiceTenantRealtimeNotifier() {
         const raw = event as { orderId?: string; status?: string } | null;
         if (raw?.orderId) {
           toast.info("Trạng thái đơn hàng dịch vụ đã thay đổi", {
-            id: `service-tenant-order-status-${raw.orderId}-${raw.status ?? ""}`,
+            id: `service-tenant-order-${raw.orderId}`,
             duration: 5000,
           });
         }
@@ -70,7 +70,7 @@ export function ServiceTenantRealtimeNotifier() {
         const raw = event as { orderNumber?: string } | null;
         const orderNum = raw?.orderNumber ? ` #${raw.orderNumber}` : "";
         toast.success(`Khách sạn đã tiếp nhận đơn hàng${orderNum}!`, {
-          id: `service-tenant-order-ack-${raw?.orderNumber ?? Date.now()}`,
+          id: `service-tenant-order-ack-${raw?.orderNumber ?? "latest"}`,
           duration: 6000,
         });
         void queryClient.invalidateQueries({ queryKey: ["vietsage", "service-portal"] });
@@ -79,14 +79,14 @@ export function ServiceTenantRealtimeNotifier() {
         const raw = event as { orderNumber?: string; voucherNumber?: string } | null;
         const code = raw?.voucherNumber ? `: ${raw.voucherNumber}` : "";
         toast.success(`Khách sạn đã phát hành voucher${code}!`, {
-          id: `service-tenant-voucher-issued-${raw?.voucherNumber ?? Date.now()}`,
+          id: `service-tenant-voucher-issued-${raw?.voucherNumber ?? "latest"}`,
           duration: 8000,
         });
         void queryClient.invalidateQueries({ queryKey: ["vietsage", "service-portal"] });
       },
       onPartnerSettlementCreated: () => {
         toast.success("Có khoản quyết toán mới từ khách sạn", {
-          id: `service-tenant-settlement-created-${Date.now()}`,
+          id: "service-tenant-settlement-latest",
           duration: 8000,
           action: {
             label: "Xem đối soát",
@@ -97,7 +97,7 @@ export function ServiceTenantRealtimeNotifier() {
       },
       onPartnerSettlementUpdated: () => {
         toast.info("Thông tin quyết toán đã được cập nhật", {
-          id: `service-tenant-settlement-updated-${Date.now()}`,
+          id: "service-tenant-settlement-latest",
           duration: 5000,
         });
         void queryClient.invalidateQueries({ queryKey: ["vietsage", "service-portal"] });

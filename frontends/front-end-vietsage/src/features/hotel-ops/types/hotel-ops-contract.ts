@@ -308,6 +308,9 @@ export type BulkAllocationItem = {
 export type BulkReservationInput = {
   leadGuestName: string;
   leadGuestPhone?: string;
+  groupName?: string;
+  notes?: string;
+  idempotencyKey?: string;
   checkInDate: string;
   checkOutDate: string;
   roomIds?: string[];
@@ -484,6 +487,7 @@ export type UpdateReservationInput = {
 export type ListHotelArrivalsQuery = {
   from?: string;
   to?: string;
+  includeOverdue?: boolean;
   q?: string;
   page?: number;
   limit?: number;
@@ -978,5 +982,60 @@ export type GroupConfirmationData = {
     currency: string;
   };
   policies: ConfirmationPolicies;
+};
+
+export type HotelPriorityAlertCategory =
+  | "OVERDUE_ARRIVAL"
+  | "DUE_TODAY_ARRIVAL"
+  | "OVERDUE_CHECKOUT"
+  | "DUE_TODAY_CHECKOUT"
+  | "DIRTY_ROOM"
+  | "BLOCKED_OR_MAINTENANCE";
+
+export type HotelPriorityAlertSeverity = "CRITICAL" | "HIGH" | "MEDIUM";
+
+export type HotelPriorityAlertItem = {
+  id: string;
+  category: HotelPriorityAlertCategory;
+  severity: HotelPriorityAlertSeverity;
+  priorityRank: number;
+  roomId: string | null;
+  roomNumber: string | null;
+  floor: string | null;
+  zone: string | null;
+  roomType: string | null;
+  roomStatus: string | null;
+  roomUpdatedAt: string | null;
+  reservationId: string | null;
+  stayId: string | null;
+  reservationCode: string | null;
+  groupCode: string | null;
+  sourceType: "RESERVATION" | "STAY" | "ROOM";
+  status: string;
+  guestDisplayName: string | null;
+  guestPhone: string | null;
+  guestCount: number | null;
+  plannedCheckInAt: string | null;
+  plannedCheckOutAt: string | null;
+  blockerCode: string | null;
+};
+
+export type HotelPriorityAlertsSummary = {
+  overdueArrivals: number;
+  dueTodayArrivals: number;
+  overdueCheckouts: number;
+  dueTodayCheckouts: number;
+  dirtyRooms: number;
+  blockedOrMaintenance: number;
+  turnaroundConflicts: number;
+};
+
+export type HotelPriorityAlertsResponse = {
+  generatedAt: string;
+  businessDate: string;
+  timezone: string;
+  total: number;
+  summary: HotelPriorityAlertsSummary;
+  items: HotelPriorityAlertItem[];
 };
 

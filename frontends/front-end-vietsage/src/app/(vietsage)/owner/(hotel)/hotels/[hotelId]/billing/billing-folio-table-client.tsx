@@ -59,16 +59,41 @@ export function BillingFolioTableClient({
   }, [folios, query, statusFilter]);
 
   const totals = useMemo(() => {
+    const serverSummary = foliosPage.summary;
+    if (serverSummary) {
+      return {
+        totalFolios: serverSummary.totalFolios,
+        openFolios: serverSummary.openFolios,
+        closedFolios: serverSummary.closedFolios,
+        totalValue: serverSummary.totalValue,
+        collectedAmount: serverSummary.collectedAmount,
+        outstandingAmount: serverSummary.outstandingAmount,
+      };
+    }
     return folios.reduce(
       (acc, folio) => {
-        acc.total += Number(folio.total ?? 0);
-        acc.open += folio.status === "OPEN" ? 1 : 0;
-        acc.pending += toDisplayStatus(folio.status) === "CLOSED" ? 1 : 0;
+        const val = Number(folio.total ?? 0);
+        const paid = Number(folio.paidAmount ?? folio.invoice?.paidAmount ?? 0);
+        const balance = Number(folio.balanceAmount ?? folio.invoice?.balanceAmount ?? Math.max(0, val - paid));
+        acc.totalFolios += 1;
+        acc.totalValue += val;
+        acc.collectedAmount += paid;
+        acc.outstandingAmount += balance;
+        acc.openFolios += folio.status === "OPEN" ? 1 : 0;
+        acc.closedFolios += toDisplayStatus(folio.status) === "CLOSED" ? 1 : 0;
         return acc;
       },
-      { total: 0, open: 0, pending: 0 },
+      {
+        totalFolios: totalItems,
+        openFolios: 0,
+        closedFolios: 0,
+        totalValue: 0,
+        collectedAmount: 0,
+        outstandingAmount: 0,
+      },
     );
-  }, [folios]);
+  }, [folios, foliosPage.summary, totalItems]);
+  const summaryCurrency = folios[0]?.currency || "VND";
 
   function openFolio(folio: FolioListItem) {
     setSelectedFolio(folio);
@@ -102,14 +127,17 @@ export function BillingFolioTableClient({
           <div className="absolute right-0 top-0 h-48 w-48 rounded-full bg-emerald-500/10 blur-3xl" />
           <div className="relative grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
             <div className="space-y-1">
-              <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 text-balance">
+              <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 text-balance dark:text-white">
                 Theo dõi doanh thu lưu trú
               </h2>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <Metric label="Tổng folio" value={String(folios.length)} icon="receipt_long" />
-              <Metric label="Đang mở" value={String(totals.open)} tone="amber" icon="pending_actions" />
-              <Metric label="Đã phát hành/đóng" value={String(totals.pending)} tone="emerald" icon="task_alt" />
+            <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
+              <Metric label="Tổng giá trị Folio" value={formatMoney(totals.totalValue, summaryCurrency)} icon="payments" />
+              <Metric label="Đã thực thu" value={formatMoney(totals.collectedAmount, summaryCurrency)} tone="emerald" icon="account_balance_wallet" />
+              <Metric label="Đang mở / Chưa thu" value={formatMoney(totals.outstandingAmount, summaryCurrency)} tone="amber" icon="hourglass_top" />
+              <Metric label="Tổng folio" value={String(totals.totalFolios)} icon="receipt_long" />
+              <Metric label="Đang mở" value={String(totals.openFolios)} tone="amber" icon="pending_actions" />
+              <Metric label="Đã phát hành/đóng" value={String(totals.closedFolios)} tone="emerald" icon="task_alt" />
             </div>
           </div>
         </div>
@@ -205,6 +233,11 @@ export function BillingFolioTableClient({
                       <div className="font-mono text-base sm:text-xl font-black tabular-nums text-slate-900 dark:text-white">
                         {formatMoney(folio.total, folio.currency)}
                       </div>
+                      {Number(folio.balanceAmount ?? folio.invoice?.balanceAmount ?? 0) > 0 && Number(folio.paidAmount ?? folio.invoice?.paidAmount ?? 0) > 0 ? (
+                        <div className="mt-1 text-xs font-semibold text-amber-700 whitespace-nowrap tabular-nums dark:text-amber-400">
+                          Đã thu {formatMoney(folio.paidAmount ?? folio.invoice?.paidAmount ?? 0, folio.currency)}
+                        </div>
+                      ) : null}
                     </td>
                     <td className="px-6 py-4 text-center text-sm sm:text-base font-medium text-slate-600 dark:text-slate-400">
                       {formatDateTime(folio.openedAt ?? folio.createdAt)}

@@ -36,30 +36,19 @@ import type {
 } from "../../domain/schemas/reservations.schema";
 import { inferCitizenshipKind } from "../../domain/infer-citizenship-kind";
 import { ReservationRoomAllocationService } from "../../application/reservation-room-allocation.service";
-
-const ACTIVE_RESERVATION_STATUSES: ReservationStatus[] = [
-  ReservationStatus.CONFIRMED,
-  ReservationStatus.ARRIVAL_READY,
-];
-
-const ACTIVE_STAY_STATUSES: GuestStayStatus[] = [
-  GuestStayStatus.CHECKED_IN,
-  GuestStayStatus.ACTIVE,
-  GuestStayStatus.CHECKOUT_PENDING,
-  GuestStayStatus.RESERVED,
-];
-
-const ACTIVE_IN_HOUSE_STAY_STATUSES: GuestStayStatus[] = [
-  GuestStayStatus.CHECKED_IN,
-  GuestStayStatus.ACTIVE,
-  GuestStayStatus.CHECKOUT_PENDING,
-];
-
-const NON_SELLABLE_ROOM_STATUSES: RoomStatus[] = [
-  RoomStatus.BLOCKED,
-  RoomStatus.MAINTENANCE,
-  RoomStatus.OUT_OF_SERVICE,
-];
+import {
+  ACTIVE_IN_HOUSE_STAY_STATUSES,
+  ACTIVE_RESERVATION_STATUSES,
+  ACTIVE_STAY_STATUSES,
+  NON_SELLABLE_ROOM_STATUSES,
+  activateRoomQr,
+  checkStayHasUnpaidOrPendingFolio,
+  closeActiveGuestSessionsForStay,
+  findUsableRoomQr,
+  lockHotelRoomForUpdate,
+  lockReservationForUpdate,
+  runSerializableTransaction,
+} from "./room-checkin-guard.helper";
 
 @Injectable()
 export class ReservationsRepository {
@@ -100,8 +89,43 @@ export class ReservationsRepository {
     sourceCategory?: any;
     sourcePartnerId?: string | null;
     bookingOwnerUserId?: string | null;
+    groupName?: string;
+    notes?: string;
   }) {
     return this.runSerializable(async (tx) => {
+      const trimmedIdempotencyKey = input.idempotencyKey?.trim();
+      if (
+        trimmedIdempotencyKey &&
+        typeof (tx as any).domainEvent?.findFirst === "function" &&
+        typeof (tx as any).reservation?.findMany === "function"
+      ) {
+        const existingBulkEvent = await (tx as any).domainEvent.findFirst({
+          where: {
+            hotelId: input.hotelId,
+            eventType: "RESERVATIONS_BULK_CREATED",
+            aggregateType: "ReservationGroup",
+            payload: { path: ["idempotencyKey"], equals: trimmedIdempotencyKey },
+          },
+          select: { aggregateId: true },
+        });
+        if (existingBulkEvent?.aggregateId) {
+          const existingReservations = await tx.reservation.findMany({
+            where: {
+              hotelId: input.hotelId,
+              groupCode: existingBulkEvent.aggregateId,
+            },
+            include: { room: true },
+            orderBy: [{ createdAt: "asc" }],
+          });
+          if (existingReservations.length > 0) {
+            return {
+              groupCode: existingBulkEvent.aggregateId,
+              reservations: existingReservations,
+              idempotent: true,
+            };
+          }
+        }
+      }
       const resolvedRoomIds = input.roomIds ? [...input.roomIds] : [];
       const allocatedRoomRates = new Map<string, Prisma.Decimal | number | string | null>();
       if (input.allocations && input.allocations.length > 0) {
@@ -176,9 +200,7 @@ export class ReservationsRepository {
       });
 
       if (rooms.length !== sortedRoomIds.length) {
-        throw new NotFoundException(
-          "Má»™t hoáº·c nhiá»u phÃ²ng khÃ´ng tá»“n táº¡i trong khÃ¡ch sáº¡n",
-        );
+        throw new NotFoundException("Một hoặc nhiều phòng không tồn tại trong khách sạn");
       }
 
       const nonSellableRooms = rooms.filter((room) =>
@@ -384,6 +406,7 @@ export class ReservationsRepository {
           groupCode: input.groupCode,
           guestDisplayName: input.leadGuestName,
           guestPhone: input.leadGuestPhone,
+          ...(input.notes !== undefined ? { notes: input.notes } : {}),
           plannedCheckInAt: input.checkInDate,
           plannedCheckOutAt: input.checkOutDate,
           createdByUserId: input.createdByUserId,
@@ -443,6 +466,8 @@ export class ReservationsRepository {
           update: {
             leadGuestName: input.leadGuestName,
             leadGuestPhone: input.leadGuestPhone || null,
+            ...(input.groupName !== undefined ? { groupName: input.groupName || null } : {}),
+            ...(input.notes !== undefined ? { notes: input.notes || null } : {}),
             sourceCategory:
               (input.sourceCategory === "TA" ? "TRAVEL_AGENCY" : input.sourceCategory) ?? undefined,
             sourcePartnerId: input.sourcePartnerId ?? undefined,
@@ -452,6 +477,8 @@ export class ReservationsRepository {
           create: {
             hotelId: input.hotelId,
             groupCode: input.groupCode,
+            ...(input.groupName !== undefined ? { groupName: input.groupName || null } : {}),
+            ...(input.notes !== undefined ? { notes: input.notes || null } : {}),
             leadGuestName: input.leadGuestName,
             leadGuestPhone: input.leadGuestPhone || null,
             sourceCategory:
@@ -461,6 +488,33 @@ export class ReservationsRepository {
               input.bookingOwnerUserId?.trim() || input.createdByUserId || undefined,
           },
         });
+      }
+
+      if (trimmedIdempotencyKey && typeof (tx as any).domainEvent?.create === "function") {
+        const tenantRecord =
+          typeof (tx as any).hotel?.findUnique === "function"
+            ? await (tx as any).hotel.findUnique({
+                where: { id: input.hotelId },
+                select: { tenantId: true },
+              })
+            : null;
+        if (tenantRecord?.tenantId) {
+          await (tx as any).domainEvent.create({
+            data: {
+              eventType: "RESERVATIONS_BULK_CREATED",
+              aggregateType: "ReservationGroup",
+              aggregateId: input.groupCode,
+              hotelId: input.hotelId,
+              tenantId: tenantRecord.tenantId,
+              payload: {
+                idempotencyKey: trimmedIdempotencyKey,
+                groupCode: input.groupCode,
+                reservationIds: reservations.map((r) => r.id),
+              },
+              status: DomainEventStatus.PROCESSED,
+            },
+          });
+        }
       }
 
       return {
@@ -972,6 +1026,7 @@ export class ReservationsRepository {
     skip: number;
     take: number;
     roomId?: string;
+    roomIds?: string[];
     q?: string;
   }) {
     const q = input.q?.trim();
@@ -985,7 +1040,11 @@ export class ReservationsRepository {
           : input.to
             ? { plannedCheckInAt: { lt: input.to } }
             : {}),
-      ...(input.roomId ? { roomId: input.roomId } : {}),
+      ...(input.roomIds && input.roomIds.length > 0
+        ? { roomId: { in: input.roomIds } }
+        : input.roomId
+          ? { roomId: input.roomId }
+          : {}),
       ...(q
         ? {
             OR: [
@@ -1316,11 +1375,7 @@ export class ReservationsRepository {
         throw new ConflictException("RESERVATION_NOT_READY_FOR_CHECK_IN");
       }
 
-      await tx.$queryRawUnsafe(
-        'SELECT id FROM "Room" WHERE id = $1 AND "hotelId" = $2 FOR UPDATE',
-        reservation.roomId,
-        input.hotelId,
-      );
+      await lockHotelRoomForUpdate(tx, input.hotelId, reservation.roomId);
       const room = await tx.room.findFirst({
         where: { id: reservation.roomId, hotelId: input.hotelId },
         select: {
@@ -1332,6 +1387,37 @@ export class ReservationsRepository {
       });
       if (!room) {
         throw new ConflictException("ROOM_NOT_READY_FOR_CHECK_IN");
+      }
+
+      const requestedCheckOutAt = input.dto?.plannedCheckOutAt
+        ? new Date(input.dto.plannedCheckOutAt)
+        : null;
+      if (requestedCheckOutAt) {
+        if (
+          requestedCheckOutAt.getTime() <= now.getTime() ||
+          requestedCheckOutAt.getTime() <= new Date(reservation.plannedCheckInAt).getTime()
+        ) {
+          throw new BadRequestException("Ngày trả phòng dự kiến phải sau thời điểm nhận phòng");
+        }
+        if (
+          !reservation.plannedCheckOutAt ||
+          requestedCheckOutAt.getTime() > new Date(reservation.plannedCheckOutAt).getTime()
+        ) {
+          const nextResOverlap = await tx.reservation.findFirst({
+            where: {
+              hotelId: input.hotelId,
+              roomId: room.id,
+              id: { not: reservation.id },
+              status: { in: ACTIVE_RESERVATION_STATUSES },
+              plannedCheckInAt: { lt: requestedCheckOutAt },
+              plannedCheckOutAt: { gt: now },
+            },
+            select: { id: true },
+          });
+          if (nextResOverlap) {
+            throw new ConflictException("Phòng đã có đặt phòng kế tiếp trùng với thời gian gia hạn");
+          }
+        }
       }
       let hasActiveStayConflict = false;
       const trueCollidingStays: Array<{ id: string; plannedCheckOutAt: Date | null }> = [];
@@ -1364,6 +1450,14 @@ export class ReservationsRepository {
             new Date(existingStay.plannedCheckOutAt).getTime() <= now.getTime();
 
           if (isPastOverdue) {
+            const hasUnpaidFolio = await checkStayHasUnpaidOrPendingFolio(
+              tx,
+              input.hotelId,
+              existingStay.id,
+            );
+            if (hasUnpaidFolio) {
+              throw new ConflictException("OVERDUE_STAY_HAS_UNPAID_FOLIO");
+            }
             // Auto-complete overdue past stay and close associated open folios
             const closedStay = await tx.guestStay.updateMany({
               where: {
@@ -1410,6 +1504,7 @@ export class ReservationsRepository {
                 },
               });
             }
+            await closeActiveGuestSessionsForStay(tx, input.hotelId, existingStay.id, now);
           } else {
             trueCollidingStays.push(existingStay);
           }
@@ -1485,29 +1580,7 @@ export class ReservationsRepository {
         throw new ConflictException("ROOM_NOT_READY_FOR_CHECK_IN");
       }
 
-      let qr = await tx.roomQRCode.findFirst({
-        where: {
-          hotelId: input.hotelId,
-          roomId: room.id,
-          status: { in: [RoomQRCodeStatus.INACTIVE, RoomQRCodeStatus.ACTIVE] },
-        },
-        orderBy: { version: "desc" },
-      });
-      if (!qr) {
-        if (typeof tx.roomQRCode.create === "function") {
-          qr = await tx.roomQRCode.create({
-            data: {
-              hotelId: input.hotelId,
-              roomId: room.id,
-              publicCode: generateOpaqueToken(24),
-              status: RoomQRCodeStatus.INACTIVE,
-              version: 1,
-            },
-          });
-        } else {
-          throw new BadRequestException("Phòng chưa có QR khả dụng để check-in.");
-        }
-      }
+      const qr = await findUsableRoomQr(tx, input.hotelId, room.id, now);
 
       const targetRoomStatus =
         room.status === RoomStatus.RESERVED
@@ -1538,7 +1611,7 @@ export class ReservationsRepository {
       const primaryName =
         input.dto?.guestDisplayName?.trim() || reservation.guestDisplayName.trim();
       const primaryPhone = input.dto?.guestPhone?.trim() || reservation.guestPhone?.trim() || null;
-      const plannedCheckOutAt = input.dto?.plannedCheckOutAt || reservation.plannedCheckOutAt;
+      const plannedCheckOutAt = requestedCheckOutAt || reservation.plannedCheckOutAt;
 
       const primaryOccupant = {
         hotelId: input.hotelId,
@@ -1712,23 +1785,7 @@ export class ReservationsRepository {
           }
         }
       }
-      await tx.roomQRCode.updateMany({
-        where: {
-          roomId: room.id,
-          id: { not: qr.id },
-          status: RoomQRCodeStatus.ACTIVE,
-        },
-        data: { status: RoomQRCodeStatus.INACTIVE, deactivatedAt: now },
-      });
-      const activeQr = await tx.roomQRCode.update({
-        where: { id: qr.id },
-        data: {
-          status: RoomQRCodeStatus.ACTIVE,
-          activatedAt: now,
-          deactivatedAt: null,
-          expiresAt: null,
-        },
-      });
+      const activeQr = await activateRoomQr(tx, input.hotelId, room.id, qr.id, now);
 
       const checkedInReservation = await tx.reservation.update({
         where: { id: reservation.id },
@@ -1827,7 +1884,7 @@ export class ReservationsRepository {
         reservation.status === ReservationStatus.CANCELLED ||
         reservation.status === ReservationStatus.NO_SHOW
       ) {
-        throw new ConflictException("Äáº·t phÃ²ng Ä‘Ã£ bá»‹ há»§y hoáº·c bÃ¡o váº¯ng máº·t");
+        throw new ConflictException("Đặt phòng đã bị hủy hoặc báo vắng mặt");
       }
       if (
         reservation.status !== ReservationStatus.CONFIRMED &&
@@ -1912,7 +1969,7 @@ export class ReservationsRepository {
         reservation.status === ReservationStatus.CANCELLED ||
         reservation.status === ReservationStatus.NO_SHOW
       ) {
-        throw new ConflictException("Äáº·t phÃ²ng Ä‘Ã£ bá»‹ há»§y hoáº·c bÃ¡o váº¯ng máº·t");
+        throw new ConflictException("Đặt phòng đã bị hủy hoặc báo vắng mặt");
       }
       if (
         reservation.status !== ReservationStatus.CONFIRMED &&
@@ -2515,9 +2572,7 @@ export class ReservationsRepository {
       }
 
       if (sourceRes.updatedAt.toISOString() !== input.expectedUpdatedAt) {
-        throw new ConflictException(
-          "Dá»¯ liá»‡u Ä‘áº·t phÃ²ng Ä‘Ã£ thay Ä‘á»•i, vui lÃ²ng lÃ m má»›i",
-        );
+        throw new ConflictException("Dữ liệu đặt phòng đã thay đổi, vui lòng làm mới");
       }
 
       if (!ACTIVE_RESERVATION_STATUSES.includes(sourceRes.status)) {
@@ -2525,7 +2580,7 @@ export class ReservationsRepository {
       }
 
       if (!sourceRes.roomId) {
-        throw new BadRequestException("Äáº·t phÃ²ng chÆ°a cÃ³ phÃ²ng Ä‘Æ°á»£c gÃ¡n trÆ°á»›c Ä‘Ã³");
+        throw new BadRequestException("Đặt phòng chưa có phòng được gán trước đó");
       }
       const sourceRoomId = sourceRes.roomId;
 
@@ -2553,15 +2608,13 @@ export class ReservationsRepository {
           input.swapExpectedUpdatedAt &&
           swapRes.updatedAt.toISOString() !== input.swapExpectedUpdatedAt
         ) {
-          throw new ConflictException(
-            "Dá»¯ liá»‡u Ä‘áº·t phÃ²ng Ä‘á»‘i á»©ng Ä‘Ã£ thay Ä‘á»•i, vui lÃ²ng lÃ m má»›i",
-          );
+          throw new ConflictException("Dữ liệu đặt phòng đối ứng đã thay đổi, vui lòng làm mới");
         }
         if (!ACTIVE_RESERVATION_STATUSES.includes(swapRes.status)) {
           throw new ConflictException("Chỉ có thể tráo đổi đặt phòng chưa nhận phòng");
         }
         if (!swapRes.roomId) {
-          throw new BadRequestException("Äáº·t phÃ²ng Ä‘á»‘i á»©ng chÆ°a cÃ³ phÃ²ng Ä‘Æ°á»£c gÃ¡n");
+          throw new BadRequestException("Đặt phòng đối ứng chưa có phòng được gán");
         }
 
         const swapStay = await tx.guestStay.findFirst({
@@ -2628,9 +2681,7 @@ export class ReservationsRepository {
           select: { id: true },
         });
         if (stayOverlap) {
-          throw new ConflictException(
-            "PhÃ²ng Ä‘Ã£ cÃ³ khÃ¡ch lÆ°u trÃº trong khoáº£ng thá»i gian nÃ y",
-          );
+          throw new ConflictException("Phòng đã có khách lưu trú trong khoảng thời gian này");
         }
 
         const resOverlap = await tx.reservation.findFirst({
@@ -2645,9 +2696,7 @@ export class ReservationsRepository {
           select: { id: true },
         });
         if (resOverlap) {
-          throw new ConflictException(
-            "PhÃ²ng Ä‘Ã£ cÃ³ Ä‘áº·t phÃ²ng khÃ¡c trong khoáº£ng thá»i gian nÃ y",
-          );
+          throw new ConflictException("Phòng đã có đặt phòng khác trong khoảng thời gian này");
         }
 
         const updatedSource = await tx.reservation.update({
@@ -2693,7 +2742,7 @@ export class ReservationsRepository {
         });
         if (sourceStayOverlap) {
           throw new ConflictException(
-            "PhÃ²ng nguá»“n Ä‘Ã£ cÃ³ khÃ¡ch lÆ°u trÃº trÃ¹ng vá»›i lá»‹ch cá»§a Ä‘áº·t phÃ²ng Ä‘á»‘i á»©ng",
+            "Phòng nguồn đã có khách lưu trú trùng với lịch của đặt phòng đối ứng",
           );
         }
 
@@ -2709,7 +2758,7 @@ export class ReservationsRepository {
         });
         if (targetStayOverlap) {
           throw new ConflictException(
-            "PhÃ²ng Ä‘Ã­ch Ä‘Ã£ cÃ³ khÃ¡ch lÆ°u trÃº trÃ¹ng vá»›i lá»‹ch cá»§a Ä‘áº·t phÃ²ng nguá»“n",
+            "Phòng đích đã có khách lưu trú trùng với lịch của đặt phòng nguồn",
           );
         }
 
@@ -2805,6 +2854,7 @@ export class ReservationsRepository {
     actorUserId: string;
   }) {
     return this.runSerializable(async (tx) => {
+      await lockReservationForUpdate(tx, input.hotelId, input.reservationId);
       const res = await tx.reservation.findFirst({
         where: { id: input.reservationId, hotelId: input.hotelId },
         include: { room: true, hotel: { select: { timezone: true } } },
@@ -2818,7 +2868,7 @@ export class ReservationsRepository {
 
       const currentExpected = new Date(input.expectedUpdatedAt).getTime();
       const actualUpdated = res.updatedAt.getTime();
-      if (!isNaN(currentExpected) && Math.abs(actualUpdated - currentExpected) > 2000) {
+      if (isNaN(currentExpected) || actualUpdated !== currentExpected) {
         throw new ConflictException(
           "Dữ liệu đặt phòng đã thay đổi bởi người khác, vui lòng tải lại",
         );
@@ -2968,6 +3018,7 @@ export class ReservationsRepository {
     assertRoomAccess?: (roomId: string) => unknown;
   }) {
     return this.runSerializable(async (tx) => {
+      await lockReservationForUpdate(tx, input.hotelId, input.reservationId);
       const res = await tx.reservation.findFirst({
         where: { id: input.reservationId, hotelId: input.hotelId },
         include: {
@@ -2986,7 +3037,7 @@ export class ReservationsRepository {
       if (input.expectedUpdatedAt) {
         const currentExpected = new Date(input.expectedUpdatedAt).getTime();
         const actualUpdated = res.updatedAt.getTime();
-        if (!isNaN(currentExpected) && Math.abs(actualUpdated - currentExpected) > 2000) {
+        if (isNaN(currentExpected) || actualUpdated !== currentExpected) {
           throw new ConflictException(
             "Dữ liệu đặt phòng đã thay đổi bởi người khác, vui lòng tải lại",
           );
@@ -3287,50 +3338,18 @@ export class ReservationsRepository {
     work: (tx: Prisma.TransactionClient) => Promise<T>,
     conflictCode: string,
   ): Promise<T> {
-    const maxAttempts = 3;
-    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-      try {
-        return await this.prisma.$transaction(work, {
-          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-        });
-      } catch (error) {
-        if (!this.isRetryableConcurrencyError(error)) {
-          throw error;
-        }
-        if (attempt === maxAttempts) {
-          throw new ConflictException(conflictCode);
-        }
-      }
-    }
-    throw new ConflictException(conflictCode);
-  }
-
-  private isRetryableConcurrencyError(error: unknown): boolean {
-    if (error instanceof ConflictException) {
-      const response = error.getResponse();
-      const message = typeof response === "string" ? response : (response as any)?.message;
-      if (message === "RESERVATION_ROOM_ASSIGNMENT_CONCURRENCY_CONFLICT") {
-        return true;
-      }
-    }
-    const err = error as any;
-    if (err?.code === "40001" || err?.code === "40P01") return true;
-
-    if (!(error instanceof Prisma.PrismaClientKnownRequestError)) return false;
-    if (error.code === "P2034") return true;
-    if (error.code !== "P2002") return false;
-
-    const target = error.meta?.target;
-    const fields = Array.isArray(target)
-      ? target.filter((field): field is string => typeof field === "string")
-      : typeof target === "string"
-        ? [target]
-        : [];
-    return fields.some((field) => field.includes("reservationId") || field.includes("folioNumber"));
+    return runSerializableTransaction(this.prisma, work, conflictCode);
   }
 
   async findGroupByCode(hotelId: string, groupCode: string) {
     const trimmedGroupCode = groupCode.trim();
+    const hotelRecord = this.prisma.hotel?.findUnique
+      ? await this.prisma.hotel.findUnique({
+          where: { id: hotelId },
+          select: { timezone: true },
+        })
+      : null;
+    const tz = resolveTimeZone(hotelRecord?.timezone);
 
     let group: any = null;
     if (this.prisma.reservationGroup?.findUnique) {
@@ -3353,6 +3372,12 @@ export class ReservationsRepository {
         room: true,
         roomType: true,
         chargeLines: true,
+        bookingPayments: {
+          where: {
+            status: { in: [BookingPaymentStatus.COMPLETED, BookingPaymentStatus.ALLOCATED] },
+          },
+          select: { receivedAmount: true, status: true },
+        },
         stay: {
           select: {
             id: true,
@@ -3383,18 +3408,32 @@ export class ReservationsRepository {
 
       const checkIn = new Date(res.plannedCheckInAt);
       const checkOut = new Date(res.plannedCheckOutAt);
-      const nights = Math.max(1, diffCalendarDays(checkIn, checkOut, "Asia/Ho_Chi_Minh"));
+      const nights = Math.max(1, diffCalendarDays(checkIn, checkOut, tz));
 
-      const quote =
-        res.status === ReservationStatus.CANCELLED
-          ? { roomSubtotal: new Prisma.Decimal(0), totalAmount: new Prisma.Decimal(0) }
-          : calculateReservationChargeTotal(res);
+      let quote: { roomSubtotal: Prisma.Decimal; totalAmount: Prisma.Decimal };
+      if (res.status === ReservationStatus.CANCELLED) {
+        quote = { roomSubtotal: new Prisma.Decimal(0), totalAmount: new Prisma.Decimal(0) };
+      } else {
+        try {
+          quote = calculateReservationChargeTotal(res, tz);
+        } catch (err) {
+          if (err instanceof Error && err.message === "MISSING_AGREED_ROOM_RATE_SNAPSHOT") {
+            quote = { roomSubtotal: new Prisma.Decimal(0), totalAmount: new Prisma.Decimal(0) };
+          } else {
+            throw err;
+          }
+        }
+      }
       const estimatedAmount = quote.totalAmount.toNumber();
       totalEstimatedAmount = totalEstimatedAmount.add(quote.totalAmount);
       const effectiveNightlyRate = quote.roomSubtotal
         .div(nights)
         .toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP)
         .toNumber();
+      const depositAmount = ((res as any).bookingPayments || []).reduce(
+        (sum: number, p: any) => sum + Number(p.receivedAmount ?? 0),
+        0,
+      );
 
       const rawStay = (res as any).stay;
       const rawGuestStays = (res as any).guestStays;
@@ -3452,7 +3491,7 @@ export class ReservationsRepository {
         nights,
         estimatedAmount,
         totalAmount: estimatedAmount,
-        depositAmount: 0,
+        depositAmount,
         createdAt: res.createdAt,
         updatedAt: res.updatedAt,
       };

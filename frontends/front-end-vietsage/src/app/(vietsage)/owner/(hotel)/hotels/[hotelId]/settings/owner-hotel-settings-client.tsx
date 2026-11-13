@@ -123,7 +123,7 @@ export function OwnerHotelSettingsClient({
       <nav
         role="tablist"
         aria-label="Cài đặt khách sạn"
-        className="flex gap-1.5 overflow-x-auto border-b border-[#e5ddcd] pb-px scrollbar-thin"
+        className="flex gap-1.5 overflow-x-auto border-b border-[#e5ddcd] pb-px scrollbar-thin md:hidden"
       >
         {SETTINGS_TABS.filter((tab) => availableTabs.includes(tab.id)).map((tab) => {
           const isActive = activeTab === tab.id;

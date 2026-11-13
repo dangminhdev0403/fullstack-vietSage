@@ -1,10 +1,11 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { HttpError } from "@/core/http/http-error";
 import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
 import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
 import { ownerAccessMessage } from "@/app/(vietsage)/owner/_components/owner-auth";
 import { HotelReportsWorkspaceClient } from "@/features/hotel-reports/components/hotel-reports-workspace-client";
+import { RevenueBookWorkspace } from "@/features/hotel-reports/components/revenue-book-workspace";
 import type { GetHotelReportsQuery } from "@/features/hotel-reports/types/hotel-reports-contract";
 
 type PageProps = {
@@ -29,6 +30,11 @@ export default async function OwnerHotelReportsPage({
   const session = await auth();
   const callbackUrl = `/owner/hotels/${hotelId}/reports` as const;
   const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
+
+  if (resolvedSearchParams.tab === "book") {
+    if (!session?.user) redirect(`/login?callbackUrl=${encodeURIComponent(callbackUrl)}`);
+    return <RevenueBookWorkspace hotelId={hotelId} />;
+  }
 
   let reports;
   try {

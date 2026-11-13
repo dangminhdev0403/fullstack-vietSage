@@ -2,6 +2,7 @@
 
 import { useId, useMemo, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { Temporal } from "@js-temporal/polyfill";
 import {
   flexRender,
@@ -15,6 +16,7 @@ import {
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import type {
   DailyRevenueItem,
+  ExpenseCategoryBreakdownItem,
   GetHotelReportsQuery,
   HotelReportsData,
   MonthlyRevenueItem,
@@ -30,6 +32,7 @@ type HotelReportsWorkspaceClientProps = {
 
 type ReportSubTab =
   | "overview"
+  | "pnl"
   | "daily"
   | "monthly"
   | "sources"
@@ -47,6 +50,12 @@ const SUB_TABS: Array<{
     label: "Tổng quan & KPIs",
     icon: "dashboard",
     description: "Chỉ số doanh thu, ADR, công suất phòng OCC và RevPAR.",
+  },
+  {
+    id: "pnl",
+    label: "Kết quả KD & Lãi lỗ",
+    icon: "monitoring",
+    description: "Doanh thu, chi phí vận hành, phí SaaS và lãi/lỗ ròng theo kỳ.",
   },
   {
     id: "daily",
@@ -109,17 +118,19 @@ function formatVnd(amount: number): string {
 }
 
 function formatCompactVnd(amount: number): string {
-  if (amount <= 0) return "0 ₫";
-  if (amount >= 1_000_000_000) {
-    return `${(amount / 1_000_000_000).toFixed(1).replace(/\.0$/, "")} tỷ`;
+  if (!Number.isFinite(amount) || amount === 0) return "0 ₫";
+  const sign = amount < 0 ? "-" : "";
+  const abs = Math.abs(amount);
+  if (abs >= 1_000_000_000) {
+    return `${sign}${(abs / 1_000_000_000).toFixed(1).replace(/\.0$/, "")} tỷ`;
   }
-  if (amount >= 1_000_000) {
-    return `${(amount / 1_000_000).toFixed(1).replace(/\.0$/, "")} tr`;
+  if (abs >= 1_000_000) {
+    return `${sign}${(abs / 1_000_000).toFixed(1).replace(/\.0$/, "")} tr`;
   }
-  if (amount >= 1_000) {
-    return `${Math.round(amount / 1_000)}k`;
+  if (abs >= 1_000) {
+    return `${sign}${Math.round(abs / 1_000)}k`;
   }
-  return `${amount} ₫`;
+  return `${sign}${Math.round(abs)} ₫`;
 }
 
 function formatPercent(value: number): string {
@@ -192,6 +203,7 @@ function SortHeaderButton({
 
 export function HotelReportsWorkspaceClient({
   initialReports,
+  hotelId,
 }: HotelReportsWorkspaceClientProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -205,6 +217,11 @@ export function HotelReportsWorkspaceClient({
       : "overview";
 
   const [activeTab, setActiveTab] = useState<ReportSubTab>(resolvedInitialTab);
+  const [prevResolvedTab, setPrevResolvedTab] = useState<ReportSubTab>(resolvedInitialTab);
+  if (prevResolvedTab !== resolvedInitialTab) {
+    setPrevResolvedTab(resolvedInitialTab);
+    setActiveTab(resolvedInitialTab);
+  }
   const reports = initialReports;
 
   const fromInputId = useId();
@@ -309,6 +326,21 @@ export function HotelReportsWorkspaceClient({
 
           {/* Date Range Controls */}
           <div className="flex flex-col gap-3 sm:items-end">
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {pathname.startsWith("/owner") && (
+                <Link
+                  href={`/owner/hotels/${encodeURIComponent(hotelId)}/billing?tab=expenses`}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-rose-200 bg-rose-50/70 px-4 py-2 text-sm font-semibold text-rose-800 hover:bg-rose-100/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300"
+                >
+                  <VsIcon name="account_balance_wallet" className="text-lg" />
+                  Chi phí vận hành
+                </Link>
+              )}
+              <Link href={`${pathname}?tab=book`} className="inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 dark:border-slate-700 dark:bg-slate-900 dark:text-white">
+                <VsIcon name="receipt_long" className="text-lg" />
+                Sổ doanh thu
+              </Link>
+            </div>
             <div
               role="group"
               aria-label="Chọn nhanh kỳ báo cáo"
@@ -456,10 +488,110 @@ export function HotelReportsWorkspaceClient({
         </article>
       </section>
 
+      {/* P&L & Cashflow Summary Strip */}
+      <section
+        aria-label="Tổng hợp kết quả kinh doanh và dòng tiền"
+        className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
+      >
+        <article className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 whitespace-nowrap dark:text-slate-400">
+              Thực thu trong kỳ
+            </span>
+            <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 whitespace-nowrap dark:bg-emerald-950/60 dark:text-emerald-300">
+              Thu tiền
+            </span>
+          </div>
+          <p className="mt-2.5 text-2xl font-black tracking-tight text-slate-900 tabular-nums dark:text-white">
+            {formatVnd(summary.collectedRevenue ?? 0)}
+          </p>
+          <p className="mt-2 text-xs text-slate-600 text-pretty dark:text-slate-400">
+            Còn phải thu / công nợ:{" "}
+            <strong className="text-amber-700 tabular-nums dark:text-amber-400">
+              {formatVnd(summary.uncollectedRevenue ?? 0)}
+            </strong>
+          </p>
+        </article>
+
+        <article className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 whitespace-nowrap dark:text-slate-400">
+              Tổng chi phí
+            </span>
+            <span className="rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-semibold text-rose-700 whitespace-nowrap dark:bg-rose-950/60 dark:text-rose-300">
+              Vận hành + SaaS
+            </span>
+          </div>
+          <p className="mt-2.5 text-2xl font-black tracking-tight text-rose-700 tabular-nums dark:text-rose-400">
+            {formatVnd(summary.totalExpense ?? 0)}
+          </p>
+          <p className="mt-2 text-xs text-slate-600 text-pretty dark:text-slate-400">
+            Vận hành {formatCompactVnd(summary.operatingExpense ?? 0)} · Phí SaaS{" "}
+            {formatCompactVnd(summary.saasFeeExpense ?? 0)}
+          </p>
+        </article>
+
+        <article className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 whitespace-nowrap dark:text-slate-400">
+              Lợi nhuận ròng (Lãi/Lỗ)
+            </span>
+            <span
+              className={`rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap ${
+                (summary.netProfit ?? 0) >= 0
+                  ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+                  : "bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300"
+              }`}
+            >
+              {(summary.netProfit ?? 0) >= 0 ? "Có lãi" : "Đang lỗ"} ·{" "}
+              {(summary.profitMargin ?? 0).toFixed(1)}%
+            </span>
+          </div>
+          <p
+            className={`mt-2.5 text-2xl font-black tracking-tight tabular-nums ${
+              (summary.netProfit ?? 0) >= 0
+                ? "text-emerald-700 dark:text-emerald-400"
+                : "text-rose-700 dark:text-rose-400"
+            }`}
+          >
+            {formatVnd(summary.netProfit ?? 0)}
+          </p>
+          <p className="mt-2 text-xs text-slate-600 text-pretty dark:text-slate-400">
+            Doanh thu trừ tổng chi phí vận hành và phí SaaS.
+          </p>
+        </article>
+
+        <article className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 whitespace-nowrap dark:text-slate-400">
+              Dòng tiền ròng
+            </span>
+            <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-700 whitespace-nowrap dark:bg-slate-800 dark:text-slate-300">
+              Thu - Đã chi
+            </span>
+          </div>
+          <p
+            className={`mt-2.5 text-2xl font-black tracking-tight tabular-nums ${
+              (summary.netCashFlow ?? 0) >= 0
+                ? "text-slate-900 dark:text-white"
+                : "text-rose-700 dark:text-rose-400"
+            }`}
+          >
+            {formatVnd(summary.netCashFlow ?? 0)}
+          </p>
+          <p className="mt-2 text-xs text-slate-600 text-pretty dark:text-slate-400">
+            Tỷ lệ chi phí/doanh thu:{" "}
+            <strong className="text-slate-900 tabular-nums dark:text-slate-200">
+              {(summary.expenseRatio ?? 0).toFixed(1)}%
+            </strong>
+          </p>
+        </article>
+      </section>
+
       {/* Sub-Tabs Navigation */}
       <nav
         aria-label="Các danh mục báo cáo chi tiết"
-        className="flex items-center gap-2 overflow-x-auto rounded-2xl border border-slate-200/90 bg-slate-100/90 p-2 dark:border-slate-800 dark:bg-slate-900/80"
+        className="flex items-center gap-2 overflow-x-auto rounded-2xl border border-slate-200/90 bg-slate-100/90 p-2 dark:border-slate-800 dark:bg-slate-900/80 md:hidden"
       >
         {SUB_TABS.map((subTab) => {
           const isActive = activeTab === subTab.id;
@@ -484,11 +616,459 @@ export function HotelReportsWorkspaceClient({
       {/* In-Place Sub-Tab Panels */}
       <div className={isPending ? "opacity-60 transition-opacity duration-200" : ""}>
         {activeTab === "overview" && <OverviewPanel reports={reports} />}
+        {activeTab === "pnl" && (
+          <PnlReportPanel reports={reports} hotelId={hotelId} pathname={pathname} />
+        )}
         {activeTab === "daily" && <DailyRevenuePanel reports={reports} />}
         {activeTab === "monthly" && <MonthlyRevenuePanel reports={reports} />}
         {activeTab === "sources" && <SourceRevenuePanel reports={reports} />}
         {activeTab === "staff" && <StaffRevenuePanel reports={reports} />}
         {activeTab === "demographics" && <DemographicsPanel reports={reports} />}
+      </div>
+    </div>
+  );
+}
+
+// ----------------------------------------------------------------------
+// 1A. P&L & Cashflow Panel
+// ----------------------------------------------------------------------
+function PnlReportPanel({
+  reports,
+  hotelId,
+  pathname,
+}: {
+  reports: HotelReportsData;
+  hotelId: string;
+  pathname: string;
+}) {
+  const { summary, revenueByMonth } = reports;
+  const expenseCategories: ExpenseCategoryBreakdownItem[] =
+    reports.expenseByCategory ?? [];
+  const receivables = reports.receivablesSummary;
+  const bookingPayments = reports.bookingPaymentsSummary;
+  const isOwnerSpace = pathname.startsWith("/owner");
+  const billingHref = `/owner/hotels/${encodeURIComponent(hotelId)}/billing`;
+
+  const manualRevenue = summary.manualRevenue ?? 0;
+  const folioRevenue =
+    summary.roomRevenue + summary.serviceRevenue + summary.otherRevenue;
+  const collectedRevenue = summary.collectedRevenue ?? 0;
+  const uncollectedRevenue = summary.uncollectedRevenue ?? 0;
+  const operatingExpense = summary.operatingExpense ?? 0;
+  const paidOperatingExpense = summary.paidOperatingExpense ?? 0;
+  const unpaidOperatingExpense = summary.unpaidOperatingExpense ?? 0;
+  const saasFeeExpense = summary.saasFeeExpense ?? 0;
+  const totalExpense = summary.totalExpense ?? 0;
+  const netProfit = summary.netProfit ?? 0;
+  const profitMargin = summary.profitMargin ?? 0;
+  const expenseRatio = summary.expenseRatio ?? 0;
+  const netCashFlow = summary.netCashFlow ?? 0;
+
+  const maxMonthlyMetric = Math.max(
+    1,
+    ...revenueByMonth.map((m) =>
+      Math.max(m.totalRevenue, m.expense ?? 0, Math.abs(m.netProfit ?? 0)),
+    ),
+  );
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-6 lg:grid-cols-12">
+        {/* Structured P&L Statement */}
+        <section className="rounded-2xl border border-slate-200/90 bg-white p-6 shadow-sm lg:col-span-7 dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-4 dark:border-slate-800">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 md:text-xl text-balance dark:text-white">
+                Báo cáo Kết quả Kinh doanh (Lãi / Lỗ)
+              </h2>
+              <p className="mt-1 text-sm text-slate-600 text-pretty dark:text-slate-400">
+                Tổng hợp doanh thu phát sinh, chi phí vận hành và phí phần mềm trong kỳ đã chọn.
+              </p>
+            </div>
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-bold whitespace-nowrap ${
+                netProfit >= 0
+                  ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+                  : "bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300"
+              }`}
+            >
+              Biên lợi nhuận: {profitMargin.toFixed(1)}%
+            </span>
+          </div>
+
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                  <th scope="col" className="py-2.5 text-left">
+                    Chỉ tiêu tài chính
+                  </th>
+                  <th scope="col" className="py-2.5 text-right whitespace-nowrap">
+                    Giá trị (₫)
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
+                <tr>
+                  <td className="py-2.5 pr-4 font-medium text-slate-700 dark:text-slate-300">
+                    Doanh thu lưu trú &amp; dịch vụ (Folio)
+                  </td>
+                  <td className="py-2.5 text-right font-semibold text-slate-900 tabular-nums whitespace-nowrap dark:text-white">
+                    {formatVnd(folioRevenue)}
+                  </td>
+                </tr>
+                <tr>
+                  <td className="py-2.5 pr-4 pl-4 text-xs text-slate-500 dark:text-slate-400">
+                    Tiền phòng: {formatVnd(summary.roomRevenue)} · Dịch vụ:{" "}
+                    {formatVnd(summary.serviceRevenue)} · Phụ thu:{" "}
+                    {formatVnd(summary.otherRevenue)}
+                  </td>
+                  <td className="py-2.5 text-right text-xs text-slate-500 tabular-nums whitespace-nowrap dark:text-slate-400">
+                    —
+                  </td>
+                </tr>
+                <tr>
+                  <td className="py-2.5 pr-4 font-medium text-slate-700 dark:text-slate-300">
+                    Thu nhập bổ sung (Sổ doanh thu)
+                  </td>
+                  <td className="py-2.5 text-right font-semibold text-slate-900 tabular-nums whitespace-nowrap dark:text-white">
+                    {formatVnd(manualRevenue)}
+                  </td>
+                </tr>
+                <tr className="bg-emerald-50/50 dark:bg-emerald-950/20">
+                  <td className="py-3 px-2 font-bold text-emerald-900 dark:text-emerald-200">
+                    1. Tổng doanh thu phát sinh
+                  </td>
+                  <td className="py-3 px-2 text-right font-extrabold text-emerald-800 tabular-nums whitespace-nowrap dark:text-emerald-300">
+                    {formatVnd(summary.totalRevenue)}
+                  </td>
+                </tr>
+                <tr>
+                  <td className="py-2.5 pr-4 font-medium text-slate-700 dark:text-slate-300">
+                    Chi phí vận hành khách sạn
+                    <span className="block text-xs font-normal text-slate-500 dark:text-slate-400">
+                      Đã chi trả {formatVnd(paidOperatingExpense)} · Chưa thanh toán{" "}
+                      {formatVnd(unpaidOperatingExpense)}
+                    </span>
+                  </td>
+                  <td className="py-2.5 text-right font-semibold text-rose-700 tabular-nums whitespace-nowrap dark:text-rose-400">
+                    {operatingExpense > 0 ? `-${formatVnd(operatingExpense)}` : formatVnd(0)}
+                  </td>
+                </tr>
+                <tr>
+                  <td className="py-2.5 pr-4 font-medium text-slate-700 dark:text-slate-300">
+                    Phí phần mềm VietSage SaaS
+                  </td>
+                  <td className="py-2.5 text-right font-semibold text-rose-700 tabular-nums whitespace-nowrap dark:text-rose-400">
+                    {saasFeeExpense > 0 ? `-${formatVnd(saasFeeExpense)}` : formatVnd(0)}
+                  </td>
+                </tr>
+                <tr className="bg-rose-50/50 dark:bg-rose-950/20">
+                  <td className="py-3 px-2 font-bold text-rose-900 dark:text-rose-200">
+                    2. Tổng chi phí ({expenseRatio.toFixed(1)}% doanh thu)
+                  </td>
+                  <td className="py-3 px-2 text-right font-extrabold text-rose-700 tabular-nums whitespace-nowrap dark:text-rose-300">
+                    {totalExpense > 0 ? `-${formatVnd(totalExpense)}` : formatVnd(0)}
+                  </td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr
+                  className={`border-t-2 ${
+                    netProfit >= 0
+                      ? "border-emerald-200 bg-emerald-50/80 dark:border-emerald-800 dark:bg-emerald-950/40"
+                      : "border-rose-200 bg-rose-50/80 dark:border-rose-800 dark:bg-rose-950/40"
+                  }`}
+                >
+                  <td className="py-3.5 px-2 text-base font-extrabold text-slate-900 dark:text-white">
+                    3. Lợi nhuận ròng (Lãi / Lỗ = 1 - 2)
+                  </td>
+                  <td
+                    className={`py-3.5 px-2 text-right text-base font-black tabular-nums whitespace-nowrap ${
+                      netProfit >= 0
+                        ? "text-emerald-800 dark:text-emerald-300"
+                        : "text-rose-700 dark:text-rose-300"
+                    }`}
+                  >
+                    {formatVnd(netProfit)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </section>
+
+        {/* Cash Flow & Payables/Receivables Card */}
+        <section className="flex flex-col justify-between rounded-2xl border border-slate-200/90 bg-white p-6 shadow-sm lg:col-span-5 dark:border-slate-800 dark:bg-slate-900">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900 md:text-xl text-balance dark:text-white">
+              Thực thu, Thực chi &amp; Công nợ
+            </h2>
+            <p className="mt-1 text-sm text-slate-600 text-pretty dark:text-slate-400">
+              Theo dõi tiền mặt và chuyển khoản đã thực nhận so với nghĩa vụ chi trả.
+            </p>
+
+            <div className="mt-5 space-y-3">
+              <div className="flex items-center justify-between rounded-xl border border-emerald-200/70 bg-emerald-50/60 px-4 py-3 dark:border-emerald-900/50 dark:bg-emerald-950/20">
+                <div>
+                  <p className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">
+                    Thực thu trong kỳ
+                  </p>
+                  {bookingPayments && bookingPayments.depositCount > 0 && (
+                    <p className="mt-0.5 text-xs text-emerald-700 text-pretty dark:text-emerald-400">
+                      Gồm {bookingPayments.depositCount} giao dịch đặt phòng (
+                      {formatVnd(bookingPayments.totalReceived)})
+                    </p>
+                  )}
+                </div>
+                <span className="text-base font-extrabold text-emerald-800 tabular-nums whitespace-nowrap dark:text-emerald-300">
+                  {formatVnd(collectedRevenue)}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between rounded-xl border border-slate-200/80 bg-slate-50/80 px-4 py-3 dark:border-slate-800 dark:bg-slate-800/50">
+                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  Đã thực chi vận hành
+                </span>
+                <span className="text-base font-bold text-rose-700 tabular-nums whitespace-nowrap dark:text-rose-400">
+                  {formatVnd(paidOperatingExpense)}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-xs dark:border-slate-700 dark:bg-slate-900">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-600 dark:text-slate-400">
+                    Dòng tiền ròng (Thực thu - Thực chi)
+                  </p>
+                </div>
+                <span
+                  className={`text-lg font-black tabular-nums whitespace-nowrap ${
+                    netCashFlow >= 0
+                      ? "text-slate-900 dark:text-white"
+                      : "text-rose-700 dark:text-rose-400"
+                  }`}
+                >
+                  {formatVnd(netCashFlow)}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 pt-2 sm:grid-cols-2">
+                <div className="rounded-xl border border-amber-200/80 bg-amber-50/60 p-3.5 dark:border-amber-900/50 dark:bg-amber-950/20">
+                  <p className="text-xs font-semibold text-amber-900 dark:text-amber-300">
+                    Khách chưa thanh toán
+                  </p>
+                  <p className="mt-1 text-base font-extrabold text-amber-800 tabular-nums dark:text-amber-300">
+                    {formatVnd(uncollectedRevenue)}
+                  </p>
+                  {receivables && (
+                    <p className="mt-1 text-xs text-amber-700 text-pretty dark:text-amber-400">
+                      Công nợ mở: {formatVnd(receivables.totalOutstanding)} (
+                      {receivables.openCount} hồ sơ)
+                    </p>
+                  )}
+                </div>
+
+                <div className="rounded-xl border border-rose-200/80 bg-rose-50/60 p-3.5 dark:border-rose-900/50 dark:bg-rose-950/20">
+                  <p className="text-xs font-semibold text-rose-900 dark:text-rose-300">
+                    Chi phí chờ thanh toán
+                  </p>
+                  <p className="mt-1 text-base font-extrabold text-rose-700 tabular-nums dark:text-rose-300">
+                    {formatVnd(unpaidOperatingExpense)}
+                  </p>
+                  <p className="mt-1 text-xs text-rose-700 text-pretty dark:text-rose-400">
+                    Khoản chi đã ghi nhận nhưng chưa trả hết.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-5 flex flex-wrap gap-2 border-t border-slate-100 pt-4 dark:border-slate-800">
+            {isOwnerSpace && (
+              <>
+                <Link
+                  href={`${billingHref}?tab=expenses`}
+                  className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-emerald-800 px-3.5 py-2 text-xs font-bold text-white hover:bg-emerald-700 whitespace-nowrap dark:bg-emerald-600"
+                >
+                  <VsIcon name="add_card" className="text-base" />
+                  Ghi nhận / quản lý chi phí
+                </Link>
+                <Link
+                  href={`${billingHref}?tab=receivables`}
+                  className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50 whitespace-nowrap dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                >
+                  Sổ công nợ phải thu
+                </Link>
+              </>
+            )}
+            <Link
+              href={`${pathname}?tab=book`}
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50 whitespace-nowrap dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+            >
+              Mở Sổ doanh thu
+            </Link>
+          </div>
+        </section>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-12">
+        {/* Expense Category Breakdown */}
+        <section className="rounded-2xl border border-slate-200/90 bg-white p-6 shadow-sm lg:col-span-5 dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 md:text-xl text-balance dark:text-white">
+                Cơ cấu chi phí theo nhóm
+              </h2>
+              <p className="mt-1 text-sm text-slate-600 text-pretty dark:text-slate-400">
+                Phân bổ các khoản chi vận hành và phí SaaS trong kỳ.
+              </p>
+            </div>
+            {isOwnerSpace && (
+              <Link
+                href={`${billingHref}?tab=expenses`}
+                className="text-xs font-bold text-emerald-700 hover:underline whitespace-nowrap dark:text-emerald-400"
+              >
+                Chi tiết →
+              </Link>
+            )}
+          </div>
+
+          {expenseCategories.length === 0 ? (
+            <div className="mt-6 rounded-xl border border-dashed border-slate-200 bg-slate-50/70 p-6 text-center dark:border-slate-800 dark:bg-slate-800/40">
+              <p className="text-sm font-medium text-slate-600 text-pretty dark:text-slate-400">
+                Chưa có khoản chi phí vận hành hay phí SaaS phát sinh trong kỳ này.
+              </p>
+              {isOwnerSpace && (
+                <Link
+                  href={`${billingHref}?tab=expenses`}
+                  className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-emerald-800 px-3.5 py-2 text-xs font-bold text-white hover:bg-emerald-700 whitespace-nowrap"
+                >
+                  Thêm khoản chi đầu tiên
+                </Link>
+              )}
+            </div>
+          ) : (
+            <div className="mt-5 space-y-4">
+              {expenseCategories.map((cat) => (
+                <div key={cat.category} className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-2 text-sm">
+                    <div className="min-w-0">
+                      <span className="font-semibold text-slate-900 dark:text-white">
+                        {cat.categoryLabel}
+                      </span>
+                      <span className="ml-2 text-xs text-slate-500 whitespace-nowrap dark:text-slate-400">
+                        {cat.count} khoản · {cat.sharePercent.toFixed(1)}%
+                      </span>
+                    </div>
+                    <span className="font-bold text-rose-700 tabular-nums whitespace-nowrap dark:text-rose-400">
+                      {formatVnd(cat.amount)}
+                    </span>
+                  </div>
+                  <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                    <div
+                      className="h-full rounded-full bg-rose-500 transition-all duration-300"
+                      style={{ width: `${Math.min(100, Math.max(2, cat.sharePercent))}%` }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-slate-500 tabular-nums dark:text-slate-400">
+                    <span>Đã trả: {formatVnd(cat.paidAmount)}</span>
+                    <span>Còn nợ: {formatVnd(cat.unpaidAmount)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* 12-Month Thu / Chi / P&L Comparison */}
+        <section className="rounded-2xl border border-slate-200/90 bg-white p-6 shadow-sm lg:col-span-7 dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 md:text-xl text-balance dark:text-white">
+                Đối chiếu Thu · Chi · Lãi/Lỗ 12 tháng
+              </h2>
+              <p className="mt-1 text-sm text-slate-600 text-pretty dark:text-slate-400">
+                So sánh tổng doanh thu (xanh) với tổng chi phí (đỏ) từng tháng gần nhất.
+              </p>
+            </div>
+            <div className="flex items-center gap-3 text-xs font-semibold">
+              <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-emerald-700 dark:text-emerald-400">
+                <span className="h-2.5 w-2.5 rounded-xs bg-emerald-600" />
+                Doanh thu
+              </span>
+              <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-rose-700 dark:text-rose-400">
+                <span className="h-2.5 w-2.5 rounded-xs bg-rose-500" />
+                Tổng chi
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-6 flex h-60 items-end gap-2.5 overflow-x-auto pb-2 pt-10">
+            {revenueByMonth.map((m) => {
+              const revHeight =
+                m.totalRevenue > 0
+                  ? Math.max(8, Math.round((m.totalRevenue / maxMonthlyMetric) * 100))
+                  : 3;
+              const exp = m.expense ?? 0;
+              const expHeight =
+                exp > 0
+                  ? Math.max(8, Math.round((exp / maxMonthlyMetric) * 100))
+                  : 3;
+              const profit = m.netProfit ?? m.totalRevenue - exp;
+
+              return (
+                <div
+                  key={m.month}
+                  className="group relative flex h-full min-w-[60px] flex-1 flex-col items-center justify-end"
+                >
+                  <div className="pointer-events-none absolute -top-12 z-20 hidden rounded-xl bg-slate-900 px-3 py-2 text-left text-xs text-white shadow-lg group-hover:block whitespace-nowrap dark:bg-white dark:text-slate-900">
+                    <p className="font-bold">{m.monthLabel}</p>
+                    <p className="mt-0.5 tabular-nums">Thu: {formatVnd(m.totalRevenue)}</p>
+                    <p className="tabular-nums">Chi: {formatVnd(exp)}</p>
+                    <p className="font-bold tabular-nums">
+                      Lãi/Lỗ: {formatVnd(profit)}
+                    </p>
+                  </div>
+
+                  <span
+                    className={`mb-1.5 text-xs font-bold tabular-nums whitespace-nowrap ${
+                      profit > 0
+                        ? "text-emerald-700 dark:text-emerald-400"
+                        : profit < 0
+                          ? "text-rose-700 dark:text-rose-400"
+                          : "text-slate-400"
+                    }`}
+                  >
+                    {profit !== 0 ? formatCompactVnd(profit) : "0"}
+                  </span>
+
+                  <div className="flex h-40 w-full items-end justify-center gap-1">
+                    <div
+                      className={`w-1/2 max-w-[18px] rounded-t-md transition-all ${
+                        m.totalRevenue > 0
+                          ? "bg-emerald-600 group-hover:bg-emerald-500"
+                          : "bg-slate-200 dark:bg-slate-800"
+                      }`}
+                      style={{ height: `${revHeight}%` }}
+                    />
+                    <div
+                      className={`w-1/2 max-w-[18px] rounded-t-md transition-all ${
+                        exp > 0
+                          ? "bg-rose-500 group-hover:bg-rose-400"
+                          : "bg-slate-200 dark:bg-slate-800"
+                      }`}
+                      style={{ height: `${expHeight}%` }}
+                    />
+                  </div>
+
+                  <span className="mt-2 text-xs font-semibold text-slate-700 whitespace-nowrap dark:text-slate-300">
+                    {m.monthLabel}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </section>
       </div>
     </div>
   );
@@ -697,19 +1277,20 @@ function OverviewPanel({ reports }: { reports: HotelReportsData }) {
 // ----------------------------------------------------------------------
 function DailyRevenuePanel({ reports }: { reports: HotelReportsData }) {
   const { revenueByDay, timeZone } = reports;
-  const [chartMode, setChartMode] = useState<"revenue" | "occupancy">("revenue");
+  const [chartMode, setChartMode] = useState<"revenue" | "pnl" | "occupancy">("revenue");
   const [onlyActiveDays, setOnlyActiveDays] = useState(false);
   const [sorting, setSorting] = useState<SortingState>([
     { id: "date", desc: true },
   ]);
 
   const maxDayRevenue = Math.max(...revenueByDay.map((d) => d.totalRevenue), 1);
+  const maxDayAbsPnl = Math.max(...revenueByDay.map((d) => Math.abs(d.netProfit ?? 0)), 1);
   const maxDayOcc = Math.max(...revenueByDay.map((d) => d.occupancyRate), 10);
 
   const filteredDays = useMemo(() => {
     if (!onlyActiveDays) return revenueByDay;
     return revenueByDay.filter(
-      (d) => d.totalRevenue > 0 || d.roomsOccupied > 0,
+      (d) => d.totalRevenue > 0 || (d.expense ?? 0) > 0 || d.roomsOccupied > 0,
     );
   }, [revenueByDay, onlyActiveDays]);
 
@@ -717,19 +1298,33 @@ function DailyRevenuePanel({ reports }: { reports: HotelReportsData }) {
     let roomRev = 0;
     let serviceRev = 0;
     let totalRev = 0;
+    let expenseSum = 0;
+    let netProfitSum = 0;
     let roomsOccSum = 0;
     let occSum = 0;
     for (const d of filteredDays) {
       roomRev += d.roomRevenue;
       serviceRev += d.serviceRevenue;
       totalRev += d.totalRevenue;
+      const dayExpense = d.expense ?? 0;
+      expenseSum += dayExpense;
+      netProfitSum += d.netProfit ?? d.totalRevenue - dayExpense;
       roomsOccSum += d.roomsOccupied;
       occSum += d.occupancyRate;
     }
     const count = Math.max(1, filteredDays.length);
     const avgAdr = roomsOccSum > 0 ? Math.round(roomRev / roomsOccSum) : 0;
     const avgOcc = occSum / count;
-    return { roomRev, serviceRev, totalRev, roomsOccSum, avgAdr, avgOcc };
+    return {
+      roomRev,
+      serviceRev,
+      totalRev,
+      expenseSum,
+      netProfitSum,
+      roomsOccSum,
+      avgAdr,
+      avgOcc,
+    };
   }, [filteredDays]);
 
   const columns = useMemo<ColumnDef<DailyRevenueItem>[]>(
@@ -838,6 +1433,63 @@ function DailyRevenuePanel({ reports }: { reports: HotelReportsData }) {
         },
       },
       {
+        id: "expense",
+        accessorFn: (row) => row.expense ?? 0,
+        header: ({ column }) => (
+          <SortHeaderButton
+            label="Chi phí"
+            align="right"
+            sorted={column.getIsSorted()}
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          />
+        ),
+        cell: ({ row }) => {
+          const val = row.original.expense ?? 0;
+          return (
+            <div
+              className={`text-right font-semibold whitespace-nowrap tabular-nums ${
+                val > 0
+                  ? "text-rose-700 dark:text-rose-400"
+                  : "text-slate-400"
+              }`}
+            >
+              {formatVnd(val)}
+            </div>
+          );
+        },
+      },
+      {
+        id: "netProfit",
+        accessorFn: (row) =>
+          row.netProfit ?? row.totalRevenue - (row.expense ?? 0),
+        header: ({ column }) => (
+          <SortHeaderButton
+            label="Lãi / Lỗ ròng"
+            align="right"
+            sorted={column.getIsSorted()}
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          />
+        ),
+        cell: ({ row }) => {
+          const val =
+            row.original.netProfit ??
+            row.original.totalRevenue - (row.original.expense ?? 0);
+          return (
+            <div
+              className={`text-right font-bold whitespace-nowrap tabular-nums ${
+                val > 0
+                  ? "text-emerald-700 dark:text-emerald-400"
+                  : val < 0
+                    ? "text-rose-700 dark:text-rose-400"
+                    : "text-slate-400"
+              }`}
+            >
+              {formatVnd(val)}
+            </div>
+          );
+        },
+      },
+      {
         accessorKey: "adr",
         header: ({ column }) => (
           <SortHeaderButton
@@ -927,6 +1579,17 @@ function DailyRevenuePanel({ reports }: { reports: HotelReportsData }) {
             </button>
             <button
               type="button"
+              onClick={() => setChartMode("pnl")}
+              className={`rounded-lg px-3.5 py-1.5 text-sm font-bold transition-all whitespace-nowrap ${
+                chartMode === "pnl"
+                  ? "bg-white text-blue-800 shadow-sm dark:bg-slate-900 dark:text-blue-400"
+                  : "text-slate-600 hover:text-slate-900 dark:text-slate-400"
+              }`}
+            >
+              Lãi / Lỗ (₫)
+            </button>
+            <button
+              type="button"
               onClick={() => setChartMode("occupancy")}
               className={`rounded-lg px-3.5 py-1.5 text-sm font-bold transition-all whitespace-nowrap ${
                 chartMode === "occupancy"
@@ -941,16 +1604,43 @@ function DailyRevenuePanel({ reports }: { reports: HotelReportsData }) {
 
         <div className="mt-6 flex h-56 items-end gap-2 overflow-x-auto pb-2 pt-8">
           {revenueByDay.map((day) => {
+            const dayExpense = day.expense ?? 0;
+            const dayNetProfit = day.netProfit ?? day.totalRevenue - dayExpense;
             const isRevenueMode = chartMode === "revenue";
-            const rawVal = isRevenueMode ? day.totalRevenue : day.occupancyRate;
-            const maxVal = isRevenueMode ? maxDayRevenue : maxDayOcc;
+            const isPnlMode = chartMode === "pnl";
+            const rawVal = isRevenueMode
+              ? day.totalRevenue
+              : isPnlMode
+                ? dayNetProfit
+                : day.occupancyRate;
+            const maxVal = isRevenueMode
+              ? maxDayRevenue
+              : isPnlMode
+                ? maxDayAbsPnl
+                : maxDayOcc;
+            const absVal = Math.abs(rawVal);
             const heightPercent =
-              rawVal > 0 ? Math.max(12, Math.round((rawVal / maxVal) * 100)) : 3;
+              absVal > 0 ? Math.max(12, Math.round((absVal / maxVal) * 100)) : 3;
             const topLabel = isRevenueMode
               ? day.totalRevenue > 0
                 ? formatCompactVnd(day.totalRevenue)
                 : "0"
-              : `${Math.round(day.occupancyRate)}%`;
+              : isPnlMode
+                ? dayNetProfit !== 0
+                  ? formatCompactVnd(dayNetProfit)
+                  : "0"
+                : `${Math.round(day.occupancyRate)}%`;
+
+            const barColorClass =
+              absVal === 0
+                ? "bg-slate-200 dark:bg-slate-800"
+                : isRevenueMode
+                  ? "bg-emerald-600 group-hover:bg-emerald-500"
+                  : isPnlMode
+                    ? dayNetProfit >= 0
+                      ? "bg-emerald-600 group-hover:bg-emerald-500"
+                      : "bg-rose-500 group-hover:bg-rose-400"
+                    : "bg-purple-600 group-hover:bg-purple-500";
 
             return (
               <div
@@ -958,24 +1648,27 @@ function DailyRevenuePanel({ reports }: { reports: HotelReportsData }) {
                 className="group relative flex flex-1 flex-col items-center justify-end h-full min-w-[44px]"
               >
                 {/* Tooltip on hover */}
-                <div className="pointer-events-none absolute -top-14 z-20 hidden rounded-xl bg-slate-900 px-3 py-1.5 text-center text-xs text-white shadow-lg group-hover:block whitespace-nowrap dark:bg-white dark:text-slate-900">
+                <div className="pointer-events-none absolute -top-16 z-20 hidden rounded-xl bg-slate-900 px-3 py-1.5 text-center text-xs text-white shadow-lg group-hover:block whitespace-nowrap dark:bg-white dark:text-slate-900">
                   <p className="font-bold">
                     {formatVietnameseDate(day.date, {
                       includeWeekday: true,
                       timeZone,
                     })}
                   </p>
-                  <p className="mt-0.5">
-                    {formatVnd(day.totalRevenue)} • {day.roomsOccupied} phòng ({formatPercent(day.occupancyRate)})
+                  <p className="mt-0.5 tabular-nums">
+                    Thu {formatVnd(day.totalRevenue)} · Chi {formatVnd(dayExpense)} · Lãi/Lỗ{" "}
+                    {formatVnd(dayNetProfit)}
                   </p>
                 </div>
 
                 {/* Top Value Label matching Bar Height */}
                 <span
                   className={`mb-1.5 text-xs font-bold tabular-nums whitespace-nowrap ${
-                    rawVal > 0
-                      ? "text-slate-800 dark:text-slate-200"
-                      : "text-slate-400"
+                    isPnlMode && dayNetProfit < 0
+                      ? "text-rose-700 dark:text-rose-400"
+                      : absVal > 0
+                        ? "text-slate-800 dark:text-slate-200"
+                        : "text-slate-400"
                   }`}
                 >
                   {topLabel}
@@ -983,13 +1676,7 @@ function DailyRevenuePanel({ reports }: { reports: HotelReportsData }) {
 
                 {/* Bar */}
                 <div
-                  className={`w-full rounded-t-lg transition-all duration-200 ${
-                    rawVal > 0
-                      ? isRevenueMode
-                        ? "bg-emerald-600 group-hover:bg-emerald-500"
-                        : "bg-purple-600 group-hover:bg-purple-500"
-                      : "bg-slate-200 dark:bg-slate-800"
-                  }`}
+                  className={`w-full rounded-t-lg transition-all duration-200 ${barColorClass}`}
                   style={{ height: `${heightPercent}%` }}
                 />
 
@@ -1024,7 +1711,7 @@ function DailyRevenuePanel({ reports }: { reports: HotelReportsData }) {
                 className="h-4 w-4 rounded border-slate-300 text-emerald-700 focus:ring-emerald-600"
               />
               <span className="whitespace-nowrap">
-                Chỉ hiện ngày có phát sinh ({revenueByDay.filter((d) => d.totalRevenue > 0 || d.roomsOccupied > 0).length} ngày)
+                Chỉ hiện ngày có phát sinh ({revenueByDay.filter((d) => d.totalRevenue > 0 || (d.expense ?? 0) > 0 || d.roomsOccupied > 0).length} ngày)
               </span>
             </label>
           </div>
@@ -1098,6 +1785,18 @@ function DailyRevenuePanel({ reports }: { reports: HotelReportsData }) {
                   <td className="px-4 py-3.5 text-right font-extrabold text-emerald-800 tabular-nums whitespace-nowrap dark:text-emerald-400">
                     {formatVnd(totals.totalRev)}
                   </td>
+                  <td className="px-4 py-3.5 text-right font-bold text-rose-700 tabular-nums whitespace-nowrap dark:text-rose-400">
+                    {formatVnd(totals.expenseSum)}
+                  </td>
+                  <td
+                    className={`px-4 py-3.5 text-right font-extrabold tabular-nums whitespace-nowrap ${
+                      totals.netProfitSum >= 0
+                        ? "text-emerald-700 dark:text-emerald-400"
+                        : "text-rose-700 dark:text-rose-400"
+                    }`}
+                  >
+                    {formatVnd(totals.netProfitSum)}
+                  </td>
                   <td className="px-4 py-3.5 text-right text-blue-700 tabular-nums whitespace-nowrap dark:text-blue-400">
                     TB: {formatVnd(totals.avgAdr)}
                   </td>
@@ -1160,6 +1859,8 @@ function MonthlyRevenuePanel({ reports }: { reports: HotelReportsData }) {
     let roomRev = 0;
     let serviceRev = 0;
     let totalRev = 0;
+    let expenseSum = 0;
+    let netProfitSum = 0;
     let bookings = 0;
     let roomsSold = 0;
     let occSum = 0;
@@ -1167,13 +1868,26 @@ function MonthlyRevenuePanel({ reports }: { reports: HotelReportsData }) {
       roomRev += m.roomRevenue;
       serviceRev += m.serviceRevenue;
       totalRev += m.totalRevenue;
+      const monthExpense = m.expense ?? 0;
+      expenseSum += monthExpense;
+      netProfitSum += m.netProfit ?? m.totalRevenue - monthExpense;
       bookings += m.bookingCount;
       roomsSold += m.roomsSold;
       occSum += m.averageOccupancy;
     }
     const avgOcc = occSum / Math.max(1, revenueByMonth.length);
     const avgAdr = roomsSold > 0 ? Math.round(roomRev / roomsSold) : 0;
-    return { roomRev, serviceRev, totalRev, bookings, roomsSold, avgOcc, avgAdr };
+    return {
+      roomRev,
+      serviceRev,
+      totalRev,
+      expenseSum,
+      netProfitSum,
+      bookings,
+      roomsSold,
+      avgOcc,
+      avgAdr,
+    };
   }, [revenueByMonth]);
 
   const columns = useMemo<ColumnDef<MonthlyRevenueItem>[]>(
@@ -1274,6 +1988,63 @@ function MonthlyRevenuePanel({ reports }: { reports: HotelReportsData }) {
         ),
       },
       {
+        id: "expense",
+        accessorFn: (row) => row.expense ?? 0,
+        header: ({ column }) => (
+          <SortHeaderButton
+            label="Chi phí"
+            align="right"
+            sorted={column.getIsSorted()}
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          />
+        ),
+        cell: ({ row }) => {
+          const val = row.original.expense ?? 0;
+          return (
+            <div
+              className={`text-right font-semibold tabular-nums whitespace-nowrap ${
+                val > 0
+                  ? "text-rose-700 dark:text-rose-400"
+                  : "text-slate-400"
+              }`}
+            >
+              {formatVnd(val)}
+            </div>
+          );
+        },
+      },
+      {
+        id: "netProfit",
+        accessorFn: (row) =>
+          row.netProfit ?? row.totalRevenue - (row.expense ?? 0),
+        header: ({ column }) => (
+          <SortHeaderButton
+            label="Lãi / Lỗ ròng"
+            align="right"
+            sorted={column.getIsSorted()}
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          />
+        ),
+        cell: ({ row }) => {
+          const val =
+            row.original.netProfit ??
+            row.original.totalRevenue - (row.original.expense ?? 0);
+          return (
+            <div
+              className={`text-right font-bold tabular-nums whitespace-nowrap ${
+                val > 0
+                  ? "text-emerald-700 dark:text-emerald-400"
+                  : val < 0
+                    ? "text-rose-700 dark:text-rose-400"
+                    : "text-slate-400"
+              }`}
+            >
+              {formatVnd(val)}
+            </div>
+          );
+        },
+      },
+      {
         accessorKey: "averageOccupancy",
         header: ({ column }) => (
           <SortHeaderButton
@@ -1342,10 +2113,11 @@ function MonthlyRevenuePanel({ reports }: { reports: HotelReportsData }) {
                 key={m.month}
                 className="group relative flex flex-1 flex-col items-center justify-end h-full min-w-[64px]"
               >
-                <div className="pointer-events-none absolute -top-14 z-20 hidden rounded-xl bg-slate-900 px-3 py-1.5 text-center text-xs text-white shadow-lg group-hover:block whitespace-nowrap dark:bg-white dark:text-slate-900">
+                <div className="pointer-events-none absolute -top-16 z-20 hidden rounded-xl bg-slate-900 px-3 py-1.5 text-center text-xs text-white shadow-lg group-hover:block whitespace-nowrap dark:bg-white dark:text-slate-900">
                   <p className="font-bold">{m.monthLabel}</p>
-                  <p className="mt-0.5">
-                    {formatVnd(m.totalRevenue)} • {m.roomsSold} đêm (OCC {formatPercent(m.averageOccupancy)})
+                  <p className="mt-0.5 tabular-nums">
+                    Thu {formatVnd(m.totalRevenue)} · Chi {formatVnd(m.expense ?? 0)} · Lãi/Lỗ{" "}
+                    {formatVnd(m.netProfit ?? m.totalRevenue - (m.expense ?? 0))}
                   </p>
                 </div>
 
@@ -1439,6 +2211,18 @@ function MonthlyRevenuePanel({ reports }: { reports: HotelReportsData }) {
                 </td>
                 <td className="px-4 py-3.5 text-right font-extrabold text-emerald-800 tabular-nums whitespace-nowrap dark:text-emerald-400">
                   {formatVnd(totals.totalRev)}
+                </td>
+                <td className="px-4 py-3.5 text-right font-bold text-rose-700 tabular-nums whitespace-nowrap dark:text-rose-400">
+                  {formatVnd(totals.expenseSum)}
+                </td>
+                <td
+                  className={`px-4 py-3.5 text-right font-extrabold tabular-nums whitespace-nowrap ${
+                    totals.netProfitSum >= 0
+                      ? "text-emerald-700 dark:text-emerald-400"
+                      : "text-rose-700 dark:text-rose-400"
+                  }`}
+                >
+                  {formatVnd(totals.netProfitSum)}
                 </td>
                 <td className="px-4 py-3.5 text-right tabular-nums whitespace-nowrap">
                   TB: {formatPercent(totals.avgOcc)}

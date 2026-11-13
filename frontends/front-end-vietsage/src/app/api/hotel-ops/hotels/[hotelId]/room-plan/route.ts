@@ -46,6 +46,7 @@ export async function GET(request: Request, context: Params) {
     const data = await executeHotelOpsBackendRequest("get room plan", (accessToken) =>
       hotelOpsService.getRoomPlan(hotelId, { from, to }, { accessToken }),
     );
+    if (data instanceof Response) return data;
 
     return successResponse(data);
   } catch (error) {

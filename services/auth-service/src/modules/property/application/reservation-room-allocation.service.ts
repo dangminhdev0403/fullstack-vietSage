@@ -231,37 +231,101 @@ export class ReservationRoomAllocationService {
 
     let selectedRoom: any = null;
 
+    // Prefetch candidate conflicts in 3 batched queries when findMany delegates exist,
+    // avoiding 3*N sequential queries while keeping post-lock re-verification intact.
+    const candidateIds = matchingRooms.map((r) => r.id);
+    const canBatchPrefetch =
+      candidateIds.length > 0 &&
+      typeof tx.guestStay?.findMany === "function" &&
+      typeof tx.reservation?.findMany === "function";
+    let blockedRoomIds: Set<string> | null = null;
+    if (canBatchPrefetch) {
+      const [overdueRows, overlappingStayRows, overlappingResRows] = await Promise.all([
+        tx.guestStay.findMany({
+          where: {
+            hotelId,
+            roomId: { in: candidateIds },
+            status: {
+              in: [
+                GuestStayStatus.ACTIVE,
+                GuestStayStatus.CHECKED_IN,
+                GuestStayStatus.CHECKOUT_PENDING,
+              ],
+            },
+            checkedOutAt: null,
+            plannedCheckOutAt: { lt: now },
+          },
+          select: { roomId: true },
+        }),
+        tx.guestStay.findMany({
+          where: {
+            hotelId,
+            roomId: { in: candidateIds },
+            status: { in: ACTIVE_STAY_STATUSES },
+            ...(input.excludedReservationId
+              ? { reservationId: { not: input.excludedReservationId } }
+              : {}),
+            plannedCheckInAt: { lt: checkOutAt },
+            plannedCheckOutAt: { gt: checkInAt },
+          },
+          select: { roomId: true },
+        }),
+        tx.reservation.findMany({
+          where: {
+            hotelId,
+            roomId: { in: candidateIds },
+            status: { in: ACTIVE_RESERVATION_STATUSES },
+            ...(input.excludedReservationId ? { id: { not: input.excludedReservationId } } : {}),
+            plannedCheckInAt: { lt: checkOutAt },
+            plannedCheckOutAt: { gt: checkInAt },
+          },
+          select: { roomId: true },
+        }),
+      ]);
+      blockedRoomIds = new Set<string>(
+        [...overdueRows, ...overlappingStayRows, ...overlappingResRows]
+          .map((row) => row.roomId)
+          .filter((roomId): roomId is string => Boolean(roomId)),
+      );
+    }
+
     for (const candidate of matchingRooms) {
-      // Overdue active stays are excluded from automatic allocation rather than pretending they are free
-      const isOverdue = await this.hasOverdueActiveStay(tx, hotelId, candidate.id, now);
-      if (isOverdue) {
-        continue;
-      }
+      if (blockedRoomIds) {
+        if (blockedRoomIds.has(candidate.id)) {
+          continue;
+        }
+      } else {
+        // Overdue active stays are excluded from automatic allocation rather than pretending they are free
+        const isOverdue = await this.hasOverdueActiveStay(tx, hotelId, candidate.id, now);
+        if (isOverdue) {
+          continue;
+        }
 
-      // Overlapping active stays block
-      const hasStayOverlap = await this.hasOverlappingActiveStay(
-        tx,
-        hotelId,
-        candidate.id,
-        checkInAt,
-        checkOutAt,
-        input.excludedReservationId,
-      );
-      if (hasStayOverlap) {
-        continue;
-      }
+        // Overlapping active stays block
+        const hasStayOverlap = await this.hasOverlappingActiveStay(
+          tx,
+          hotelId,
+          candidate.id,
+          checkInAt,
+          checkOutAt,
+          input.excludedReservationId,
+        );
+        if (hasStayOverlap) {
+          continue;
+        }
 
-      // Overlapping active reservations block (cancelled reservations do not hold inventory)
-      const hasResOverlap = await this.hasOverlappingReservation(
-        tx,
-        hotelId,
-        candidate.id,
-        checkInAt,
-        checkOutAt,
-        input.excludedReservationId,
-      );
-      if (hasResOverlap) {
-        continue;
+        // Overlapping active reservations block (cancelled reservations do not hold inventory)
+        const hasResOverlap = await this.hasOverlappingReservation(
+          tx,
+          hotelId,
+          candidate.id,
+          checkInAt,
+          checkOutAt,
+          input.excludedReservationId,
+        );
+        if (hasResOverlap) {
+          continue;
+        }
       }
 
       await this.lockRoomRow(tx, hotelId, candidate.id);

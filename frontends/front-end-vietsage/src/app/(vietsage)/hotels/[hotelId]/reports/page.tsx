@@ -11,6 +11,7 @@ import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
 import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 import { ownerAccessMessage } from "@/app/(vietsage)/owner/_components/owner-auth";
 import { HotelReportsWorkspaceClient } from "@/features/hotel-reports/components/hotel-reports-workspace-client";
+import { RevenueBookWorkspace } from "@/features/hotel-reports/components/revenue-book-workspace";
 import type { GetHotelReportsQuery } from "@/features/hotel-reports/types/hotel-reports-contract";
 
 type PageProps = {
@@ -43,6 +44,10 @@ export default async function StaffReportsPage({
   }
 
   const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
+
+  if (resolvedSearchParams.tab === "book") {
+    return <RevenueBookWorkspace hotelId={hotelId} />;
+  }
 
   let reports;
   try {

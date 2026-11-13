@@ -13,6 +13,7 @@ import {
   RoomQRCodeStatus,
   RoomStatus,
 } from "@prisma/client";
+import { getDayBounds, resolveTimeZone, toYmd, todayYmd } from "../../../common/time/vietnam-temporal";
 import {
   addHours,
   generateOpaqueToken,
@@ -260,7 +261,7 @@ export class HotelRoomsService {
 
     const conditions: Prisma.RoomWhereInput[] = [];
 
-    if (query.status) {
+    if (query.status && !query.businessDate) {
       if (query.status === "AVAILABLE") {
         conditions.push({
           status: RoomStatus.AVAILABLE,
@@ -516,6 +517,7 @@ export class HotelRoomsService {
       ? await this.hotelRoomsRepository.listRooms(where, (page - 1) * limit, limit, {
           businessDate: query.businessDate,
           timezone: scope.hotel?.timezone,
+          ...(query.status ? { filterStatus: query.status } : {}),
         })
       : await this.hotelRoomsRepository.listRooms(where, (page - 1) * limit, limit);
     const actor = await this.hotelAccessService.loadActorContext(actorUserId, activeRoleId);
@@ -546,6 +548,310 @@ export class HotelRoomsService {
       items: result.items.map((row) =>
         this.toRoomData(row, { canViewStayContext, canViewReservationContext }),
       ),
+    };
+  }
+
+  async listPriorityAlerts(actorUserId: string, activeRoleId: string, hotelId: string) {
+    const scope = (await this.hotelAccessService.resolveRoomScope?.(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    )) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
+    const actor = await this.hotelAccessService.loadActorContext?.(actorUserId, activeRoleId);
+    const permissions = actor?.permissions ?? new Set<string>();
+    const hasElevatedView = Boolean(actor?.isSuperAdmin || actor?.isTenantOwner);
+    const canViewStayContext =
+      hasElevatedView ||
+      [
+        "hotel.stays.view",
+        "hotel.stays.manage",
+        "hotel.stays.check-in",
+        "hotel.stays.check-out",
+      ].some((permission) => permissions.has(permission));
+    const canViewReservationContext =
+      hasElevatedView ||
+      [
+        "hotel.reservations.view",
+        "hotel.reservations.manage",
+        "hotel.stays.check-in",
+      ].some((permission) => permissions.has(permission));
+
+    const timezone = resolveTimeZone((scope.hotel as any)?.timezone);
+    const businessDate = todayYmd(timezone);
+    const { start: todayStart, end: todayEnd } = getDayBounds(businessDate, timezone);
+    const now = new Date();
+
+    const inputs = await this.hotelRoomsRepository.findPriorityAlertInputs(hotelId, {
+      allowedRoomId: scope.allowedRoomId,
+      allowedRoomIds: scope.allowedRoomIds,
+      todayEnd,
+    });
+
+    const arrivalRoomIds = new Set<string>();
+    for (const r of inputs.reservations) {
+      if (r.roomId) arrivalRoomIds.add(r.roomId);
+    }
+    for (const s of inputs.reservedStays) {
+      if (s.roomId) arrivalRoomIds.add(s.roomId);
+    }
+
+    const activeStayByRoomId = new Map<string, (typeof inputs.activeStays)[number]>();
+    for (const stay of inputs.activeStays) {
+      if (stay.roomId && !activeStayByRoomId.has(stay.roomId)) {
+        activeStayByRoomId.set(stay.roomId, stay);
+      }
+    }
+
+    type AlertCategory =
+      | "OVERDUE_ARRIVAL"
+      | "DUE_TODAY_ARRIVAL"
+      | "OVERDUE_CHECKOUT"
+      | "DUE_TODAY_CHECKOUT"
+      | "DIRTY_ROOM"
+      | "BLOCKED_OR_MAINTENANCE";
+
+    type PriorityAlertItem = {
+      id: string;
+      category: AlertCategory;
+      severity: "CRITICAL" | "HIGH" | "MEDIUM";
+      priorityRank: number;
+      roomId: string | null;
+      roomNumber: string | null;
+      floor: string | null;
+      zone: string | null;
+      roomType: string | null;
+      roomStatus: string | null;
+      roomUpdatedAt: Date | null;
+      reservationId: string | null;
+      stayId: string | null;
+      reservationCode: string | null;
+      groupCode: string | null;
+      sourceType: "RESERVATION" | "STAY" | "ROOM";
+      status: string;
+      guestDisplayName: string | null;
+      guestPhone: string | null;
+      guestCount: number | null;
+      plannedCheckInAt: Date | null;
+      plannedCheckOutAt: Date | null;
+      blockerCode: string | null;
+    };
+
+    const items: PriorityAlertItem[] = [];
+    const summary = {
+      overdueArrivals: 0,
+      dueTodayArrivals: 0,
+      overdueCheckouts: 0,
+      dueTodayCheckouts: 0,
+      dirtyRooms: 0,
+      blockedOrMaintenance: 0,
+      turnaroundConflicts: 0,
+    };
+
+    const getArrivalBlockerCode = (roomId: string | null, roomStatus?: string | null) => {
+      if (!roomId) return "UNASSIGNED_ROOM";
+      if (roomStatus === RoomStatus.PROCESSING) return "ROOM_PROCESSING";
+      if (roomStatus === RoomStatus.OCCUPIED) return "ROOM_OCCUPIED";
+      if (roomStatus === RoomStatus.MAINTENANCE || roomStatus === RoomStatus.OUT_OF_SERVICE) {
+        return "ROOM_MAINTENANCE";
+      }
+      if (roomStatus === RoomStatus.BLOCKED) return "ROOM_BLOCKED";
+      return null;
+    };
+
+    if (canViewReservationContext) {
+      for (const res of inputs.reservations) {
+        const isOverdue = res.plannedCheckInAt.getTime() < todayStart.getTime();
+        const blockerCode = getArrivalBlockerCode(res.roomId, res.room?.status);
+        if (blockerCode) summary.turnaroundConflicts += 1;
+        if (isOverdue) summary.overdueArrivals += 1;
+        else summary.dueTodayArrivals += 1;
+
+        items.push({
+          id: `res:${res.id}`,
+          category: isOverdue ? "OVERDUE_ARRIVAL" : "DUE_TODAY_ARRIVAL",
+          severity: isOverdue ? "CRITICAL" : blockerCode ? "HIGH" : "MEDIUM",
+          priorityRank: isOverdue ? 1 : blockerCode ? 4 : 5,
+          roomId: res.roomId ?? null,
+          roomNumber: res.room?.roomNumber ?? null,
+          floor: res.room?.floor ?? null,
+          zone: (res.room as any)?.zone ?? null,
+          roomType: res.room?.type ?? res.roomTypeSnapshot ?? null,
+          roomStatus: res.room?.status ?? null,
+          roomUpdatedAt: res.room?.updatedAt ?? null,
+          reservationId: res.id,
+          stayId: null,
+          reservationCode: res.reservationCode,
+          groupCode: res.groupCode ?? null,
+          sourceType: "RESERVATION",
+          status: res.status,
+          guestDisplayName: res.guestDisplayName,
+          guestPhone: res.guestPhone ?? null,
+          guestCount: res.guestCount ?? null,
+          plannedCheckInAt: res.plannedCheckInAt,
+          plannedCheckOutAt: res.plannedCheckOutAt,
+          blockerCode,
+        });
+      }
+
+      for (const stay of inputs.reservedStays) {
+        const isOverdue = stay.plannedCheckInAt.getTime() < todayStart.getTime();
+        const blockerCode = getArrivalBlockerCode(stay.roomId, stay.room?.status);
+        if (blockerCode) summary.turnaroundConflicts += 1;
+        if (isOverdue) summary.overdueArrivals += 1;
+        else summary.dueTodayArrivals += 1;
+
+        items.push({
+          id: `reserved-stay:${stay.id}`,
+          category: isOverdue ? "OVERDUE_ARRIVAL" : "DUE_TODAY_ARRIVAL",
+          severity: isOverdue ? "CRITICAL" : blockerCode ? "HIGH" : "MEDIUM",
+          priorityRank: isOverdue ? 1 : blockerCode ? 4 : 5,
+          roomId: stay.roomId,
+          roomNumber: stay.room?.roomNumber ?? null,
+          floor: stay.room?.floor ?? null,
+          zone: (stay.room as any)?.zone ?? null,
+          roomType: stay.room?.type ?? null,
+          roomStatus: stay.room?.status ?? null,
+          roomUpdatedAt: stay.room?.updatedAt ?? null,
+          reservationId: null,
+          stayId: stay.id,
+          reservationCode: stay.reservationCode,
+          groupCode: null,
+          sourceType: "STAY",
+          status: stay.status,
+          guestDisplayName: stay.guestDisplayName,
+          guestPhone: stay.guestPhone ?? null,
+          guestCount: null,
+          plannedCheckInAt: stay.plannedCheckInAt,
+          plannedCheckOutAt: stay.plannedCheckOutAt,
+          blockerCode,
+        });
+      }
+    }
+
+    if (canViewStayContext) {
+      for (const stay of inputs.activeStays) {
+        const isOverdue = stay.plannedCheckOutAt.getTime() < now.getTime();
+        const hasArrivalToday = Boolean(stay.roomId && arrivalRoomIds.has(stay.roomId));
+        const isNonSellableRoom = Boolean(
+          stay.room &&
+            (stay.room.status === RoomStatus.MAINTENANCE ||
+              stay.room.status === RoomStatus.BLOCKED ||
+              stay.room.status === RoomStatus.OUT_OF_SERVICE),
+        );
+        const blockerCode = isNonSellableRoom
+          ? "NON_SELLABLE_WITH_ACTIVE_STAY"
+          : hasArrivalToday
+            ? "ROOM_OCCUPIED"
+            : null;
+        if (isOverdue) summary.overdueCheckouts += 1;
+        else if (stay.plannedCheckOutAt.getTime() < todayEnd.getTime()) summary.dueTodayCheckouts += 1;
+
+        items.push({
+          id: `stay:${stay.id}`,
+          category: isOverdue ? "OVERDUE_CHECKOUT" : "DUE_TODAY_CHECKOUT",
+          severity: isOverdue ? "CRITICAL" : hasArrivalToday || isNonSellableRoom ? "HIGH" : "MEDIUM",
+          priorityRank: isOverdue ? 2 : hasArrivalToday ? 3 : 4,
+          roomId: stay.roomId,
+          roomNumber: stay.room?.roomNumber ?? null,
+          floor: stay.room?.floor ?? null,
+          zone: (stay.room as any)?.zone ?? null,
+          roomType: stay.room?.type ?? null,
+          roomStatus: stay.room?.status ?? null,
+          roomUpdatedAt: stay.room?.updatedAt ?? null,
+          reservationId: stay.reservation?.id ?? null,
+          stayId: stay.id,
+          reservationCode: stay.reservationCode,
+          groupCode: stay.reservation?.groupCode ?? null,
+          sourceType: "STAY",
+          status: stay.status,
+          guestDisplayName: stay.guestDisplayName,
+          guestPhone: stay.guestPhone ?? null,
+          guestCount: null,
+          plannedCheckInAt: stay.plannedCheckInAt,
+          plannedCheckOutAt: stay.plannedCheckOutAt,
+          blockerCode,
+        });
+      }
+    }
+
+    for (const room of inputs.operationalRooms) {
+      if (room.status === RoomStatus.PROCESSING) {
+        summary.dirtyRooms += 1;
+        const hasArrivalToday = arrivalRoomIds.has(room.id);
+        items.push({
+          id: `room:${room.id}`,
+          category: "DIRTY_ROOM",
+          severity: hasArrivalToday ? "HIGH" : "MEDIUM",
+          priorityRank: hasArrivalToday ? 3 : 6,
+          roomId: room.id,
+          roomNumber: room.roomNumber,
+          floor: room.floor ?? null,
+          zone: (room as any).zone ?? null,
+          roomType: room.type ?? null,
+          roomStatus: room.status,
+          roomUpdatedAt: room.updatedAt,
+          reservationId: null,
+          stayId: null,
+          reservationCode: null,
+          groupCode: null,
+          sourceType: "ROOM",
+          status: room.status,
+          guestDisplayName: null,
+          guestPhone: null,
+          guestCount: null,
+          plannedCheckInAt: null,
+          plannedCheckOutAt: null,
+          blockerCode: hasArrivalToday ? "RESERVATION_TODAY_ON_DIRTY_ROOM" : null,
+        });
+      } else {
+        const hasArrivalToday = arrivalRoomIds.has(room.id);
+        const hasActiveStay = activeStayByRoomId.has(room.id);
+        if (hasArrivalToday || hasActiveStay) {
+          summary.blockedOrMaintenance += 1;
+          items.push({
+            id: `room:${room.id}`,
+            category: "BLOCKED_OR_MAINTENANCE",
+            severity: "HIGH",
+            priorityRank: 3,
+            roomId: room.id,
+            roomNumber: room.roomNumber,
+            floor: room.floor ?? null,
+            zone: (room as any).zone ?? null,
+            roomType: room.type ?? null,
+            roomStatus: room.status,
+            roomUpdatedAt: room.updatedAt,
+            reservationId: null,
+            stayId: null,
+            reservationCode: null,
+            groupCode: null,
+            sourceType: "ROOM",
+            status: room.status,
+            guestDisplayName: null,
+            guestPhone: null,
+            guestCount: null,
+            plannedCheckInAt: null,
+            plannedCheckOutAt: null,
+            blockerCode: hasActiveStay ? "NON_SELLABLE_WITH_ACTIVE_STAY" : "ROOM_BLOCKED",
+          });
+        }
+      }
+    }
+
+    items.sort((a, b) => {
+      if (a.priorityRank !== b.priorityRank) return a.priorityRank - b.priorityRank;
+      const aTime = (a.plannedCheckInAt ?? a.plannedCheckOutAt)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+      const bTime = (b.plannedCheckInAt ?? b.plannedCheckOutAt)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+      if (aTime !== bTime) return aTime - bTime;
+      return (a.roomNumber ?? "ZZZ").localeCompare(b.roomNumber ?? "ZZZ");
+    });
+
+    return {
+      generatedAt: now.toISOString(),
+      businessDate,
+      timezone,
+      total: items.length,
+      summary,
+      items,
     };
   }
 
@@ -825,16 +1131,17 @@ export class HotelRoomsService {
     if (!stay) {
       throw new NotFoundException("Không tìm thấy lượt lưu trú");
     }
-    if (this.hotelAccessService.assertRoomAccess) {
-      await this.hotelAccessService.assertRoomAccess(
-        actorUserId,
-        activeRoleId,
-        hotelId,
-        stay.roomId,
-      );
-    } else {
-      await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
-    }
+    const scope =
+      (await this.hotelAccessService.resolveRoomScope?.(actorUserId, activeRoleId, hotelId)) ??
+      ({ hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" } as const);
+    const hotel = this.hotelAccessService.assertRoomAccess
+      ? await this.hotelAccessService.assertRoomAccess(
+          actorUserId,
+          activeRoleId,
+          hotelId,
+          stay.roomId,
+        )
+      : await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
 
     if (dto.plannedCheckOutAt && dto.plannedCheckOutAt <= stay.plannedCheckInAt) {
       throw new BadRequestException("Thời gian check-out mới phải sau thời gian check-in");
@@ -848,7 +1155,10 @@ export class HotelRoomsService {
         dto.plannedCheckOutAt,
       );
       if (nextReservation) {
-        const nextDate = nextReservation.plannedCheckInAt.toISOString().slice(0, 10);
+        const nextDate = toYmd(
+          nextReservation.plannedCheckInAt,
+          resolveTimeZone((hotel as any)?.timezone ?? (scope.hotel as any)?.timezone),
+        );
         throw new ConflictException(
           `Không thể gia hạn: Phòng đã có lịch đặt của khách ${nextReservation.guestDisplayName} từ ngày ${nextDate}`,
         );

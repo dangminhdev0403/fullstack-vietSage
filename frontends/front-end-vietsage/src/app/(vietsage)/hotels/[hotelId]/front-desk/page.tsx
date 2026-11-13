@@ -308,7 +308,7 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
       {/* Tabs and Date Range Bar */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <nav
-          className="inline-flex flex-wrap gap-1.5 rounded-2xl border border-slate-200 bg-slate-100/80 p-1 shadow-2xs"
+          className="inline-flex flex-wrap gap-1.5 rounded-2xl border border-slate-200 bg-slate-100/80 p-1 shadow-2xs md:hidden"
           aria-label="Nghiệp vụ lễ tân"
         >
           {canViewInHouse ? (
@@ -573,6 +573,9 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
               canOperateArrivals={canOperateArrivals}
               canCheckInStay={canCheckInStay}
               canManageReservations={canManageReservations}
+              canViewBilling={canViewBilling}
+              canCheckoutBilling={canCheckoutBilling}
+              canCheckOutStay={canCheckOutStay}
             />
           ) : (
             /* Empty State for Arrivals */

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { HttpError } from "@/core/http/http-error";
 import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
+import { addDaysYmd, getVietnamToday } from "@/libs/vietnam-temporal";
 import {
   executeHotelOpsBackendRequest,
   hotelOpsHttpErrorResponse,
@@ -20,9 +21,10 @@ const paramsSchema = z.object({
 const listArrivalsQuerySchema = z.object({
   from: z.string().trim().optional(),
   to: z.string().trim().optional(),
+  includeOverdue: z.preprocess((val) => val === "true" || val === true, z.boolean().optional()),
   q: z.string().trim().max(120).optional(),
   page: z.coerce.number().int().positive().default(1),
-  limit: z.coerce.number().int().positive().max(100).default(50),
+  limit: z.coerce.number().int().positive().max(200).default(50),
 });
 
 export async function GET(request: Request, context: Params) {
@@ -39,14 +41,22 @@ export async function GET(request: Request, context: Params) {
     return validationErrorResponse(parsed.error.issues[0]?.message || "Tham số truy vấn danh sách khách đặt trước không hợp lệ");
   }
 
-  const { from, to, q, page, limit } = parsed.data;
+  const { from, to, includeOverdue, q, page, limit } = parsed.data;
+
+  const todayVn = getVietnamToday();
+  const resolvedTo = to || (!q ? addDaysYmd(todayVn, 7) : undefined);
 
   try {
     const data = await executeHotelOpsBackendRequest("list arrivals", (accessToken) =>
       hotelOpsService.listArrivals(hotelId, {
         query: {
-          from: from || new Date().toISOString().slice(0, 10),
-          to: to || new Date(Date.now() + 86400000 * 7).toISOString().slice(0, 10),
+          ...(from
+            ? { from }
+            : !includeOverdue && !q
+              ? { from: todayVn }
+              : {}),
+          ...(resolvedTo ? { to: resolvedTo } : {}),
+          ...(includeOverdue ? { includeOverdue: true } : {}),
           ...(q ? { q } : {}),
           page,
           limit,

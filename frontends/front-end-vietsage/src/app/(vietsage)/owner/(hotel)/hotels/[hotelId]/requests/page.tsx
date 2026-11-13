@@ -35,6 +35,7 @@ export default async function OwnerHotelRequestsPage({ params, searchParams }: P
   const query: ListHotelRequestsQuery = {
     page: currentPage,
     limit: currentPageSize,
+    q: getFirst(resolvedSearchParams.q),
     roomNumber: getFirst(resolvedSearchParams.roomNumber),
     serviceItemId: getFirst(resolvedSearchParams.serviceItemId),
     priority: getFirst(resolvedSearchParams.priority) as ListHotelRequestsQuery["priority"],
@@ -45,6 +46,7 @@ export default async function OwnerHotelRequestsPage({ params, searchParams }: P
   };
 
   const summaryQuery = {
+    q: query.q,
     roomNumber: query.roomNumber,
     serviceItemId: query.serviceItemId,
     priority: query.priority,
@@ -58,7 +60,7 @@ export default async function OwnerHotelRequestsPage({ params, searchParams }: P
   ]);
 
   const initialFilters = Object.fromEntries(
-    ["status", "roomNumber", "serviceItemId", "priority", "assignedToUserId", "from", "to", "tab"].map((key) => [key, getFirst(resolvedSearchParams[key]) ?? ""]),
+    ["q", "status", "roomNumber", "serviceItemId", "priority", "assignedToUserId", "from", "to", "tab"].map((key) => [key, getFirst(resolvedSearchParams[key]) ?? ""]),
   );
 
   return (
@@ -70,19 +72,16 @@ export default async function OwnerHotelRequestsPage({ params, searchParams }: P
 
       <RequestQueueClient
         hotelId={hotelId}
-        requests={requestsPage.items.map((item) => ({
-          ...item,
-          actions: [],
-        }))}
+        requests={requestsPage.items}
         total={requestsPage.total}
         summary={requestSummary}
         serviceItems={serviceItemsPage.items}
         initialFilters={initialFilters}
         basePath={`/owner/hotels/${hotelId}/requests`}
         serviceCatalogPath={`/owner/hotels/${hotelId}/services`}
+        ownerApiBasePath={`/api/hotel-ops/hotels/${hotelId}/requests`}
         detailMode="modal"
         initialDetailRequestId={getFirst(resolvedSearchParams.requestId)}
-        readOnly
         page={requestsPage.page}
         pageSize={requestsPage.limit}
         pageSizeOptions={[10, 20, 50]}

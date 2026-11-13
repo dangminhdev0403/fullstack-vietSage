@@ -6,129 +6,20 @@ These instructions are mandatory for Codex and any delegated coding agent workin
 
 - Follow the current user intent. Audit-only stays read-only; explicit fixes authorize the scoped implementation through validation and handoff. Internal verification during an implementation task does not start another repository audit.
 - Apply [Efficient Execution and Validation](rules/zero-waste-validation.md) to every task. It is the canonical policy for file/read budgets, navigation exceptions, worker coordination, check selection and completion; it replaces older blanket quotas and repeated-check defaults. It does not override protected operations, explicit user limits or mandatory project gates.
-- Reuse instructions and evidence already loaded in this conversation. Read only missing or changed relevant sections. No new plan file, worker or full-system discovery for a local correction or documentation-only task.
+- Reuse instructions and evidence already loaded in this conversation. Read only missing or changed relevant sections. Local corrections and documentation-only tasks normally need no new plan, worker or full-system discovery; explicit delegation requests and substantial independent policy-review work follow the shared profile's task-size policy.
 
 ---
 
-## Graphify + Repomix Code Navigation Policy
+## Scoped source navigation
 
-### Primary Rule
-
-When the user types `/graphify`, use the installed Graphify skill/instructions first. Dirty `graphify-out/` files alone are not a reason to skip navigation.
-
-Do NOT scan the entire repository by default.
-
-Always use `graphify-out/` as the primary navigation index, then use Repomix to pack only the graph-selected working set before reading source files.
-
-Treat `graphify-out/graph.json` as the authoritative project map.
-
-### Navigation References
-
-- `graphify-out/graph.json`: `nodes[]` identify symbols and source locations; `links[]` identify dependencies; `built_at_commit` records the graph revision.
-- `graphify-out/manifest.json`: check selected-file freshness before trusting cached relationships.
-- For broad architecture work, start from `graphify-out/wiki/index.md` when present. Read `graphify-out/GRAPH_REPORT.md` only when that scope needs it. Do not dump full graphs, manifests or AST caches.
-
-### Required Workflow
-
-For implementation discovery (reuse a valid scoped map on continuation; docs/rules-only tasks use their exact named paths):
-
-1. **Start from the graph, not the filesystem — with Symbolic Anchoring.**
-   - **DO NOT run `graphify query` with long natural-language user prompts** (> 3 words or descriptive error reports). Naive NL queries trigger broad BFS traversal and explode irrelevant nodes across the 14MB graph.
-   - **Extract 1–2 Domain Anchor Symbols first** (e.g., `HotelOpsRealtimeNotifier`, `useOwnerRequestRealtime`, `RequestRealtimeGateway`).
-   - Run `graphify explain "<Symbol>"` or `graphify affected "<Symbol>"` (or inspect `graph.json` directly) to retrieve the exact 1-hop neighborhood in 1–2 seconds.
-   - Use `links[]` to trace direct `imports`, `calls`, `contains` relationships.
-   - Use `.graphify_analysis.json → communities` to identify related symbol clusters.
-   - Use `.graphify_analysis.json → gods` to identify high-coupling hub nodes.
-
-2. **Build the smallest possible working set (Zero Repo Scan).**
-   - Identify the target symbol(s) in `nodes[]`.
-   - Never search, grep, or walk the entire filesystem at turn 1 (zero-repo-scan policy).
-   - Traverse `links[]` one hop at a time to find direct dependencies (typically 3–5 files).
-   - Resolve `source_file` paths to actual files only after the working set is defined.
-
-3. **Pack with Scoped Repomix & read only those files.**
-   - Pack the resolved paths into `graphify-out/repomix/task-scope.xml`.
-   - Open only files identified by the graph traversal.
-   - Prefer reading specific line ranges using `source_location`.
-
-4. **Perform the requested analysis or modification.**
-
-### File Reading Policy
-
-**Forbidden:**
-- Reading every controller, service, or module
-- Walking the entire repository tree
-- Globbing entire `src/**` or `services/**`
-- Expanding to unrelated files "just in case"
-
-**Required:**
-- Navigate through graph relationships
-- Open only directly relevant files
-- Expand one dependency hop at a time
-- Check `manifest.json` to verify graph freshness before trusting cached data
-
-### Escalation Rule
-
-Only widen the search beyond the graph if:
-
-- The required symbol is absent from `nodes[]`
-- Generated/dynamic code is missing from the graph
-- Dynamic imports prevent static resolution
-- The `manifest.json` timestamps show the graph is outdated vs. the file
-
-Before expanding, **explain clearly why the graph is insufficient** for the current task.
-
-### Performance Goal
-
-Minimize:
-- Token usage
-- Repository scanning
-- Unnecessary file reads
-
-**Mandatory pipeline:** Graphify query/impact map → minimal file list → scoped Repomix pack → exact current source ranges → edit/test.
-
-**The graph is the source of navigation.**
-**Repomix is the compact working-set context.**
-**The filesystem is only the source of implementation truth.**
-
-### Scoped Repomix Rule
-
-After Graphify identifies the minimal working set, pack only those paths:
-
-```bash
-npx repomix@latest . --include "path/a.ts,path/b.ts,path/a.spec.ts" --compress --style xml --output graphify-out/repomix/task-scope.xml
-```
-
-- Never pack the whole repository when Graphify produced a bounded file set.
-- Search/read the scoped pack before opening current source ranges.
-- If Repomix excludes a selected path through its security scanner, record the exclusion; never bypass the scanner. Read only that Graphify-selected file's exact current source range directly.
-- If Repomix is unavailable, record the command/error, then read only Graphify-selected ranges; do not widen scope.
-- Broad `search_files`, repository walking, guessed-file browsing, and direct whole-tree grep are fallback-only. State the exact Graphify/Repomix gap before fallback.
-
-### Graphify Maintenance
-
-After completing an entire feature, module, or major refactor (NOT after every individual code change), refresh the project graph by executing:
-
-```bash
-graphify update . --force
-```
-
-A "module completed" includes examples such as:
-
-- Authentication
-- RBAC
-- User Management
-- Hotel Workspace
-- Table Management
-- Order Management
-- Payment Integration
-- Any major refactor
-
-**Do NOT** run Graphify after every file edit. Reuse the existing graph throughout implementation. Only refresh the graph once when the module is considered complete, so future tasks use the latest project structure.
-
-For minor edits and all validation selection, follow [Efficient Execution and Validation](rules/zero-waste-validation.md). Do not refresh Graphify for local corrections or documentation changes.
-
----
+- Reuse current symbols, exact named paths and the host's validated map. Use the existing Graphify index when it helps locate callers or dependencies; it is not a prerequisite for every source read. A direct `/graphify` request follows the installed Graphify instructions.
+- Before trusting cached relationships, check the relevant entries in `graphify-out/manifest.json` and graph revision/source locations in `graphify-out/graph.json`. Current source remains implementation truth. Start from concrete symbols or flows and expand one dependency hop only to close a stated caller/invariant gap; do not dump graphs, AST caches or scan the whole repository.
+- If the relevant tool/map is missing, stale or cannot resolve the boundary, record that concrete gap once and use bounded `rg` searches or exact current source ranges. Change navigation after at most two unsuccessful targeted attempts; do not rebuild an index or survey unrelated modules to proceed.
+- Use a scoped Repomix pack when it reduces useful context, through an already-installed or pinned available command. Do not acquire `@latest` tooling or install packages as part of navigation. Reuse valid context rather than repacking unchanged files.
+- Pack only selected paths. Never bypass Repomix security exclusions; for an excluded path, record the exclusion and inspect only the relevant exact source range when permitted. No whole-repository pack or speculative file expansion.
+- Where artifact writes are authorized, use a distinct `graphify-out/repomix/<task>-<agent>.xml` per owner, or a host-owned immutable pack shared for reading. Audit-only work creates no pack/index/tracking artifacts without explicit artifact authorization; use existing context and bounded reads.
+- Exact-path documentation/rules changes and exact user commands need no graph, pack or application-source discovery. Read only missing or changed relevant instructions.
+- Do not refresh Graphify after every edit or as a completion hook. Refresh only a relevant stale relationship needed to finish the scoped outcome, using available tooling and authorized artifact writes; no unconditional forced whole-project rebuild.
 
 ## Scope and Protected Boundaries
 
@@ -198,6 +89,10 @@ Read:
 
 ## Hard Rules
 
+- **Database-First & End-to-End Optimization (Không chỉ nhìn giao diện cho bài toán dữ liệu)**:
+  - Khi yêu cầu liên quan đến **truy vấn, lọc trạng thái/ngày (`quá hạn`, `đến ngày`, `xung đột`), tổng hợp nhiều thực thể, đếm số liệu, hoặc hàng đợi điều hành**, áp dụng [database-first and end-to-end optimization](C:/Users/Dangminhdev0403/.agents/skills/focused-execution/SKILL.md#database-first-and-end-to-end-optimization). Truy vết nguồn dữ liệu và toàn luồng trước khi chọn tầng sửa; không bù bằng request thừa, cửa sổ quét lùi tùy tiện (`-30d`), hoặc kéo cả bảng về client lọc.
+  - Kiểm tra phần liên quan trong `services/auth-service/prisma/schema.prisma` (`@@index`) và `services/auth-service/src/modules/*/infrastructure/repositories/*.repository.ts`: điều kiện `where` và composite index, tham số như `includeOverdue`, `select`/`include`, sắp xếp/phân trang/tổng hợp và N+1. Chỉ dùng `Promise.all` cho công việc độc lập khi phù hợp với tải DB và tính nhất quán của luồng.
+  - Tối ưu nguyên nhân gốc tại tầng cần thiết trong phạm vi đã được phép; phối hợp DB, Backend và Frontend theo luồng dữ liệu, không bắt buộc sửa cả ba tầng hoặc chuyển chi phí sang tầng khác. Tuyên bố cải thiện hiệu năng cần bằng chứng runtime trước/sau có thể so sánh theo quy tắc chung; thiếu bằng chứng phải ghi `GAP`. Thay đổi migration/dữ liệu và thao tác được bảo vệ vẫn cần quyền riêng. Chỉnh CSS, layout hoặc câu chữ không đổi luồng dữ liệu không buộc rà soát DB.
 - **Mandatory Existing Tech Stack Reuse (Step-Zero Guardrail)**: Before writing code, agents MUST reuse the project's standard architectural primitives. DO NOT fall back to raw browser APIs or ad-hoc solutions:
   - **Client State**: Wrap all persistent, session, and shared client state in a Zustand store under `src/features/<feature>/store/` using `persist` / `createJSONStorage` and `safeStorage`. NEVER call `window.localStorage` or `sessionStorage` directly inside components, hooks, or pages.
   - **Server State**: Use `@dangminhdev04032005/query-resource`: repository → resource → feature hook → component. Do not write raw `useQuery({ queryKey: ... })`, raw `useMutation`, or direct `fetch()` / `axios()` in UI components or pages.

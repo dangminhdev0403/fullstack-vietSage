@@ -1,6 +1,7 @@
 "use client";
 
 import { type FormEvent, useCallback, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { showConfirmDialog, showErrorAlert, showSuccessAlert } from "@/libs/swal";
 
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
@@ -55,7 +56,15 @@ export function ServiceCatalogClient({
   initialCategories,
   initialItems,
 }: ServiceCatalogClientProps) {
-  const [tab, setTab] = useState<"categories" | "items">("categories");
+  const searchParams = useSearchParams();
+  const urlTab: "categories" | "items" =
+    searchParams?.get("tab") === "items" ? "items" : "categories";
+  const [tab, setTab] = useState<"categories" | "items">(urlTab);
+  const [prevUrlTab, setPrevUrlTab] = useState<"categories" | "items">(urlTab);
+  if (prevUrlTab !== urlTab) {
+    setPrevUrlTab(urlTab);
+    setTab(urlTab);
+  }
   const catalog = useServiceCatalog({ hotelId, surface: "hotel-ops" }, initialCategories, initialItems);
   const { categories, items } = catalog;
   const saveCategoryMutation = catalog.saveCategory.mutateAsync;
@@ -390,7 +399,7 @@ export function ServiceCatalogClient({
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 rounded-xl border border-[color:rgba(198,197,213,0.24)] bg-white p-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex shrink-0 rounded-lg bg-[var(--surface-container-low)] p-1">
+        <div className="flex shrink-0 rounded-lg bg-[var(--surface-container-low)] p-1 md:hidden">
           <button type="button" onClick={() => setTab("categories")} className={`rounded-md px-5 py-2 text-base font-semibold ${tab === "categories" ? "bg-white text-[var(--primary)] shadow-sm" : "text-[var(--on-surface-variant)]"}`}>Nhóm dịch vụ</button>
           <button type="button" onClick={() => setTab("items")} className={`rounded-md px-5 py-2 text-base font-semibold ${tab === "items" ? "bg-white text-[var(--primary)] shadow-sm" : "text-[var(--on-surface-variant)]"}`}>Dịch vụ</button>
         </div>

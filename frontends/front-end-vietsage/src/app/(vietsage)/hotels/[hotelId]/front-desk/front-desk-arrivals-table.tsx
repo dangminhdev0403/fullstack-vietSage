@@ -21,6 +21,9 @@ export type FrontDeskArrivalsTableProps = {
   canOperateArrivals: boolean;
   canCheckInStay?: boolean;
   canManageReservations?: boolean;
+  canViewBilling?: boolean;
+  canCheckoutBilling?: boolean;
+  canCheckOutStay?: boolean;
 };
 
 type ArrivalColumnMeta = {
@@ -56,6 +59,9 @@ export function FrontDeskArrivalsTable({
   canOperateArrivals,
   canCheckInStay = false,
   canManageReservations = false,
+  canViewBilling = false,
+  canCheckoutBilling = false,
+  canCheckOutStay = false,
 }: FrontDeskArrivalsTableProps) {
   const [selectedArrival, setSelectedArrival] = useState<HotelArrival | null>(null);
   const lastFocusedTriggerRef = useRef<HTMLElement | null>(null);
@@ -242,6 +248,9 @@ export function FrontDeskArrivalsTable({
         canCheckInStay={canCheckInStay}
         canManageReservations={canManageReservations}
         canOperateArrivals={canOperateArrivals}
+        canViewBilling={canViewBilling}
+        canCheckoutBilling={canCheckoutBilling}
+        canCheckOutStay={canCheckOutStay}
         triggerElementRef={lastFocusedTriggerRef}
       />
     </>

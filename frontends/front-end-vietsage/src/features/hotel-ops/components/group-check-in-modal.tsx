@@ -25,9 +25,13 @@ import { staffRoomsResource } from "@/features/hotel-ops/resources/staff-rooms-r
 import { staffRoomsRepository } from "@/features/hotel-ops/repositories/staff-rooms-repository";
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
 import { checkInRecovery, formatFriendlyCheckInError, isEarlyCheckInError, isLateCheckInError } from "@/features/hotel-ops/utils/check-in-error";
-import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import { RoomCheckoutSettlementModal } from "./room-checkout-settlement-modal";
-import type { HotelCheckInResult, HotelRoomSummary } from "@/features/hotel-ops/types/hotel-ops-contract";
+import {
+  parseHotelDatetimeToIso,
+  toVietnamDatetimeLocal,
+  toVietnamYmd,
+} from "@/libs/vietnam-temporal";
+import type { HotelRoomSummary } from "@/features/hotel-ops/types/hotel-ops-contract";
 import {
   showConfirmDialog,
   showErrorAlert,
@@ -67,7 +71,7 @@ async function checkInGroupRoom(
     const confirmation = await showConfirmDialog({
       icon: "warning",
       title: early ? "Nhận phòng sớm?" : "Nhận phòng muộn?",
-      text: `Phòng ${room.roomNumber} · ${guestName} · Ngày đến dự kiến: ${toDisplayVnDate(room.plannedCheckInAt?.slice(0, 10) || "")}.`,
+      text: `Phòng ${room.roomNumber} · ${guestName} · Ngày đến dự kiến: ${toDisplayVnDate(toVietnamYmd(room.plannedCheckInAt) || "")}.`,
       confirmText: early ? "Nhận phòng sớm" : "Nhận phòng muộn",
       cancelText: "Chưa nhận phòng",
     });
@@ -677,13 +681,7 @@ function GroupCheckInForm({
 
     setIsMarkingReady(true);
     try {
-      await requestInternalApiEnvelope(
-        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/rooms/${encodeURIComponent(room.id)}/ready`,
-        {
-          method: "PATCH",
-          body: { expectedUpdatedAt: room.updatedAt },
-        },
-      );
+      await staffRoomsRepository.markRoomReady(hotelId, room.id, room.updatedAt);
       await showSuccessAlert(
         "Phòng đã sẵn sàng",
         `Phòng ${room.roomNumber} đã sẵn sàng đón khách.`,
@@ -1171,34 +1169,29 @@ function GroupCheckInForm({
 
       if (room.reservationId.startsWith("walkin-")) {
         try {
-          const stayRes = await requestInternalApiEnvelope<HotelCheckInResult>(
-            `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/stays`,
-            {
-              method: "POST",
-              body: {
-                roomId: room.roomId,
-                guestDisplayName: primary.fullName.trim(),
-                guestPhone: primary.phone?.trim() || undefined,
-                guestIdentityNumber: primary.identityNumber?.trim() || undefined,
-                guestDateOfBirth: toIsoDate(primary.dateOfBirth?.trim()) || undefined,
-                guestGender: primary.gender?.trim() || undefined,
-                guestNationality: matchBcaNationalityCode(primary.nationality || "Việt Nam", nationalities),
-                guestResidencePlace: primary.residencePlace?.trim() || undefined,
-                plannedCheckInAt: new Date().toISOString(),
-                plannedCheckOutAt: room.plannedCheckOutAt,
-                groupCode: groupCode || undefined,
-                groupLeadGuestName: roomsState[0]?.guests[0]?.fullName?.trim() || undefined,
-                groupLeadGuestPhone: roomsState[0]?.guests[0]?.phone?.trim() || undefined,
-                occupants: extraOccupants.length > 0 ? extraOccupants : undefined,
-              },
-            },
-          );
+          const stayData = await staffRoomsRepository.createAndCheckInStay(hotelId, {
+            roomId: room.roomId,
+            guestDisplayName: primary.fullName.trim(),
+            guestPhone: primary.phone?.trim() || undefined,
+            guestIdentityNumber: primary.identityNumber?.trim() || undefined,
+            guestDateOfBirth: toIsoDate(primary.dateOfBirth?.trim()) || undefined,
+            guestGender: primary.gender?.trim() || undefined,
+            guestNationality: matchBcaNationalityCode(primary.nationality || "Việt Nam", nationalities),
+            guestResidencePlace: primary.residencePlace?.trim() || undefined,
+            plannedCheckInAt: new Date().toISOString(),
+            plannedCheckOutAt:
+              parseHotelDatetimeToIso(room.plannedCheckOutAt) || room.plannedCheckOutAt,
+            groupCode: groupCode || undefined,
+            groupLeadGuestName: roomsState[0]?.guests[0]?.fullName?.trim() || undefined,
+            groupLeadGuestPhone: roomsState[0]?.guests[0]?.phone?.trim() || undefined,
+            occupants: extraOccupants.length > 0 ? extraOccupants : undefined,
+          });
 
           successCount++;
           newResults[room.reservationId] = {
             reservationId: room.reservationId,
             success: true,
-            message: `Nhận phòng thành công${stayRes.data?.accessCode ? ` · Mã GuestOS: ${stayRes.data.accessCode}` : ""}`,
+            message: `Nhận phòng thành công${stayData?.accessCode ? ` · Mã GuestOS: ${stayData.accessCode}` : ""}`,
             action: "CHECK_IN",
             timestamp: Date.now(),
           };
@@ -1609,7 +1602,7 @@ function GroupCheckInForm({
                           <p className="text-xs text-amber-900 font-semibold pt-0.5">
                             Lưu trú hiện tại: <span className="font-bold text-slate-900">{activeRoomConflict.stay.guestDisplayName}</span>
                             {activeRoomConflict.stay.plannedCheckOutAt
-                              ? ` · Trả phòng dự kiến: ${toDisplayVnDate(activeRoomConflict.stay.plannedCheckOutAt)}`
+                              ? ` · Trả phòng dự kiến: ${toDisplayVnDate(toVietnamYmd(activeRoomConflict.stay.plannedCheckOutAt) || "")}`
                               : ""}
                           </p>
                         )}
@@ -1787,9 +1780,9 @@ function GroupCheckInForm({
                 <span className="font-bold text-slate-600 uppercase tracking-wider text-xs whitespace-nowrap">Hạn trả:</span>
                 <input
                   type="datetime-local"
-                  value={activeRoom.plannedCheckOutAt ? activeRoom.plannedCheckOutAt.slice(0, 16) : ""}
+                  value={toVietnamDatetimeLocal(activeRoom.plannedCheckOutAt)}
                   onChange={(e) => {
-                    const val = e.target.value ? new Date(e.target.value).toISOString() : "";
+                    const val = parseHotelDatetimeToIso(e.target.value) || "";
                     setRoomsState((prev) => {
                       const next = [...prev];
                       next[activeRoomIndex] = {

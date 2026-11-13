@@ -1,7 +1,19 @@
+export type FolioListSummary = {
+  totalFolios: number;
+  openFolios: number;
+  closedFolios: number;
+  totalValue: number;
+  collectedAmount: number;
+  outstandingAmount: number;
+  openValue: number;
+  closedValue: number;
+};
+
 export type BillingPage<TItem> = {
   page: number;
   limit: number;
   total: number;
+  summary?: FolioListSummary;
   items: TItem[];
 };
 
@@ -58,7 +70,16 @@ export type FolioListItem = FolioSummary & {
   invoiceId?: string | null;
   billId?: string | null;
   postedRoomCharge?: MoneyValue | null;
-  invoice?: { id?: string | null; invoiceNumber?: string | null } | null;
+  paidAmount?: MoneyValue;
+  balanceAmount?: MoneyValue;
+  invoice?: {
+    id?: string | null;
+    invoiceNumber?: string | null;
+    status?: string;
+    totalAmount?: MoneyValue;
+    paidAmount?: MoneyValue;
+    balanceAmount?: MoneyValue;
+  } | null;
   subtotalAmount?: MoneyValue;
   taxAmount?: MoneyValue;
   discountAmount?: MoneyValue;

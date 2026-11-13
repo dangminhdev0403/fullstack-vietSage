@@ -2,7 +2,6 @@
 
 import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { showSuccessAlert } from "@/libs/swal";
@@ -374,7 +373,6 @@ export function FrontDeskRoomDetailPanel({
   arrival,
   triggerElementRef,
 }: FrontDeskRoomDetailPanelProps) {
-  const router = useRouter();
   const panelRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const titleId = useId();
@@ -387,12 +385,14 @@ export function FrontDeskRoomDetailPanel({
   const queryClient = useQueryClient();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isCheckoutSettlementOpen, setIsCheckoutSettlementOpen] = useState(false);
+  const [conflictCheckoutTarget, setConflictCheckoutTarget] = useState<{
+    room: HotelRoomSummary;
+    stay: NonNullable<HotelRoomSummary["activeStay"]>;
+  } | null>(null);
   const [localReservation, setLocalReservation] = useState<HotelArrival | null>(null);
 
   const { data: roomsPage } = useQuery({
-    ...staffRoomsResource.bind({ hotelId }).queries.list.options({
-      limit: 100,
-    }),
+    ...staffRoomsResource.bind({ hotelId }).queries.allRooms.options(),
     enabled: Boolean(isOpen && isEditModalOpen),
     staleTime: 30_000,
   });
@@ -616,14 +616,10 @@ export function FrontDeskRoomDetailPanel({
     return "—";
   }, [stay, reservation]);
 
-  // Safe Checkout navigation to Billing workspace
+  // Open in-place Checkout Settlement Modal instead of cross-tab navigation
   function handleGoToCheckout() {
-    const params = new URLSearchParams();
-    if (room?.roomNumber) params.set("roomNumber", room.roomNumber);
-    if (room?.id) params.set("roomId", room.id);
-    if (stay?.id) params.set("stayId", stay.id);
-    onClose();
-    router.push(`/hotels/${encodeURIComponent(hotelId)}/billing?${params.toString()}`);
+    if (!canViewBilling || (!canCheckoutBilling && !canCheckOutStay)) return;
+    setIsCheckoutSettlementOpen(true);
   }
 
   async function handleExecuteCheckIn() {
@@ -1678,10 +1674,44 @@ export function FrontDeskRoomDetailPanel({
             onCheckOutConflictingStay={
               canViewBilling && (canCheckoutBilling || canCheckOutStay)
                 ? (targetStayId, roomNumber) => {
-                    const params = new URLSearchParams({ stayId: targetStayId, roomNumber });
+                    const matchedRoom =
+                      roomsPage?.items?.find(
+                        (r) =>
+                          r.activeStay?.id === targetStayId ||
+                          (roomNumber && r.roomNumber === roomNumber),
+                      ) ??
+                      (room.activeStay?.id === targetStayId ? room : null);
+                    const checkoutRoom: HotelRoomSummary = matchedRoom ?? {
+                      id: reservation?.roomId || room.id,
+                      roomNumber: roomNumber || room.roomNumber || "",
+                      floor: null,
+                      type:
+                        (reservation && "room" in reservation
+                          ? reservation.room?.type
+                          : null) ||
+                        room.type ||
+                        null,
+                    };
+                    const checkoutStay: NonNullable<HotelRoomSummary["activeStay"]> =
+                      matchedRoom?.activeStay &&
+                      matchedRoom.activeStay.id === targetStayId
+                        ? matchedRoom.activeStay
+                        : {
+                            id: targetStayId,
+                            guestDisplayName:
+                              stay?.id === targetStayId
+                                ? stay.guestDisplayName
+                                : undefined,
+                            plannedCheckOutAt:
+                              stay?.id === targetStayId
+                                ? stay.plannedCheckOutAt
+                                : undefined,
+                          };
                     setIsEditModalOpen(false);
-                    onClose();
-                    router.push(`/hotels/${encodeURIComponent(hotelId)}/billing?${params.toString()}`);
+                    setConflictCheckoutTarget({
+                      room: checkoutRoom,
+                      stay: checkoutStay,
+                    });
                   }
                 : undefined
             }
@@ -1713,6 +1743,20 @@ export function FrontDeskRoomDetailPanel({
             onCheckoutSuccess={async () => {
               setIsCheckoutSettlementOpen(false);
               onClose();
+              await invalidateHotelRealtimeQueries(queryClient, hotelId);
+            }}
+          />
+        )}
+
+        {conflictCheckoutTarget && (
+          <RoomCheckoutSettlementModal
+            isOpen
+            onClose={() => setConflictCheckoutTarget(null)}
+            hotelId={hotelId}
+            room={conflictCheckoutTarget.room}
+            stay={conflictCheckoutTarget.stay}
+            onCheckoutSuccess={async () => {
+              setConflictCheckoutTarget(null);
               await invalidateHotelRealtimeQueries(queryClient, hotelId);
             }}
           />

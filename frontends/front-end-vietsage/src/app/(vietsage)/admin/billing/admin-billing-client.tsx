@@ -1,6 +1,7 @@
 "use client";
 
 import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { showConfirmDialog, showErrorAlert, showSuccessAlert, showWarningAlert } from "@/libs/swal";
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import { runtimeConsole } from "@/core/logging/runtime-console";
@@ -101,26 +102,24 @@ export function AdminBillingClient({
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [activeTab, setActiveTab] = useState<"invoices" | "finalize" | "contracts" | "localmate">(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const tabParam = params.get("tab");
-      if (
-        tabParam === "finalize" ||
-        tabParam === "contracts" ||
-        tabParam === "invoices" ||
-        tabParam === "localmate"
-      ) {
-        return tabParam;
-      }
-    }
-    return activeView;
-  });
+  const searchParams = useSearchParams();
+  const rawTabParam = searchParams?.get("tab");
+  const resolvedUrlTab: "invoices" | "finalize" | "contracts" | "localmate" =
+    rawTabParam === "finalize" ||
+    rawTabParam === "contracts" ||
+    rawTabParam === "invoices" ||
+    rawTabParam === "localmate"
+      ? rawTabParam
+      : activeView;
 
-  const [prevActiveView, setPrevActiveView] = useState(activeView);
-  if (prevActiveView !== activeView) {
-    setPrevActiveView(activeView);
-    setActiveTab(activeView);
+  const [activeTab, setActiveTab] = useState<"invoices" | "finalize" | "contracts" | "localmate">(
+    resolvedUrlTab,
+  );
+
+  const [prevResolvedTab, setPrevResolvedTab] = useState(resolvedUrlTab);
+  if (prevResolvedTab !== resolvedUrlTab) {
+    setPrevResolvedTab(resolvedUrlTab);
+    setActiveTab(resolvedUrlTab);
   }
 
   // LocalMate Platform Fee Configuration State
@@ -966,8 +965,8 @@ export function AdminBillingClient({
       )}
 
       {/* Navigation Tab Bar — Segmented Control Style */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/60 bg-slate-100/70 px-2 py-2 dark:border-slate-800 dark:bg-slate-900/60">
-        <nav className="flex flex-wrap gap-1" aria-label="Finance Views Navigation">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/60 bg-slate-100/70 px-2 py-2 dark:border-slate-800 dark:bg-slate-900/60 md:justify-end md:border-transparent md:bg-transparent md:p-0">
+        <nav className="flex flex-wrap gap-1 md:hidden" aria-label="Finance Views Navigation">
           <button
             type="button"
             onClick={() => handleTabChange("invoices")}

@@ -15,20 +15,68 @@ export function checkInRecovery(reason: string) {
   return { label: "Nhận phòng chưa thành công", action: "retry" as const, guidance: "Kiểm tra lại thông tin, cập nhật trạng thái rồi thử lại. Thông tin khách đang nhập được giữ lại." };
 }
 
-export function formatFriendlyCheckInError(error: unknown): string {
-  const errObj = error as Record<string, unknown> | null;
-  const nestedData = (errObj?.data as Record<string, unknown>)?.data as Record<string, unknown> | undefined;
-  const directData = errObj?.data as Record<string, unknown> | undefined;
-  const detailStr =
+function extractErrorContext(error: unknown): {
+  status?: number;
+  code: string;
+  detail: string;
+  message: string;
+  normalized: string;
+} {
+  const errObj = error && typeof error === "object" ? (error as Record<string, unknown>) : null;
+  const responseObj =
+    errObj?.response && typeof errObj.response === "object"
+      ? (errObj.response as Record<string, unknown>)
+      : undefined;
+  const directData =
+    errObj?.data && typeof errObj.data === "object"
+      ? (errObj.data as Record<string, unknown>)
+      : responseObj?.data && typeof responseObj.data === "object"
+        ? (responseObj.data as Record<string, unknown>)
+        : undefined;
+  const nestedData =
+    directData?.data && typeof directData.data === "object"
+      ? (directData.data as Record<string, unknown>)
+      : undefined;
+  const nestedError =
+    directData?.error && typeof directData.error === "object"
+      ? (directData.error as Record<string, unknown>)
+      : responseObj?.error && typeof responseObj.error === "object"
+        ? (responseObj.error as Record<string, unknown>)
+        : undefined;
+
+  const code =
+    (typeof nestedData?.code === "string" ? nestedData.code : "") ||
+    (typeof directData?.code === "string" ? directData.code : "") ||
+    (typeof nestedError?.code === "string" ? nestedError.code : "") ||
+    (typeof errObj?.code === "string" ? errObj.code : "");
+
+  const detail =
     (typeof nestedData?.detail === "string" ? nestedData.detail : "") ||
     (typeof directData?.detail === "string" ? directData.detail : "") ||
-    "";
-  const msg = error instanceof Error ? error.message : String(error || "");
-  const combined = `${detailStr} ${msg}`.trim();
-  const normalized = combined.toUpperCase();
+    (typeof nestedData?.message === "string" ? nestedData.message : "") ||
+    (typeof directData?.message === "string" ? directData.message : "");
 
-  if (errObj?.status === 403 || /FORBIDDEN|PERMISSION_DENIED|ACCESS_DENIED|KHÔNG CÓ QUYỀN/.test(normalized)) {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof errObj?.message === "string"
+        ? errObj.message
+        : String(error || "");
+
+  const status = typeof errObj?.status === "number" ? errObj.status : undefined;
+  const normalized = `${code} ${detail} ${message}`.trim().toUpperCase();
+  return { status, code, detail, message, normalized };
+}
+
+export function formatFriendlyCheckInError(error: unknown): string {
+  const { status, detail, message: msg, normalized } = extractErrorContext(error);
+
+  if (status === 403 || /FORBIDDEN|PERMISSION_DENIED|ACCESS_DENIED|KHÔNG CÓ QUYỀN/.test(normalized)) {
     return "Tài khoản chưa được cấp quyền nhận phòng tại khách sạn này. Vui lòng nhờ quản lý kiểm tra quyền truy cập.";
+  }
+
+  if (normalized.includes("OVERDUE_STAY_HAS_UNPAID_FOLIO")) {
+    return "Phòng đang còn lượt lưu trú quá hạn và hóa đơn chưa tất toán. Vui lòng thanh toán và trả phòng cũ trước khi nhận khách mới.";
   }
 
   if (normalized.includes("ROOM_ALREADY_HAS_ACTIVE_STAY_OR_FOLIO")) {
@@ -97,24 +145,18 @@ export function formatFriendlyCheckInError(error: unknown): string {
 
   if (
     normalized.includes("ROOM_CHECK_IN_CONFLICT") ||
+    normalized.includes("DỮ LIỆU ĐẶT PHÒNG ĐÃ THAY ĐỔI") ||
     normalized.includes("409") ||
     normalized.includes("CONFLICT")
   ) {
     return "Xung đột dữ liệu nhận phòng. Trạng thái phòng hoặc đơn đặt phòng vừa bị thay đổi bởi thao tác khác. Vui lòng tải lại dữ liệu để cập nhật trạng thái mới nhất.";
   }
 
-  return msg || "Đã có lỗi xảy ra khi nhận phòng. Vui lòng thử lại.";
+  return detail || msg || "Đã có lỗi xảy ra khi nhận phòng. Vui lòng thử lại.";
 }
 
 export function formatFriendlyHotelOpsError(error: unknown): string {
-  const errObj = error as Record<string, unknown> | null;
-  const nestedData = (errObj?.data as Record<string, unknown>)?.data as Record<string, unknown> | undefined;
-  const directData = errObj?.data as Record<string, unknown> | undefined;
-  const detail =
-    (typeof nestedData?.detail === "string" ? nestedData.detail : "") ||
-    (typeof directData?.detail === "string" ? directData.detail : "");
-  const message = error instanceof Error ? error.message : String(error || "");
-  const normalized = `${detail} ${message}`.toUpperCase();
+  const { normalized } = extractErrorContext(error);
 
   if (normalized.includes("ROOM_RESERVATION_OVERLAP")) {
     return "Phòng đã có đặt phòng trùng thời gian. Vui lòng chọn phòng trống khác hoặc cập nhật lịch.";
@@ -125,48 +167,51 @@ export function formatFriendlyHotelOpsError(error: unknown): string {
   if (normalized.includes("MISSING_AGREED_ROOM_RATE_SNAPSHOT")) {
     return "Đặt phòng chưa có giá phòng đã chốt. Vui lòng cập nhật giá trước khi xem kế hoạch phòng.";
   }
+  if (normalized.includes("OVERDUE_STAY_HAS_UNPAID_FOLIO")) {
+    return "Phòng đang còn lượt lưu trú quá hạn và hóa đơn chưa tất toán. Vui lòng thanh toán và trả phòng cũ trước khi nhận khách mới.";
+  }
 
   return formatFriendlyCheckInError(error);
 }
 
 export function isEarlyCheckInError(error: unknown): boolean {
-  const msg = error instanceof Error ? error.message : String(error || "");
-  const upper = msg.toUpperCase();
+  const { normalized } = extractErrorContext(error);
   return (
-    upper.includes("EARLY_CHECK_IN_NOT_ALLOWED") ||
-    upper.includes("EARLY_CHECK_IN_CONFIRMATION_REQUIRED")
+    normalized.includes("EARLY_CHECK_IN_NOT_ALLOWED") ||
+    normalized.includes("EARLY_CHECK_IN_CONFIRMATION_REQUIRED")
   );
 }
 
 export function isLateCheckInError(error: unknown): boolean {
-  const msg = error instanceof Error ? error.message : String(error || "");
-  const upper = msg.toUpperCase();
-  return upper.includes("LATE_CHECK_IN") || upper.includes("OVERDUE_CHECK_IN");
+  const { normalized } = extractErrorContext(error);
+  return normalized.includes("LATE_CHECK_IN") || normalized.includes("OVERDUE_CHECK_IN");
 }
 
 export function isConflictOrStaleError(error: unknown): boolean {
-  const msg = error instanceof Error ? error.message : String(error || "");
-  const upper = msg.toUpperCase();
+  const { normalized } = extractErrorContext(error);
   return (
-    upper.includes("ROOM_CHECK_IN_CONFLICT") ||
-    upper.includes("RESERVATION_NOT_READY_FOR_CHECK_IN") ||
-    upper.includes("ROOM_ALREADY_HAS_ACTIVE_STAY_OR_FOLIO") ||
-    upper.includes("CONFLICT") ||
-    upper.includes("409")
+    normalized.includes("ROOM_CHECK_IN_CONFLICT") ||
+    normalized.includes("RESERVATION_NOT_READY_FOR_CHECK_IN") ||
+    normalized.includes("ROOM_ALREADY_HAS_ACTIVE_STAY_OR_FOLIO") ||
+    normalized.includes("STALE_RESERVATION_RECORD") ||
+    normalized.includes("STALE_ROOM_ASSIGNMENT") ||
+    normalized.includes("STALE") ||
+    normalized.includes("CONFLICT") ||
+    normalized.includes("409") ||
+    /DỮ LIỆU.*THAY ĐỔI|PHIÊN KHÁC|XUNG ĐỘT/.test(normalized)
   );
 }
 
 export function isAlreadyCheckedInError(error: unknown): boolean {
-  const msg = error instanceof Error ? error.message : String(error || "");
-  const upper = msg.toUpperCase();
+  const { normalized } = extractErrorContext(error);
   return (
-    upper.includes("ALREADY_CHECKED_IN") ||
-    upper.includes("CHECKED_IN_RESERVATION_MISSING") ||
-    (upper.includes("CHECKED_IN") && !upper.includes("EARLY"))
+    normalized.includes("ALREADY_CHECKED_IN") ||
+    normalized.includes("CHECKED_IN_RESERVATION_MISSING") ||
+    (normalized.includes("CHECKED_IN") && !normalized.includes("EARLY"))
   );
 }
 
 export function isCancelledReservationError(error: unknown): boolean {
-  const msg = error instanceof Error ? error.message : String(error || "");
-  return msg.toUpperCase().includes("CANCELLED");
+  const { normalized } = extractErrorContext(error);
+  return normalized.includes("CANCELLED");
 }

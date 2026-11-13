@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 
 import { VietSageBrand } from "@/components/brand/vietsage-brand";
@@ -8,7 +8,10 @@ import type {
   DashboardNavItem,
   DashboardNavSection,
 } from "@/features/workspace/types/workspace-navigation";
-import { isNavItemActive } from "@/features/workspace/utils/workspace-nav-active";
+import {
+  isNavItemActive,
+  isSubNavItemActive,
+} from "@/features/workspace/utils/workspace-nav-active";
 
 import { VsIcon } from "./vs-icon";
 
@@ -46,6 +49,7 @@ export function VsDashboardSidebar({
   sidebarWidth = "default",
 }: Readonly<VsDashboardSidebarProps>) {
   const navigationItems = useMemo(() => items ?? [], [items]);
+  const [expandedOverrides, setExpandedOverrides] = useState<Record<string, boolean>>({});
 
   const groupedItems = useMemo(() => {
     const map = new Map<DashboardNavSection, DashboardNavItem[]>();
@@ -155,6 +159,9 @@ export function VsDashboardSidebar({
               {group.items.map((item) => {
                 const isActive = isNavItemActive(item.href, activePath, navigationItems);
                 const badge = badgeByKey?.[item.key] ?? 0;
+                const subItems = item.children ?? [];
+                const hasSubItems = subItems.length > 0;
+                const isExpanded = hasSubItems && (expandedOverrides[item.key] ?? isActive);
 
                 if (isCollapsed) {
                   return (
@@ -187,49 +194,178 @@ export function VsDashboardSidebar({
                         ) : null}
                       </Link>
 
-                      {/* Tooltip on hover when collapsed */}
-                      <div className="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 z-50 hidden group-hover:flex items-center gap-2 rounded-xl border border-[#e8b363]/25 bg-[#17201b] px-3.5 py-2 text-xs font-medium text-[#f8f1e6] shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-md whitespace-nowrap">
-                        <span>{item.label}</span>
-                        {badge > 0 ? (
-                          <span className="rounded-full bg-[#e8b363] px-1.5 py-0.5 text-xs font-semibold text-[#17201b]">
-                            {badge > 99 ? "99+" : badge}
-                          </span>
-                        ) : null}
-                      </div>
+                      {/* Tooltip / Sub-navigation flyout on hover when collapsed */}
+                      {hasSubItems ? (
+                        <div className=" absolute left-full ml-3 top-0 z-50 hidden min-w-56 flex-col gap-1 rounded-2xl border border-[#e8b363]/25 bg-[#17201b] p-2 text-xs text-[#f8f1e6] shadow-[0_14px_36px_rgba(0,0,0,0.45)] backdrop-blur-md before:absolute before:-left-3 before:inset-y-0 before:w-3 before:content-[''] group-hover:flex hover:flex">
+                          <div className="flex items-center justify-between gap-2 border-b border-[#e8b363]/15 px-2.5 py-1.5 font-semibold text-[#e8b363] whitespace-nowrap">
+                            <span>{item.label}</span>
+                            {badge > 0 ? (
+                              <span className="rounded-full bg-[#e8b363] px-1.5 py-0.5 text-xs font-semibold text-[#17201b]">
+                                {badge > 99 ? "99+" : badge}
+                              </span>
+                            ) : null}
+                          </div>
+                          {subItems.map((subItem) => {
+                            const isSubActive =
+                              isActive &&
+                              isSubNavItemActive(subItem, item.href, activePath, subItems);
+                            return (
+                              <Link
+                                key={subItem.key}
+                                href={subItem.href}
+                                prefetch={true}
+                                className={`flex min-h-9 items-center gap-2 rounded-xl px-2.5 py-1.5 text-xs font-medium transition-colors whitespace-nowrap ${
+                                  isSubActive
+                                    ? "bg-[#e8b363]/20 text-[#fff8e8] font-semibold border border-[#e8b363]/40"
+                                    : "text-[#d7cbb8] hover:bg-white/10 hover:text-[#fff8e8]"
+                                }`}
+                              >
+                                {subItem.icon ? (
+                                  <VsIcon
+                                    name={subItem.icon}
+                                    className={`text-[15px] shrink-0 ${
+                                      isSubActive ? "text-[#e8b363]" : "text-[#e8b363]/75"
+                                    }`}
+                                  />
+                                ) : null}
+                                <span className="truncate">{subItem.label}</span>
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 z-50 hidden group-hover:flex items-center gap-2 rounded-xl border border-[#e8b363]/25 bg-[#17201b] px-3.5 py-2 text-xs font-medium text-[#f8f1e6] shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-md whitespace-nowrap">
+                          <span>{item.label}</span>
+                          {badge > 0 ? (
+                            <span className="rounded-full bg-[#e8b363] px-1.5 py-0.5 text-xs font-semibold text-[#17201b]">
+                              {badge > 99 ? "99+" : badge}
+                            </span>
+                          ) : null}
+                        </div>
+                      )}
                     </div>
                   );
                 }
 
                 return (
-                  <Link
-                    key={item.key}
-                    href={item.href}
-                    prefetch={true}
-                    className={`group flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium transition-all duration-200 ${
-                      isActive
-                        ? "bg-[#f8f1e6] text-[#17201b] shadow-[0_4px_16px_rgba(0,0,0,0.18)]"
-                        : "text-[#d7cbb8] hover:bg-white/10 hover:text-[#fff8e8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e8b363]"
-                    }`}
-                  >
-                    <span
-                      className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg transition-colors ${
+                  <div key={item.key} className="space-y-1">
+                    <div
+                      className={`group flex h-11 items-center rounded-xl transition-all duration-200 ${
                         isActive
-                          ? "bg-[#e8b363] text-[#17201b]"
-                          : "bg-white/8 text-[#e8b363] group-hover:bg-white/14"
+                          ? "bg-[#f8f1e6] text-[#17201b] shadow-[0_4px_16px_rgba(0,0,0,0.18)]"
+                          : "text-[#d7cbb8] hover:bg-white/10 hover:text-[#fff8e8]"
                       }`}
                     >
-                      <VsIcon name={item.icon} className="text-[18px]" />
-                    </span>
-                    <span className="min-w-0 flex-1 truncate text-sm font-medium whitespace-nowrap">{item.label}</span>
-                    {badge > 0 ? (
-                      <span
-                        className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-[#e8b363] px-1.5 text-xs font-semibold text-[#17201b] shadow-sm transition-all whitespace-nowrap"
-                        aria-label={`${item.label}, ${badge} tin chưa đọc`}
+                      <Link
+                        href={item.href}
+                        prefetch={true}
+                        onClick={() => {
+                          if (hasSubItems) {
+                            setExpandedOverrides((prev) => ({
+                              ...prev,
+                              [item.key]: true,
+                            }));
+                          }
+                        }}
+                        className="flex h-full min-w-0 flex-1 items-center gap-3 rounded-xl pl-3 pr-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e8b363]"
                       >
-                        {badge > 99 ? "99+" : badge}
-                      </span>
+                        <span
+                          className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg transition-colors ${
+                            isActive
+                              ? "bg-[#e8b363] text-[#17201b]"
+                              : "bg-white/8 text-[#e8b363] group-hover:bg-white/14"
+                          }`}
+                        >
+                          <VsIcon name={item.icon} className="text-[18px]" />
+                        </span>
+                        <span className="min-w-0 flex-1 truncate text-sm font-medium whitespace-nowrap">
+                          {item.label}
+                        </span>
+                        {badge > 0 ? (
+                          <span
+                            className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-[#e8b363] px-1.5 text-xs font-semibold text-[#17201b] shadow-sm transition-all whitespace-nowrap"
+                            aria-label={`${item.label}, ${badge} tin chưa đọc`}
+                          >
+                            {badge > 99 ? "99+" : badge}
+                          </span>
+                        ) : null}
+                      </Link>
+
+                      {hasSubItems ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setExpandedOverrides((prev) => ({
+                              ...prev,
+                              [item.key]: !isExpanded,
+                            }))
+                          }
+                          aria-expanded={isExpanded}
+                          aria-label={
+                            isExpanded
+                              ? `Thu gọn mục con của ${item.label}`
+                              : `Mở rộng mục con của ${item.label}`
+                          }
+                          className={`mr-1.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e8b363] ${
+                            isActive
+                              ? "text-[#17201b]/75 hover:bg-[#17201b]/10 hover:text-[#17201b]"
+                              : "text-[#e8b363]/80 hover:bg-white/10 hover:text-[#fff8e8]"
+                          }`}
+                        >
+                          <VsIcon
+                            name="expand_more"
+                            className={`text-[18px] transition-transform duration-200 ${
+                              isExpanded ? "rotate-180" : "rotate-0"
+                            }`}
+                          />
+                        </button>
+                      ) : null}
+                    </div>
+
+                    {hasSubItems && isExpanded ? (
+                      <div
+                        role="group"
+                        aria-label={`Danh mục con của ${item.label}`}
+                        className="ml-5 space-y-1 border-l border-[#e8b363]/25 pl-3 py-0.5"
+                      >
+                        {subItems.map((subItem) => {
+                          const isSubActive =
+                            isActive &&
+                            isSubNavItemActive(subItem, item.href, activePath, subItems);
+                          return (
+                            <Link
+                              key={subItem.key}
+                              href={subItem.href}
+                              prefetch={true}
+                              aria-current={isSubActive ? "page" : undefined}
+                              className={`group/sub flex min-h-9 items-center gap-2.5 rounded-xl px-3 py-1.5 text-xs font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e8b363] ${
+                                isSubActive
+                                  ? "border border-[#e8b363]/45 bg-[#e8b363]/20 font-semibold text-[#fff8e8] shadow-2xs"
+                                  : "text-[#d7cbb8]/90 hover:bg-white/8 hover:text-[#fff8e8]"
+                              }`}
+                            >
+                              {subItem.icon ? (
+                                <VsIcon
+                                  name={subItem.icon}
+                                  className={`text-[15px] shrink-0 transition-colors ${
+                                    isSubActive
+                                      ? "text-[#e8b363]"
+                                      : "text-[#e8b363]/70 group-hover/sub:text-[#e8b363]"
+                                  }`}
+                                />
+                              ) : null}
+                              <span className="min-w-0 flex-1 truncate whitespace-nowrap">
+                                {subItem.label}
+                              </span>
+                              {isSubActive ? (
+                                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#e8b363]" />
+                              ) : null}
+                            </Link>
+                          );
+                        })}
+                      </div>
                     ) : null}
-                  </Link>
+                  </div>
                 );
               })}
             </div>

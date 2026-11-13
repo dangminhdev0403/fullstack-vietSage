@@ -236,7 +236,7 @@ function ChannelManagerContent({
         <nav
           role="tablist"
           aria-label="Channel Manager Sections"
-          className="flex gap-2 overflow-x-auto border-b border-[#e5ddcd] pb-px"
+          className="flex gap-2 overflow-x-auto border-b border-[#e5ddcd] pb-px md:hidden"
         >
           {tabs.map((tab) => {
             const isActive = activeTab === tab.id;

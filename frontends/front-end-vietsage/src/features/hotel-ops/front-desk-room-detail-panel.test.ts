@@ -75,28 +75,12 @@ test("Housekeeping exclusion completely suppresses FrontDeskRoomDetailPanel", ()
   assert.match(clientSource, /if\s*\(isHousekeeping\)\s*\{\s*if\s*\(getRoomStatus\(room\)\s*===\s*"processing"\)\s*\{\s*void confirmRoomReady\(room\);/);
 });
 
-test("Safe billing checkout action URL computation and permission isolation", () => {
-  const hotelId = "hotel-abc";
-  const roomNumber = "101";
-  const roomId = "room-101-uuid";
-  const stayId = "stay-999-uuid";
-
-  // Simulate buildCheckoutUrl logic
-  const params = new URLSearchParams({
-    roomNumber,
-    roomId,
-    stayId,
-  });
-  const checkoutUrl = `/hotels/${encodeURIComponent(hotelId)}/billing?${params.toString()}`;
-
-  assert.equal(
-    checkoutUrl,
-    "/hotels/hotel-abc/billing?roomNumber=101&roomId=room-101-uuid&stayId=stay-999-uuid",
-  );
-
+test("Safe in-place checkout settlement and permission isolation without billing redirect", () => {
+  assert.doesNotMatch(panelSource, /useRouter|router\.push/);
   assert.match(panelSource, /canViewBilling\s*&&\s*\(canCheckoutBilling\s*\|\|\s*canCheckOutStay\)/);
-  // Verify that panel routes to billing instead of direct unsafe checkout
-  assert.match(panelSource, /router\.push\(`\/hotels\/\$\{encodeURIComponent\(hotelId\)\}\/billing\?\$\{params\.toString\(\)\}`\)/);
+  assert.match(panelSource, /setIsCheckoutSettlementOpen\(true\)/);
+  assert.match(panelSource, /setConflictCheckoutTarget\(/);
+  assert.match(panelSource, /<RoomCheckoutSettlementModal/);
 });
 
 test("reserved-room check-in uses only the backend check-in capability", () => {
@@ -140,7 +124,7 @@ test("StaffRoomsClient strictly derives effectiveStatus from backend room projec
   // Check collision guard in openWalkIn
   assert.match(clientSource, /const conflictRes = getRoomReservationDetails\(room\);/);
   assert.match(clientSource, /if \(conflictRes\?\.isReservedToday\)/);
-  assert.match(clientSource, /Phòng \$\{getRoomNumber\(room\)\} đã có khách đặt trước!/);
+  assert.match(clientSource, /title:\s*`Nhận phòng P\.\$\{getRoomNumber\(room\)\}\?`/);
 
   // Check arrival prop is passed to FrontDeskRoomDetailPanel for context only
   assert.match(clientSource, /arrival=\{\s*selectedContextRoom\s*\?\s*todayArrivalByRoomId\.get\(selectedContextRoom\.id\)/);

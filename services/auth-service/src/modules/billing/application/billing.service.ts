@@ -305,49 +305,114 @@ export class BillingService {
       take: pagination.take,
     });
 
+    const resolveFolioFinancials = (folio: any) => {
+      const invoice = folio.invoices?.[0] ?? null;
+      const roomChargeItems = Array.isArray(folio.items) ? folio.items : [];
+      const hasRoomChargeItem = roomChargeItems.length > 0;
+      const postedRoomCharge = roomChargeItems.reduce(
+        (sum: Prisma.Decimal, it: any) => sum.add(it.totalSnapshot ?? 0),
+        new Prisma.Decimal(0),
+      );
+
+      let subtotal = new Prisma.Decimal(folio.subtotalAmount ?? 0);
+      let total = new Prisma.Decimal(folio.totalAmount ?? 0);
+      let estimatedRoomCharge: ReturnType<BillingService["calculateEstimatedRoomCharge"]> | null =
+        null;
+
+      if (folio.status === FolioStatus.OPEN && !invoice) {
+        try {
+          estimatedRoomCharge = this.calculateEstimatedRoomCharge(folio);
+          if (estimatedRoomCharge && !hasRoomChargeItem) {
+            subtotal = subtotal.add(estimatedRoomCharge.subtotal);
+            total = total.add(estimatedRoomCharge.subtotal);
+          }
+        } catch {
+          estimatedRoomCharge = null;
+        }
+      }
+
+      const totalNum = total.toNumber();
+      const paidAmount = invoice ? Math.max(0, new Prisma.Decimal(invoice.paidAmount ?? 0).toNumber()) : 0;
+      const balanceAmount = invoice
+        ? Math.max(
+            0,
+            new Prisma.Decimal(
+              invoice.balanceAmount ?? Math.max(0, totalNum - paidAmount),
+            ).toNumber(),
+          )
+        : Math.max(0, totalNum);
+
+      return {
+        invoice,
+        hasRoomChargeItem,
+        postedRoomCharge,
+        subtotal,
+        total,
+        estimatedRoomCharge,
+        totalNum,
+        paidAmount,
+        balanceAmount,
+      };
+    };
+
+    const summarySource: any[] = Array.isArray((result as any).summaryRows)
+      ? (result as any).summaryRows
+      : result.rows;
+
+    const summary = summarySource.reduce(
+      (acc, folio) => {
+        const fin = resolveFolioFinancials(folio);
+        acc.totalFolios += 1;
+        acc.totalValue += fin.totalNum;
+        acc.collectedAmount += fin.paidAmount;
+        acc.outstandingAmount += fin.balanceAmount;
+        if (folio.status === FolioStatus.OPEN) {
+          acc.openFolios += 1;
+          acc.openValue += fin.totalNum;
+        } else if (
+          folio.status === FolioStatus.CLOSED ||
+          folio.status === FolioStatus.CHECKOUT_PENDING
+        ) {
+          acc.closedFolios += 1;
+          acc.closedValue += fin.totalNum;
+        }
+        return acc;
+      },
+      {
+        totalFolios: 0,
+        openFolios: 0,
+        closedFolios: 0,
+        totalValue: 0,
+        collectedAmount: 0,
+        outstandingAmount: 0,
+        openValue: 0,
+        closedValue: 0,
+      },
+    );
+
     return {
       page: pagination.page,
       limit: pagination.limit,
       total: result.total,
+      summary,
       items: result.rows.map((folio) => {
-        const invoice = folio.invoices[0] ?? null;
-        const roomChargeItems = Array.isArray((folio as any).items) ? (folio as any).items : [];
-        const hasRoomChargeItem = roomChargeItems.length > 0;
-        const postedRoomCharge = roomChargeItems.reduce(
-          (sum: Prisma.Decimal, it: any) => sum.add(it.totalSnapshot ?? 0),
-          new Prisma.Decimal(0),
-        );
-
-        let subtotal = folio.subtotalAmount;
-        let total = folio.totalAmount;
-        let estimatedRoomCharge: ReturnType<BillingService["calculateEstimatedRoomCharge"]> | null =
-          null;
-
-        if (folio.status === FolioStatus.OPEN && !invoice) {
-          try {
-            estimatedRoomCharge = this.calculateEstimatedRoomCharge(folio);
-            if (estimatedRoomCharge && !hasRoomChargeItem) {
-              subtotal = subtotal.add(estimatedRoomCharge.subtotal);
-              total = total.add(estimatedRoomCharge.subtotal);
-            }
-          } catch {
-            estimatedRoomCharge = null;
-          }
-        }
+        const fin = resolveFolioFinancials(folio);
 
         return {
           ...folio,
           invoices: undefined,
           items: undefined,
-          invoiceId: invoice?.id ?? null,
-          invoice,
-          subtotal,
+          invoiceId: fin.invoice?.id ?? null,
+          invoice: fin.invoice,
+          subtotal: fin.subtotal,
           tax: folio.taxAmount,
           discount: folio.discountAmount,
-          total,
-          postedRoomCharge: hasRoomChargeItem ? postedRoomCharge : null,
-          estimatedRoomCharge,
-          roomRateComparison: estimatedRoomCharge?.rateComparison ?? null,
+          total: fin.total,
+          paidAmount: fin.paidAmount,
+          balanceAmount: fin.balanceAmount,
+          postedRoomCharge: fin.hasRoomChargeItem ? fin.postedRoomCharge : null,
+          estimatedRoomCharge: fin.estimatedRoomCharge,
+          roomRateComparison: fin.estimatedRoomCharge?.rateComparison ?? null,
         };
       }),
     };

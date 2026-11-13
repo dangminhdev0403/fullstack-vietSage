@@ -38,6 +38,7 @@ import type {
   GroupConfirmationData,
   ReservationConfirmationData,
   HotelConfirmationTemplateConfig,
+  HotelPriorityAlertsResponse,
   RoomPlanResponse,
   UpdateReservationPlacementInput,
   UpdateReservationInput,
@@ -132,6 +133,20 @@ export class HotelOpsService {
     });
 
     return unwrapApiEnvelope<HotelOpsPage<HotelRoomSummary>>(payload).data;
+  }
+
+  async getPriorityAlerts(
+    hotelId: string,
+    options: AuthRequestOptions = {},
+  ): Promise<HotelPriorityAlertsResponse> {
+    const payload = await this.httpClient.request<unknown>({
+      method: "GET",
+      path: hotelPath(hotelId, "/rooms/priority-alerts"),
+      accessToken: options.accessToken,
+      accessTokenExpiresAt: options.accessTokenExpiresAt,
+    });
+
+    return unwrapApiEnvelope<HotelPriorityAlertsResponse>(payload).data;
   }
 
   async getHousekeepingScope(hotelId: string, options: AuthRequestOptions = {}): Promise<HousekeepingAssignmentScope> {
@@ -659,6 +674,7 @@ export class HotelOpsService {
       plannedCheckOutAt?: string;
       guestDisplayName?: string;
       guestPhone?: string;
+      expectedUpdatedAt?: string;
     },
     accessToken?: string,
     accessTokenExpiresAt?: number | null,

@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useState } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   showConfirmDialog,
   showErrorAlert,
@@ -28,7 +29,21 @@ export function OwnerNearbyProvidersClient({
   canManage?: boolean;
   canSettle?: boolean;
 }) {
-  const [activeTab, setActiveTab] = useState<"partners" | "settlements">("partners");
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const isStandalonePartnersPage = !pathname?.includes("/settings");
+  const urlTab: "partners" | "settlements" =
+    isStandalonePartnersPage &&
+    canManage &&
+    searchParams?.get("tab") === "settlements"
+      ? "settlements"
+      : "partners";
+  const [activeTab, setActiveTab] = useState<"partners" | "settlements">(urlTab);
+  const [prevUrlTab, setPrevUrlTab] = useState<"partners" | "settlements">(urlTab);
+  if (prevUrlTab !== urlTab) {
+    setPrevUrlTab(urlTab);
+    setActiveTab(urlTab);
+  }
   const { providers, orders, setProviderLink } =
     useNearbyServiceProviders(hotelId);
   const [searchTerm, setSearchTerm] = useState("");
@@ -188,7 +203,11 @@ export function OwnerNearbyProvidersClient({
   return (
     <section className="space-y-5">
       {/* Workspace Top Tabs */}
-      <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 pb-4">
+      <div
+        className={`flex flex-wrap items-center gap-3 border-b border-slate-200 pb-4 ${
+          isStandalonePartnersPage ? "md:hidden" : ""
+        }`}
+      >
         <button
           type="button"
           onClick={() => setActiveTab("partners")}

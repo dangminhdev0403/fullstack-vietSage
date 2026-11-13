@@ -113,12 +113,12 @@ export function GuestRequestRealtimeNotifier() {
       onUpdated: (request: Partial<GuestRequest> & { id: string }) => {
         playGuestRequestSound("updated");
         dispatchGuestRequestRealtime({ kind: "updated", request });
-        toast.info(t("requests.updatedStatus"));
+        toast.info(t("requests.updatedStatus"), { id: `guest-request-status-${request.id}` });
       },
       onAnswered: (request: Partial<GuestRequest> & { id: string }) => {
         playGuestRequestSound("answered");
         dispatchGuestRequestRealtime({ kind: "answered", request });
-        toast.success(t("requests.updatedAnswer"));
+        toast.success(t("requests.updatedAnswer"), { id: `guest-request-status-${request.id}` });
       },
       onGuestMessageCreated: () => {
         dispatchGuestRequestRealtime({ kind: "message" });

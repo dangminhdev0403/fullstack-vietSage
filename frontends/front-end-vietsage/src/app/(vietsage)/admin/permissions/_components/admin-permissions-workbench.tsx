@@ -36,13 +36,18 @@ export function AdminPermissionsWorkbench({
   const searchParams = useSearchParams();
   const [, startTransition] = useTransition();
 
-  const [activeTab, setActiveTab] = useState<AdminPermissionsTab>(() => {
-    const urlTab = searchParams.get("tab");
-    if (urlTab === "catalog" || urlTab === "roles") {
-      return urlTab;
-    }
-    return initialTab;
-  });
+  const urlTabParam = searchParams.get("tab");
+  const resolvedUrlTab: AdminPermissionsTab =
+    urlTabParam === "catalog" || urlTabParam === "roles"
+      ? urlTabParam
+      : initialTab;
+
+  const [activeTab, setActiveTab] = useState<AdminPermissionsTab>(resolvedUrlTab);
+  const [prevUrlTab, setPrevUrlTab] = useState<AdminPermissionsTab>(resolvedUrlTab);
+  if (prevUrlTab !== resolvedUrlTab) {
+    setPrevUrlTab(resolvedUrlTab);
+    setActiveTab(resolvedUrlTab);
+  }
 
   const handleTabChange = useCallback(
     (tab: AdminPermissionsTab) => {
@@ -72,7 +77,7 @@ export function AdminPermissionsWorkbench({
     <div className="space-y-5">
       {/* ── Primary Mode Navigation Tabs ── */}
       <div
-        className="flex items-center gap-1 border-b border-gray-200"
+        className="flex items-center gap-1 border-b border-gray-200 md:hidden"
         role="tablist"
         aria-label="Chế độ quản lý quyền hạn"
       >

@@ -58,7 +58,7 @@ export default async function AdminUsersPage({ searchParams }: Props) {
           <h1 className="mt-3 text-4xl font-semibold text-[var(--primary)]">Người dùng & Phạm vi truy cập</h1>
         </header>
 
-        <nav className="inline-flex rounded-xl border border-[var(--outline-variant)] bg-white p-1">
+        <nav className="inline-flex rounded-xl border border-[var(--outline-variant)] bg-white p-1 md:hidden">
           <Link href="/admin/users?tab=owners" prefetch={true} className={`rounded-lg px-4 py-2 text-sm font-semibold ${tab === "owners" ? "bg-[var(--primary)] text-white" : "text-[var(--primary)]"}`}>Chủ đơn vị</Link>
           {canViewStaff ? <Link href="/admin/users?tab=staff" prefetch={true} className={`rounded-lg px-4 py-2 text-sm font-semibold ${tab === "staff" ? "bg-[var(--primary)] text-white" : "text-[var(--primary)]"}`}>Nhân viên khách sạn</Link> : null}
         </nav>

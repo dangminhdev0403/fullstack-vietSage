@@ -309,6 +309,7 @@ export const updateStayBodySchema = z
       .max(120, "Tên khách hàng tối đa 120 ký tự")
       .optional(),
     guestPhone: z.string().trim().max(40, "Số điện thoại tối đa 40 ký tự").optional(),
+    expectedUpdatedAt: z.coerce.date({ message: "Mốc cập nhật không hợp lệ" }).optional(),
   })
   .strict();
 

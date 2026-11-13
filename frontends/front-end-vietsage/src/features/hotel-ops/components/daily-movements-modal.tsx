@@ -5,9 +5,14 @@ import { createPortal } from "react-dom";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
-import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import { staffRoomsRepository } from "@/features/hotel-ops/repositories/staff-rooms-repository";
+import { formatFriendlyHotelOpsError } from "@/features/hotel-ops/utils/check-in-error";
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
+import {
+  parseHotelDatetimeToIso,
+  toVietnamDatetimeLocal,
+  toVietnamYmd,
+} from "@/libs/vietnam-temporal";
 import { buildFrontDeskGroupSummaries } from "@/features/hotel-ops/utils/front-desk-groups";
 import type {
   HotelArrival,
@@ -98,22 +103,11 @@ function formatDateVi(value?: string | Date | null): string {
 }
 
 function toLocalDatetimeInput(isoStr?: string | null): string {
-  if (!isoStr) return "";
-  try {
-    const d = new Date(isoStr);
-    if (Number.isNaN(d.getTime())) return "";
-    const offsetMs = 7 * 60 * 60 * 1000;
-    const vnTime = new Date(d.getTime() + offsetMs);
-    return vnTime.toISOString().slice(0, 16);
-  } catch {
-    return "";
-  }
+  return toVietnamDatetimeLocal(isoStr);
 }
 
 function fromLocalDatetimeInput(localVal: string): string {
-  if (!localVal) return "";
-  const d = new Date(`${localVal}:00+07:00`);
-  return d.toISOString();
+  return parseHotelDatetimeToIso(localVal) || "";
 }
 
 export function DailyMovementsModal({
@@ -189,7 +183,7 @@ export function DailyMovementsModal({
   // Filter Arrivals
   const targetArrivals = useMemo(() => {
     return arrivalsList.filter((arr) => {
-      const arrYmd = arr.plannedCheckInAt ? arr.plannedCheckInAt.slice(0, 10) : "";
+      const arrYmd = toVietnamYmd(arr.plannedCheckInAt) || "";
       return arrYmd === targetDateYmd;
     });
   }, [arrivalsList, targetDateYmd]);
@@ -225,8 +219,8 @@ export function DailyMovementsModal({
       const stay = room.activeStay;
       if (!stay) continue;
 
-      const outYmd = stay.plannedCheckOutAt ? stay.plannedCheckOutAt.slice(0, 10) : "";
-      const actualOutYmd = stay.checkedOutAt ? stay.checkedOutAt.slice(0, 10) : "";
+      const outYmd = stay.plannedCheckOutAt ? (toVietnamYmd(stay.plannedCheckOutAt) || "") : "";
+      const actualOutYmd = stay.checkedOutAt ? (toVietnamYmd(stay.checkedOutAt) || "") : "";
 
       if (stay.checkedOutAt && actualOutYmd === targetDateYmd) {
         list.push({ room, stay, status: "CHECKED_OUT" });
@@ -332,7 +326,7 @@ export function DailyMovementsModal({
       } catch (err) {
         await showErrorAlert(
           "Không thể trả phòng",
-          err instanceof Error ? err.message : "Đã có lỗi xảy ra khi thực hiện trả phòng.",
+          formatFriendlyHotelOpsError(err),
         );
       } finally {
         setIsSubmitting(false);
@@ -984,23 +978,17 @@ function EditBookingSubModal({
     try {
       const parsedRate = rate.trim() ? Number(rate.replace(/\D/g, "")) : undefined;
       const payload = {
-        startDate: checkInIso.slice(0, 10),
-        endDate: checkOutIso.slice(0, 10),
+        startDate: toVietnamYmd(checkInIso) || checkInIso.slice(0, 10),
+        endDate: toVietnamYmd(checkOutIso) || checkOutIso.slice(0, 10),
         plannedCheckInAt: checkInIso,
         plannedCheckOutAt: checkOutIso,
         ...(parsedRate !== undefined && !Number.isNaN(parsedRate)
           ? { rate: parsedRate, nightlyRateSnapshot: parsedRate }
           : {}),
-        expectedUpdatedAt: arrival.updatedAt || new Date().toISOString(),
+        expectedUpdatedAt: arrival.updatedAt ?? undefined,
       };
 
-      await requestInternalApiEnvelope(
-        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/reservations/${encodeURIComponent(arrival.id)}/dates`,
-        {
-          method: "PATCH",
-          body: payload,
-        },
-      );
+      await staffRoomsRepository.updateReservationDates(hotelId, arrival.id, payload);
 
       await showSuccessAlert(
         "Cập nhật thành công",
@@ -1010,7 +998,7 @@ function EditBookingSubModal({
     } catch (err) {
       await showErrorAlert(
         "Không thể cập nhật",
-        err instanceof Error ? err.message : "Đã có lỗi xảy ra khi lưu thay đổi.",
+        formatFriendlyHotelOpsError(err),
       );
     } finally {
       setSaving(false);
@@ -1158,13 +1146,10 @@ function AssignOrSwapRoomSubModal({
 
     setSubmitting(true);
     try {
-      await requestInternalApiEnvelope(
-        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/reservations/${encodeURIComponent(arrival.id)}/room`,
-        {
-          method: "PUT",
-          body: { roomId: selectedRoomId },
-        },
-      );
+      await staffRoomsRepository.assignReservationRoom(hotelId, arrival.id, {
+        roomId: selectedRoomId,
+        expectedUpdatedAt: arrival.updatedAt ?? undefined,
+      });
       await showSuccessAlert(
         "Gán phòng thành công",
         `Đã gán phòng cho khách ${arrival.guestDisplayName}.`,
@@ -1173,7 +1158,7 @@ function AssignOrSwapRoomSubModal({
     } catch (err) {
       await showErrorAlert(
         "Không thể gán phòng",
-        err instanceof Error ? err.message : "Đã có lỗi xảy ra khi gán phòng.",
+        formatFriendlyHotelOpsError(err),
       );
     } finally {
       setSubmitting(false);
@@ -1209,17 +1194,11 @@ function AssignOrSwapRoomSubModal({
 
     setSubmitting(true);
     try {
-      await requestInternalApiEnvelope(
-        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/reservations/${encodeURIComponent(arrival.id)}/placement`,
-        {
-          method: "PUT",
-          body: {
-            targetRoomId: targetSwap.roomId,
-            swapWithReservationId: targetSwap.id,
-            expectedUpdatedAt: arrival.updatedAt || new Date().toISOString(),
-          },
-        },
-      );
+      await staffRoomsRepository.placeReservationRoom(hotelId, arrival.id, {
+        targetRoomId: targetSwap.roomId,
+        swapWithReservationId: targetSwap.id,
+        expectedUpdatedAt: arrival.updatedAt ?? undefined,
+      });
       await showSuccessAlert(
         "Tráo phòng thành công",
         `Đã tráo đổi phòng giữa ${arrival.guestDisplayName} và ${targetSwap.guestDisplayName}.`,
@@ -1228,7 +1207,7 @@ function AssignOrSwapRoomSubModal({
     } catch (err) {
       await showErrorAlert(
         "Không thể tráo phòng",
-        err instanceof Error ? err.message : "Đã có lỗi xảy ra khi tráo phòng.",
+        formatFriendlyHotelOpsError(err),
       );
     } finally {
       setSubmitting(false);

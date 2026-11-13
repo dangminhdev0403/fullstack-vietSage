@@ -1,6 +1,7 @@
 "use client";
 
 import { type FormEvent, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { DataTable } from "@/components/ui/data-table";
@@ -164,9 +165,20 @@ export function MarketplaceAdminClient() {
   };
 
   // Workspace View & Dialog state
-  const [activeTab, setActiveTab] = useState<"partners" | "categories">(
-    "partners",
+  void (0
+
+
   );
+  const searchParams = useSearchParams();
+  const urlTab: "partners" | "categories" =
+    searchParams?.get("tab") === "categories" ? "categories" : "partners";
+
+  const [activeTab, setActiveTab] = useState<"partners" | "categories">(urlTab);
+  const [prevUrlTab, setPrevUrlTab] = useState<"partners" | "categories">(urlTab);
+  if (prevUrlTab !== urlTab) {
+    setPrevUrlTab(urlTab);
+    setActiveTab(urlTab);
+  }
   const [isTenantModalOpen, setIsTenantModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isPricingModalOpen, setIsPricingModalOpen] = useState(false);
@@ -970,7 +982,7 @@ export function MarketplaceAdminClient() {
           {/* Tab Switcher & Search Bar */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 min-w-0">
             {/* View Tab Switcher */}
-            <div className="inline-flex items-center gap-1.5 rounded-full border border-[#e8dfd1] bg-[#faf6ef] p-1.5 shrink-0">
+            <div className="inline-flex items-center gap-1.5 rounded-full border border-[#e8dfd1] bg-[#faf6ef] p-1.5 shrink-0 md:hidden">
               <button
                 type="button"
                 onClick={() => setActiveTab("partners")}

@@ -148,80 +148,115 @@ test("conflict checkout is unavailable without a checkout continuation", () => {
   assert.equal(conflictCheckoutCallback(context), undefined);
 });
 
-function billingTabCallback(context) {
+function inPlaceCheckoutCallback(context) {
   const tree = source("../../app/(vietsage)/hotels/[hotelId]/rooms/staff-rooms-client.tsx");
   const element = find(tree, (node) => (ts.isJsxSelfClosingElement(node) || ts.isJsxOpeningElement(node)) && node.tagName.getText(tree) === "TapeChartView");
   const prop = element.attributes.properties.find((node) => ts.isJsxAttribute(node) && node.name.getText(tree) === "onCheckOutStay");
   assert.ok(prop?.initializer && ts.isJsxExpression(prop.initializer));
-  return evaluate(prop.initializer.expression.getText(tree), { hotelId: "hotel-A", URLSearchParams, ...context });
+  return evaluate(prop.initializer.expression.getText(tree), {
+    hotelId: "hotel-A",
+    getRoomNumber: (room) => room.roomNumber || "",
+    canViewBilling: true,
+    canCheckoutBilling: true,
+    canCheckOutStay: true,
+    rooms: [],
+    staffRoomsRepository: {
+      list: async () => ({ items: [] }),
+      listAll: async () => ({ items: [] }),
+    },
+    showWarningAlert: async () => {},
+    setTapeCheckoutTarget: () => {},
+    ...context,
+  });
 }
 
-function popupContext() {
-  const events = [];
-  const popup = {
-    closed: false,
-    location: { pathname: "blank", search: "", replace: (url) => events.push(["navigate", url]) },
-    focus: () => events.push(["focus"]),
+test("tape chart checkout opens the in-place settlement modal when the room is loaded", async () => {
+  const warnings = [];
+  const targets = [];
+  const loadedRoom = {
+    id: "room-1003",
+    roomNumber: "1003",
+    activeStay: { id: "stay-A", guestDisplayName: "Nguyen Van A", plannedCheckOutAt: "2026-11-14T05:00:00Z" },
   };
-  const context = {
-    window: { open: (...args) => { events.push(["open", ...args]); return popup; } },
-    requestInternalApiEnvelope: async () => { events.push(["lookup"]); return { data: { id: "folio-A" } }; },
-    showWarningAlert: async () => events.push(["warning"]),
+  await inPlaceCheckoutCallback({
+    rooms: [loadedRoom],
+    showWarningAlert: async (...args) => warnings.push(args),
+    setTapeCheckoutTarget: (target) => targets.push(target),
+  })("stay-A", "1003");
+  assert.equal(warnings.length, 0);
+  assert.deepEqual(JSON.parse(JSON.stringify(targets)), [
+    { room: loadedRoom, stay: loadedRoom.activeStay },
+  ]);
+});
+
+test("tape chart checkout warns and skips modal when billing permission is missing", async () => {
+  const warnings = [];
+  const targets = [];
+  let repoCalled = false;
+  await inPlaceCheckoutCallback({
+    canViewBilling: false,
+    staffRoomsRepository: {
+      list: async () => { repoCalled = true; return { items: [] }; },
+      listAll: async () => { repoCalled = true; return { items: [] }; },
+    },
+    showWarningAlert: async (...args) => warnings.push(args),
+    setTapeCheckoutTarget: (target) => targets.push(target),
+  })("stay-A", "1003");
+  assert.equal(repoCalled, false);
+  assert.equal(targets.length, 0);
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0][0], /quyết toán/i);
+});
+
+test("tape chart checkout resolves rooms beyond the active page via repository fallback", async () => {
+  const targets = [];
+  const listCalls = [];
+  const remoteRoom = {
+    id: "room-501",
+    roomNumber: "501",
+    activeStay: { id: "stay-other", guestDisplayName: "Other Guest", plannedCheckOutAt: "2026-11-15T05:00:00Z" },
   };
-  return { popup, events, context };
-}
-
-test("billing tab opens during the click before awaiting the folio lookup", async () => {
-  const { events, context } = popupContext();
-  let completeLookup;
-  context.requestInternalApiEnvelope = () => {
-    events.push(["lookup"]);
-    return new Promise((resolve) => { completeLookup = resolve; });
-  };
-  const pending = billingTabCallback(context)("stay-A", "1003");
-  assert.deepEqual(events, [["open", "", "vietsage-billing-hotel-A-stay-A"], ["lookup"]]);
-  completeLookup({ data: { id: "folio-A" } });
-  await pending;
-  const target = new URL(events.find(([type]) => type === "navigate")[1], "https://local");
-  assert.equal(target.searchParams.get("stayId"), "stay-A");
-  assert.equal(target.searchParams.get("folioId"), "folio-A");
-  assert.equal(target.searchParams.get("roomNumber"), "1003");
+  await inPlaceCheckoutCallback({
+    rooms: [],
+    staffRoomsRepository: {
+      list: async (hotelId, query) => {
+        listCalls.push([hotelId, query]);
+        return { items: [] };
+      },
+      listAll: async (hotelId) => {
+        listCalls.push([hotelId, "ALL"]);
+        return { items: [remoteRoom] };
+      },
+    },
+    setTapeCheckoutTarget: (target) => targets.push(target),
+  })("stay-remote", " 501 ");
+  assert.deepEqual(JSON.parse(JSON.stringify(listCalls)), [
+    ["hotel-A", { q: "501", limit: 100 }],
+    ["hotel-A", "ALL"],
+  ]);
+  assert.deepEqual(JSON.parse(JSON.stringify(targets)), [
+    {
+      room: remoteRoom,
+      stay: {
+        id: "stay-remote",
+        guestDisplayName: "Other Guest",
+        plannedCheckOutAt: "2026-11-15T05:00:00Z",
+      },
+    },
+  ]);
 });
 
-test("reusing the same stay's billing tab focuses it without resetting its work", async () => {
-  const { popup, events, context } = popupContext();
-  popup.location.pathname = "/hotels/hotel-A/billing";
-  popup.location.search = "?stayId=stay-A&folioId=folio-A";
-  await billingTabCallback(context)("stay-A", "1003");
-  assert.deepEqual(events.map(([type]) => type), ["open", "focus"]);
-});
-
-test("a blocked billing popup warns without looking up a folio", async () => {
-  const { events, context } = popupContext();
-  context.window.open = () => { events.push(["blocked"]); return null; };
-  await billingTabCallback(context)("stay-A", "1003");
-  assert.deepEqual(events.map(([type]) => type), ["blocked", "warning"]);
-});
-
-test("folio lookup failure still routes the opened tab to the intended stay", async () => {
-  const { events, context } = popupContext();
-  context.requestInternalApiEnvelope = async () => { events.push(["lookup"]); throw new Error("offline"); };
-  await billingTabCallback(context)("stay-A", "1003");
-  const target = new URL(events.find(([type]) => type === "navigate")[1], "https://local");
-  assert.equal(target.searchParams.get("stayId"), "stay-A");
-  assert.equal(target.searchParams.get("roomNumber"), "1003");
-  assert.equal(target.searchParams.has("folioId"), false);
-});
-
-test("a tab closed while folio lookup is pending is not navigated afterwards", async () => {
-  const { popup, events, context } = popupContext();
-  let completeLookup;
-  context.requestInternalApiEnvelope = () => new Promise((resolve) => { completeLookup = resolve; });
-  const pending = billingTabCallback(context)("stay-A", "1003");
-  popup.closed = true;
-  completeLookup({ data: { id: "folio-A" } });
-  await pending;
-  assert.equal(events.some(([type]) => type === "navigate"), false);
+test("tape chart checkout warns cleanly when the room cannot be found", async () => {
+  const warnings = [];
+  const targets = [];
+  await inPlaceCheckoutCallback({
+    rooms: [],
+    showWarningAlert: async (...args) => warnings.push(args),
+    setTapeCheckoutTarget: (target) => targets.push(target),
+  })("stay-missing", "9999");
+  assert.equal(targets.length, 0);
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0][0], /Chưa xác định được phòng/i);
 });
 
 function returnRefreshEffect(context) {

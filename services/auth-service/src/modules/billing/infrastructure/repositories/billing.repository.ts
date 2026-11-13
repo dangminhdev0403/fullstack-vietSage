@@ -170,7 +170,13 @@ export class BillingRepository {
         : {}),
     };
 
-    const [total, rows] = await Promise.all([
+    const scopeWhere: Prisma.FolioWhereInput = {
+      hotelId: input.hotelId,
+      ...(input.roomId ? { roomId: input.roomId } : {}),
+      status: { not: FolioStatus.VOID },
+    };
+
+    const [total, rows, summaryRows] = await Promise.all([
       this.prisma.folio.count({ where }),
       this.prisma.folio.findMany({
         where,
@@ -179,9 +185,13 @@ export class BillingRepository {
         skip: input.skip,
         take: input.take,
       }),
+      this.prisma.folio.findMany({
+        where: scopeWhere,
+        select: folioListSelect,
+      }),
     ]);
 
-    return { total, rows };
+    return { total, rows, summaryRows };
   }
 
   async findFolioDetail(hotelId: string, folioId: string) {

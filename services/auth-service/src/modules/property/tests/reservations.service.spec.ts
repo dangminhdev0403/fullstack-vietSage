@@ -9,7 +9,7 @@ process.env.JWT_REFRESH_SECRET =
 process.env.JWT_ACCESS_TTL = process.env.JWT_ACCESS_TTL || "15m";
 process.env.JWT_REFRESH_TTL = process.env.JWT_REFRESH_TTL || "30d";
 
-import { ConflictException, NotFoundException } from "@nestjs/common";
+import { ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { Prisma, RoomStatus } from "@prisma/client";
 import { RequestRealtimeEmitter } from "../../../request-realtime.emitter";
 import { ReservationsService } from "../application/reservations.service";
@@ -274,6 +274,28 @@ describe("ReservationsService front-desk lifecycle", () => {
         q: "VSH_GROUP_0017",
         skip: 0,
         take: 20,
+      }),
+    );
+  });
+
+  it("drops lower bound from when includeOverdue is true so DB index fetches overdue and upcoming arrivals together", async () => {
+    const { service, repository } = createService();
+
+    await service.listArrivals("actor-1", "active-role", "hotel-1", {
+      from: new Date("2026-08-01T00:00:00.000Z"),
+      to: new Date("2026-08-08T00:00:00.000Z"),
+      includeOverdue: true,
+      page: 1,
+      limit: 200,
+    });
+
+    expect(repository.listArrivals).toHaveBeenCalledWith(
+      expect.objectContaining({
+        hotelId: "hotel-1",
+        from: undefined,
+        to: new Date("2026-08-07T17:00:00.000Z"),
+        skip: 0,
+        take: 200,
       }),
     );
   });
@@ -1416,5 +1438,117 @@ describe("reservation pricing projection regressions", () => {
     const result = await service.getGroupConfirmation("actor-1", "active-role", "hotel-1", "GRP_TOUR_01");
     expect(result.pricing.paidAmount).toBe(250000);
     expect(result.pricing.balanceAmount).toBe(3750000);
+  });
+});
+
+describe("ReservationsService ROOM_EXCLUSIVE scope & arrival rate fallbacks", () => {
+  it("blocks getReservation, cancelReservation, and updateReservationPlacement outside allowed rooms", async () => {
+    const cancelReservation = jest.fn();
+    const updateReservationPlacement = jest.fn();
+    const repository = createRepository({
+      findReservationById: jest.fn().mockImplementation(async (_hotelId, id) =>
+        id === "res-unassigned"
+          ? { id: "res-unassigned", hotelId: "hotel-1", roomId: null, status: "CONFIRMED" }
+          : { id, hotelId: "hotel-1", roomId: "room-2", status: "CONFIRMED" },
+      ),
+      cancelReservation,
+      updateReservationPlacement,
+    });
+    const scopedAccess = {
+      assertHotelAccess: jest.fn().mockResolvedValue({
+        id: "hotel-1",
+        tenantId: "tenant-1",
+        timezone: "Asia/Ho_Chi_Minh",
+      }),
+      resolveRoomScope: jest.fn().mockResolvedValue({
+        hotel: { id: "hotel-1", tenantId: "tenant-1", timezone: "Asia/Ho_Chi_Minh" },
+        allowedRoomId: "room-1",
+        allowedRoomIds: ["room-1"],
+      }),
+      assertRoomAccess: jest.fn().mockImplementation((_arg1: unknown, arg2: unknown) => {
+        const roomId = typeof arg2 === "string" ? arg2 : null;
+        if (roomId && roomId !== "room-1") {
+          throw new ForbiddenException("Bạn chỉ có quyền truy cập phòng được phân công");
+        }
+      }),
+    };
+    const codesService = { generateEntityCode: jest.fn() };
+    const service = new ReservationsService(
+      repository as never,
+      codesService as never,
+      scopedAccess as never,
+    );
+
+    await expect(
+      service.getReservation("actor-1", "active-role", "hotel-1", "res-other-room"),
+    ).rejects.toThrow(ForbiddenException);
+    await expect(
+      service.getReservation("actor-1", "active-role", "hotel-1", "res-unassigned"),
+    ).rejects.toThrow(NotFoundException);
+    await expect(
+      service.cancelReservation("actor-1", "active-role", "hotel-1", "res-other-room", {}),
+    ).rejects.toThrow(ForbiddenException);
+    await expect(
+      service.updateReservationPlacement("actor-1", "active-role", "hotel-1", "res-other-room", {
+        targetRoomId: "room-1",
+        expectedUpdatedAt: "2026-11-06T04:00:00.000Z",
+      }),
+    ).rejects.toThrow(ForbiddenException);
+
+    expect(cancelReservation).not.toHaveBeenCalled();
+    expect(updateReservationPlacement).not.toHaveBeenCalled();
+  });
+
+  it("forwards allowedRoomIds and falls back cleanly on MISSING_AGREED_ROOM_RATE_SNAPSHOT in listArrivals", async () => {
+    const repository = createRepository({
+      listArrivals: jest.fn().mockResolvedValue([
+        1,
+        [
+          {
+            id: "res-missing-rate",
+            plannedCheckInAt: new Date("2026-11-01T07:00:00Z"),
+            plannedCheckOutAt: new Date("2026-11-03T05:00:00Z"),
+            nightlyRateSnapshot: null,
+            chargeLines: [],
+          },
+        ],
+      ]),
+    });
+    const scopedAccess = {
+      assertHotelAccess: jest.fn().mockResolvedValue({
+        id: "hotel-1",
+        tenantId: "tenant-1",
+        timezone: "Asia/Ho_Chi_Minh",
+      }),
+      resolveRoomScope: jest.fn().mockResolvedValue({
+        hotel: { id: "hotel-1", tenantId: "tenant-1", timezone: "Asia/Ho_Chi_Minh" },
+        allowedRoomId: null,
+        allowedRoomIds: ["room-1", "room-3"],
+      }),
+      assertRoomAccess: jest.fn(),
+    };
+    const service = new ReservationsService(
+      repository as never,
+      { generateEntityCode: jest.fn() } as never,
+      scopedAccess as never,
+    );
+
+    const result = await service.listArrivals("actor-1", "active-role", "hotel-1", {
+      page: 1,
+      limit: 20,
+    });
+
+    expect(repository.listArrivals).toHaveBeenCalledWith(
+      expect.objectContaining({ roomIds: ["room-1", "room-3"] }),
+    );
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]).toMatchObject({
+      id: "res-missing-rate",
+      nightlyRateSnapshot: null,
+      rate: null,
+      roomSubtotal: 0,
+      serviceSubtotal: 0,
+      totalAmount: 0,
+    });
   });
 });

@@ -41,7 +41,7 @@ import type {
 } from "../domain/schemas/reservations.schema";
 import { ReservationsRepository } from "../infrastructure/repositories/reservations.repository";
 import { getBusinessDateRange } from "../infrastructure/repositories/hotel-rooms.repository";
-import { HotelAccessService } from "./hotel-access.service";
+import { HotelAccessService, type HotelRoomScope } from "./hotel-access.service";
 import {
   addDaysYmd,
   diffCalendarDays,
@@ -111,6 +111,51 @@ export class ReservationsService {
     }
   }
 
+  private hasRestrictedRoomScope(scope: Pick<HotelRoomScope, "allowedRoomId" | "allowedRoomIds">) {
+    return (
+      scope.allowedRoomId !== null ||
+      (scope.allowedRoomIds !== undefined && scope.allowedRoomIds !== null)
+    );
+  }
+
+  private assertReservationInScope(
+    scope: HotelRoomScope,
+    reservation: { roomId?: string | null } | null,
+  ) {
+    if (!reservation) {
+      throw new NotFoundException("Không tìm thấy đặt phòng");
+    }
+    if (reservation.roomId) {
+      this.hotelAccessService.assertRoomAccess(scope, reservation.roomId);
+      return;
+    }
+    if (this.hasRestrictedRoomScope(scope)) {
+      throw new NotFoundException("Không tìm thấy đặt phòng");
+    }
+  }
+
+  private assertGroupInScope(
+    scope: HotelRoomScope,
+    groupReservations: Array<{ roomId?: string | null; assignedRoomId?: string | null }> | undefined,
+    forbiddenMessage: string,
+  ) {
+    if (!this.hasRestrictedRoomScope(scope)) return;
+    if (!groupReservations || groupReservations.length === 0) {
+      throw new ForbiddenException(forbiddenMessage);
+    }
+    const allowedSet = scope.allowedRoomIds ? new Set(scope.allowedRoomIds) : null;
+    const hasUnauthorizedRoom = groupReservations.some((r) => {
+      const targetRoomId = r.roomId ?? r.assignedRoomId;
+      if (!targetRoomId) return true;
+      if (scope.allowedRoomId !== null && targetRoomId !== scope.allowedRoomId) return true;
+      if (allowedSet && !allowedSet.has(targetRoomId)) return true;
+      return false;
+    });
+    if (hasUnauthorizedRoom) {
+      throw new ForbiddenException(forbiddenMessage);
+    }
+  }
+
   async createBulkReservations(
     actorUserId: string,
     activeRoleId: string,
@@ -127,24 +172,36 @@ export class ReservationsService {
         this.hotelAccessService.assertRoomAccess(scope, roomId);
       }
     }
-    if (scope.allowedRoomId !== null) {
-      if (dto.roomIds && dto.roomIds.length > 1) {
+    const maxScopedRooms =
+      scope.allowedRoomId !== null
+        ? 1
+        : scope.allowedRoomIds !== undefined && scope.allowedRoomIds !== null
+          ? scope.allowedRoomIds.length
+          : null;
+    if (maxScopedRooms !== null) {
+      if (dto.roomIds && dto.roomIds.length > maxScopedRooms) {
         throw new ForbiddenException("Tài khoản chỉ được phép thao tác trên phòng được phân công");
       }
-      if (dto.allocations && dto.allocations.reduce((acc, a) => acc + (a.quantity || 0), 0) > 1) {
+      if (
+        dto.allocations &&
+        dto.allocations.reduce((acc, a) => acc + (a.quantity || 0), 0) > maxScopedRooms
+      ) {
         throw new ForbiddenException("Tài khoản chỉ được phép thao tác trên phòng được phân công");
       }
     }
 
+    const tz = resolveTimeZone(scope.hotel.timezone);
     const leadGuestName = (dto.leadGuestName ?? dto.guestDisplayName)!.trim();
     const leadGuestPhone = (dto.leadGuestPhone ?? dto.guestPhone)?.trim();
     const checkInDate = normalizeHotelReservationDate(
       (dto.checkInDate ?? dto.plannedCheckInAt)!,
       "checkIn",
+      tz,
     );
     const checkOutDate = normalizeHotelReservationDate(
       (dto.checkOutDate ?? dto.plannedCheckOutAt)!,
       "checkOut",
+      tz,
     );
     const rawRate = dto.rate !== undefined ? dto.rate : dto.nightlyRateSnapshot;
     const nightlyRateSnapshot =
@@ -153,9 +210,11 @@ export class ReservationsService {
     const groupCode =
       dto.groupCode?.trim() || (await this.codesService.generateEntityCode("GROUP"));
 
-    return this.reservationsRepository.createBulkReservations({
+    const result = await this.reservationsRepository.createBulkReservations({
       hotelId,
       groupCode,
+      groupName: dto.groupName?.trim() || undefined,
+      notes: dto.notes?.trim() || undefined,
       reservationCode: dto.reservationCode?.trim() || undefined,
       leadGuestName,
       leadGuestPhone,
@@ -178,6 +237,16 @@ export class ReservationsService {
       sourcePartnerId: dto.sourcePartnerId,
       bookingOwnerUserId: dto.bookingOwnerUserId?.trim() || actorUserId,
     });
+    for (const created of result.reservations ?? []) {
+      if (created?.roomId) {
+        await this.emitRoomStatusUpdated({
+          hotelId,
+          roomId: created.roomId,
+          fallbackStatus: RoomStatus.RESERVED,
+        });
+      }
+    }
+    return result;
   }
 
   async createReservation(
@@ -240,9 +309,11 @@ export class ReservationsService {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const tz = resolveTimeZone(scope.hotel.timezone);
-    const from = query.from
-      ? getBusinessDateRange(toYmd(query.from, tz), tz).start
-      : undefined;
+    const includeOverdue = Boolean(query.includeOverdue);
+    const from =
+      !includeOverdue && query.from
+        ? getBusinessDateRange(toYmd(query.from, tz), tz).start
+        : undefined;
     const to = query.to
       ? getBusinessDateRange(toYmd(query.to, tz), tz).start
       : undefined;
@@ -253,21 +324,32 @@ export class ReservationsService {
       skip: (page - 1) * limit,
       take: limit,
       roomId: scope.allowedRoomId ?? undefined,
+      roomIds: scope.allowedRoomIds ?? undefined,
       q: query.q,
     });
     const items = rawItems.map((r: any) => {
-      const quote = calculateReservationChargeTotal(r, tz);
-      const roomSubtotal = quote.roomSubtotal.toNumber();
-      const serviceSubtotal = quote.extraSubtotal.toNumber();
-      const totalAmount = quote.totalAmount.toNumber();
-      const effectiveRate =
-        r.nightlyRateSnapshot ??
-        quote.roomSubtotal.div(quote.nights).toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP);
+      let roomSubtotal = 0;
+      let serviceSubtotal = 0;
+      let totalAmount = 0;
+      let effectiveRate: unknown = r.nightlyRateSnapshot ?? null;
+      try {
+        const quote = calculateReservationChargeTotal(r, tz);
+        roomSubtotal = quote.roomSubtotal.toNumber();
+        serviceSubtotal = quote.extraSubtotal.toNumber();
+        totalAmount = quote.totalAmount.toNumber();
+        effectiveRate =
+          r.nightlyRateSnapshot ??
+          quote.roomSubtotal.div(quote.nights).toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP);
+      } catch (err) {
+        if (!(err instanceof Error) || err.message !== "MISSING_AGREED_ROOM_RATE_SNAPSHOT") {
+          throw err;
+        }
+      }
 
       return {
         ...r,
-        nightlyRateSnapshot: String(effectiveRate),
-        rate: String(effectiveRate),
+        nightlyRateSnapshot: effectiveRate != null ? String(effectiveRate) : null,
+        rate: effectiveRate != null ? String(effectiveRate) : null,
         roomSubtotal,
         serviceSubtotal,
         totalAmount,
@@ -283,6 +365,19 @@ export class ReservationsService {
     reservationId: string,
     dto: AssignReservationRoomBodyInput,
   ) {
+    const scope = await this.hotelAccessService.resolveRoomScope(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    );
+    let previousRoomId: string | null = null;
+    if (typeof this.reservationsRepository.findReservationById === "function") {
+      const existing = await this.reservationsRepository.findReservationById(hotelId, reservationId);
+      if (this.hasRestrictedRoomScope(scope) && existing) {
+        this.assertReservationInScope(scope, existing);
+      }
+      previousRoomId = existing?.roomId ?? null;
+    }
     await this.hotelAccessService.assertRoomAccess(actorUserId, activeRoleId, hotelId, dto.roomId);
     const rawRate = dto.rate !== undefined ? dto.rate : dto.nightlyRateSnapshot;
     const nightlyRateSnapshot =
@@ -305,6 +400,19 @@ export class ReservationsService {
     if (!reservation) {
       throw new NotFoundException("Không tìm thấy đặt phòng");
     }
+    if (previousRoomId && previousRoomId !== dto.roomId) {
+      await this.emitRoomStatusUpdated({
+        hotelId,
+        roomId: previousRoomId,
+        fallbackStatus: RoomStatus.AVAILABLE,
+        previousStatus: RoomStatus.RESERVED,
+      });
+    }
+    await this.emitRoomStatusUpdated({
+      hotelId,
+      roomId: dto.roomId,
+      fallbackStatus: RoomStatus.RESERVED,
+    });
     return reservation;
   }
 
@@ -345,7 +453,7 @@ export class ReservationsService {
         activeRoleId,
         hotelId,
       );
-      if (scope.allowedRoomId !== null) {
+      if (this.hasRestrictedRoomScope(scope)) {
         throw new NotFoundException("Không tìm thấy đặt phòng");
       }
     }
@@ -411,7 +519,7 @@ export class ReservationsService {
     reservationId: string,
     dto: CancelReservationBodyInput,
   ) {
-    const hotel = await this.hotelAccessService.assertHotelAccess(
+    const scope = await this.hotelAccessService.resolveRoomScope(
       actorUserId,
       activeRoleId,
       hotelId,
@@ -420,40 +528,47 @@ export class ReservationsService {
       hotelId,
       reservationId,
     );
-    if (!reservation) {
-      throw new NotFoundException("Không tìm thấy đặt phòng");
-    }
-    if (reservation.roomId) {
+    this.assertReservationInScope(scope, reservation);
+    if (reservation!.roomId) {
       await this.hotelAccessService.assertRoomAccess(
         actorUserId,
         activeRoleId,
         hotelId,
-        reservation.roomId,
+        reservation!.roomId,
       );
     }
-    if (reservation.status === ReservationStatus.CHECKED_IN) {
+    if (reservation!.status === ReservationStatus.CHECKED_IN) {
       throw new ConflictException("Không thể hủy đặt phòng đã check-in");
     }
     if (
-      reservation.status === ReservationStatus.CANCELLED ||
-      reservation.status === ReservationStatus.NO_SHOW
+      reservation!.status === ReservationStatus.CANCELLED ||
+      reservation!.status === ReservationStatus.NO_SHOW
     ) {
       throw new ConflictException("Đặt phòng đã bị hủy hoặc báo vắng mặt");
     }
     if (
-      reservation.status !== ReservationStatus.CONFIRMED &&
-      reservation.status !== ReservationStatus.ARRIVAL_READY
+      reservation!.status !== ReservationStatus.CONFIRMED &&
+      reservation!.status !== ReservationStatus.ARRIVAL_READY
     ) {
       throw new ConflictException("Trạng thái đặt phòng không hợp lệ để hủy");
     }
 
-    return this.reservationsRepository.cancelReservation({
+    const cancelled = await this.reservationsRepository.cancelReservation({
       hotelId,
-      tenantId: hotel.tenantId,
+      tenantId: scope.hotel.tenantId,
       reservationId,
       actorUserId,
       reason: dto.reason,
     });
+    if (reservation!.roomId) {
+      await this.emitRoomStatusUpdated({
+        hotelId,
+        roomId: reservation!.roomId,
+        fallbackStatus: RoomStatus.AVAILABLE,
+        previousStatus: RoomStatus.RESERVED,
+      });
+    }
+    return cancelled;
   }
 
   async markNoShow(
@@ -463,7 +578,7 @@ export class ReservationsService {
     reservationId: string,
     dto: MarkNoShowBodyInput,
   ) {
-    const hotel = await this.hotelAccessService.assertHotelAccess(
+    const scope = await this.hotelAccessService.resolveRoomScope(
       actorUserId,
       activeRoleId,
       hotelId,
@@ -472,40 +587,47 @@ export class ReservationsService {
       hotelId,
       reservationId,
     );
-    if (!reservation) {
-      throw new NotFoundException("Không tìm thấy đặt phòng");
-    }
-    if (reservation.roomId) {
+    this.assertReservationInScope(scope, reservation);
+    if (reservation!.roomId) {
       await this.hotelAccessService.assertRoomAccess(
         actorUserId,
         activeRoleId,
         hotelId,
-        reservation.roomId,
+        reservation!.roomId,
       );
     }
-    if (reservation.status === ReservationStatus.CHECKED_IN) {
+    if (reservation!.status === ReservationStatus.CHECKED_IN) {
       throw new ConflictException("Không thể báo vắng mặt đặt phòng đã check-in");
     }
     if (
-      reservation.status === ReservationStatus.CANCELLED ||
-      reservation.status === ReservationStatus.NO_SHOW
+      reservation!.status === ReservationStatus.CANCELLED ||
+      reservation!.status === ReservationStatus.NO_SHOW
     ) {
       throw new ConflictException("Đặt phòng đã bị hủy hoặc báo vắng mặt");
     }
     if (
-      reservation.status !== ReservationStatus.CONFIRMED &&
-      reservation.status !== ReservationStatus.ARRIVAL_READY
+      reservation!.status !== ReservationStatus.CONFIRMED &&
+      reservation!.status !== ReservationStatus.ARRIVAL_READY
     ) {
       throw new ConflictException("Trạng thái đặt phòng không hợp lệ để báo vắng mặt");
     }
 
-    return this.reservationsRepository.markNoShow({
+    const updated = await this.reservationsRepository.markNoShow({
       hotelId,
-      tenantId: hotel.tenantId,
+      tenantId: scope.hotel.tenantId,
       reservationId,
       actorUserId,
       reason: dto.reason,
     });
+    if (reservation!.roomId) {
+      await this.emitRoomStatusUpdated({
+        hotelId,
+        roomId: reservation!.roomId,
+        fallbackStatus: RoomStatus.AVAILABLE,
+        previousStatus: RoomStatus.RESERVED,
+      });
+    }
+    return updated;
   }
 
   async getRoomPlan(
@@ -527,7 +649,9 @@ export class ReservationsService {
       hotelId,
       from,
       to,
-      roomScopeIds: roomScope.allowedRoomId ? [roomScope.allowedRoomId] : null,
+      roomScopeIds:
+        roomScope.allowedRoomIds ??
+        (roomScope.allowedRoomId ? [roomScope.allowedRoomId] : null),
       timezone: tz,
     });
   }
@@ -539,11 +663,29 @@ export class ReservationsService {
     reservationId: string,
     dto: UpdateReservationPlacementBodyInput,
   ) {
-    const hotel = await this.hotelAccessService.assertHotelAccess(
+    const scope = await this.hotelAccessService.resolveRoomScope(
       actorUserId,
       activeRoleId,
       hotelId,
     );
+    let previousRoomId: string | null = null;
+    if (typeof this.reservationsRepository.findReservationById === "function") {
+      const sourceRes = await this.reservationsRepository.findReservationById(
+        hotelId,
+        reservationId.replace(/^res-/, ""),
+      );
+      if (this.hasRestrictedRoomScope(scope)) {
+        this.assertReservationInScope(scope, sourceRes);
+      }
+      previousRoomId = sourceRes?.roomId ?? null;
+      if (dto.swapWithReservationId && this.hasRestrictedRoomScope(scope)) {
+        const swapRes = await this.reservationsRepository.findReservationById(
+          hotelId,
+          dto.swapWithReservationId.replace(/^res-/, ""),
+        );
+        this.assertReservationInScope(scope, swapRes);
+      }
+    }
     await this.hotelAccessService.assertRoomAccess(
       actorUserId,
       activeRoleId,
@@ -552,7 +694,7 @@ export class ReservationsService {
     );
     const result = await this.reservationsRepository.updateReservationPlacement({
       hotelId,
-      tenantId: hotel.tenantId,
+      tenantId: scope.hotel.tenantId,
       reservationId,
       targetRoomId: dto.targetRoomId,
       expectedUpdatedAt: dto.expectedUpdatedAt,
@@ -560,6 +702,14 @@ export class ReservationsService {
       swapExpectedUpdatedAt: dto.swapExpectedUpdatedAt,
       actorUserId,
     });
+    if (previousRoomId && previousRoomId !== dto.targetRoomId) {
+      await this.emitRoomStatusUpdated({
+        hotelId,
+        roomId: previousRoomId,
+        fallbackStatus: RoomStatus.AVAILABLE,
+        previousStatus: RoomStatus.RESERVED,
+      });
+    }
     await this.emitRoomStatusUpdated({
       hotelId,
       roomId: dto.targetRoomId,
@@ -576,15 +726,22 @@ export class ReservationsService {
     reservationId: string,
     dto: UpdateReservationDatesBodyInput,
   ) {
-    const hotel = await this.hotelAccessService.assertHotelAccess(
+    const scope = await this.hotelAccessService.resolveRoomScope(
       actorUserId,
       activeRoleId,
       hotelId,
     );
+    if (
+      this.hasRestrictedRoomScope(scope) &&
+      typeof this.reservationsRepository.findReservationById === "function"
+    ) {
+      const existing = await this.reservationsRepository.findReservationById(hotelId, reservationId);
+      this.assertReservationInScope(scope, existing);
+    }
     const appliedNightlyRate = dto.nightlyRateSnapshot ?? dto.rate;
     const updated = await this.reservationsRepository.updateReservationDates({
       hotelId,
-      tenantId: hotel.tenantId,
+      tenantId: scope.hotel.tenantId,
       reservationId,
       startDate: dto.startDate,
       endDate: dto.endDate,
@@ -613,11 +770,19 @@ export class ReservationsService {
     reservationId: string,
     dto: UpdateReservationBodyInput,
   ) {
-    const hotel = await this.hotelAccessService.assertHotelAccess(
+    const scope = await this.hotelAccessService.resolveRoomScope(
       actorUserId,
       activeRoleId,
       hotelId,
     );
+    let previousRoomId: string | null = null;
+    if (typeof this.reservationsRepository.findReservationById === "function") {
+      const existing = await this.reservationsRepository.findReservationById(hotelId, reservationId);
+      if (this.hasRestrictedRoomScope(scope)) {
+        this.assertReservationInScope(scope, existing);
+      }
+      previousRoomId = existing?.roomId ?? null;
+    }
     if (dto.roomId) {
       await this.hotelAccessService.assertRoomAccess(
         actorUserId,
@@ -629,7 +794,7 @@ export class ReservationsService {
     const appliedNightlyRate = dto.nightlyRateSnapshot ?? dto.rate;
     const updated = await this.reservationsRepository.updateReservation({
       hotelId,
-      tenantId: hotel.tenantId,
+      tenantId: scope.hotel.tenantId,
       reservationId,
       guestDisplayName: dto.guestDisplayName,
       guestPhone: dto.guestPhone,
@@ -652,6 +817,14 @@ export class ReservationsService {
         await this.hotelAccessService.assertRoomAccess(actorUserId, activeRoleId, hotelId, roomId);
       },
     });
+    if (previousRoomId && previousRoomId !== updated.roomId) {
+      await this.emitRoomStatusUpdated({
+        hotelId,
+        roomId: previousRoomId,
+        fallbackStatus: RoomStatus.AVAILABLE,
+        previousStatus: RoomStatus.RESERVED,
+      });
+    }
     if (updated.roomId) {
       await this.emitRoomStatusUpdated({
         hotelId,
@@ -669,14 +842,16 @@ export class ReservationsService {
     hotelId: string,
     reservationId: string,
   ) {
-    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    const scope = await this.hotelAccessService.resolveRoomScope(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    );
     const reservation = await this.reservationsRepository.findReservationById(
       hotelId,
       reservationId,
     );
-    if (!reservation) {
-      throw new NotFoundException("Không tìm thấy đặt phòng");
-    }
+    this.assertReservationInScope(scope, reservation);
     return reservation;
   }
 
@@ -692,16 +867,11 @@ export class ReservationsService {
       hotelId,
     );
     const group = await this.reservationsRepository.findGroupByCode(hotelId, groupCode);
-    if (scope.allowedRoomId !== null) {
-      const hasUnauthorizedRoom = group?.reservations?.some(
-        (r: any) => (r.roomId ?? r.assignedRoomId) !== scope.allowedRoomId,
-      );
-      if (hasUnauthorizedRoom || !group?.reservations || group.reservations.length === 0) {
-        throw new ForbiddenException(
-          "Tài khoản không có quyền truy cập thông tin đoàn có phòng ngoài phạm vi phân công",
-        );
-      }
-    }
+    this.assertGroupInScope(
+      scope,
+      group?.reservations,
+      "Tài khoản không có quyền truy cập thông tin đoàn có phòng ngoài phạm vi phân công",
+    );
     return group;
   }
 
@@ -726,14 +896,13 @@ export class ReservationsService {
       activeRoleId,
       hotelId,
     );
-    if (scope.allowedRoomId !== null) {
+    if (this.hasRestrictedRoomScope(scope)) {
       const group = await this.reservationsRepository.findGroupByCode(hotelId, groupCode);
-      const hasUnauthorizedRoom = group?.reservations?.some(
-        (r: any) => (r.roomId ?? r.assignedRoomId) !== scope.allowedRoomId,
+      this.assertGroupInScope(
+        scope,
+        group?.reservations,
+        "Tài khoản chỉ được phép thao tác trên phòng được phân công",
       );
-      if (hasUnauthorizedRoom || !group?.reservations || group.reservations.length === 0) {
-        throw new ForbiddenException("Tài khoản chỉ được phép thao tác trên phòng được phân công");
-      }
     }
     return this.reservationsRepository.updateGroupByCode(hotelId, groupCode, dto);
   }
@@ -755,7 +924,7 @@ export class ReservationsService {
     );
     if (reservation.roomId) {
       this.hotelAccessService.assertRoomAccess(scope, reservation.roomId);
-    } else if (scope.allowedRoomId !== null) {
+    } else if (this.hasRestrictedRoomScope(scope)) {
       throw new NotFoundException("Không tìm thấy đặt phòng");
     }
     return this.projectReservationConfirmation(reservation);
@@ -773,16 +942,11 @@ export class ReservationsService {
       hotelId,
     );
     const data = await this.reservationsRepository.findGroupConfirmation(hotelId, groupCode);
-    if (scope.allowedRoomId !== null) {
-      const hasUnauthorizedRoom = data?.reservations?.some(
-        (r: any) => (r.roomId ?? r.assignedRoomId) !== scope.allowedRoomId,
-      );
-      if (hasUnauthorizedRoom || !data?.reservations || data.reservations.length === 0) {
-        throw new ForbiddenException(
-          "Tài khoản không có quyền truy cập thông tin đoàn có phòng ngoài phạm vi phân công",
-        );
-      }
-    }
+    this.assertGroupInScope(
+      scope,
+      data?.reservations,
+      "Tài khoản không có quyền truy cập thông tin đoàn có phòng ngoài phạm vi phân công",
+    );
     return this.projectGroupConfirmation(data);
   }
 
@@ -1046,21 +1210,31 @@ export class ReservationsService {
       if (cIn < earliestCheckIn) earliestCheckIn = cIn;
       if (cOut > latestCheckOut) latestCheckOut = cOut;
 
-      const quote = calculateReservationChargeTotal(
-        {
-          ...r,
-          plannedCheckInAt: cIn,
-          plannedCheckOutAt: cOut,
-        },
-        tz,
-      );
-      const rNights = quote.nights;
-      const rRoomSubtotal = quote.roomSubtotal.toNumber();
-      const rTotal = quote.totalAmount.toNumber();
-      const rNightlyRate = quote.roomSubtotal
-        .div(rNights)
-        .toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP)
-        .toNumber();
+      let rNights = Math.max(1, diffCalendarDays(cIn, cOut, tz));
+      let rRoomSubtotal = 0;
+      let rTotal = 0;
+      let rNightlyRate = 0;
+      try {
+        const quote = calculateReservationChargeTotal(
+          {
+            ...r,
+            plannedCheckInAt: cIn,
+            plannedCheckOutAt: cOut,
+          },
+          tz,
+        );
+        rNights = quote.nights;
+        rRoomSubtotal = quote.roomSubtotal.toNumber();
+        rTotal = quote.totalAmount.toNumber();
+        rNightlyRate = quote.roomSubtotal
+          .div(rNights)
+          .toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP)
+          .toNumber();
+      } catch (err) {
+        if (!(err instanceof Error) || err.message !== "MISSING_AGREED_ROOM_RATE_SNAPSHOT") {
+          throw err;
+        }
+      }
 
       const rPaid = (r.bookingPayments || [])
         .filter((p: any) => p.status === "COMPLETED" || p.status === "ALLOCATED")

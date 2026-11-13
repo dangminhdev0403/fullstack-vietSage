@@ -2,19 +2,23 @@
 
 import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
 import { staffRoomsRepository } from "@/features/hotel-ops/repositories/staff-rooms-repository";
 import { staffRoomsResource } from "@/features/hotel-ops/resources/staff-rooms-resource";
-import type { HotelArrival } from "@/features/hotel-ops/types/hotel-ops-contract";
+import type {
+  HotelArrival,
+  HotelRoomSummary,
+} from "@/features/hotel-ops/types/hotel-ops-contract";
 import { getArrivalStatusDisplay } from "@/features/hotel-ops/utils/hotel-ops-display";
 import { GroupCheckInModal } from "@/features/hotel-ops/components/group-check-in-modal";
 import { BookingConfirmationModal } from "@/features/hotel-ops/components/booking-confirmation-modal";
 import { EditReservationModal } from "@/features/hotel-ops/components/edit-reservation-modal";
 import { GroupOperationsDrawer } from "@/features/hotel-ops/components/group-operations-drawer";
+import { RoomCheckoutSettlementModal } from "@/features/hotel-ops/components/room-checkout-settlement-modal";
+import { toVietnamYmd } from "@/libs/vietnam-temporal";
 import {
   formatFriendlyCheckInError,
   formatFriendlyHotelOpsError,
@@ -42,6 +46,9 @@ export type FrontDeskArrivalDetailPanelProps = {
   canCheckInStay?: boolean;
   canManageReservations?: boolean;
   canOperateArrivals?: boolean;
+  canViewBilling?: boolean;
+  canCheckoutBilling?: boolean;
+  canCheckOutStay?: boolean;
   onCheckIn?: (arrival: HotelArrival) => void;
   triggerElementRef?: React.RefObject<HTMLElement | null>;
 };
@@ -89,11 +96,17 @@ export function FrontDeskArrivalDetailPanel({
   canCheckInStay = false,
   canManageReservations = false,
   canOperateArrivals = false,
+  canViewBilling = false,
+  canCheckoutBilling = false,
+  canCheckOutStay = false,
   onCheckIn,
   triggerElementRef,
 }: FrontDeskArrivalDetailPanelProps) {
-  const router = useRouter();
   const queryClient = useQueryClient();
+  const [settlementTarget, setSettlementTarget] = useState<{
+    room: HotelRoomSummary;
+    stay: NonNullable<HotelRoomSummary["activeStay"]>;
+  } | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const titleId = useId();
@@ -275,7 +288,7 @@ export function FrontDeskArrivalDetailPanel({
 
   const activeArrival = localArrival ?? arrival;
 
-  const checkInYmd = activeArrival.plannedCheckInAt.slice(0, 10);
+  const checkInYmd = toVietnamYmd(activeArrival.plannedCheckInAt) || "";
   const isToday = checkInYmd === todayYmd;
   const isFuture = checkInYmd > todayYmd;
   const nights = calculateNights(activeArrival.plannedCheckInAt, activeArrival.plannedCheckOutAt);
@@ -417,7 +430,7 @@ export function FrontDeskArrivalDetailPanel({
     } catch (err) {
       await showErrorAlert(
         "Không thể hủy đặt phòng",
-        err instanceof Error ? err.message : "Đã có lỗi xảy ra khi hủy đặt phòng.",
+        formatFriendlyHotelOpsError(err),
       );
     } finally {
       setIsCancelling(false);
@@ -457,7 +470,7 @@ export function FrontDeskArrivalDetailPanel({
     } catch (err) {
       await showErrorAlert(
         "Không thể ghi nhận vắng mặt",
-        err instanceof Error ? err.message : "Đã có lỗi xảy ra khi báo vắng mặt.",
+        formatFriendlyHotelOpsError(err),
       );
     } finally {
       setIsMarkingNoShow(false);
@@ -495,7 +508,7 @@ export function FrontDeskArrivalDetailPanel({
     } catch (err) {
       await showErrorAlert(
         "Không thể ghi nhận đặt cọc",
-        err instanceof Error ? err.message : "Đã có lỗi xảy ra khi lưu khoản đặt cọc.",
+        formatFriendlyHotelOpsError(err),
       );
     } finally {
       setIsSubmittingDeposit(false);
@@ -519,7 +532,7 @@ export function FrontDeskArrivalDetailPanel({
     } catch (err) {
       await showErrorAlert(
         "Không thể chuyển công nợ",
-        err instanceof Error ? err.message : "Đã có lỗi xảy ra khi chuyển công nợ.",
+        formatFriendlyHotelOpsError(err),
       );
     } finally {
       setIsSubmittingReceivable(false);
@@ -542,7 +555,7 @@ export function FrontDeskArrivalDetailPanel({
     } catch (err) {
       await showErrorAlert(
         "Không thể thu công nợ",
-        err instanceof Error ? err.message : "Đã có lỗi xảy ra khi thu công nợ.",
+        formatFriendlyHotelOpsError(err),
       );
     } finally {
       setIsSubmittingReceivable(false);
@@ -954,16 +967,33 @@ export function FrontDeskArrivalDetailPanel({
 
                   {(isAssignedRoomOccupiedConflict || isAssignedRoomCleaningConflict) && (
                     <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-200/70">
-                      {isAssignedRoomOccupiedConflict && assignedRoomConflictStay?.stayId && (
+                      {isAssignedRoomOccupiedConflict &&
+                        assignedRoomConflictStay?.stayId &&
+                        canViewBilling &&
+                        (canCheckoutBilling || canCheckOutStay) && (
                         <button
                           type="button"
                           onClick={() => {
-                            const params = new URLSearchParams();
-                            params.set("stayId", assignedRoomConflictStay.stayId);
-                            if (arrival.roomId) params.set("roomId", arrival.roomId);
-                            if (arrival.room?.roomNumber) params.set("roomNumber", arrival.room.roomNumber);
-                            onClose();
-                            router.push(`/hotels/${encodeURIComponent(hotelId)}/billing?${params.toString()}`);
+                            const targetStay: NonNullable<HotelRoomSummary["activeStay"]> =
+                              assignedRoomLive?.activeStay?.id === assignedRoomConflictStay.stayId
+                                ? assignedRoomLive.activeStay
+                                : {
+                                    id: assignedRoomConflictStay.stayId,
+                                    guestDisplayName: assignedRoomConflictStay.guestName,
+                                    guestPhone: assignedRoomConflictStay.phone,
+                                    plannedCheckOutAt: assignedRoomConflictStay.endDate,
+                                    status: assignedRoomConflictStay.status,
+                                  };
+                            const targetRoom: HotelRoomSummary = assignedRoomLive ?? {
+                              id: arrival.roomId || "",
+                              roomNumber: arrival.room?.roomNumber || "",
+                              floor: null,
+                              type: arrival.room?.type || null,
+                            };
+                            setSettlementTarget({
+                              room: targetRoom,
+                              stay: targetStay,
+                            });
                           }}
                           className="inline-flex items-center gap-1.5 rounded-xl bg-rose-700 hover:bg-rose-800 px-3.5 py-2 text-xs font-black text-white shadow-xs transition cursor-pointer whitespace-nowrap"
                         >
@@ -987,7 +1017,7 @@ export function FrontDeskArrivalDetailPanel({
                             } catch (err) {
                               await showErrorAlert(
                                 "Không thể cập nhật trạng thái",
-                                err instanceof Error ? err.message : "Đã có lỗi xảy ra.",
+                                formatFriendlyHotelOpsError(err),
                               );
                             }
                           }}
@@ -1481,40 +1511,50 @@ export function FrontDeskArrivalDetailPanel({
         </div>
       </div>
 
-      {isCheckInModalOpen && arrival.roomId ? (
+      {isCheckInModalOpen && activeArrival.roomId ? (
         <GroupCheckInModal
           isOpen={isCheckInModalOpen}
           hotelId={hotelId}
           groupCode={
-            arrival.groupCode ||
-            (arrival.reservationCode
-              ? `RES-${arrival.reservationCode}`
-              : `ARR-${arrival.id.slice(0, 8)}`)
+            activeArrival.groupCode ||
+            (activeArrival.reservationCode
+              ? `RES-${activeArrival.reservationCode}`
+              : `ARR-${activeArrival.id.slice(0, 8)}`)
           }
-          rooms={[
-            {
-              reservationId: arrival.id,
-              reservationCode: arrival.reservationCode,
-              groupCode: arrival.groupCode || arrival.reservationCode || "DIRECT",
-              roomId: arrival.roomId,
-              roomNumber: arrival.room?.roomNumber
-                ? String(arrival.room.roomNumber)
-                : arrival.roomId,
-              floor:
-                availableRooms.find((r) => r.id === arrival.roomId)?.floor ?? null,
-              roomType:
-                availableRooms.find((r) => r.id === arrival.roomId)?.type ?? null,
-              guestDisplayName: arrival.guestDisplayName || "",
-              guestPhone: arrival.guestPhone || null,
-              plannedCheckInAt:
-                arrival.plannedCheckInAt || new Date().toISOString(),
-              plannedCheckOutAt: arrival.plannedCheckOutAt || "",
-              rate: null,
-              status: "CONFIRMED",
-              stayId: null,
-            },
-          ]}
-          initialArrivals={[arrival]}
+          rooms={
+            activeArrival.groupCode
+              ? []
+              : [
+                  {
+                    reservationId: activeArrival.id,
+                    reservationCode: activeArrival.reservationCode,
+                    groupCode:
+                      activeArrival.groupCode ||
+                      activeArrival.reservationCode ||
+                      "DIRECT",
+                    roomId: activeArrival.roomId,
+                    roomNumber: activeArrival.room?.roomNumber
+                      ? String(activeArrival.room.roomNumber)
+                      : activeArrival.roomId,
+                    floor: assignedRoomLive?.floor ?? null,
+                    roomType:
+                      assignedRoomLive?.type ||
+                      activeArrival.room?.type ||
+                      null,
+                    guestDisplayName: activeArrival.guestDisplayName || "",
+                    guestPhone: activeArrival.guestPhone || null,
+                    plannedCheckInAt:
+                      activeArrival.plannedCheckInAt ||
+                      new Date().toISOString(),
+                    plannedCheckOutAt: activeArrival.plannedCheckOutAt || "",
+                    rate: null,
+                    status: "CONFIRMED",
+                    stayId: null,
+                    updatedAt: activeArrival.updatedAt ?? null,
+                  },
+                ]
+          }
+          initialArrivals={[activeArrival]}
           onClose={() => {
             setIsCheckInModalOpen(false);
             setCheckInError(undefined);
@@ -1578,14 +1618,37 @@ export function FrontDeskArrivalDetailPanel({
         availableRooms={availableRooms}
         conflictingStay={assignedRoomConflictStay}
         onCheckOutConflictingStay={
-          assignedRoomConflictStay?.stayId
+          assignedRoomConflictStay?.stayId &&
+          canViewBilling &&
+          (canCheckoutBilling || canCheckOutStay)
             ? (stayId, roomNum) => {
-                const params = new URLSearchParams();
-                params.set("stayId", stayId);
-                if (roomNum) params.set("roomNumber", roomNum);
+                const matchedRoom =
+                  allHotelRooms.find(
+                    (r) =>
+                      r.activeStay?.id === stayId ||
+                      (roomNum && r.roomNumber === roomNum),
+                  ) ?? assignedRoomLive;
+                const checkoutRoom: HotelRoomSummary = matchedRoom ?? {
+                  id: activeArrival.roomId || "",
+                  roomNumber: roomNum || activeArrival.room?.roomNumber || "",
+                  floor: null,
+                  type: activeArrival.room?.type || null,
+                };
+                const checkoutStay: NonNullable<HotelRoomSummary["activeStay"]> =
+                  matchedRoom?.activeStay && matchedRoom.activeStay.id === stayId
+                    ? matchedRoom.activeStay
+                    : {
+                        id: stayId,
+                        guestDisplayName: assignedRoomConflictStay.guestName,
+                        guestPhone: assignedRoomConflictStay.phone,
+                        plannedCheckOutAt: assignedRoomConflictStay.endDate,
+                        status: assignedRoomConflictStay.status,
+                      };
                 setIsEditModalOpen(false);
-                onClose();
-                router.push(`/hotels/${encodeURIComponent(hotelId)}/billing?${params.toString()}`);
+                setSettlementTarget({
+                  room: checkoutRoom,
+                  stay: checkoutStay,
+                });
               }
             : undefined
         }
@@ -1622,6 +1685,20 @@ export function FrontDeskArrivalDetailPanel({
           await invalidateHotelRealtimeQueries(queryClient, hotelId);
         }}
       />
+
+      {settlementTarget && (
+        <RoomCheckoutSettlementModal
+          isOpen
+          onClose={() => setSettlementTarget(null)}
+          hotelId={hotelId}
+          room={settlementTarget.room}
+          stay={settlementTarget.stay}
+          onCheckoutSuccess={async () => {
+            setSettlementTarget(null);
+            await invalidateHotelRealtimeQueries(queryClient, hotelId);
+          }}
+        />
+      )}
     </>
   );
 }

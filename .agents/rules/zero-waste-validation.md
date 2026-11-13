@@ -1,62 +1,41 @@
 # Efficient Execution and Validation
 
-Mandatory for Codex, Antigravity and every runner in this repository. Optimize elapsed time by removing duplicate work. Preserve scope, protected approvals and evidence for correctness.
+Mandatory for every runner in this repository. This file owns project check selection; the shared [focused-execution profile](C:/Users/Dangminhdev0403/.agents/skills/focused-execution/SKILL.md) owns mode activation, briefs, dispatch, stall handling and completion. Runtime-required progress, approval and runner lifecycle messages take precedence over a quiet-output preference.
 
-## 1. Decide the work once
+## Scope and execution
 
-- Use the shared [CODE MODE task-size policy](C:/Users/Dangminhdev0403/.agents/skills/focused-execution/SKILL.md#code-mode) for analysis and delegation. A small correction or Markdown/rules task normally needs no worker, new plan file, broad audit or graph refresh; explicit user requests still apply.
-- For an implementation task, identify the requested behavior, allowed files/owners, important negative cases, contract impact and smallest verification set before editing. Keep this in a short internal checklist or existing tracking. Long audit/remediation work uses the shared profile's single Markdown register; do not create duplicate plans or evidence inventories.
-- Reuse an existing audit's verified findings and source map for authorized remediation. Refresh only changed evidence; do not audit the entire project again. A check inside implementation does not reactivate a separate strict audit workflow.
-- Local tasks normally touch 1-3 files. Cross-file root-cause fixes may include necessary callers, focused tests and contract artifacts within the authorized outcome; name that bounded set before editing. The file count alone does not require another approval. Explicit user file limits and UI/data/ops boundaries still apply. New issues outside the authorized boundary remain report-only; audit+fix approval for a whole boundary includes newly confirmed defects there unless limited to named findings.
+- Follow [CODE MODE](C:/Users/Dangminhdev0403/.agents/skills/focused-execution/SKILL.md#code-mode) and its mandatory [parallel execution contract](C:/Users/Dangminhdev0403/.agents/skills/focused-execution/SKILL.md#parallel-execution-contract) for authorized implementation; audit-only reviewers remain read-only. Reuse verified findings/maps instead of starting a fresh audit. Documentation format and stable shared read-only dependencies are not solo exemptions.
+- Apply [database-first and end-to-end optimization](C:/Users/Dangminhdev0403/.agents/skills/focused-execution/SKILL.md#database-first-and-end-to-end-optimization) to relevant data-heavy work, preserving whole-flow correctness; cosmetic changes need no database discovery.
+- Freeze the requested outcome, ownership/write fences, important negative cases, contract impact and necessary checks internally. No arbitrary file quota or new plan for a local correction. Complete necessary callers/contracts within authorization; preserve unrelated dirty work, explicit file limits, TEST MODE locks and protected-action gates.
+- Use shared [audit/remediation tracking](C:/Users/Dangminhdev0403/.agents/skills/focused-execution/references/audit-remediation.md) for substantial authorized queues. A simple review/fix needs no new ledger, duplicated plan or phase approvals.
 
-## 2. Read and navigate only what changes the decision
+## Read and coordinate once
 
-- Reuse loaded rules and source excerpts. Read relevant ranges once; reread only an edited/concurrently changed range, a specific error location, or a missing caller needed to validate the fix. Record the reason briefly in the tool intent. No repeated whole-file or whole-rule dumps.
-- For code discovery, use the existing Graphify map and one scoped Repomix pack. Add only newly required files. After at most two unsuccessful targeted navigation attempts, name the exact graph/pack gap and use a bounded source search; do not rebuild indexes or repeat the same query. Never bypass Repomix's security exclusions.
-- Exact-path documentation/rules edits and exact user command execution need no symbol graph or Repomix pack. Do not read application source for these tasks.
-- Batch independent reads/checks, inspect each result, and cap output to relevant excerpts, summaries and errors. Do not print complete generated contracts, manifests, environment variables or process command lines.
+- Follow [scoped source navigation](../AGENTS.md#scoped-source-navigation). Reuse loaded instructions/current evidence, batch independent reads and return only decision-relevant ranges or errors. Do not dump complete generated contracts, manifests, environment variables or process command lines.
+- Worker ownership, briefs, real result receipts, takeover and progress handling follow the shared parallel contract; use an existing suitable runner/context when requested. The host reviews returned changes and missing evidence without repeating the worker's investigation.
+- Determine API impact before edits. One owner completes runtime validation, affected callers, Swagger/OpenAPI, generated types and required contract changelog together. Freeze schemas before exporting/generating; regenerate only after a semantic change invalidates the artifacts.
 
-## 3. Make each implementation handoff complete
-
-- Follow the shared profile's delegation scope; do not add a second permission gate for routine scoped sub-agents. Tool availability alone is not a reason to delegate. If the user requests Orca/Antigravity, use its existing terminal/context before launching another.
-- Assign module/workflow ownership using the shared profile's dependency policy; paths define write fences, not how tasks are split. The host must not edit a worker-owned module or shared mutable surface until that owner has acknowledged stopping writes there. Never discard existing dirty work to obtain a clean baseline.
-- Give the worker the exact outcome, ownership, invariants, negative cases, existing primitives, contract obligations and allowed checks in one initial message. For authorization: allowed/denied/mixed-resource cases. For money: date boundaries, sparse/missing prices and transaction failure. Include only applicable cases.
-- Determine API impact before coding. The same owner completes runtime validation, affected callers, Swagger/OpenAPI, generated types and required changelog together. Freeze schemas before exporting and generating once; regenerate only if a later semantic change invalidates them.
-- Require one handoff with files changed, behavior, exact commands/exit results, unique test counts and remaining gaps. The host reviews the resulting diff and missing evidence; it reuses completed valid checks.
-- Consolidate review feedback into one batch. After two unsuccessful correction rounds for the same acceptance criterion, take back only that scope after the worker stops writing, then finish it directly. Do not restart another general review or ask the user to reauthorize the same fix.
-
-## 4. Detect stalls and keep making progress
-
-- Prefer completion notifications or bounded waits. Do not repeatedly poll unchanged terminal output; use 30-60 second waits while working on independent scope. An accepted prompt is not a completed task.
-- Five minutes without a new diff, check result or concrete blocker triggers one diagnosis of the active stage. Ten minutes without measurable progress requires changing the approach, narrowing the worker task or taking ownership after writes stop. These are stall checkpoints, not a deadline to abandon correct implementation.
-- A failed command gets a diagnosis from its actual stderr and installed project configuration. Do not repeat an unchanged failing command, guess dependency exports, install tools or expand into unrelated layers.
-- Do not emit intermediate `phase: commentary` messages or periodic 60-second progress updates between tool calls; keep progress tracking in `<thought>` and emit only the single `final` channel response. Follow [focused-execution](C:/Users/Dangminhdev0403/.agents/skills/focused-execution/SKILL.md) for worker briefs and completion (preserving Orca CLI mailbox/lifecycle commands when running inside an Orca worker).
-- Implementation reports changed behavior/files, actual checks and remaining blockers. Audit markers and verification matrices belong to explicit audit deliverables or a specifically requested remediation matrix; a fix after an audit does not reactivate that workflow.
-
-## 5. Select checks by the changed behavior
+## Select checks by the changed behavior
 
 | Scope | Required validation | Do not run by default |
 |---|---|---|
-| Markdown/rules only | Review the diff of changed documents and referenced local paths | Tests, lint, build, typecheck, UI gate, Graphify/Repomix |
-| Pure UI/CSS/Tailwind/layout/copy/presentation | Root UI gate: node scripts/verify-ui-rules.cjs | Test suites, full lint/build, typecheck for styling/text only |
+| Markdown/rules only | Review the changed-document diff and referenced local paths | Tests, lint, build, typecheck, UI gate, Graphify/Repomix |
+| Pure UI/CSS/Tailwind/layout/copy/presentation | Root UI gate: `node scripts/verify-ui-rules.cjs` | Test suites, full lint/build, typecheck for styling/text only |
 | New UI TypeScript imports/props/types | UI gate plus relevant typecheck when needed | UI test suites or production build for presentation-only work |
-| Backend behavior/authorization/money | Smallest existing regression test set covering changed behavior and meaningful negative cases; relevant typecheck when types/imports/contracts change | Full repository suite, blanket lint/build |
-| API runtime/schema/generated types | Focused behavior checks, one export/type generation after schema freeze, contract gate and affected consumer typecheck | Re-exporting unchanged schemas; full UI/backend suites |
+| Backend behavior/authorization/money | Smallest sufficient existing regressions covering behavior and meaningful negative cases; relevant typecheck when types/imports/contracts change | Full repository suite, blanket lint/build |
+| Query/data-flow performance optimization | Focused correctness checks plus comparable scoped before/after runtime evidence under the shared [optimization policy](C:/Users/Dangminhdev0403/.agents/skills/focused-execution/references/database-first.md); missing runtime/DB evidence remains GAP | Unapproved load/data/migration operations; treating mocks or typechecks as database performance proof |
+| API runtime/schema/generated types | Focused behavior checks, export/type generation after schema freeze, contract gate and affected consumer typecheck | Re-exporting unchanged schemas; full UI/backend suites |
 | Prisma schema file | Existing scoped Prisma validation command | Applying migrations, reset, seed or backfill without separate approval |
 | Nginx/deployment config | Relevant existing static configuration gate | Live reload/deploy/provider calls without authorization |
-| DB/data/VPS/Docker operations | Requested environment command and its focused result check | Application source edits, app suites/build, extra data operations |
-| Test authoring / UI browser testing (`TEST MODE`) | Clarify test authoring vs. UI browser test upfront (and confirm before UI browser test if test cases already exist); follow `Sweep All -> Batch Fix -> Single Retest` (collect all defects in one full sweep before batch-fixing; never zigzag test-fix-test per bug); run targeted test file(s) or batched browser locator assertions (`<= 800 chars` output, silent execution, no intermediate screenshots) per [TEST MODE](C:/Users/Dangminhdev0403/.agents/skills/focused-execution/SKILL.md#test-mode) | Mid-test single-bug fixing loops, repeated `Get-Content`/`rg` micro-reads on the same file, launching unconfirmed UI browser tests, play-by-play commentary ("vừa test vừa trả lời"), full `domSnapshot()`/console dumps, intermediate screenshots |
+| DB/data/VPS/Docker operations | Requested environment command and focused result check | Application source edits, app suites/build, extra data operations |
+| Test authoring / UI browser testing (`TEST MODE`) | Follow the canonical [TEST MODE reference](C:/Users/Dangminhdev0403/.agents/skills/focused-execution/references/test-mode.md): select code/browser verification from user intent; run already-authorized browser scope without asking again; preserve test-only or current test+fix boundaries | Unapproved browser/provider/data operations, superficial page-only checks, mid-sweep single-defect fixing, unbounded DOM/log output |
 
-- Pure presentation changes must not run test suites or full lint/build. Typecheck is allowed only when new imports/props/types justify it. Never format the entire repository for a scoped task.
-- Discover exact commands from existing manifests/configuration. Execute at the repository root using root scripts or pnpm -C; do not cd into subdirectories. Retain project package/install and protected-action gates.
-- Run focused regressions during the fix, then remaining applicable integration gates once after the affected files freeze. Batch independent gates where resource usage permits.
-- Maintain a small evidence record: command, scoped files/revision, exit result and tests checked. A passing result remains valid until a relevant implementation/input/configuration changes. The host must not rerun a worker's passing command just to claim ownership.
-- After a failure or later edit, rerun only checks affected by that change. A documentation-only change does not invalidate tests; a type-only metadata fix needs the affected typecheck, not all business suites again.
-- Do not add tests for Markdown, cosmetic changes or checks that merely mirror implementation. Add a focused regression only when needed to establish changed behavior. Never trade away authorization, money, transaction or compatibility evidence to meet a time target.
-- Count unique tests from the final scoped run or deduplicated suites; never add overlapping command totals. Distinguish static/unit evidence from browser/database/provider runtime evidence.
+- Discover exact commands from installed manifests/configuration. Execute from the repository root through root scripts or `pnpm -C`; do not change directories or install tools to make a failed check pass.
+- Run sufficient focused regressions and applicable shared gates as their inputs stabilize; no exact-one-check ceiling. Preserve denial, tenant isolation, money, transaction, concurrency and compatibility evidence where relevant.
+- Record command, inspected files/revision, exit result and unique test count. Reuse a worker's valid results; rerun only checks invalidated by a relevant edit, input/configuration change or failure. Deduplicate overlapping test totals.
+- Do not add tests for Markdown, cosmetic changes or assertions that merely mirror implementation. Reuse sufficient existing coverage; add focused regressions where changed behavior needs proof. Never format the whole repository for scoped work.
+- Separate static/unit evidence from browser, database and provider evidence. A blocked or unrun check is not PASS; name the exact blocker while completing independent authorized work.
 
-## 6. Finish when the outcome is verified
+## Finish
 
-The task is complete when the requested behavior, necessary callers/contracts and applicable gates are satisfied, and real remaining gaps are stated. Update the existing plan/comment once if one is in use, then send a concise completion. Do not start another audit, polish unrelated code, broaden tests, refresh graphs, or write extra reports after that point.
-
-If a required check cannot run, state its exact blocker and complete independent authorized work. Never mark unrun checks passed or claim runtime coverage from static checks.
+Complete the approved outcome, necessary callers/contracts and applicable checks, then report changed behavior, actual results and remaining gaps. Update existing tracking once when used; do not add unrelated polish, a fresh audit, graph refresh or duplicate report after verification. Audit deliverables retain the [project evidence standard](strict-audit-mode.md).

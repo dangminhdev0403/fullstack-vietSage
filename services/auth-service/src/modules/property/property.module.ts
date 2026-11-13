@@ -8,6 +8,10 @@ import { HotelDashboardController } from "./api/hotel-dashboard.controller";
 import { HotelDashboardService } from "./application/hotel-dashboard.service";
 import { HotelReportsController } from "./api/hotel-reports.controller";
 import { HotelReportsService } from "./application/hotel-reports.service";
+import { HotelRevenueBookController } from "./api/hotel-revenue-book.controller";
+import { HotelRevenueBookService } from "./application/hotel-revenue-book.service";
+import { HotelExpenseController } from "./api/hotel-expense.controller";
+import { HotelExpenseService } from "./application/hotel-expense.service";
 import { HotelRoomsController } from "./api/hotel-rooms.controller";
 import { HotelRoomsService } from "./application/hotel-rooms.service";
 import { HotelServicesController } from "./api/hotel-services.controller";
@@ -38,6 +42,8 @@ import { ReservationRoomAllocationService } from "./application/reservation-room
     HotelServicesController,
     HotelDashboardController,
     HotelReportsController,
+    HotelRevenueBookController,
+    HotelExpenseController,
     ReservationsController,
     HotelStaffAssignmentsController,
   ],
@@ -47,6 +53,8 @@ import { ReservationRoomAllocationService } from "./application/reservation-room
     HotelServicesService,
     HotelDashboardService,
     HotelReportsService,
+    HotelRevenueBookService,
+    HotelExpenseService,
     HotelAccessService,
     HotelCoreRepository,
     HotelRoomsRepository,

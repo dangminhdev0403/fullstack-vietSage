@@ -270,6 +270,7 @@ export function useHousekeeping({
         await Promise.all([roomId ? roomQuery.refetch() : allRoomsQuery.refetch(), tasksQuery.refetch()]);
 
         toast.success(`Phòng ${roomNum} đã sạch sẽ`, {
+          id: `hk-task-${room.roomNumber || room.id}`,
           description: "Đã chuyển trạng thái sang Sẵn sàng đón khách.",
           duration: 3000,
         });

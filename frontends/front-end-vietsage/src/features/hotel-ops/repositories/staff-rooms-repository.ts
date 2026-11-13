@@ -6,7 +6,9 @@ import type {
   HotelArrival,
   HotelOpsPage,
   HotelRoomSummary,
+  HotelStaySummary,
   HotelConfirmationTemplateConfig,
+  HotelPriorityAlertsResponse,
   ReservationConfirmationData,
   StayFolioContext,
   UpdateReservationInput,
@@ -235,6 +237,52 @@ export const staffRoomsRepository = {
     return response.data;
   },
 
+  async updateRoomStatus(
+    hotelId: string,
+    roomId: string,
+    payload: {
+      status: "AVAILABLE" | "PROCESSING" | "MAINTENANCE" | "BLOCKED";
+      expectedUpdatedAt?: string | null;
+    },
+    signal?: AbortSignal,
+  ): Promise<HotelRoomSummary> {
+    const response = await requestInternalApiEnvelope<HotelRoomSummary>(
+      `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/rooms/${encodeURIComponent(roomId)}/status`,
+      { method: "PATCH", body: payload, signal },
+    );
+    return response.data;
+  },
+
+  async createReservation(
+    hotelId: string,
+    payload: Record<string, unknown>,
+    signal?: AbortSignal,
+  ): Promise<HotelArrival> {
+    const response = await requestInternalApiEnvelope<HotelArrival>(
+      `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/reservations`,
+      { method: "POST", body: payload, signal },
+    );
+    return response.data;
+  },
+
+  async updateStay(
+    hotelId: string,
+    stayId: string,
+    payload: {
+      plannedCheckOutAt?: string;
+      guestDisplayName?: string;
+      guestPhone?: string;
+      expectedUpdatedAt?: string | null;
+    },
+    signal?: AbortSignal,
+  ): Promise<HotelStaySummary> {
+    const response = await requestInternalApiEnvelope<HotelStaySummary>(
+      `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/stays/${encodeURIComponent(stayId)}`,
+      { method: "PATCH", body: payload, signal },
+    );
+    return response.data;
+  },
+
   async findOpenRoomFolio(hotelId: string, roomId: string, signal?: AbortSignal): Promise<FolioListItem | null> {
     const query = new URLSearchParams({ roomId });
     const response = await requestInternalApiEnvelope<FolioListItem | null>(
@@ -274,7 +322,7 @@ export const staffRoomsRepository = {
   },
 
   async listAll(hotelId: string, signal?: AbortSignal): Promise<HotelOpsPage<HotelRoomSummary>> {
-    const first = await staffRoomsRepository.list(hotelId, { page: 1, limit: 200 }, signal);
+    const first = await staffRoomsRepository.list(hotelId, { page: 1, limit: 100 }, signal);
     const items = [...first.items];
     const seen = new Set(items.map((room) => room.id));
     for (let page = 2; items.length < first.total; page += 1) {
@@ -583,6 +631,52 @@ export const staffRoomsRepository = {
     return response.data;
   },
 
+  async updateReservationDates(
+    hotelId: string,
+    reservationId: string,
+    payload: {
+      startDate: string;
+      endDate: string;
+      plannedCheckInAt: string;
+      plannedCheckOutAt: string;
+      rate?: number;
+      nightlyRateSnapshot?: number;
+      expectedUpdatedAt?: string;
+    },
+    signal?: AbortSignal,
+  ): Promise<HotelArrival> {
+    const response = await requestInternalApiEnvelope<HotelArrival>(
+      `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/reservations/${encodeURIComponent(reservationId)}/dates`,
+      {
+        method: "PATCH",
+        body: payload,
+        signal,
+      },
+    );
+    return response.data;
+  },
+
+  async placeReservationRoom(
+    hotelId: string,
+    reservationId: string,
+    payload: {
+      targetRoomId?: string | null;
+      swapWithReservationId?: string;
+      expectedUpdatedAt?: string;
+    },
+    signal?: AbortSignal,
+  ): Promise<unknown> {
+    const response = await requestInternalApiEnvelope<unknown>(
+      `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/reservations/${encodeURIComponent(reservationId)}/placement`,
+      {
+        method: "PUT",
+        body: payload,
+        signal,
+      },
+    );
+    return response.data;
+  },
+
   async getReservation(
     hotelId: string,
     reservationId: string,
@@ -598,8 +692,37 @@ export const staffRoomsRepository = {
     return response.data;
   },
 
-  async listArrivals(hotelId: string, input: { from: string; to: string }, signal?: AbortSignal): Promise<HotelOpsPage<HotelArrival>> {
-    const params = new URLSearchParams({ ...input, limit: "100" });
+  async getPriorityAlerts(
+    hotelId: string,
+    signal?: AbortSignal,
+  ): Promise<HotelPriorityAlertsResponse> {
+    const response = await requestInternalApiEnvelope<HotelPriorityAlertsResponse>(
+      `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/rooms/priority-alerts`,
+      { method: "GET", signal },
+    );
+    return response.data;
+  },
+
+  async listArrivals(
+    hotelId: string,
+    input: {
+      from?: string;
+      to?: string;
+      includeOverdue?: boolean;
+      q?: string;
+      limit?: number;
+      page?: number;
+    },
+    signal?: AbortSignal,
+  ): Promise<HotelOpsPage<HotelArrival>> {
+    const params = new URLSearchParams({
+      limit: String(input.limit ?? 100),
+      ...(input.page ? { page: String(input.page) } : {}),
+      ...(input.to ? { to: input.to } : {}),
+      ...(input.from ? { from: input.from } : {}),
+      ...(input.includeOverdue ? { includeOverdue: "true" } : {}),
+      ...(input.q?.trim() ? { q: input.q.trim() } : {}),
+    });
     const response = await requestInternalApiEnvelope<HotelOpsPage<HotelArrival>>(
       `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/arrivals?${params}`,
       { method: "GET", signal },

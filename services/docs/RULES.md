@@ -121,6 +121,8 @@ Review every list endpoint for:
 - unbounded pagination
 - unnecessary selected fields
 - redundant query
+- **Concurrent independent Prisma reads**: When a repository method needs multiple independent lookups (e.g., active stays + upcoming reservations on the same `roomIds`), run them together with `Promise.all(...)` instead of chaining sequential `await` queries.
+- **Database-first filtering & bounded operational flags**: When UI workspaces need an operational slice (such as overdue active bookings alongside upcoming arrivals), expose explicit indexed query parameters/flags (e.g., `includeOverdue` using `@@index([hotelId, status, plannedCheckInAt])` with an explicit upper bound and bounded `limit`) instead of forcing clients into arbitrary blind lookback windows (`-30d`) or multiple overlapping API calls. Keep Zod schemas, controller `@ApiQuery`, BFF validation, and OpenAPI docs aligned.
 
 ## Prisma Migration Rules
 

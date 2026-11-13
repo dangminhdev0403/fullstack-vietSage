@@ -36,18 +36,30 @@ function prop(path, tag, name, context) {
   return evaluate(attribute.initializer.expression.getText(tree), context);
 }
 
-test("conflict checkout forwards selected stay E rather than original D", () => {
-  let route;
+test("conflict checkout forwards selected stay E in-place rather than original D", () => {
+  let closedEdit = false;
+  let target;
   const callback = prop("./components/front-desk-room-detail-panel.tsx", "EditReservationModal", "onCheckOutConflictingStay", {
-    canViewBilling: true, canCheckoutBilling: true, canCheckOutStay: false,
-    URLSearchParams, hotelId: "hotel", setIsEditModalOpen() {}, onClose() {},
-    router: { push(value) { route = value; } },
+    canViewBilling: true,
+    canCheckoutBilling: true,
+    canCheckOutStay: false,
+    roomsPage: {
+      items: [
+        { id: "room-D", roomNumber: "QA04-D", activeStay: { id: "stay-D", guestDisplayName: "Guest D" } },
+        { id: "room-E", roomNumber: "QA04-E", activeStay: { id: "stay-E", guestDisplayName: "Guest E" } },
+      ],
+    },
+    room: { id: "room-D", roomNumber: "QA04-D", activeStay: { id: "stay-D" } },
+    reservation: { id: "res-1", roomId: "room-D" },
+    stay: { id: "stay-D", guestDisplayName: "Guest D" },
+    setIsEditModalOpen(value) { closedEdit = value === false; },
+    setConflictCheckoutTarget(value) { target = value; },
   });
   callback("stay-E", "QA04-E");
-  const url = new URL(route, "https://local");
-  assert.equal(url.searchParams.get("stayId"), "stay-E");
-  assert.equal(url.searchParams.get("roomNumber"), "QA04-E");
-  assert.equal(url.searchParams.get("roomId"), null);
+  assert.equal(closedEdit, true);
+  assert.equal(target.room.id, "room-E");
+  assert.equal(target.room.roomNumber, "QA04-E");
+  assert.equal(target.stay.id, "stay-E");
 });
 test("conflict checkout remains unavailable without billing permission", () => {
   assert.equal(prop("./components/front-desk-room-detail-panel.tsx", "EditReservationModal", "onCheckOutConflictingStay", {
@@ -119,6 +131,7 @@ for (const early of [true, false]) {
           return { stayId: "stay" };
         } },
         isEarlyCheckInError: () => early, isLateCheckInError: () => !early,
+        toVietnamYmd: (value) => (value ? String(value).slice(0, 10) : ""),
         toDisplayVnDate: (value) => value,
         showConfirmDialog: async (options) => {
           assert.match(options.text, /QA04-J/);

@@ -1,5 +1,10 @@
 # Contract Changes
 
+## 2026-11-13 — Arrivals overdue inclusion & unified operational query window
+
+- In `GET /hotels/{hotelId}/arrivals`, added optional `includeOverdue?: boolean` (and relaxed `from` to optional when `to` is supplied, keeping `to` required when `q` is omitted) and raised the `limit` cap from `100` to `200`.
+- When `includeOverdue=true`, `ReservationsService.listArrivals` omits the lower date bound so Prisma queries `plannedCheckInAt < to` directly on the `[hotelId, status, plannedCheckInAt]` composite index, returning both un-checked-in overdue bookings and upcoming arrivals in one request.
+
 ## 2026-11-07 — Shared hotel BCA automatic-delivery switch
 
 - Added private hotel-scoped `GET`/`PUT /hotels/{hotelId}/kbtt/auto-submit/enabled` with `{autoSubmitEnabled:boolean}`. Front desk declaration managers can toggle the same persisted hotel flag as tenant managers without changing credentials or schedule.

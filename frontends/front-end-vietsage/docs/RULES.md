@@ -111,7 +111,7 @@ The application follows the design language in `@DESIGN.md` and enforces the fol
 
 - Use queries/\* hooks
 - Use feature repositories for backend/BFF calls; existing service loaders may migrate incrementally.
-- Avoid duplicate fetching
+- Avoid duplicate fetching: consolidate overlapping operational data windows on the same endpoint into one shared `@dangminhdev04032005/query-resource` query using backend indexed parameters/flags (such as `includeOverdue` + bounded `limit`), then derive narrower views in `useMemo` instead of issuing parallel `useEffect` `requestInternalApiEnvelope` + duplicate `useQuery` calls. Keep complex client aggregation/sorting only when combining distinct resources already loaded for the workspace (e.g., rooms + arrivals + OTA feed).
 
 ## React Query Rule (Mandatory)
 

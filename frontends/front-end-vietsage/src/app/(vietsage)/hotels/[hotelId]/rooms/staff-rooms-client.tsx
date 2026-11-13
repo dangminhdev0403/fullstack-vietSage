@@ -2,7 +2,6 @@
 
 import { createPortal } from "react-dom";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { useRouter } from "next/navigation";
 import {
   SwalVietSage,
   escapeHtml,
@@ -19,7 +18,6 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 
-import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import { BrandedRoomQr } from "@/features/hotel-ops/components/branded-room-qr";
 import { formatFriendlyCheckInError, formatFriendlyHotelOpsError } from "@/features/hotel-ops/utils/check-in-error";
 import {
@@ -27,7 +25,9 @@ import {
   resolveRoomStatusModel,
 } from "@/features/hotel-ops/components/front-desk-room-detail-panel";
 import { FrontDeskArrivalDetailPanel } from "@/features/hotel-ops/components/front-desk-arrival-detail-panel";
+import { EditReservationModal } from "@/features/hotel-ops/components/edit-reservation-modal";
 import { DailyMovementsModal } from "@/features/hotel-ops/components/daily-movements-modal";
+import { RoomCheckoutSettlementModal } from "@/features/hotel-ops/components/room-checkout-settlement-modal";
 import { staffRoomsRepository } from "@/features/hotel-ops/repositories/staff-rooms-repository";
 import { staffRoomsResource } from "@/features/hotel-ops/resources/staff-rooms-resource";
 import { roomPlanResource } from "@/features/hotel-ops/resources/room-plan-resource";
@@ -36,8 +36,20 @@ import {
   filterExtraOccupants,
   formatMoney,
 } from "@/features/hotel-ops/utils/hotel-ops-display";
-import { parseHotelDatetimeToIso } from "@/libs/vietnam-temporal";
+import {
+  addDaysYmd,
+  getVietnamToday,
+  parseHotelDatetimeToIso,
+  toVietnamDatetimeLocal,
+  toVietnamYmd,
+} from "@/libs/vietnam-temporal";
 import { getArrivalDateRange } from "@/features/hotel-ops/utils/arrival-date-range";
+import { PriorityRoomsControlSection } from "@/features/hotel-ops/components/priority-rooms-control-section";
+import {
+  buildPriorityRoomAlerts,
+  mapBackendPriorityAlerts,
+  type PriorityRoomAlertItem,
+} from "@/features/hotel-ops/utils/priority-room-alerts";
 import type {
   BookingSourcePartnerItem,
   BulkReservationInput,
@@ -100,9 +112,9 @@ function formatVnDateStr(ymd: string): string {
 
 function getVnWeekday(ymd: string): string {
   if (!ymd) return "";
-  const d = new Date(`${ymd}T00:00:00`);
+  const d = new Date(`${ymd}T00:00:00Z`);
   const days = ["Chủ nhật", "Thứ hai", "Thứ ba", "Thứ tư", "Thứ năm", "Thứ sáu", "Thứ bảy"];
-  return days[d.getDay()] || "";
+  return days[d.getUTCDay()] || "";
 }
 
 export type StaffRoomsClientProps = {
@@ -160,12 +172,8 @@ const statusFilters: Array<{ value: RoomStatusFilter; label: string }> = [
 ];
 
 function localDateTime(offsetDays: number, hour: number): string {
-  const value = new Date();
-  value.setDate(value.getDate() + offsetDays);
-  value.setHours(hour, 0, 0, 0);
-  return new Date(value.getTime() - value.getTimezoneOffset() * 60_000)
-    .toISOString()
-    .slice(0, 16);
+  const targetYmd = addDaysYmd(getVietnamToday(), offsetDays);
+  return `${targetYmd}T${String(hour).padStart(2, "0")}:00`;
 }
 
 function formatDateTime(value: string | null | undefined): string {
@@ -253,6 +261,61 @@ function isOverdueCheckOut(room: HotelRoomSummary): boolean {
   return new Date(stay.plannedCheckOutAt).getTime() < Date.now();
 }
 
+function findUpcomingReservationForRoom(
+  room: HotelRoomSummary,
+  arrivalsList: HotelArrival[],
+): HotelArrival | null {
+  const matchingFromArrivals = arrivalsList
+    .filter(
+      (a) =>
+        a.roomId === room.id &&
+        a.status !== "CANCELLED" &&
+        a.status !== "CHECKED_IN",
+    )
+    .sort(
+      (a, b) =>
+        new Date(a.plannedCheckInAt).getTime() -
+        new Date(b.plannedCheckInAt).getTime(),
+    )[0];
+
+  if (matchingFromArrivals) {
+    return matchingFromArrivals;
+  }
+
+  const res = room.upcomingReservation || room.projectedReservation;
+  if (res && res.id) {
+    return {
+      id: res.id,
+      hotelId: room.hotelId || "",
+      roomId: room.id,
+      room: {
+        id: room.id,
+        roomNumber: room.roomNumber,
+        type: room.type || room.roomTypeName,
+        maxOccupancy: room.maxOccupancy,
+        status: room.status,
+        physicalStatus: room.physicalStatus,
+        qr: room.qr,
+        qrStatus: room.qrStatus,
+      },
+      reservationCode: res.reservationCode || "",
+      groupCode: res.groupCode,
+      guestCount: res.guestCount,
+      notes: res.notes,
+      guestDisplayName: res.guestDisplayName || "Khách đặt trước",
+      guestPhone: res.guestPhone || null,
+      status: (res.status as "CONFIRMED" | "ARRIVAL_READY" | "CHECKED_IN" | "CANCELLED" | "NO_SHOW") || "CONFIRMED",
+      plannedCheckInAt: res.plannedCheckInAt,
+      plannedCheckOutAt: res.plannedCheckOutAt,
+      nightlyRateSnapshot: res.nightlyRateSnapshot,
+      roomSubtotal: res.roomSubtotal,
+      totalAmount: res.totalAmount,
+    };
+  }
+
+  return null;
+}
+
 function getRoomStatus(room: HotelRoomSummary): RoomStatusFilter {
   if (isOverdueCheckOut(room)) return "overdue";
   const status = (room.physicalStatus || room.status)?.toUpperCase();
@@ -334,79 +397,20 @@ function roomCardClass(status: RoomStatusFilter): string {
 }
 
 function renderRoomAmbientGlow(status: RoomStatusFilter) {
-  if (status === "overdue") {
-    return (
-      <div
-        className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl"
-        aria-hidden="true"
-      >
-        <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-rose-400/20 blur-2xl" />
-        <div className="absolute -bottom-8 -left-8 h-32 w-32 rounded-full bg-rose-300/15 blur-2xl" />
-      </div>
-    );
-  }
-  if (status === "reserved") {
-    return (
-      <div
-        className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl"
-        aria-hidden="true"
-      >
-        <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-purple-400/20 blur-2xl" />
-        <div className="absolute -bottom-8 -left-8 h-32 w-32 rounded-full bg-indigo-300/15 blur-2xl" />
-      </div>
-    );
-  }
-  if (status === "occupied") {
-    return (
-      <div
-        className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl"
-        aria-hidden="true"
-      >
-        <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-sky-400/20 blur-2xl" />
-        <div className="absolute -bottom-8 -left-8 h-32 w-32 rounded-full bg-blue-300/15 blur-2xl" />
-      </div>
-    );
-  }
-  if (status === "processing") {
-    return (
-      <div
-        className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl"
-        aria-hidden="true"
-      >
-        <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-amber-400/25 blur-2xl" />
-        <div className="absolute -bottom-8 -left-8 h-32 w-32 rounded-full bg-amber-300/15 blur-2xl" />
-      </div>
-    );
-  }
-  if (status === "maintenance") {
-    return (
-      <div
-        className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl"
-        aria-hidden="true"
-      >
-        <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-rose-400/15 blur-2xl" />
-        <div className="absolute -bottom-8 -left-8 h-32 w-32 rounded-full bg-slate-300/20 blur-2xl" />
-      </div>
-    );
-  }
-  if (status === "blocked") {
-    return (
-      <div
-        className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl"
-        aria-hidden="true"
-      >
-        <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-slate-400/15 blur-2xl" />
-        <div className="absolute -bottom-8 -left-8 h-32 w-32 rounded-full bg-slate-300/15 blur-2xl" />
-      </div>
-    );
-  }
+  let barClass = "bg-emerald-500/70";
+  if (status === "overdue") barClass = "bg-rose-500";
+  else if (status === "reserved") barClass = "bg-purple-500/80";
+  else if (status === "occupied") barClass = "bg-sky-500/80";
+  else if (status === "processing") barClass = "bg-amber-500/85";
+  else if (status === "maintenance") barClass = "bg-rose-400/75";
+  else if (status === "blocked") barClass = "bg-slate-400/80";
+
   return (
     <div
-      className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl"
+      className="pointer-events-none absolute inset-x-0 top-0 overflow-hidden rounded-t-2xl"
       aria-hidden="true"
     >
-      <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-emerald-400/20 blur-2xl" />
-      <div className="absolute -bottom-8 -left-8 h-32 w-32 rounded-full bg-emerald-300/15 blur-2xl" />
+      <div className={`h-1 w-full ${barClass}`} />
     </div>
   );
 }
@@ -710,29 +714,10 @@ export function StaffRoomsClient({
   baseRoutePrefix,
   currentUser,
 }: StaffRoomsClientProps) {
-  const router = useRouter();
   const queryClient = useQueryClient();
-  const apiBase = `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}`;
 
-  const todayYmd = useMemo(() => {
-    return new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Asia/Ho_Chi_Minh",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date());
-  }, []);
-
-  const tomorrowYmd = useMemo(() => {
-    const tmr = new Date();
-    tmr.setDate(tmr.getDate() + 1);
-    return new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Asia/Ho_Chi_Minh",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(tmr);
-  }, []);
+  const todayYmd = useMemo(() => getVietnamToday(), []);
+  const tomorrowYmd = useMemo(() => addDaysYmd(todayYmd, 1), [todayYmd]);
 
   const [businessDate, setBusinessDate] = useState<string>(() =>
     isHousekeeping ? todayYmd : initialBusinessDate || todayYmd,
@@ -915,35 +900,18 @@ export function StaffRoomsClient({
   const [reservationGuestPhone, setReservationGuestPhone] =
     useState<string>("");
   const [reservationCheckIn, setReservationCheckIn] = useState<string>(() => {
-    const d = new Date();
-    if (initialBusinessDate && initialBusinessDate > todayYmd) {
-      const parts = initialBusinessDate.split("-").map(Number);
-      if (parts[0] && parts[1] && parts[2]) {
-        d.setFullYear(parts[0], parts[1] - 1, parts[2]);
-      }
-    } else {
-      d.setDate(d.getDate() + 1);
-    }
-    d.setHours(14, 0, 0, 0);
-    return new Date(d.getTime() - d.getTimezoneOffset() * 60_000)
-      .toISOString()
-      .slice(0, 16);
+    const startYmd =
+      initialBusinessDate && initialBusinessDate > todayYmd
+        ? initialBusinessDate
+        : tomorrowYmd;
+    return `${startYmd}T14:00`;
   });
   const [reservationCheckOut, setReservationCheckOut] = useState<string>(() => {
-    const d = new Date();
-    if (initialBusinessDate && initialBusinessDate > todayYmd) {
-      const parts = initialBusinessDate.split("-").map(Number);
-      if (parts[0] && parts[1] && parts[2]) {
-        d.setFullYear(parts[0], parts[1] - 1, parts[2]);
-      }
-      d.setDate(d.getDate() + 1);
-    } else {
-      d.setDate(d.getDate() + 2);
-    }
-    d.setHours(12, 0, 0, 0);
-    return new Date(d.getTime() - d.getTimezoneOffset() * 60_000)
-      .toISOString()
-      .slice(0, 16);
+    const startYmd =
+      initialBusinessDate && initialBusinessDate > todayYmd
+        ? initialBusinessDate
+        : tomorrowYmd;
+    return `${addDaysYmd(startYmd, 1)}T12:00`;
   });
   const [reservationNightlyRate, setReservationNightlyRate] =
     useState<string>("");
@@ -962,6 +930,12 @@ export function StaffRoomsClient({
   const [reservationNightlyRates, setReservationNightlyRates] = useState<Record<string, number>>({});
   const [reservationPrebookedServices, setReservationPrebookedServices] = useState<PrebookedServiceItem[]>([]);
   const [reservationCustomPercent, setReservationCustomPercent] = useState<string>("10");
+
+  // Reassign reservation conflict state (when guest extends stay into an upcoming reservation)
+  const [reassignReservation, setReassignReservation] =
+    useState<HotelArrival | null>(null);
+  const [reassignOriginalRoom, setReassignOriginalRoom] =
+    useState<HotelRoomSummary | null>(null);
 
   // Bulk Reservation State
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
@@ -1045,10 +1019,7 @@ export function StaffRoomsClient({
     const outTime = new Date(`${bulkCheckOutDate}T00:00:00.000Z`).getTime();
     const diffDays = Math.round((outTime - inTime) / (1000 * 60 * 60 * 24));
     if (diffDays > 30) {
-      const maxTo = new Date(inTime + 30 * 24 * 60 * 60 * 1000)
-        .toISOString()
-        .slice(0, 10);
-      return { from: bulkCheckInDate, to: maxTo };
+      return { from: bulkCheckInDate, to: addDaysYmd(bulkCheckInDate, 30) };
     }
     return { from: bulkCheckInDate, to: bulkCheckOutDate };
   }, [bulkCheckInDate, bulkCheckOutDate, todayYmd]);
@@ -1080,13 +1051,7 @@ export function StaffRoomsClient({
     const defaultIn =
       options?.defaultCheckInDate ||
       (businessDate && businessDate > todayYmd ? businessDate : todayYmd);
-    const inDateObj = new Date(defaultIn);
-    inDateObj.setDate(inDateObj.getDate() + 1);
-    const defaultOut = new Date(
-      inDateObj.getTime() - inDateObj.getTimezoneOffset() * 60_000,
-    )
-      .toISOString()
-      .slice(0, 10);
+    const defaultOut = addDaysYmd(defaultIn, 1);
 
     setBulkCheckInImmediately(Boolean(options?.checkInImmediately));
     setBulkMode("auto");
@@ -1139,14 +1104,7 @@ export function StaffRoomsClient({
   function handleBulkCheckInChange(newInDate: string) {
     setBulkCheckInDate(newInDate);
     if (bulkCheckOutDate && bulkCheckOutDate <= newInDate) {
-      const inDateObj = new Date(newInDate);
-      inDateObj.setDate(inDateObj.getDate() + 1);
-      const nextOut = new Date(
-        inDateObj.getTime() - inDateObj.getTimezoneOffset() * 60_000,
-      )
-        .toISOString()
-        .slice(0, 10);
-      setBulkCheckOutDate(nextOut);
+      setBulkCheckOutDate(addDaysYmd(newInDate, 1));
     }
   }
 
@@ -1155,14 +1113,7 @@ export function StaffRoomsClient({
     if (!bulkCheckInDate) {
       setBulkCheckInDate(baseIn);
     }
-    const inDateObj = new Date(baseIn);
-    inDateObj.setDate(inDateObj.getDate() + nights);
-    const nextOut = new Date(
-      inDateObj.getTime() - inDateObj.getTimezoneOffset() * 60_000,
-    )
-      .toISOString()
-      .slice(0, 10);
-    setBulkCheckOutDate(nextOut);
+    setBulkCheckOutDate(addDaysYmd(baseIn, nights));
   }
 
   function toggleBulkRoom(roomId: string) {
@@ -1350,8 +1301,10 @@ export function StaffRoomsClient({
   const [arrivalsRange, setArrivalsRange] = useState<
     "today" | "tomorrow" | "week"
   >(initialRange);
-  const [arrivalsList, setArrivalsList] = useState<HotelArrival[]>([]);
-  const [arrivalsLoading, setArrivalsLoading] = useState(false);
+  const [tapeCheckoutTarget, setTapeCheckoutTarget] = useState<{
+    room: HotelRoomSummary;
+    stay: NonNullable<HotelRoomSummary["activeStay"]>;
+  } | null>(null);
 
   // Daily Movements (Khách đến & Khách đi trong ngày) Modal State
   const [isDailyMovementsOpen, setIsDailyMovementsOpen] = useState(false);
@@ -1386,17 +1339,8 @@ export function StaffRoomsClient({
 
   function stepBusinessDate(offsetDays: number) {
     const currentDate = businessDate || todayYmd;
-    const [year, month, day] = currentDate.split("-").map(Number);
-    if (!year || !month || !day) return;
-    const target = new Date(year, month - 1, day);
-    target.setDate(target.getDate() + offsetDays);
-    const ymd = new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Asia/Ho_Chi_Minh",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(target);
-    handleBusinessDateChange(ymd);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(currentDate)) return;
+    handleBusinessDateChange(addDaysYmd(currentDate, offsetDays));
   }
 
   function openFutureReservationModal(room?: HotelRoomSummary) {
@@ -1420,28 +1364,11 @@ export function StaffRoomsClient({
 
       // Nếu phòng đang có khách ở, tự động gợi ý nhận phòng từ ngày khách cũ trả phòng
       if (room.activeStay?.plannedCheckOutAt) {
-        const outDate = new Date(room.activeStay.plannedCheckOutAt);
-        if (!isNaN(outDate.getTime())) {
-          const checkInD = new Date(outDate);
-          checkInD.setHours(14, 0, 0, 0);
-          const tomorrowD = new Date();
-          tomorrowD.setDate(tomorrowD.getDate() + 1);
-          tomorrowD.setHours(14, 0, 0, 0);
-
-          const effectiveInD = checkInD.getTime() > tomorrowD.getTime() ? checkInD : tomorrowD;
-          setReservationCheckIn(
-            new Date(effectiveInD.getTime() - effectiveInD.getTimezoneOffset() * 60_000)
-              .toISOString()
-              .slice(0, 16),
-          );
-          const checkOutD = new Date(effectiveInD);
-          checkOutD.setDate(checkOutD.getDate() + 1);
-          checkOutD.setHours(12, 0, 0, 0);
-          setReservationCheckOut(
-            new Date(checkOutD.getTime() - checkOutD.getTimezoneOffset() * 60_000)
-              .toISOString()
-              .slice(0, 16),
-          );
+        const outYmd = toVietnamYmd(room.activeStay.plannedCheckOutAt);
+        if (outYmd) {
+          const effectiveInYmd = outYmd > tomorrowYmd ? outYmd : tomorrowYmd;
+          setReservationCheckIn(`${effectiveInYmd}T14:00`);
+          setReservationCheckOut(`${addDaysYmd(effectiveInYmd, 1)}T12:00`);
         }
       }
     } else {
@@ -1449,21 +1376,8 @@ export function StaffRoomsClient({
       setInitialReservationRoomId("");
     }
     if (businessDate && businessDate > todayYmd) {
-      const checkInD = new Date(businessDate);
-      checkInD.setHours(14, 0, 0, 0);
-      setReservationCheckIn(
-        new Date(checkInD.getTime() - checkInD.getTimezoneOffset() * 60_000)
-          .toISOString()
-          .slice(0, 16),
-      );
-      const checkOutD = new Date(businessDate);
-      checkOutD.setDate(checkOutD.getDate() + 1);
-      checkOutD.setHours(12, 0, 0, 0);
-      setReservationCheckOut(
-        new Date(checkOutD.getTime() - checkOutD.getTimezoneOffset() * 60_000)
-          .toISOString()
-          .slice(0, 16),
-      );
+      setReservationCheckIn(`${businessDate}T14:00`);
+      setReservationCheckOut(`${addDaysYmd(businessDate, 1)}T12:00`);
     }
     setIsReservationOpen(true);
   }
@@ -1605,12 +1519,9 @@ export function StaffRoomsClient({
         payload.nightlyRateSnapshot = baseRateNum;
       }
 
-      const res = await requestInternalApiEnvelope<HotelArrival>(
-        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/reservations`,
-        {
-          method: "POST",
-          body: payload,
-        },
+      const createdReservation = await staffRoomsRepository.createReservation(
+        hotelId,
+        payload,
       );
 
       setIsReservationOpen(false);
@@ -1626,9 +1537,13 @@ export function StaffRoomsClient({
       setReservationIsCustomNightlyRates(false);
       setReservationPrebookedServices([]);
 
-      const createdGuestName = res.data?.guestDisplayName || reservationGuestName;
-      const reservationCode = (res.data as any)?.reservationCode || (res.data as any)?.code || (res.data as any)?.id || "";
-      const createdReservationId = res.data?.id;
+      const createdGuestName = createdReservation?.guestDisplayName || reservationGuestName;
+      const reservationCode =
+        createdReservation?.reservationCode ||
+        (createdReservation as { code?: string } | undefined)?.code ||
+        createdReservation?.id ||
+        "";
+      const createdReservationId = createdReservation?.id;
 
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
       void refetch();
@@ -1734,53 +1649,80 @@ export function StaffRoomsClient({
     }
   }
 
-  async function loadArrivals(range: "today" | "tomorrow" | "week") {
-    setArrivalsLoading(true);
-    const { from, to } = getArrivalDateRange(range, todayYmd);
+  const {
+    data: priorityAlertsData,
+    isError: isPriorityAlertsError,
+  } = useQuery({
+    ...staffRoomsResource.bind({ hotelId }).queries.priorityAlerts.options(),
+    enabled: Boolean(!isHousekeeping && !isFutureDate),
+    refetchInterval: operationalViewMode === "grid" ? 60_000 : false,
+    staleTime: 15_000,
+  });
 
+  const scopedArrivalsRangeInput = useMemo(
+    () => getArrivalDateRange(arrivalsRange, todayYmd),
+    [arrivalsRange, todayYmd],
+  );
+  const scopedArrivalsQuery = useQuery({
+    ...staffRoomsResource.bind({ hotelId }).queries.arrivals.options({
+      from: scopedArrivalsRangeInput.from,
+      to: scopedArrivalsRangeInput.to,
+      limit: 100,
+    }),
+    enabled: Boolean(!isHousekeeping && isArrivalsOpen && arrivalsRange !== "week"),
+    staleTime: 15_000,
+  });
+  const arrivalsLoading = scopedArrivalsQuery.isFetching;
+
+  async function loadArrivals(range: "today" | "tomorrow" | "week") {
     try {
-      const res = await requestInternalApiEnvelope<HotelOpsPage<HotelArrival>>(
-        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/arrivals?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&limit=100`,
-        { method: "GET" },
-      );
-      setArrivalsList(res.data?.items ?? []);
+      await staffRoomsResource.bind({ hotelId }).queries.arrivals.invalidateAll(queryClient);
+      if (range !== "week" && isArrivalsOpen && range === arrivalsRange) {
+        await scopedArrivalsQuery.refetch();
+      }
     } catch (err) {
       await showErrorAlert(
         "Không thể tải danh sách khách đặt trước",
-        err instanceof Error ? err.message : "Đã có lỗi xảy ra.",
+        formatFriendlyHotelOpsError(err),
       );
-    } finally {
-      setArrivalsLoading(false);
     }
   }
 
-
-  const groupArrivalsRange = getArrivalDateRange("week", todayYmd);
-  const { data: groupArrivalsPage } = useQuery({
-    ...staffRoomsResource.bind({ hotelId }).queries.arrivals.options(groupArrivalsRange),
+  // Single indexed query returning both overdue active arrivals and upcoming 7-day arrivals
+  const operationalArrivalsInput = useMemo(
+    () => ({
+      from: todayYmd,
+      to: addDaysYmd(todayYmd, 7),
+      includeOverdue: true,
+      limit: 200,
+    }),
+    [todayYmd],
+  );
+  const { data: operationalArrivalsPage } = useQuery({
+    ...staffRoomsResource.bind({ hotelId }).queries.arrivals.options(operationalArrivalsInput),
     enabled: !isHousekeeping,
+    refetchInterval: operationalViewMode === "grid" ? 60_000 : false,
+    staleTime: 15_000,
   });
-  const groupArrivalsList = useMemo(() => groupArrivalsPage?.items ?? [], [groupArrivalsPage]);
-
-  useEffect(() => {
-    let ignore = false;
-    const { from, to } = getArrivalDateRange("week", todayYmd);
-    requestInternalApiEnvelope<HotelOpsPage<HotelArrival>>(
-      `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/arrivals?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&limit=100`,
-      { method: "GET" },
-    )
-      .then((res) => {
-        if (!ignore) {
-          setArrivalsList(res.data?.items ?? []);
-        }
-      })
-      .catch(() => {
-        // Background load on mount: do not block UI with alert
-      });
-    return () => {
-      ignore = true;
-    };
-  }, [hotelId, todayYmd]);
+  const operationalArrivalsList = useMemo(
+    () => operationalArrivalsPage?.items ?? [],
+    [operationalArrivalsPage],
+  );
+  const groupArrivalsList = useMemo(
+    () =>
+      operationalArrivalsList.filter((arr) => {
+        const checkInYmd = toVietnamDateString(arr.plannedCheckInAt);
+        return Boolean(checkInYmd && checkInYmd >= todayYmd);
+      }),
+    [operationalArrivalsList, todayYmd],
+  );
+  const arrivalsList = useMemo(
+    () =>
+      isArrivalsOpen && arrivalsRange !== "week"
+        ? (scopedArrivalsQuery.data?.items ?? groupArrivalsList)
+        : groupArrivalsList,
+    [isArrivalsOpen, arrivalsRange, scopedArrivalsQuery.data?.items, groupArrivalsList],
+  );
 
   async function handleAssignRoom(arrival: HotelArrival) {
     if (!canManageReservations) return;
@@ -1817,7 +1759,7 @@ export function StaffRoomsClient({
     const optionsHtml = availableRooms
       .map(
         (r) =>
-          `<option value="${r.id}" ${r.id === arrival.roomId ? "selected" : ""}>Phòng ${getRoomNumber(r)} (${r.type || "Tiêu chuẩn"})</option>`,
+          `<option value="${escapeHtml(r.id)}" ${r.id === arrival.roomId ? "selected" : ""}>Phòng ${escapeHtml(getRoomNumber(r))} (${escapeHtml(r.type || "Tiêu chuẩn")})</option>`,
       )
       .join("");
 
@@ -1845,13 +1787,10 @@ export function StaffRoomsClient({
     if (!selectedRoomId) return;
 
     try {
-      await requestInternalApiEnvelope(
-        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/reservations/${encodeURIComponent(arrival.id)}/room`,
-        {
-          method: "PUT",
-          body: { roomId: selectedRoomId },
-        },
-      );
+      await staffRoomsRepository.assignReservationRoom(hotelId, arrival.id, {
+        roomId: selectedRoomId,
+        expectedUpdatedAt: arrival.updatedAt ?? undefined,
+      });
       await showSuccessAlert(
         "Đã gán phòng thành công",
         `Đã gán phòng cho khách ${arrival.guestDisplayName}.`,
@@ -2025,7 +1964,7 @@ export function StaffRoomsClient({
           grpCode === cleanQ ||
           (cleanQ.length >= 4 && (resCode.includes(cleanQ) || grpCode.includes(cleanQ)))
         ) {
-          const rawDate = proj.plannedCheckInAt ? String(proj.plannedCheckInAt).slice(0, 10) : "";
+          const rawDate = proj.plannedCheckInAt ? (toVietnamYmd(proj.plannedCheckInAt) || "") : "";
           if (/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
             lastAutoAdjustedQueryRef.current = cleanQ;
             if (rawDate !== businessDate) handleBusinessDateChange(rawDate);
@@ -2042,7 +1981,7 @@ export function StaffRoomsClient({
           grpCode === cleanQ ||
           (cleanQ.length >= 4 && (resCode.includes(cleanQ) || grpCode.includes(cleanQ)))
         ) {
-          const rawDate = upc.plannedCheckInAt ? String(upc.plannedCheckInAt).slice(0, 10) : "";
+          const rawDate = upc.plannedCheckInAt ? (toVietnamYmd(upc.plannedCheckInAt) || "") : "";
           if (/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
             lastAutoAdjustedQueryRef.current = cleanQ;
             if (rawDate !== businessDate) handleBusinessDateChange(rawDate);
@@ -2059,7 +1998,7 @@ export function StaffRoomsClient({
           grpCode === cleanQ ||
           (cleanQ.length >= 4 && (resCode.includes(cleanQ) || grpCode.includes(cleanQ)))
         ) {
-          const rawDate = stayRes.plannedCheckInAt ? String(stayRes.plannedCheckInAt).slice(0, 10) : "";
+          const rawDate = stayRes.plannedCheckInAt ? (toVietnamYmd(stayRes.plannedCheckInAt) || "") : "";
           if (/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
             lastAutoAdjustedQueryRef.current = cleanQ;
             if (rawDate !== businessDate) handleBusinessDateChange(rawDate);
@@ -2080,7 +2019,7 @@ export function StaffRoomsClient({
       );
     });
     if (arrMatch?.plannedCheckInAt) {
-      const rawDate = String(arrMatch.plannedCheckInAt).slice(0, 10);
+      const rawDate = toVietnamYmd(arrMatch.plannedCheckInAt) || "";
       if (/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
         lastAutoAdjustedQueryRef.current = cleanQ;
         if (rawDate !== businessDate) handleBusinessDateChange(rawDate);
@@ -2101,7 +2040,7 @@ export function StaffRoomsClient({
               groupData?.plannedCheckInAt ||
               groupData?.rooms?.[0]?.plannedCheckInAt;
             if (target) {
-              const ymd = String(target).slice(0, 10);
+              const ymd = toVietnamYmd(target) || "";
               if (/^\d{4}-\d{2}-\d{2}$/.test(ymd)) {
                 lastAutoAdjustedQueryRef.current = cleanQ;
                 handleBusinessDateChange(ymd);
@@ -2114,14 +2053,14 @@ export function StaffRoomsClient({
         }
 
         try {
-          const res = await requestInternalApiEnvelope<HotelOpsPage<HotelArrival>>(
-            `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/arrivals?q=${encodeURIComponent(cleanQ)}&limit=1`,
-            { method: "GET" },
-          );
+          const arrivalsPage = await staffRoomsRepository.listArrivals(hotelId, {
+            q: cleanQ,
+            limit: 1,
+          });
           if (cancelled) return;
-          const item = res.data?.items?.[0];
+          const item = arrivalsPage?.items?.[0];
           if (item?.plannedCheckInAt) {
-            const ymd = String(item.plannedCheckInAt).slice(0, 10);
+            const ymd = toVietnamYmd(item.plannedCheckInAt) || "";
             if (/^\d{4}-\d{2}-\d{2}$/.test(ymd)) {
               lastAutoAdjustedQueryRef.current = cleanQ;
               handleBusinessDateChange(ymd);
@@ -2183,10 +2122,13 @@ export function StaffRoomsClient({
             plannedCheckInAt:
               options.plannedCheckInAt || new Date().toISOString(),
             plannedCheckOutAt:
-              options.plannedCheckOutAt || localDateTime(1, 12),
+              options.plannedCheckOutAt ||
+              parseHotelDatetimeToIso(localDateTime(1, 12)) ||
+              localDateTime(1, 12),
             rate: null,
             status: "CONFIRMED",
             stayId: null,
+            updatedAt: options.updatedAt ?? null,
           },
         ];
       } else if (options.groupCode) {
@@ -2228,7 +2170,7 @@ export function StaffRoomsClient({
 
   const todayArrivalsList = useMemo(() => {
     return arrivalsList.filter((arr) => {
-      const arrYmd = arr.plannedCheckInAt ? arr.plannedCheckInAt.slice(0, 10) : "";
+      const arrYmd = toVietnamYmd(arr.plannedCheckInAt) || "";
       return arrYmd === activeMovementsTargetYmd;
     });
   }, [arrivalsList, activeMovementsTargetYmd]);
@@ -2248,8 +2190,8 @@ export function StaffRoomsClient({
       const stay = room.activeStay;
       if (!stay) continue;
 
-      const outYmd = stay.plannedCheckOutAt ? stay.plannedCheckOutAt.slice(0, 10) : "";
-      const actualOutYmd = stay.checkedOutAt ? stay.checkedOutAt.slice(0, 10) : "";
+      const outYmd = stay.plannedCheckOutAt ? (toVietnamYmd(stay.plannedCheckOutAt) || "") : "";
+      const actualOutYmd = stay.checkedOutAt ? (toVietnamYmd(stay.checkedOutAt) || "") : "";
 
       if (stay.checkedOutAt && actualOutYmd === activeMovementsTargetYmd) {
         list.push({ room, stay, status: "CHECKED_OUT" });
@@ -2341,6 +2283,50 @@ export function StaffRoomsClient({
       incomingOtaByRoomNumber: map,
     };
   }, [otaBookings, todayYmd]);
+
+  const [priorityClockMs, setPriorityClockMs] = useState<number | null>(null);
+  useEffect(() => {
+    if (isHousekeeping) return;
+    setPriorityClockMs(Date.now());
+    const timer = window.setInterval(() => {
+      setPriorityClockMs(Date.now());
+    }, 60_000);
+    return () => window.clearInterval(timer);
+  }, [isHousekeeping]);
+
+  const priorityControlItems = useMemo(() => {
+    if (isHousekeeping || priorityClockMs === null) return [];
+    if (isFutureDate || isPriorityAlertsError) {
+      return buildPriorityRoomAlerts({
+        rooms,
+        arrivalsList: operationalArrivalsList,
+        otaBookings,
+        todayYmd,
+        targetYmd: activeMovementsTargetYmd,
+        isFutureDate,
+        nowMs: priorityClockMs,
+      });
+    }
+    if (!priorityAlertsData) return [];
+    return mapBackendPriorityAlerts({
+      response: priorityAlertsData,
+      rooms,
+      arrivalsList: operationalArrivalsList,
+      otaBookings,
+      nowMs: priorityClockMs,
+    });
+  }, [
+    isHousekeeping,
+    priorityClockMs,
+    isFutureDate,
+    isPriorityAlertsError,
+    priorityAlertsData,
+    rooms,
+    operationalArrivalsList,
+    otaBookings,
+    todayYmd,
+    activeMovementsTargetYmd,
+  ]);
 
   function isRoomConflictingForDates(
     r: HotelRoomSummary,
@@ -2500,8 +2486,8 @@ export function StaffRoomsClient({
       for (const ota of otaBookings) {
         if (ota.status === "CANCELLED" || !ota.roomNumber) continue;
         if (ota.roomNumber.trim().toUpperCase() !== roomNum) continue;
-        const oIn = ota.checkInDate ? ota.checkInDate.slice(0, 10) : "";
-        const oOut = ota.checkOutDate ? ota.checkOutDate.slice(0, 10) : "";
+        const oIn = ota.checkInDate ? (toVietnamYmd(ota.checkInDate) || ota.checkInDate.slice(0, 10)) : "";
+        const oOut = ota.checkOutDate ? (toVietnamYmd(ota.checkOutDate) || ota.checkOutDate.slice(0, 10)) : "";
         if (oIn && oOut && inYmd < oOut && outYmd > oIn) {
           return true;
         }
@@ -4143,12 +4129,8 @@ export function StaffRoomsClient({
 
     for (const arr of sorted) {
       if (!arr.roomId || arr.status === "CHECKED_IN") continue;
-      const checkInYmd = arr.plannedCheckInAt
-        ? arr.plannedCheckInAt.slice(0, 10)
-        : "";
-      const checkOutYmd = arr.plannedCheckOutAt
-        ? arr.plannedCheckOutAt.slice(0, 10)
-        : "";
+      const checkInYmd = toVietnamYmd(arr.plannedCheckInAt) || "";
+      const checkOutYmd = toVietnamYmd(arr.plannedCheckOutAt) || "";
 
       const isForActiveDate = Boolean(
         checkInYmd &&
@@ -4208,7 +4190,7 @@ export function StaffRoomsClient({
 
     if (room.upcomingReservation) {
       const isUpToday =
-        room.upcomingReservation.plannedCheckInAt?.slice(0, 10) ===
+        toVietnamYmd(room.upcomingReservation.plannedCheckInAt) ===
         (businessDate || todayYmd);
       return {
         isReservedToday: isUpToday,
@@ -4264,13 +4246,7 @@ export function StaffRoomsClient({
     if (!confirmation.isConfirmed) return;
 
     try {
-      await requestInternalApiEnvelope(
-        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/rooms/${encodeURIComponent(room.id)}/ready`,
-        {
-          method: "PATCH",
-          body: { expectedUpdatedAt: room.updatedAt },
-        },
-      );
+      await staffRoomsRepository.markRoomReady(hotelId, room.id, room.updatedAt);
       await showSuccessAlert(
         `Phòng ${roomNum} đã sẵn sàng!`,
         "Trạng thái phòng đã chuyển thành TRỐNG.",
@@ -4599,16 +4575,10 @@ export function StaffRoomsClient({
     if (!confirmation.isConfirmed) return;
 
     try {
-      await requestInternalApiEnvelope(
-        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/rooms/${encodeURIComponent(room.id)}/status`,
-        {
-          method: "PATCH",
-          body: {
-            status: isBlocked ? "AVAILABLE" : "BLOCKED",
-            expectedUpdatedAt: room.updatedAt,
-          },
-        },
-      );
+      await staffRoomsRepository.updateRoomStatus(hotelId, room.id, {
+        status: isBlocked ? "AVAILABLE" : "BLOCKED",
+        expectedUpdatedAt: room.updatedAt,
+      });
       await showSuccessAlert(
         isBlocked ? "Đã mở khóa phòng" : "Đã khóa phòng",
         "",
@@ -4618,7 +4588,7 @@ export function StaffRoomsClient({
     } catch (error) {
       await showErrorAlert(
         "Không thể cập nhật trạng thái phòng",
-        error instanceof Error ? error.message : "Vui lòng thử lại.",
+        formatFriendlyHotelOpsError(error),
       );
     }
   }
@@ -4644,13 +4614,10 @@ export function StaffRoomsClient({
     if (!confirmation.isConfirmed) return;
 
     try {
-      await requestInternalApiEnvelope(
-        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/rooms/${encodeURIComponent(room.id)}/status`,
-        {
-          method: "PATCH",
-          body: { status: targetStatus, expectedUpdatedAt: room.updatedAt },
-        },
-      );
+      await staffRoomsRepository.updateRoomStatus(hotelId, room.id, {
+        status: targetStatus,
+        expectedUpdatedAt: room.updatedAt,
+      });
       await showSuccessAlert(
         `Phòng ${roomNum} đã chuyển sang ${labels[targetStatus]}!`,
         "Cập nhật trạng thái thành công.",
@@ -4660,7 +4627,7 @@ export function StaffRoomsClient({
     } catch (error) {
       await showErrorAlert(
         "Không thể cập nhật trạng thái phòng",
-        error instanceof Error ? error.message : "Vui lòng thử lại.",
+        formatFriendlyHotelOpsError(error),
       );
     }
   }
@@ -4715,12 +4682,10 @@ export function StaffRoomsClient({
         btnReadyCheckIn?.addEventListener("click", async () => {
           SwalVietSage.close();
           try {
-            await requestInternalApiEnvelope(
-              `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/rooms/${encodeURIComponent(room.id)}/ready`,
-              {
-                method: "PATCH",
-                body: { expectedUpdatedAt: room.updatedAt },
-              },
+            await staffRoomsRepository.markRoomReady(
+              hotelId,
+              room.id,
+              room.updatedAt,
             );
             await invalidateHotelRealtimeQueries(queryClient, hotelId);
             void refetch();
@@ -4728,7 +4693,7 @@ export function StaffRoomsClient({
           } catch (error) {
             await showErrorAlert(
               "Không thể cập nhật trạng thái phòng",
-              error instanceof Error ? error.message : "Vui lòng thử lại.",
+              formatFriendlyHotelOpsError(error),
             );
           }
         });
@@ -4832,6 +4797,58 @@ export function StaffRoomsClient({
     });
   }
 
+  async function handleExtendStayConflictAction(
+    room: HotelRoomSummary,
+    stay: HotelStaySummary,
+    desiredNewCheckOut: string,
+    upcomingRes: HotelArrival,
+  ) {
+    const roomNum = getRoomNumber(room);
+    const result = await SwalVietSage.fire({
+      title: `Xung đột lịch đặt phòng ${roomNum}`,
+      html: `
+        <div style="text-align:left;font-size:13px;color:#334155;line-height:1.5">
+          <p style="margin-bottom:10px">
+            Khách đang lưu trú (<strong>${escapeHtml(stay.guestDisplayName || "Khách")}</strong>) muốn gia hạn đến 
+            <strong style="color:#0284c7">${formatDateTime(desiredNewCheckOut)}</strong>.
+          </p>
+          <div style="background-color:#fff1f2;border:1px solid #fecdd3;border-radius:8px;padding:10px;margin-bottom:12px;color:#9f1239">
+            <strong>⚠️ Xung đột:</strong> Phòng ${roomNum} đã có đơn đặt trước của khách 
+            <strong>${escapeHtml(upcomingRes.guestDisplayName)}</strong> (${escapeHtml(upcomingRes.reservationCode || "Đơn đặt")}) 
+            dự kiến nhận phòng lúc <strong style="color:#e11d48">${formatDateTime(upcomingRes.plannedCheckInAt)}</strong>.
+          </div>
+          <div style="background-color:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px;font-size:12px;color:#166534">
+            <strong>Lễ tân có thể xử lý theo 2 hướng:</strong>
+            <ol style="margin:6px 0 0 16px;padding:0;line-height:1.5">
+              <li><strong>Đổi phòng đơn đặt trước:</strong> Gán phòng trống khác cho khách ${escapeHtml(upcomingRes.guestDisplayName)}, sau đó tiếp tục gia hạn phòng ${roomNum}.</li>
+              <li><strong>Chuyển phòng khách đang ở:</strong> Chuyển khách đang lưu trú sang một phòng trống khác để giải phóng phòng ${roomNum}.</li>
+            </ol>
+          </div>
+        </div>
+      `,
+      showCancelButton: true,
+      showDenyButton: true,
+      confirmButtonText: "Đổi phòng đơn đặt trước",
+      denyButtonText: "Chuyển phòng khách đang ở",
+      cancelButtonText: "Hủy bỏ",
+      confirmButtonColor: "#059669",
+      denyButtonColor: "#2563eb",
+      cancelButtonColor: "#64748b",
+      focusConfirm: true,
+    });
+
+    if (result.isConfirmed) {
+      setReassignReservation(upcomingRes);
+      setReassignOriginalRoom(room);
+    } else if (result.isDenied) {
+      openRoomContextPanel(room);
+      void showWarningAlert(
+        `Chuyển phòng cho khách phòng ${roomNum}`,
+        "Vui lòng thực hiện thủ tục chuyển phòng (Room Move) cho khách đang lưu trú sang phòng trống phù hợp.",
+      );
+    }
+  }
+
   async function handleExtendStayModal(room: HotelRoomSummary) {
     const stay = room.activeStay;
     if (!stay?.id) return;
@@ -4841,14 +4858,40 @@ export function StaffRoomsClient({
       return;
     }
     const roomNum = getRoomNumber(room);
-    const defaultDeparture = new Date(Math.max(new Date(localDateTime(1, 12)).getTime(), currentDeparture + 24 * 60 * 60_000));
-    const defaultNewCheckOut = new Date(defaultDeparture.getTime() - defaultDeparture.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+    const tomorrowNoonIso = parseHotelDatetimeToIso(localDateTime(1, 12));
+    const tomorrowNoonMs = tomorrowNoonIso
+      ? new Date(tomorrowNoonIso).getTime()
+      : currentDeparture + 24 * 60 * 60_000;
+    const defaultDeparture = new Date(
+      Math.max(tomorrowNoonMs, currentDeparture + 24 * 60 * 60_000),
+    );
+    const defaultNewCheckOut = toVietnamDatetimeLocal(defaultDeparture.toISOString());
+
+    const upcomingRes = findUpcomingReservationForRoom(room, arrivalsList);
+    const upcomingCheckInTime = upcomingRes?.plannedCheckInAt
+      ? new Date(upcomingRes.plannedCheckInAt).getTime()
+      : null;
+
+    const upcomingWarningHtml = upcomingRes
+      ? `
+        <div style="background-color:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;margin-bottom:12px;text-align:left">
+          <div style="font-weight:700;color:#b45309;font-size:13px;display:flex;align-items:center;gap:6px">
+            <span>⚠️</span> <span>Lưu ý: Phòng có đơn đặt trước sắp tới</span>
+          </div>
+          <div style="font-size:12px;color:#92400e;margin-top:4px;line-height:1.4">
+            Khách <strong>${escapeHtml(upcomingRes.guestDisplayName)}</strong> (${escapeHtml(upcomingRes.reservationCode || "Đơn đặt")}) dự kiến nhận phòng lúc <strong>${formatDateTime(upcomingRes.plannedCheckInAt)}</strong>.<br/>
+            Nếu gia hạn vượt quá thời gian này, hệ thống sẽ đề xuất đổi phòng cho đơn đặt trước.
+          </div>
+        </div>
+      `
+      : "";
 
     const { value: newCheckOut } = await SwalVietSage.fire({
       title: `Gia hạn lưu trú phòng ${roomNum}`,
       html: `
+        ${upcomingWarningHtml}
         <div style="font-size:14px;color:#475569;margin-bottom:12px;text-align:left">
-          Khách: <strong>${stay.guestDisplayName || "Chưa rõ"}</strong><br/>
+          Khách: <strong>${escapeHtml(stay.guestDisplayName || "Chưa rõ")}</strong><br/>
           Thời gian trả phòng cũ: <span style="color:#dc2626;font-weight:700">${formatDateTime(stay.plannedCheckOutAt)}</span>
         </div>
         <div style="display:flex;flex-direction:column;gap:8px;text-align:left">
@@ -4870,7 +4913,8 @@ export function StaffRoomsClient({
           );
           return false;
         }
-        const desired = new Date(input.value).getTime();
+        const desiredIso = parseHotelDatetimeToIso(input.value);
+        const desired = desiredIso ? new Date(desiredIso).getTime() : NaN;
         if (!Number.isFinite(desired) || desired <= currentDeparture || desired <= Date.now()) {
           SwalVietSage.showValidationMessage("Thời gian gia hạn phải sau hạn trả phòng hiện tại và ở tương lai");
           return false;
@@ -4881,25 +4925,70 @@ export function StaffRoomsClient({
 
     if (!newCheckOut) return;
 
+    const chosenDepartureIso = parseHotelDatetimeToIso(newCheckOut);
+    const chosenDepartureTime = chosenDepartureIso
+      ? new Date(chosenDepartureIso).getTime()
+      : NaN;
+    if (
+      upcomingRes &&
+      upcomingCheckInTime &&
+      Number.isFinite(chosenDepartureTime) &&
+      chosenDepartureTime > upcomingCheckInTime
+    ) {
+      await handleExtendStayConflictAction(room, stay, newCheckOut, upcomingRes);
+      return;
+    }
+
     try {
-      await requestInternalApiEnvelope(
-        `${apiBase}/stays/${encodeURIComponent(stay.id)}`,
-        {
-          method: "PATCH",
-          body: { plannedCheckOutAt: new Date(newCheckOut).toISOString() },
-        },
-      );
+      await staffRoomsRepository.updateStay(hotelId, stay.id, {
+        plannedCheckOutAt: chosenDepartureIso || newCheckOut,
+        expectedUpdatedAt: stay.updatedAt ?? undefined,
+      });
       await showSuccessAlert(
         `Đã gia hạn phòng ${roomNum}!`,
-        `Thời gian check-out mới: ${formatDateTime(newCheckOut)}`,
+        `Thời gian check-out mới: ${formatDateTime(chosenDepartureIso || newCheckOut)}`,
       );
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
       void refetch();
     } catch (error) {
-      await showErrorAlert(
-        "Không thể gia hạn phòng",
-        error instanceof Error ? error.message : "Vui lòng thử lại.",
-      );
+      const errMsg = formatFriendlyHotelOpsError(error);
+      const isConflict =
+        errMsg.toLowerCase().includes("lịch đặt") ||
+        errMsg.toLowerCase().includes("gia hạn") ||
+        errMsg.toLowerCase().includes("conflict");
+
+      if (isConflict) {
+        const resolvedRes = upcomingRes || findUpcomingReservationForRoom(room, arrivalsList);
+        if (resolvedRes) {
+          await handleExtendStayConflictAction(room, stay, newCheckOut, resolvedRes);
+          return;
+        }
+
+        const choice = await SwalVietSage.fire({
+          title: `Xung đột lịch đặt phòng ${roomNum}`,
+          html: `
+            <div style="text-align:left;font-size:13px;color:#334155;line-height:1.5">
+              <div style="background-color:#fff1f2;border:1px solid #fecdd3;border-radius:8px;padding:10px;margin-bottom:12px;color:#9f1239">
+                <strong>⚠️ ${escapeHtml(errMsg)}</strong>
+              </div>
+              <p>Bạn có thể mở danh sách khách đặt trước để kiểm tra và gán phòng khác cho đơn đặt trước xung đột.</p>
+            </div>
+          `,
+          icon: "warning",
+          showCancelButton: true,
+          confirmButtonText: "Xem danh sách đặt trước",
+          cancelButtonText: "Đóng",
+          confirmButtonColor: "#059669",
+          cancelButtonColor: "#64748b",
+        });
+        if (choice.isConfirmed) {
+          setIsDailyMovementsOpen(true);
+          setDailyMovementsTab("arrivals");
+        }
+        return;
+      }
+
+      await showErrorAlert("Không thể gia hạn phòng", errMsg);
     }
   }
 
@@ -4920,8 +5009,147 @@ export function StaffRoomsClient({
       reservationId: booking.reservationId,
       guestDisplayName: booking.guestName,
       guestPhone: booking.guestPhone || null,
-      plannedCheckOutAt: booking.checkOutDate || localDateTime(1, 12),
+      plannedCheckOutAt:
+        booking.checkOutDate ||
+        parseHotelDatetimeToIso(localDateTime(1, 12)) ||
+        localDateTime(1, 12),
     });
+  }
+
+  async function resolvePriorityRoom(
+    item: PriorityRoomAlertItem,
+  ): Promise<HotelRoomSummary | null> {
+    if (item.room) return item.room;
+    if (!item.roomId && !item.roomNumber) return null;
+    try {
+      const pageData = await staffRoomsRepository.list(hotelId, {
+        q: item.roomNumber || undefined,
+        limit: 100,
+      });
+      return (
+        pageData.items?.find((r) =>
+          item.roomId ? r.id === item.roomId : r.roomNumber === item.roomNumber,
+        ) ?? null
+      );
+    } catch {
+      return null;
+    }
+  }
+
+  async function resolvePriorityArrival(
+    item: PriorityRoomAlertItem,
+  ): Promise<HotelArrival | null> {
+    if (item.arrival) return item.arrival;
+    if (!item.reservationId) return null;
+    try {
+      return await staffRoomsRepository.getReservation(hotelId, item.reservationId);
+    } catch {
+      return null;
+    }
+  }
+
+  async function handleInspectPriorityItem(
+    item: PriorityRoomAlertItem,
+    triggerEl: HTMLElement | null,
+  ) {
+    if (
+      (item.arrival || item.reservationId) &&
+      (!item.room ||
+        item.actionKind === "assign-room" ||
+        item.id.startsWith("res-overdue-") ||
+        item.bucket === "due")
+    ) {
+      const resolvedArrival = await resolvePriorityArrival(item);
+      if (resolvedArrival) {
+        setSelectedArrivalForDetail(resolvedArrival);
+        return;
+      }
+    }
+    const resolvedRoom = await resolvePriorityRoom(item);
+    if (resolvedRoom) {
+      openRoomContextPanel(resolvedRoom, triggerEl);
+      return;
+    }
+    const fallbackArrival = await resolvePriorityArrival(item);
+    if (fallbackArrival) {
+      setSelectedArrivalForDetail(fallbackArrival);
+      return;
+    }
+    void showWarningAlert(
+      "Chưa có thông tin phòng gắn kèm",
+      "Vui lòng bấm Làm mới để đồng bộ dữ liệu đặt phòng mới nhất.",
+    );
+  }
+
+  async function handlePrimaryPriorityAction(
+    item: PriorityRoomAlertItem,
+    triggerEl: HTMLElement | null,
+  ) {
+    if (item.actionKind === "mark-ready") {
+      const targetRoom: HotelRoomSummary | null =
+        item.room ??
+        (item.roomId
+          ? {
+              id: item.roomId,
+              roomNumber: item.roomNumber,
+              updatedAt: item.roomUpdatedAt ?? null,
+            }
+          : null);
+      if (targetRoom) {
+        await confirmRoomReady(targetRoom);
+        return;
+      }
+    }
+    if (item.actionKind === "check-in") {
+      const resolvedArrival = await resolvePriorityArrival(item);
+      if (resolvedArrival) {
+        if (resolvedArrival.groupCode) {
+          openGroupCheckIn(resolvedArrival.groupCode);
+          return;
+        }
+        const resolvedRoom =
+          item.room ??
+          (resolvedArrival.roomId
+            ? (rooms.find((r) => r.id === resolvedArrival.roomId) ??
+              (await resolvePriorityRoom(item)))
+            : null);
+        if (resolvedRoom) {
+          setIsArrivalsOpen(false);
+          openUnifiedCheckInModal({
+            room: resolvedRoom,
+            reservationId: resolvedArrival.id,
+            reservationCode: resolvedArrival.reservationCode,
+            groupCode: resolvedArrival.groupCode || null,
+            guestDisplayName: resolvedArrival.guestDisplayName,
+            guestPhone: resolvedArrival.guestPhone || null,
+            plannedCheckInAt: resolvedArrival.plannedCheckInAt,
+            plannedCheckOutAt: resolvedArrival.plannedCheckOutAt,
+            updatedAt: resolvedArrival.updatedAt,
+          });
+          return;
+        }
+        handleCheckInArrival(resolvedArrival);
+        return;
+      }
+      if (item.otaBooking && item.room) {
+        handleOtaFastCheckIn(item.otaBooking, item.room);
+        return;
+      }
+      if (item.fallbackReservation) {
+        const resolvedRoom = item.room ?? (await resolvePriorityRoom(item));
+        if (resolvedRoom) {
+          openUnifiedCheckInModal({
+            room: resolvedRoom,
+            reservationId: item.fallbackReservation.id,
+            guestDisplayName: item.fallbackReservation.guestDisplayName,
+            guestPhone: item.fallbackReservation.guestPhone ?? null,
+            plannedCheckOutAt: item.fallbackReservation.plannedCheckOutAt,
+          });
+          return;
+        }
+      }
+    }
+    await handleInspectPriorityItem(item, triggerEl);
   }
 
   const handledFlowCheckInRef = useRef(false);
@@ -5323,6 +5551,36 @@ export function StaffRoomsClient({
         "border-2 border-emerald-300 hover:border-emerald-400 bg-gradient-to-b from-emerald-50/70 via-white to-emerald-50/20 text-slate-950 shadow-xs hover:shadow-md hover:shadow-emerald-500/10";
     }
 
+    const rawRoomType = (room.type ?? "Tiêu chuẩn").trim();
+    const roomTypeLine =
+      room.maxOccupancy && !/khách/i.test(rawRoomType)
+        ? `${rawRoomType} · ${room.maxOccupancy} khách`
+        : rawRoomType;
+    const ambientStatus: RoomStatusFilter =
+      stateCategory === "overdue"
+        ? "overdue"
+        : stateCategory === "arriving_today"
+          ? "reserved"
+          : stateCategory === "departing_today" ||
+              stateCategory === "turnaround" ||
+              stateCategory === "processing"
+            ? "processing"
+            : stateCategory === "occupied"
+              ? "occupied"
+              : stateCategory === "blocked"
+                ? "blocked"
+                : stateCategory === "maintenance"
+                  ? "maintenance"
+                  : "available";
+
+    const stayGuestName =
+      cleanGuestDisplayName(stay?.guestDisplayName) || "Khách lưu trú";
+    const arrivingGuestName =
+      cleanGuestDisplayName(incomingGuestName) || "Khách đặt trước";
+    const upcomingGuestName = cleanGuestDisplayName(
+      room.upcomingReservation?.guestDisplayName,
+    );
+
     return (
       <div
         key={room.id}
@@ -5339,115 +5597,118 @@ export function StaffRoomsClient({
           }
         }}
         onClick={(e) => handleCardClick(room, e.currentTarget)}
-        className={`relative flex w-full flex-col justify-between min-h-[220px] sm:min-h-[226px] overflow-hidden rounded-2xl p-3.5 sm:p-4 text-left transition-all cursor-pointer select-none ${cardClass}`}
+        className={`relative flex w-full flex-col justify-between gap-2.5 min-h-[228px] sm:min-h-[234px] overflow-hidden rounded-2xl p-4 text-left transition-all cursor-pointer select-none ${cardClass}`}
       >
-        {renderRoomAmbientGlow(effectiveStatus)}
+        {renderRoomAmbientGlow(ambientStatus)}
 
-        {/* Header: Room Number, Room Type, VIP/Capacity Badge & Status Badge */}
-        <div className="relative z-10 flex items-start justify-between gap-2">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <h3 className="vs-display text-2xl font-black tracking-tight text-slate-950 leading-none">
-                {getRoomNumber(room)}
-              </h3>
-              {isVip && (
-                <span className="rounded-md bg-amber-100 text-amber-950 border border-amber-300 px-1.5 py-0.5 text-xs font-black tracking-wide whitespace-nowrap">
-                  VIP
-                </span>
+        {/* Header: Row 1 = Room Number + Status Pill, Row 2 = Full-Width Room Type + VIP */}
+        <div className="relative z-10 space-y-1.5">
+          <div className="flex items-center justify-between gap-2 min-w-0">
+            <h3 className="vs-display text-2xl font-black tracking-tight text-slate-950 leading-none truncate">
+              {getRoomNumber(room)}
+            </h3>
+
+            {/* Top-Right: Status Pill Badge */}
+            <div className="shrink-0">
+              {stateCategory === "turnaround" ? (
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 text-amber-950 border border-amber-300 px-2.5 py-0.5 text-xs font-bold shadow-2xs whitespace-nowrap">
+                  <span className="size-2 rounded-full bg-amber-500" />
+                  <span>Khách out &amp; in</span>
+                </div>
+              ) : stateCategory === "departing_today" ? (
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 text-amber-900 border border-amber-200 px-2.5 py-0.5 text-xs font-bold whitespace-nowrap">
+                  <span className="size-2 rounded-full bg-amber-500" />
+                  <span>Khách out hôm nay</span>
+                </div>
+              ) : stateCategory === "arriving_today" ? (
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-purple-50 text-purple-900 border border-purple-200 px-2.5 py-0.5 text-xs font-bold whitespace-nowrap">
+                  <span className="size-2 rounded-full bg-purple-600" />
+                  <span>Khách in hôm nay</span>
+                </div>
+              ) : stateCategory === "occupied" ? (
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 text-blue-900 border border-blue-200 px-2.5 py-0.5 text-xs font-bold whitespace-nowrap">
+                  <span className="size-2 rounded-full bg-blue-600" />
+                  <span>Có khách đang ở</span>
+                </div>
+              ) : stateCategory === "overdue" ? (
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-rose-100 text-rose-900 border border-rose-300 px-2.5 py-0.5 text-xs font-bold whitespace-nowrap">
+                  <VsIcon name="warning" className="text-xs text-rose-700 shrink-0" />
+                  <span>Quá hạn trả phòng</span>
+                </div>
+              ) : stateCategory === "processing" ? (
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 text-amber-900 border border-amber-200 px-2.5 py-0.5 text-xs font-bold whitespace-nowrap">
+                  <VsIcon
+                    name="cleaning_services"
+                    className="text-xs text-amber-700 shrink-0"
+                  />
+                  <span>Chờ dọn buồng</span>
+                </div>
+              ) : stateCategory === "blocked" ? (
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 text-slate-800 border border-slate-300 px-2.5 py-0.5 text-xs font-bold whitespace-nowrap">
+                  <VsIcon name="lock" className="text-xs text-slate-600 shrink-0" />
+                  <span>Đã khóa phòng</span>
+                </div>
+              ) : stateCategory === "maintenance" ? (
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 text-slate-800 border border-slate-300 px-2.5 py-0.5 text-xs font-bold whitespace-nowrap">
+                  <VsIcon name="build" className="text-xs text-slate-600 shrink-0" />
+                  <span>Đang bảo trì</span>
+                </div>
+              ) : (
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 text-emerald-900 border border-emerald-200 px-2.5 py-0.5 text-xs font-bold whitespace-nowrap">
+                  <span className="size-2 rounded-full bg-emerald-500" />
+                  <span>Sẵn sàng đón khách</span>
+                </div>
               )}
             </div>
-            <p className="text-xs font-semibold text-slate-600 mt-1 truncate">
-              {room.type ?? "Tiêu chuẩn"}
-              {room.maxOccupancy ? ` · ${room.maxOccupancy} khách` : ""}
-            </p>
           </div>
 
-          {/* Top-Right: Status Pill Badge */}
-          <div className="shrink-0 pt-0.5">
-            {stateCategory === "turnaround" ? (
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 text-amber-950 border border-amber-300 px-2.5 py-0.5 text-xs font-black shadow-2xs whitespace-nowrap">
-                <span className="size-2 rounded-full bg-amber-500 animate-pulse" />
-                <span>Khách out & in</span>
-              </div>
-            ) : stateCategory === "departing_today" ? (
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 text-amber-900 border border-amber-200 px-2.5 py-0.5 text-xs font-black whitespace-nowrap">
-                <span className="size-2 rounded-full bg-amber-500" />
-                <span>Khách out hôm nay</span>
-              </div>
-            ) : stateCategory === "arriving_today" ? (
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-purple-50 text-purple-900 border border-purple-200 px-2.5 py-0.5 text-xs font-black whitespace-nowrap">
-                <span className="size-2 rounded-full bg-purple-600" />
-                <span>Khách in hôm nay</span>
-              </div>
-            ) : stateCategory === "occupied" ? (
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 text-blue-900 border border-blue-200 px-2.5 py-0.5 text-xs font-black whitespace-nowrap">
-                <span className="size-2 rounded-full bg-blue-600" />
-                <span>Có khách đang ở</span>
-              </div>
-            ) : stateCategory === "overdue" ? (
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-rose-100 text-rose-950 border border-rose-300 px-2.5 py-0.5 text-xs font-black whitespace-nowrap animate-pulse">
-                <VsIcon name="warning" className="text-xs text-rose-600 shrink-0" />
-                <span>Quá hạn trả phòng</span>
-              </div>
-            ) : stateCategory === "processing" ? (
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 text-amber-900 border border-amber-200 px-2.5 py-0.5 text-xs font-black whitespace-nowrap">
-                <VsIcon
-                  name="cleaning_services"
-                  className="text-xs text-amber-600 shrink-0"
-                />
-                <span>Chờ dọn buồng</span>
-              </div>
-            ) : stateCategory === "blocked" ? (
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 text-slate-800 border border-slate-300 px-2.5 py-0.5 text-xs font-bold whitespace-nowrap">
-                <VsIcon name="lock" className="text-xs text-slate-600 shrink-0" />
-                <span>Đã khóa phòng</span>
-              </div>
-            ) : stateCategory === "maintenance" ? (
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 text-slate-800 border border-slate-300 px-2.5 py-0.5 text-xs font-bold whitespace-nowrap">
-                <VsIcon name="build" className="text-xs text-slate-600 shrink-0" />
-                <span>Đang bảo trì</span>
-              </div>
-            ) : (
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 text-emerald-900 border border-emerald-200 px-2.5 py-0.5 text-xs font-black whitespace-nowrap">
-                <span className="size-2 rounded-full bg-emerald-500" />
-                <span>Sẵn sàng đón khách</span>
-              </div>
+          <div className="flex min-h-[22px] items-center justify-between gap-2 min-w-0">
+            <p
+              title={roomTypeLine}
+              className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-600"
+            >
+              {roomTypeLine}
+            </p>
+            {isVip && (
+              <span className="shrink-0 rounded-md bg-amber-100 text-amber-950 border border-amber-300 px-1.5 py-0.5 text-xs font-extrabold tracking-wide whitespace-nowrap leading-none">
+                VIP
+              </span>
             )}
           </div>
         </div>
 
         {/* Middle Body: Guest Info & Check-in / Check-out Dates */}
-        <div className="relative z-10 my-auto flex flex-col justify-center py-1">
+        <div className="relative z-10 my-auto flex flex-col justify-center">
           {stateCategory === "turnaround" ? (
             <div className="flex flex-col gap-1.5">
               <div className="rounded-xl bg-amber-50/90 border border-amber-200/80 px-2.5 py-1.5">
-                <div className="flex items-center justify-between gap-1">
-                  <div className="flex items-center gap-1.5 font-black text-amber-950 truncate min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-1.5">
+                  <div className="flex items-center gap-1.5 font-bold text-amber-950 truncate min-w-0 flex-1">
                     <VsIcon
                       name="logout"
                       className="text-xs text-amber-600 shrink-0"
                     />
-                    <span className="truncate text-xs sm:text-sm">
+                    <span className="truncate text-sm">
                       {cleanGuestDisplayName(stay?.guestDisplayName) || "Khách đang ở"}
                     </span>
                   </div>
-                  <span className="text-amber-900 font-black whitespace-nowrap shrink-0 text-xs sm:text-sm bg-amber-100/90 px-1.5 py-0.5 rounded">
+                  <span className="text-amber-900 font-bold tabular-nums whitespace-nowrap shrink-0 text-xs bg-amber-100/90 px-1.5 py-0.5 rounded">
                     Out: {formatTimeOnly(stay?.plannedCheckOutAt) || "12:00"}
                   </span>
                 </div>
               </div>
               <div className="rounded-xl bg-purple-50/90 border border-purple-200/80 px-2.5 py-1.5">
-                <div className="flex items-center justify-between gap-1">
-                  <div className="flex items-center gap-1.5 font-black text-purple-950 truncate min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-1.5">
+                  <div className="flex items-center gap-1.5 font-bold text-purple-950 truncate min-w-0 flex-1">
                     <VsIcon
                       name="login"
                       className="text-xs text-purple-600 shrink-0"
                     />
-                    <span className="truncate text-xs sm:text-sm">
-                      {cleanGuestDisplayName(incomingGuestName) || "Khách đặt trước"}
+                    <span className="truncate text-sm">
+                      {arrivingGuestName}
                     </span>
                   </div>
-                  <span className="text-purple-900 font-black whitespace-nowrap shrink-0 text-xs sm:text-sm bg-purple-100/90 px-1.5 py-0.5 rounded">
+                  <span className="text-purple-900 font-bold tabular-nums whitespace-nowrap shrink-0 text-xs bg-purple-100/90 px-1.5 py-0.5 rounded">
                     In: {formatTimeOnly(incomingCheckInAt) || "14:00"}
                   </span>
                 </div>
@@ -5456,41 +5717,58 @@ export function StaffRoomsClient({
           ) : stateCategory === "departing_today" ||
             stateCategory === "occupied" ||
             stateCategory === "overdue" ? (
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-2">
               <div className="flex items-center gap-1.5 text-slate-900 min-w-0">
                 <VsIcon
                   name="person"
-                  className="text-base text-sky-600 shrink-0"
+                  className={`text-base shrink-0 ${
+                    stateCategory === "overdue"
+                      ? "text-rose-600"
+                      : stateCategory === "departing_today"
+                        ? "text-amber-600"
+                        : "text-sky-600"
+                  }`}
                 />
-                <span className="truncate text-sm font-black text-slate-950">
-                  {cleanGuestDisplayName(stay?.guestDisplayName) || "Khách lưu trú"}
+                <span
+                  title={stayGuestName}
+                  className="truncate text-sm font-bold text-slate-950"
+                >
+                  {stayGuestName}
                 </span>
               </div>
               {matchedOccupant && (
-                <div className="text-xs font-bold text-sky-900 bg-sky-100/90 px-2 py-0.5 rounded-md w-fit truncate">
+                <div className="text-xs font-semibold text-sky-900 bg-sky-100/90 px-2 py-0.5 rounded-md w-fit max-w-full truncate">
                   Đi cùng: {matchedOccupant.fullName}
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-2 rounded-xl bg-slate-50/90 border border-slate-200/90 p-2 sm:p-2.5">
+              <div
+                className={`grid grid-cols-2 gap-2 rounded-xl border p-2.5 ${
+                  stateCategory === "overdue"
+                    ? "bg-white/85 border-rose-200/80"
+                    : stateCategory === "departing_today"
+                      ? "bg-white/85 border-amber-200/80"
+                      : "bg-slate-50/90 border-slate-200/90"
+                }`}
+              >
                 <div>
-                  <span className="text-xs font-bold text-slate-500 block">
+                  <span className="text-xs font-semibold text-slate-600 block">
                     Check-in
                   </span>
-                  <span className="text-sm font-black text-slate-900 whitespace-nowrap block mt-0.5">
+                  <span className="mt-1 inline-block border border-transparent py-0.5 text-sm font-bold tabular-nums text-slate-900 whitespace-nowrap">
                     {formatDateTime(stay?.checkedInAt || stay?.plannedCheckInAt)}
                   </span>
                 </div>
                 <div>
-                  <span className="text-xs font-bold text-slate-500 block">
+                  <span className="text-xs font-semibold text-slate-600 block">
                     Check-out
                   </span>
                   <span
-                    className={`text-sm font-black whitespace-nowrap block mt-0.5 ${
+                    className={`mt-1 inline-block text-sm font-bold tabular-nums whitespace-nowrap ${
                       stateCategory === "departing_today"
-                        ? "text-amber-900 bg-amber-100/90 px-1.5 py-0.5 rounded-md inline-block"
+                        ? "text-amber-950 bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded-md"
                         : stateCategory === "overdue"
-                          ? "text-rose-950 bg-rose-100/90 px-1.5 py-0.5 rounded-md inline-block animate-pulse"
-                          : "text-slate-900"
+                          ? "text-rose-900 bg-rose-100 border border-rose-200 px-1.5 py-0.5 rounded-md"
+                          : "border border-transparent py-0.5 text-slate-900"
                     }`}
                   >
                     {formatDateTime(stay?.plannedCheckOutAt)}
@@ -5499,45 +5777,50 @@ export function StaffRoomsClient({
               </div>
             </div>
           ) : stateCategory === "arriving_today" ? (
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between gap-1.5 min-w-0">
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between gap-2 min-w-0">
                 <div className="flex items-center gap-1.5 text-purple-950 min-w-0 flex-1">
                   <VsIcon
                     name="person"
                     className="text-base text-purple-600 shrink-0"
                   />
-                  <span className="truncate text-sm font-black text-slate-950">
-                    {cleanGuestDisplayName(incomingGuestName) || "Khách đặt trước"}
+                  <span
+                    title={arrivingGuestName}
+                    className="truncate text-sm font-bold text-slate-950"
+                  >
+                    {arrivingGuestName}
                   </span>
                 </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  {incomingGroupCode && (
-                    <span className="inline-flex items-center gap-1 text-xs font-black text-purple-900 bg-purple-100 border border-purple-300 px-1.5 py-0.5 rounded-md whitespace-nowrap shadow-2xs">
-                      <VsIcon name="groups" className="text-xs text-purple-700" />
-                      <span>Đoàn #{incomingGroupCode}</span>
-                    </span>
-                  )}
-                  {incomingSource && (
-                    <span className="text-xs font-bold text-purple-700 whitespace-nowrap bg-purple-100/90 border border-purple-200/80 px-1.5 py-0.5 rounded-md shrink-0">
-                      {incomingSource}
-                    </span>
-                  )}
-                </div>
+                {(incomingGroupCode || incomingSource) && (
+                  <div className="flex items-center gap-1 shrink-0">
+                    {incomingGroupCode && (
+                      <span className="inline-flex items-center gap-1 text-xs font-bold text-purple-900 bg-purple-100 border border-purple-300 px-2 py-0.5 rounded-md whitespace-nowrap">
+                        <VsIcon name="groups" className="text-xs text-purple-700 shrink-0" />
+                        <span>Khách đoàn</span>
+                      </span>
+                    )}
+                    {incomingSource && (
+                      <span className="text-xs font-bold text-purple-800 whitespace-nowrap bg-purple-100/90 border border-purple-200/80 px-1.5 py-0.5 rounded-md shrink-0">
+                        {incomingSource}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
-              <div className="grid grid-cols-2 gap-2 rounded-xl bg-purple-50/80 border border-purple-200/80 p-2 sm:p-2.5">
+              <div className="grid grid-cols-2 gap-2 rounded-xl bg-purple-50/80 border border-purple-200/80 p-2.5">
                 <div>
-                  <span className="text-xs font-bold text-purple-800 block">
+                  <span className="text-xs font-semibold text-purple-800 block">
                     Dự kiến đến
                   </span>
-                  <span className="text-sm font-black text-purple-950 whitespace-nowrap block mt-0.5">
+                  <span className="mt-1 inline-block border border-transparent py-0.5 text-sm font-bold tabular-nums text-purple-950 whitespace-nowrap">
                     {formatDateTime(incomingCheckInAt)}
                   </span>
                 </div>
                 <div>
-                  <span className="text-xs font-bold text-purple-800 block">
+                  <span className="text-xs font-semibold text-purple-800 block">
                     Dự kiến trả
                   </span>
-                  <span className="text-sm font-black text-purple-950 whitespace-nowrap block mt-0.5">
+                  <span className="mt-1 inline-block border border-transparent py-0.5 text-sm font-bold tabular-nums text-purple-950 whitespace-nowrap">
                     {formatDateTime(incomingCheckOutAt)}
                   </span>
                 </div>
@@ -5546,32 +5829,35 @@ export function StaffRoomsClient({
           ) : stateCategory === "available" ? (
             <div className="flex flex-col justify-center">
               {room.upcomingReservation ? (
-                <div className="flex flex-col gap-1.5">
-                  <div className="flex items-center gap-1.5 text-purple-900 font-extrabold truncate min-w-0">
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-1.5 text-purple-900 font-bold truncate min-w-0">
                     <VsIcon
                       name="event"
-                      className="text-sm text-purple-600 shrink-0"
+                      className="text-base text-purple-600 shrink-0"
                     />
-                    <span className="truncate text-sm font-black text-slate-900">
-                      Lịch: {cleanGuestDisplayName(room.upcomingReservation.guestDisplayName)}
+                    <span
+                      title={upcomingGuestName}
+                      className="truncate text-sm font-bold text-slate-900"
+                    >
+                      Lịch: {upcomingGuestName}
                     </span>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 rounded-xl bg-purple-50/80 border border-purple-200/80 p-2 sm:p-2.5">
+                  <div className="grid grid-cols-2 gap-2 rounded-xl bg-purple-50/80 border border-purple-200/80 p-2.5">
                     <div>
-                      <span className="text-xs font-bold text-purple-700 block">
+                      <span className="text-xs font-semibold text-purple-800 block">
                         Nhận phòng
                       </span>
-                      <span className="text-sm font-black text-purple-950 whitespace-nowrap block mt-0.5">
+                      <span className="mt-1 inline-block border border-transparent py-0.5 text-sm font-bold tabular-nums text-purple-950 whitespace-nowrap">
                         {formatDateTime(
                           room.upcomingReservation.plannedCheckInAt,
                         )}
                       </span>
                     </div>
                     <div>
-                      <span className="text-xs font-bold text-purple-700 block">
+                      <span className="text-xs font-semibold text-purple-800 block">
                         Trả phòng
                       </span>
-                      <span className="text-sm font-black text-purple-950 whitespace-nowrap block mt-0.5">
+                      <span className="mt-1 inline-block border border-transparent py-0.5 text-sm font-bold tabular-nums text-purple-950 whitespace-nowrap">
                         {formatDateTime(
                           room.upcomingReservation.plannedCheckOutAt,
                         )}
@@ -5580,7 +5866,7 @@ export function StaffRoomsClient({
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center gap-3 rounded-xl bg-emerald-50/80 border border-emerald-200/80 p-2.5 sm:p-3">
+                <div className="flex items-center gap-3 rounded-xl bg-emerald-50/80 border border-emerald-200/80 p-3">
                   <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
                     <VsIcon
                       name="check_circle"
@@ -5588,10 +5874,10 @@ export function StaffRoomsClient({
                     />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="font-black text-sm text-emerald-950 truncate">
-                      Phòng sạch & Sẵn sàng
+                    <p className="font-bold text-sm text-emerald-950 truncate">
+                      Phòng sạch &amp; Sẵn sàng
                     </p>
-                    <p className="text-xs font-medium text-emerald-800/80 truncate mt-0.5">
+                    <p className="text-xs font-medium text-emerald-800/85 truncate mt-0.5">
                       Chưa có lịch đặt hôm nay
                     </p>
                   </div>
@@ -5599,7 +5885,7 @@ export function StaffRoomsClient({
               )}
             </div>
           ) : stateCategory === "processing" ? (
-            <div className="flex items-center gap-3 rounded-xl bg-amber-50/80 border border-amber-200/80 p-2.5 sm:p-3">
+            <div className="flex items-center gap-3 rounded-xl bg-amber-50/80 border border-amber-200/80 p-3">
               <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
                 <VsIcon
                   name="cleaning_services"
@@ -5607,10 +5893,10 @@ export function StaffRoomsClient({
                 />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="font-black text-sm text-amber-950 truncate">
+                <p className="font-bold text-sm text-amber-950 truncate">
                   Chờ buồng phòng dọn dẹp
                 </p>
-                <p className="text-xs font-medium text-amber-900/80 truncate mt-0.5">
+                <p className="text-xs font-medium text-amber-900/85 truncate mt-0.5">
                   {isInToday
                     ? "Có khách sắp nhận hôm nay!"
                     : "Chưa hoàn tất vệ sinh"}
@@ -5618,7 +5904,7 @@ export function StaffRoomsClient({
               </div>
             </div>
           ) : (
-            <div className="flex items-center gap-3 rounded-xl bg-slate-100/80 border border-slate-200/90 p-2.5 sm:p-3">
+            <div className="flex items-center gap-3 rounded-xl bg-slate-100/80 border border-slate-200/90 p-3">
               <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-slate-200/80 text-slate-600">
                 <VsIcon
                   name={stateCategory === "blocked" ? "lock" : "build"}
@@ -5626,12 +5912,12 @@ export function StaffRoomsClient({
                 />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="font-black text-sm text-slate-900 truncate">
+                <p className="font-bold text-sm text-slate-900 truncate">
                   {stateCategory === "blocked"
                     ? "Đã khóa phòng"
                     : "Đang bảo trì"}
                 </p>
-                <p className="text-xs font-medium text-slate-500 truncate mt-0.5">
+                <p className="text-xs font-medium text-slate-600 truncate mt-0.5">
                   Tạm thời ngừng đón khách
                 </p>
               </div>
@@ -5640,7 +5926,7 @@ export function StaffRoomsClient({
         </div>
 
         {/* Footer: Direct Touch Action Buttons */}
-        <div className="relative z-10 mt-auto border-t border-slate-200/80 pt-2 sm:pt-2.5">
+        <div className="relative z-10 mt-auto border-t border-slate-200/80 pt-2.5">
           {isHousekeeping ? (
             effectiveStatus === "processing" ? (
               <button
@@ -5649,13 +5935,13 @@ export function StaffRoomsClient({
                   e.stopPropagation();
                   void confirmRoomReady(room);
                 }}
-                className="flex w-full h-9 sm:h-[38px] items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs sm:text-sm shadow-xs transition active:scale-[0.98] cursor-pointer"
+                className="flex w-full h-10 items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs sm:text-sm shadow-xs transition active:scale-[0.98] cursor-pointer whitespace-nowrap"
               >
                 <VsIcon name="check_circle" className="text-base shrink-0" />
                 <span>Xác nhận phòng đã dọn xong</span>
               </button>
             ) : (
-              <div className="flex w-full h-9 sm:h-[38px] items-center justify-center rounded-xl bg-slate-100 text-slate-700 text-xs sm:text-sm font-bold border border-slate-200">
+              <div className="flex w-full h-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700 text-xs sm:text-sm font-bold border border-slate-200 whitespace-nowrap">
                 <span>Trạng thái: {roomStatusLabel(effectiveStatus)}</span>
               </div>
             )
@@ -5667,7 +5953,7 @@ export function StaffRoomsClient({
                   e.stopPropagation();
                   openWalkIn(room);
                 }}
-                className="flex h-9 sm:h-[38px] items-center justify-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs sm:text-sm shadow-xs transition active:scale-[0.98] cursor-pointer"
+                className="flex h-10 items-center justify-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs sm:text-sm shadow-xs transition active:scale-[0.98] cursor-pointer whitespace-nowrap"
               >
                 <VsIcon name="login" className="text-base shrink-0" />
                 <span>Nhận phòng</span>
@@ -5678,7 +5964,7 @@ export function StaffRoomsClient({
                   e.stopPropagation();
                   openFutureReservationModal(room);
                 }}
-                className="flex h-9 sm:h-[38px] items-center justify-center gap-1.5 rounded-xl border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-900 font-bold text-xs sm:text-sm shadow-2xs transition active:scale-[0.98] cursor-pointer"
+                className="flex h-10 items-center justify-center gap-1.5 rounded-xl border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-900 font-bold text-xs sm:text-sm shadow-2xs transition active:scale-[0.98] cursor-pointer whitespace-nowrap"
               >
                 <VsIcon name="event" className="text-base shrink-0" />
                 <span>Đặt trước</span>
@@ -5692,7 +5978,7 @@ export function StaffRoomsClient({
                   e.stopPropagation();
                   openRoomContextPanel(room, e.currentTarget);
                 }}
-                className="flex h-9 sm:h-[38px] items-center justify-center gap-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs sm:text-sm shadow-xs transition active:scale-[0.98] cursor-pointer"
+                className="flex h-10 items-center justify-center gap-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs sm:text-sm shadow-xs transition active:scale-[0.98] cursor-pointer whitespace-nowrap"
               >
                 <VsIcon name="logout" className="text-base shrink-0" />
                 <span>Trả phòng</span>
@@ -5709,7 +5995,7 @@ export function StaffRoomsClient({
                     openRoomContextPanel(room, e.currentTarget);
                   }
                 }}
-                className="flex h-9 sm:h-[38px] items-center justify-center gap-1.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-extrabold text-xs sm:text-sm shadow-xs transition active:scale-[0.98] cursor-pointer"
+                className="flex h-10 items-center justify-center gap-1.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs sm:text-sm shadow-xs transition active:scale-[0.98] cursor-pointer whitespace-nowrap"
               >
                 <VsIcon name={incomingGroupCode ? "groups" : "login"} className="text-base shrink-0" />
                 <span>{incomingGroupCode ? "Check-in đoàn" : "Nhận phòng"}</span>
@@ -5723,7 +6009,7 @@ export function StaffRoomsClient({
                   e.stopPropagation();
                   openRoomContextPanel(room, e.currentTarget);
                 }}
-                className="flex h-9 sm:h-[38px] items-center justify-center gap-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs sm:text-sm shadow-xs transition active:scale-[0.98] cursor-pointer"
+                className="flex h-10 items-center justify-center gap-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs sm:text-sm shadow-xs transition active:scale-[0.98] cursor-pointer whitespace-nowrap"
               >
                 <VsIcon name="logout" className="text-base shrink-0" />
                 <span className="truncate">Trả phòng</span>
@@ -5734,7 +6020,7 @@ export function StaffRoomsClient({
                   e.stopPropagation();
                   openFutureReservationModal(room);
                 }}
-                className="flex h-9 sm:h-[38px] items-center justify-center gap-1.5 rounded-xl border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-900 font-bold text-xs sm:text-sm shadow-2xs transition active:scale-[0.98] cursor-pointer"
+                className="flex h-10 items-center justify-center gap-1.5 rounded-xl border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-900 font-bold text-xs sm:text-sm shadow-2xs transition active:scale-[0.98] cursor-pointer whitespace-nowrap"
                 title="Tạo lịch đặt trước phòng này cho ngày khác"
               >
                 <VsIcon name="event" className="text-base shrink-0 text-purple-700" />
@@ -5758,7 +6044,7 @@ export function StaffRoomsClient({
                   openRoomContextPanel(room, e.currentTarget);
                 }
               }}
-              className="flex w-full h-9 sm:h-[38px] items-center justify-center gap-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-extrabold text-xs sm:text-sm shadow-xs transition active:scale-[0.98] cursor-pointer"
+              className="flex w-full h-10 items-center justify-center gap-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs sm:text-sm shadow-xs transition active:scale-[0.98] cursor-pointer whitespace-nowrap"
             >
               <VsIcon name={incomingGroupCode ? "groups" : "login"} className="text-base shrink-0" />
               <span>{incomingGroupCode ? "Check-in cho đoàn" : "Làm thủ tục nhận phòng"}</span>
@@ -5771,10 +6057,10 @@ export function StaffRoomsClient({
                   e.stopPropagation();
                   openRoomContextPanel(room, e.currentTarget);
                 }}
-                className="flex h-9 sm:h-[38px] items-center justify-center gap-1.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-extrabold text-xs sm:text-sm shadow-xs transition active:scale-[0.98] cursor-pointer"
+                className="flex h-10 items-center justify-center gap-1.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs sm:text-sm shadow-xs transition active:scale-[0.98] cursor-pointer whitespace-nowrap"
               >
                 <VsIcon name="info" className="text-base shrink-0" />
-                <span className="truncate">Chi tiết & Hóa đơn</span>
+                <span className="truncate">Chi tiết &amp; Hóa đơn</span>
               </button>
               <button
                 type="button"
@@ -5782,7 +6068,7 @@ export function StaffRoomsClient({
                   e.stopPropagation();
                   openFutureReservationModal(room);
                 }}
-                className="flex h-9 sm:h-[38px] items-center justify-center gap-1.5 rounded-xl border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-900 font-bold text-xs sm:text-sm shadow-2xs transition active:scale-[0.98] cursor-pointer"
+                className="flex h-10 items-center justify-center gap-1.5 rounded-xl border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-900 font-bold text-xs sm:text-sm shadow-2xs transition active:scale-[0.98] cursor-pointer whitespace-nowrap"
                 title="Tạo lịch đặt trước phòng này cho ngày khác"
               >
                 <VsIcon name="event" className="text-base shrink-0 text-purple-700" />
@@ -5796,7 +6082,7 @@ export function StaffRoomsClient({
                 e.stopPropagation();
                 openRoomContextPanel(room, e.currentTarget);
               }}
-              className="flex w-full h-9 sm:h-[38px] items-center justify-center gap-2 rounded-xl bg-rose-700 hover:bg-rose-800 text-white font-extrabold text-xs sm:text-sm shadow-xs transition active:scale-[0.98] cursor-pointer"
+              className="flex w-full h-10 items-center justify-center gap-2 rounded-xl bg-rose-700 hover:bg-rose-800 text-white font-bold text-xs sm:text-sm shadow-xs transition active:scale-[0.98] cursor-pointer whitespace-nowrap"
             >
               <VsIcon name="warning" className="text-base shrink-0" />
               <span>Xử lý trả phòng quá hạn</span>
@@ -5809,7 +6095,7 @@ export function StaffRoomsClient({
                   e.stopPropagation();
                   void confirmRoomReady(room);
                 }}
-                className="flex h-9 sm:h-[38px] items-center justify-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs sm:text-sm shadow-xs transition active:scale-[0.98] cursor-pointer"
+                className="flex h-10 items-center justify-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs sm:text-sm shadow-xs transition active:scale-[0.98] cursor-pointer whitespace-nowrap"
               >
                 <VsIcon name="check" className="text-base shrink-0" />
                 <span>Đã dọn xong</span>
@@ -5820,7 +6106,7 @@ export function StaffRoomsClient({
                   e.stopPropagation();
                   openRoomContextPanel(room, e.currentTarget);
                 }}
-                className="flex h-9 sm:h-[38px] items-center justify-center gap-1.5 rounded-xl border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-900 font-bold text-xs sm:text-sm shadow-2xs transition active:scale-[0.98] cursor-pointer"
+                className="flex h-10 items-center justify-center gap-1.5 rounded-xl border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-900 font-bold text-xs sm:text-sm shadow-2xs transition active:scale-[0.98] cursor-pointer whitespace-nowrap"
               >
                 <VsIcon name="tune" className="text-base shrink-0" />
                 <span>Chi tiết</span>
@@ -5833,7 +6119,7 @@ export function StaffRoomsClient({
                 e.stopPropagation();
                 openRoomContextPanel(room, e.currentTarget);
               }}
-              className="flex w-full h-9 sm:h-[38px] items-center justify-center gap-2 rounded-xl border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-900 font-bold text-xs sm:text-sm shadow-2xs transition active:scale-[0.98] cursor-pointer"
+              className="flex w-full h-10 items-center justify-center gap-2 rounded-xl border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-900 font-bold text-xs sm:text-sm shadow-2xs transition active:scale-[0.98] cursor-pointer whitespace-nowrap"
             >
               <VsIcon name="tune" className="text-base shrink-0" />
               <span>Cập nhật trạng thái</span>
@@ -6064,7 +6350,7 @@ export function StaffRoomsClient({
             <div>
               <p className="font-extrabold text-sm text-sky-950">
                 Đang xem sơ đồ dự kiến ngày:{" "}
-                {formatDateTime(businessDate).slice(0, 10)}
+                {formatVnDateStr(businessDate)}
               </p>
               <p className="text-xs text-sky-800 mt-0.5 text-pretty">
                 Trạng thái phòng hiển thị theo lịch đặt phòng tương lai. Trạng
@@ -6557,6 +6843,22 @@ export function StaffRoomsClient({
           </div>
       </section>
 
+      {!isHousekeeping && priorityControlItems.length > 0 ? (
+        <PriorityRoomsControlSection
+          items={priorityControlItems}
+          targetDateLabel={(() => {
+            const [y, m, d] = activeMovementsTargetYmd.split("-");
+            return y && m && d ? `${d}/${m}/${y}` : activeMovementsTargetYmd;
+          })()}
+          isFutureDate={isFutureDate}
+          canCheckInStay={canCheckInStay}
+          canManageRooms={canManageRooms}
+          canManageReservations={canManageReservations}
+          onInspectItem={handleInspectPriorityItem}
+          onPrimaryAction={handlePrimaryPriorityAction}
+        />
+      ) : null}
+
       {/* Operational Body: Tape Chart View vs Room Grid/Tasklist View */}
       {operationalViewMode === "tape-chart" ? (
         <TapeChartView
@@ -6658,10 +6960,7 @@ export function StaffRoomsClient({
               if (initialEndDate) {
                 setReservationCheckOut(`${initialEndDate}T12:00`);
               } else {
-                const d = new Date(initialDate);
-                d.setDate(d.getDate() + 1);
-                const nextDay = d.toISOString().slice(0, 10);
-                setReservationCheckOut(`${nextDay}T12:00`);
+                setReservationCheckOut(`${addDaysYmd(initialDate, 1)}T12:00`);
               }
             }
             setIsReservationOpen(true);
@@ -6677,32 +6976,63 @@ export function StaffRoomsClient({
             setIsBulkModalOpen(true);
           }}
           onCheckOutStay={async (stayId, roomNum) => {
-            if (typeof window === "undefined") return;
-            // Open during the click gesture; resolve the folio before navigating.
-            const billingTab = window.open("", `vietsage-billing-${hotelId}-${stayId}`);
-            if (!billingTab) {
-              await showWarningAlert("Không thể mở tab thanh toán", "Vui lòng cho phép cửa sổ bật lên cho VietSage rồi thử lại.");
+            if (!canViewBilling || (!canCheckoutBilling && !canCheckOutStay)) {
+              await showWarningAlert(
+                "Không đủ quyền quyết toán",
+                "Bạn chưa có quyền xem hoặc quyết toán hóa đơn trả phòng.",
+              );
               return;
             }
-            try {
-              if (billingTab.location.pathname.endsWith("/billing") &&
-                  new URLSearchParams(billingTab.location.search).get("stayId") === stayId) {
-                billingTab.focus();
-                return;
+            const cleanRoomNum = roomNum?.trim() || "";
+            let targetRoom =
+              rooms.find(
+                (r) =>
+                  r.activeStay?.id === stayId ||
+                  (cleanRoomNum && getRoomNumber(r) === cleanRoomNum),
+              ) ?? null;
+            if (!targetRoom) {
+              try {
+                const fetchedPage = cleanRoomNum
+                  ? await staffRoomsRepository.list(hotelId, {
+                      q: cleanRoomNum,
+                      limit: 100,
+                    })
+                  : await staffRoomsRepository.listAll(hotelId);
+                targetRoom =
+                  fetchedPage.items?.find(
+                    (r) =>
+                      r.activeStay?.id === stayId ||
+                      (cleanRoomNum && getRoomNumber(r) === cleanRoomNum),
+                  ) ?? null;
+                if (!targetRoom && cleanRoomNum) {
+                  const allPage = await staffRoomsRepository.listAll(hotelId);
+                  targetRoom =
+                    allPage.items?.find(
+                      (r) =>
+                        r.activeStay?.id === stayId ||
+                        getRoomNumber(r) === cleanRoomNum,
+                    ) ?? null;
+                }
+              } catch {
+                targetRoom = null;
               }
-            } catch {
-              // A reused named tab may have navigated to another origin.
             }
-            const activeFolioRes = await requestInternalApiEnvelope<{ id?: string; folioNumber?: string }>(
-              `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/billing/stays/${encodeURIComponent(stayId)}/active-folio`,
-              { method: "GET" },
-            ).catch(() => null);
-            const params = new URLSearchParams({ stayId });
-            if (activeFolioRes?.data?.id) params.set("folioId", activeFolioRes.data.id);
-            if (roomNum) params.set("roomNumber", roomNum);
-            if (!billingTab.closed) {
-              billingTab.location.replace(`/hotels/${encodeURIComponent(hotelId)}/billing?${params.toString()}`);
+            if (!targetRoom) {
+              await showWarningAlert(
+                "Chưa xác định được phòng",
+                "Không tìm thấy dữ liệu phòng hiện tại để quyết toán trả phòng.",
+              );
+              return;
             }
+            const checkoutStay: NonNullable<HotelRoomSummary["activeStay"]> =
+              targetRoom.activeStay && targetRoom.activeStay.id === stayId
+                ? targetRoom.activeStay
+                : {
+                    id: stayId,
+                    guestDisplayName: targetRoom.activeStay?.guestDisplayName ?? null,
+                    plannedCheckOutAt: targetRoom.activeStay?.plannedCheckOutAt ?? null,
+                  };
+            setTapeCheckoutTarget({ room: targetRoom, stay: checkoutStay });
           }}
         />
       ) : (
@@ -6991,7 +7321,7 @@ export function StaffRoomsClient({
                       {floorRooms.map((room) => (
                         <div
                           key={room.id}
-                          className="flex w-[270px] sm:w-[285px] shrink-0 snap-start"
+                          className="flex w-[276px] sm:w-[312px] shrink-0 snap-start"
                         >
                           {renderRoomCard(room)}
                         </div>
@@ -7347,7 +7677,7 @@ export function StaffRoomsClient({
                       <tbody className="divide-y divide-slate-100 bg-white">
                         {arrivalsList.map((arrival) => {
                           const isToday =
-                            arrival.plannedCheckInAt?.slice(0, 10) === todayYmd;
+                            toVietnamYmd(arrival.plannedCheckInAt) === todayYmd;
                           return (
                             <tr
                               key={arrival.id}
@@ -9868,7 +10198,69 @@ export function StaffRoomsClient({
         canCheckInStay={canCheckInStay}
         canManageReservations={canManageReservations}
         canOperateArrivals={Boolean(canManageReservations || canCheckInStay)}
+        canViewBilling={canViewBilling}
+        canCheckoutBilling={canCheckoutBilling}
+        canCheckOutStay={canCheckOutStay}
         onCheckIn={(arr) => void handleCheckInArrival(arr)}
+      />
+
+      <EditReservationModal
+        isOpen={Boolean(reassignReservation)}
+        onClose={() => {
+          setReassignReservation(null);
+          setReassignOriginalRoom(null);
+        }}
+        hotelId={hotelId}
+        reservation={
+          reassignReservation
+            ? {
+                id: reassignReservation.id,
+                reservationCode: reassignReservation.reservationCode,
+                guestDisplayName: reassignReservation.guestDisplayName,
+                guestPhone: reassignReservation.guestPhone,
+                guestCount: reassignReservation.guestCount,
+                notes: reassignReservation.notes,
+                roomId: reassignReservation.roomId,
+                roomNumber: reassignReservation.room?.roomNumber,
+                roomTypeName: reassignReservation.room?.type,
+                plannedCheckInAt: reassignReservation.plannedCheckInAt,
+                plannedCheckOutAt: reassignReservation.plannedCheckOutAt,
+                nightlyRateSnapshot:
+                  reassignReservation.nightlyRateSnapshot ?? reassignReservation.rate,
+                roomSubtotal: reassignReservation.roomSubtotal,
+                totalAmount: reassignReservation.totalAmount,
+                expectedUpdatedAt: reassignReservation.updatedAt,
+                status: reassignReservation.status,
+                groupCode: reassignReservation.groupCode,
+              }
+            : null
+        }
+        availableRooms={rooms}
+        onSuccess={async (updated) => {
+          const targetRoom = reassignOriginalRoom;
+          setReassignReservation(null);
+          setReassignOriginalRoom(null);
+          await invalidateHotelRealtimeQueries(queryClient, hotelId);
+          await Promise.all([refetch(), loadArrivals(arrivalsRange)]);
+
+          if (targetRoom) {
+            const targetRoomNum = getRoomNumber(targetRoom);
+            const resumeRes = await SwalVietSage.fire({
+              title: "Đã đổi phòng đơn đặt trước!",
+              html: `Đơn đặt của khách <strong>${escapeHtml(updated.guestDisplayName)}</strong> đã được chuyển sang phòng <strong>${escapeHtml(updated.room?.roomNumber || "mới")}</strong>.<br/><br/>Bạn có muốn tiếp tục gia hạn phòng <strong>${targetRoomNum}</strong> ngay bây giờ không?`,
+              icon: "success",
+              showCancelButton: true,
+              confirmButtonText: "Tiếp tục gia hạn ngay",
+              cancelButtonText: "Để sau",
+              confirmButtonColor: "#059669",
+              cancelButtonColor: "#64748b",
+            });
+            if (resumeRes.isConfirmed) {
+              const freshRoom = rooms.find((r) => r.id === targetRoom.id) || targetRoom;
+              void handleExtendStayModal(freshRoom);
+            }
+          }
+        }}
       />
 
       <GroupOperationsDrawer
@@ -9939,6 +10331,21 @@ export function StaffRoomsClient({
           initialArrivals={groupArrivalsList}
           enabledFeatures={enabledFeatures}
           onSuccess={async () => {
+            await invalidateHotelRealtimeQueries(queryClient, hotelId);
+            await Promise.all([refetch(), loadArrivals(arrivalsRange)]);
+          }}
+        />
+      )}
+
+      {tapeCheckoutTarget && (
+        <RoomCheckoutSettlementModal
+          isOpen
+          onClose={() => setTapeCheckoutTarget(null)}
+          hotelId={hotelId}
+          room={tapeCheckoutTarget.room}
+          stay={tapeCheckoutTarget.stay}
+          onCheckoutSuccess={async () => {
+            setTapeCheckoutTarget(null);
             await invalidateHotelRealtimeQueries(queryClient, hotelId);
             await Promise.all([refetch(), loadArrivals(arrivalsRange)]);
           }}

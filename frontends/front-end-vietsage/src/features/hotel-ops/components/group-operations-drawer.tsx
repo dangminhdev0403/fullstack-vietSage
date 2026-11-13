@@ -707,7 +707,6 @@ export function GroupOperationsDrawer({
           nextRoomStatus: "PROCESSING",
         });
         successCount++;
-        item.status = "CHECKED_OUT";
 
         newResults[item.reservationId] = {
           reservationId: item.reservationId,
@@ -718,7 +717,7 @@ export function GroupOperationsDrawer({
         };
       } catch (err: unknown) {
         failCount++;
-        const friendlyMsg = err instanceof Error ? err.message : "Thất bại khi trả phòng";
+        const friendlyMsg = formatFriendlyCheckInError(err);
         newResults[item.reservationId] = {
           reservationId: item.reservationId,
           success: false,
@@ -810,7 +809,7 @@ export function GroupOperationsDrawer({
     } catch (err: unknown) {
       await showErrorAlert(
         "Không thể trả phòng",
-        err instanceof Error ? err.message : "Đã có lỗi xảy ra khi làm thủ tục trả phòng.",
+        formatFriendlyCheckInError(err),
       );
     } finally {
       setActionInProgressId(null);

@@ -7042,6 +7042,1341 @@
         ]
       }
     },
+    "/hotels/{hotelId}/reports/revenue-book": {
+      "get": {
+        "operationId": "HotelRevenueBookController_getBook",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "Ngày kết thúc YYYY-MM-DD, bao gồm ngày này; tối đa 366 ngày",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "Ngày bắt đầu YYYY-MM-DD; bỏ cả hai ngày để xem tháng hiện tại theo giờ khách sạn",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "error": {
+                      "type": "object",
+                      "nullable": true,
+                      "additionalProperties": true,
+                      "example": null
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Đã tải sổ doanh thu"
+                    },
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "hotelId",
+                        "hotelName",
+                        "timeZone",
+                        "currency",
+                        "from",
+                        "to",
+                        "entries",
+                        "summary",
+                        "rooms",
+                        "canManage"
+                      ],
+                      "properties": {
+                        "hotelId": {
+                          "type": "string"
+                        },
+                        "hotelName": {
+                          "type": "string"
+                        },
+                        "timeZone": {
+                          "type": "string"
+                        },
+                        "currency": {
+                          "type": "string",
+                          "enum": [
+                            "VND"
+                          ]
+                        },
+                        "from": {
+                          "type": "string",
+                          "format": "date"
+                        },
+                        "to": {
+                          "type": "string",
+                          "format": "date"
+                        },
+                        "canManage": {
+                          "type": "boolean"
+                        },
+                        "rooms": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "required": [
+                              "id",
+                              "number"
+                            ],
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "number": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "summary": {
+                          "type": "object",
+                          "properties": {
+                            "roomRevenue": {
+                              "type": "number"
+                            },
+                            "minibarRevenue": {
+                              "type": "number"
+                            },
+                            "laundryRevenue": {
+                              "type": "number"
+                            },
+                            "otherRevenue": {
+                              "type": "number"
+                            },
+                            "revenueTotal": {
+                              "type": "number"
+                            },
+                            "openingBalance": {
+                              "type": "number"
+                            },
+                            "closingBalance": {
+                              "type": "number"
+                            },
+                            "balanceAdjustment": {
+                              "type": "number"
+                            },
+                            "collectedTotal": {
+                              "type": "number"
+                            },
+                            "cashTotal": {
+                              "type": "number"
+                            },
+                            "bankTransferTotal": {
+                              "type": "number"
+                            },
+                            "otherCollectedTotal": {
+                              "type": "number"
+                            }
+                          }
+                        },
+                        "entries": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "roomRevenue": {
+                                "type": "number"
+                              },
+                              "minibarRevenue": {
+                                "type": "number"
+                              },
+                              "laundryRevenue": {
+                                "type": "number"
+                              },
+                              "otherRevenue": {
+                                "type": "number"
+                              },
+                              "revenueTotal": {
+                                "type": "number"
+                              },
+                              "openingBalance": {
+                                "type": "number"
+                              },
+                              "closingBalance": {
+                                "type": "number"
+                              },
+                              "balanceAdjustment": {
+                                "type": "number"
+                              },
+                              "date": {
+                                "type": "string",
+                                "format": "date"
+                              },
+                              "description": {
+                                "type": "string",
+                                "maxLength": 300
+                              },
+                              "category": {
+                                "type": "string",
+                                "enum": [
+                                  "ROOM",
+                                  "MINIBAR",
+                                  "LAUNDRY",
+                                  "OTHER"
+                                ],
+                                "nullable": true
+                              },
+                              "amount": {
+                                "type": "number",
+                                "nullable": true
+                              },
+                              "roomId": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "documentNumber": {
+                                "type": "string",
+                                "nullable": true,
+                                "maxLength": 80
+                              },
+                              "notes": {
+                                "type": "string",
+                                "nullable": true,
+                                "maxLength": 1000
+                              },
+                              "id": {
+                                "type": "string"
+                              },
+                              "source": {
+                                "type": "string",
+                                "enum": [
+                                  "FOLIO",
+                                  "MANUAL",
+                                  "DEPOSIT",
+                                  "RECEIVABLE"
+                                ]
+                              },
+                              "roomNumber": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "declarationStatus": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "version": {
+                                "type": "integer",
+                                "nullable": true
+                              },
+                              "voidedAt": {
+                                "type": "string",
+                                "format": "date-time",
+                                "nullable": true
+                              },
+                              "revenueLines": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "date": {
+                                      "type": "string",
+                                      "format": "date"
+                                    },
+                                    "roomRevenue": {
+                                      "type": "number"
+                                    },
+                                    "minibarRevenue": {
+                                      "type": "number"
+                                    },
+                                    "laundryRevenue": {
+                                      "type": "number"
+                                    },
+                                    "otherRevenue": {
+                                      "type": "number"
+                                    },
+                                    "revenueTotal": {
+                                      "type": "number"
+                                    }
+                                  }
+                                }
+                              },
+                              "collections": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "receivedAt": {
+                                      "type": "string",
+                                      "format": "date-time"
+                                    },
+                                    "amount": {
+                                      "type": "number",
+                                      "exclusiveMinimum": 0
+                                    },
+                                    "method": {
+                                      "type": "string"
+                                    },
+                                    "reference": {
+                                      "type": "string",
+                                      "nullable": true,
+                                      "maxLength": 120
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "hotel-reports"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/reports/revenue-book/entries": {
+      "post": {
+        "operationId": "HotelRevenueBookController_create",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "date",
+                  "description",
+                  "category",
+                  "amount",
+                  "idempotencyKey"
+                ],
+                "properties": {
+                  "date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 300
+                  },
+                  "category": {
+                    "type": "string",
+                    "enum": [
+                      "ROOM",
+                      "MINIBAR",
+                      "LAUNDRY",
+                      "OTHER"
+                    ]
+                  },
+                  "amount": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "roomId": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "documentNumber": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 80
+                  },
+                  "notes": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 1000
+                  },
+                  "idempotencyKey": {
+                    "type": "string",
+                    "maxLength": 120
+                  },
+                  "collection": {
+                    "type": "object",
+                    "required": [
+                      "receivedAt",
+                      "amount",
+                      "method"
+                    ],
+                    "properties": {
+                      "receivedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "amount": {
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                      },
+                      "method": {
+                        "type": "string",
+                        "enum": [
+                          "CASH",
+                          "BANK_TRANSFER",
+                          "CARD",
+                          "OTHER"
+                        ]
+                      },
+                      "reference": {
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 120
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "error": {
+                      "type": "object",
+                      "nullable": true,
+                      "additionalProperties": true,
+                      "example": null
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Đã cập nhật sổ doanh thu"
+                    },
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "version"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "version": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "hotel-reports"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/reports/revenue-book/entries/{entryId}": {
+      "patch": {
+        "operationId": "HotelRevenueBookController_update",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "entryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "date",
+                  "description",
+                  "category",
+                  "amount",
+                  "version"
+                ],
+                "properties": {
+                  "date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 300
+                  },
+                  "category": {
+                    "type": "string",
+                    "enum": [
+                      "ROOM",
+                      "MINIBAR",
+                      "LAUNDRY",
+                      "OTHER"
+                    ]
+                  },
+                  "amount": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "roomId": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "documentNumber": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 80
+                  },
+                  "notes": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 1000
+                  },
+                  "version": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "error": {
+                      "type": "object",
+                      "nullable": true,
+                      "additionalProperties": true,
+                      "example": null
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Đã cập nhật sổ doanh thu"
+                    },
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "version"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "version": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "hotel-reports"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/reports/revenue-book/entries/{entryId}/collections": {
+      "post": {
+        "operationId": "HotelRevenueBookController_collect",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "entryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "receivedAt",
+                  "amount",
+                  "method",
+                  "idempotencyKey"
+                ],
+                "properties": {
+                  "receivedAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "amount": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "method": {
+                    "type": "string",
+                    "enum": [
+                      "CASH",
+                      "BANK_TRANSFER",
+                      "CARD",
+                      "OTHER"
+                    ]
+                  },
+                  "reference": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 120
+                  },
+                  "idempotencyKey": {
+                    "type": "string",
+                    "maxLength": 120
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "error": {
+                      "type": "object",
+                      "nullable": true,
+                      "additionalProperties": true,
+                      "example": null
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Đã cập nhật sổ doanh thu"
+                    },
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "version"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "version": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "hotel-reports"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/reports/revenue-book/entries/{entryId}/void": {
+      "post": {
+        "operationId": "HotelRevenueBookController_void",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "entryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "reason",
+                  "version"
+                ],
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "version": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "error": {
+                      "type": "object",
+                      "nullable": true,
+                      "additionalProperties": true,
+                      "example": null
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Đã cập nhật sổ doanh thu"
+                    },
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "version"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "version": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "hotel-reports"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/expenses": {
+      "get": {
+        "operationId": "HotelExpenseController_listExpenses",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "includeVoided",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "paymentStatus",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "PAID",
+                "PARTIAL",
+                "UNPAID"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "category",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "PAYROLL",
+                "UTILITIES",
+                "SUPPLIES",
+                "MAINTENANCE",
+                "MARKETING_OTA",
+                "RENT_FIXED",
+                "TAX_FEE",
+                "OTHER"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "error": {
+                      "type": "object",
+                      "nullable": true,
+                      "additionalProperties": true,
+                      "example": null
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Đã tải sổ chi phí vận hành"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "hotelId": {
+                          "type": "string"
+                        },
+                        "hotelName": {
+                          "type": "string"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "timeZone": {
+                          "type": "string"
+                        },
+                        "from": {
+                          "type": "string"
+                        },
+                        "to": {
+                          "type": "string"
+                        },
+                        "summary": {
+                          "type": "object",
+                          "properties": {
+                            "totalExpense": {
+                              "type": "number"
+                            },
+                            "paidExpense": {
+                              "type": "number"
+                            },
+                            "unpaidExpense": {
+                              "type": "number"
+                            },
+                            "saasFeeInPeriod": {
+                              "type": "number"
+                            },
+                            "totalWithSaas": {
+                              "type": "number"
+                            },
+                            "entryCount": {
+                              "type": "number"
+                            },
+                            "unpaidCount": {
+                              "type": "number"
+                            }
+                          }
+                        },
+                        "byCategory": {
+                          "type": "array",
+                          "items": {
+                            "type": "object"
+                          }
+                        },
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object"
+                          }
+                        },
+                        "rooms": {
+                          "type": "array",
+                          "items": {
+                            "type": "object"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "hotel-billing"
+        ]
+      },
+      "post": {
+        "operationId": "HotelExpenseController_createExpense",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "error": {
+                      "type": "object",
+                      "nullable": true,
+                      "additionalProperties": true,
+                      "example": null
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Đã lưu khoản chi phí"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "version": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "version"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "hotel-billing"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/expenses/{expenseId}": {
+      "patch": {
+        "operationId": "HotelExpenseController_updateExpense",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "expenseId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "error": {
+                      "type": "object",
+                      "nullable": true,
+                      "additionalProperties": true,
+                      "example": null
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Đã lưu khoản chi phí"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "version": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "version"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "hotel-billing"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/expenses/{expenseId}/pay": {
+      "post": {
+        "operationId": "HotelExpenseController_payExpense",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "expenseId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "error": {
+                      "type": "object",
+                      "nullable": true,
+                      "additionalProperties": true,
+                      "example": null
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Đã lưu khoản chi phí"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "version": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "version"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "hotel-billing"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/expenses/{expenseId}/void": {
+      "post": {
+        "operationId": "HotelExpenseController_voidExpense",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "expenseId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "error": {
+                      "type": "object",
+                      "nullable": true,
+                      "additionalProperties": true,
+                      "example": null
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Đã lưu khoản chi phí"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "version": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "version"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "hotel-billing"
+        ]
+      }
+    },
     "/hotels/{hotelId}/reservations": {
       "post": {
         "operationId": "ReservationsController_createReservation",
@@ -7342,8 +8677,16 @@
             }
           },
           {
+            "name": "includeOverdue",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
             "name": "to",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -7351,7 +8694,7 @@
           },
           {
             "name": "from",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"

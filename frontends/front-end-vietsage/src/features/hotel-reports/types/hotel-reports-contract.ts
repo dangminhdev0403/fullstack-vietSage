@@ -10,6 +10,18 @@ export type HotelReportsSummary = {
   roomRevenue: number;
   serviceRevenue: number;
   otherRevenue: number;
+  manualRevenue?: number;
+  collectedRevenue?: number;
+  uncollectedRevenue?: number;
+  operatingExpense?: number;
+  paidOperatingExpense?: number;
+  unpaidOperatingExpense?: number;
+  saasFeeExpense?: number;
+  totalExpense?: number;
+  netProfit?: number;
+  profitMargin?: number;
+  expenseRatio?: number;
+  netCashFlow?: number;
   adr: number;
   revpar: number;
 };
@@ -20,6 +32,11 @@ export type DailyRevenueItem = {
   totalRevenue: number;
   roomRevenue: number;
   serviceRevenue: number;
+  manualRevenue?: number;
+  collectedRevenue?: number;
+  expense?: number;
+  paidExpense?: number;
+  netProfit?: number;
   roomsOccupied: number;
   adr: number;
   occupancyRate: number;
@@ -31,10 +48,25 @@ export type MonthlyRevenueItem = {
   totalRevenue: number;
   roomRevenue: number;
   serviceRevenue: number;
+  manualRevenue?: number;
+  collectedRevenue?: number;
+  expense?: number;
+  paidExpense?: number;
+  netProfit?: number;
   bookingCount: number;
   roomsSold: number;
   averageOccupancy: number;
   adr: number;
+};
+
+export type ExpenseCategoryBreakdownItem = {
+  category: string;
+  categoryLabel: string;
+  amount: number;
+  paidAmount: number;
+  unpaidAmount: number;
+  count: number;
+  sharePercent: number;
 };
 
 export type SourceRevenueItem = {
@@ -104,8 +136,22 @@ export type HotelReportsData = {
   summary: HotelReportsSummary;
   revenueByDay: DailyRevenueItem[];
   revenueByMonth: MonthlyRevenueItem[];
+  expenseByCategory?: ExpenseCategoryBreakdownItem[];
   revenueBySource: SourceRevenueItem[];
   revenueByStaff: StaffRevenueItem[];
+  receivablesSummary?: {
+    totalOriginal: number;
+    totalPaid: number;
+    totalOutstanding: number;
+    openCount: number;
+    overdueCount: number;
+    count: number;
+  };
+  bookingPaymentsSummary?: {
+    totalRequested: number;
+    totalReceived: number;
+    depositCount: number;
+  };
   guestAnalytics: GuestAnalytics;
   paymentMethods: PaymentMethodStat[];
 };

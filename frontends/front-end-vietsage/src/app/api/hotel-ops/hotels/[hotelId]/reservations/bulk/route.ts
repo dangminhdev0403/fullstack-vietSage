@@ -69,6 +69,7 @@ const bulkReservationSchema = z
     sourcePartnerId: z.string().trim().min(1).nullable().optional(),
     bookingOwnerUserId: z.string().trim().min(1).nullable().optional(),
     reservationCode: z.string().trim().max(80).optional(),
+    idempotencyKey: z.string().trim().max(120).optional(),
   })
   .strict()
   .refine(
@@ -139,6 +140,7 @@ export async function POST(request: Request, context: Params) {
             ...(parsed.data.sourcePartnerId ? { sourcePartnerId: parsed.data.sourcePartnerId } : {}),
             ...(parsed.data.bookingOwnerUserId ? { bookingOwnerUserId: parsed.data.bookingOwnerUserId } : {}),
             ...(parsed.data.reservationCode ? { reservationCode: parsed.data.reservationCode } : {}),
+            ...(parsed.data.idempotencyKey ? { idempotencyKey: parsed.data.idempotencyKey } : {}),
           },
           accessToken,
         );

@@ -164,9 +164,11 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
         if (raw?.hotelId !== hotelId) return;
 
         if (raw.message?.senderType === "GUEST") {
+          const threadRoom = raw.thread?.roomNumber ? `Phòng ${raw.thread.roomNumber}` : "";
+          const messageKey = raw.thread?.roomNumber || raw.message.id || "guest";
           toast.info("Có tin nhắn mới từ khách", {
-            id: `owner-message-${raw.message.id ?? Date.now()}`,
-            description: `Phòng ${raw.thread?.roomNumber ?? ""}: ${raw.message.body ?? ""}`,
+            id: `owner-message-${messageKey}`,
+            description: threadRoom ? `${threadRoom}: ${raw.message.body ?? ""}` : (raw.message.body ?? ""),
             duration: 8000,
           });
         }
@@ -189,15 +191,16 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
           raw?.items && raw.items.length > 1
             ? `${raw.items[0].serviceName} (+${raw.items.length - 1} mục khác)`
             : (raw?.serviceName ?? "Dịch vụ đối tác");
+        const orderKey = raw?.orderId || "latest";
 
         toast.success("Có yêu cầu dịch vụ đối tác mới", {
-          id: `owner-ext-order-created-${raw?.orderId ?? Date.now()}`,
+          id: `owner-ext-order-${orderKey}`,
           description: `${roomLabel} - ${guestName}: ${serviceName}`,
           duration: 10000,
           action: {
             label: "Xem ngay",
             onClick: () => {
-              if (raw?.orderId) toast.dismiss(`owner-ext-order-created-${raw.orderId}`);
+              toast.dismiss(`owner-ext-order-${orderKey}`);
               void invalidateHotelRequestRealtimeQueries(queryClient, hotelId);
               router.refresh();
               const targetUrl = `/owner/hotels/${hotelId}/requests?tab=external${raw?.orderId ? `&orderId=${encodeURIComponent(raw.orderId)}` : ""}`;
@@ -219,7 +222,7 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
       onExternalOrderStatusChanged: (event: unknown) => {
         const raw = event as { orderId?: string } | null;
         if (raw?.orderId) {
-          toast.dismiss(`owner-ext-order-created-${raw.orderId}`);
+          toast.dismiss(`owner-ext-order-${raw.orderId}`);
         }
         void invalidateHotelRequestRealtimeQueries(queryClient, hotelId);
         router.refresh();
@@ -227,7 +230,7 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
       onExternalOrderHotelAcknowledged: (event: unknown) => {
         const raw = event as { orderId?: string } | null;
         if (raw?.orderId) {
-          toast.dismiss(`owner-ext-order-created-${raw.orderId}`);
+          toast.dismiss(`owner-ext-order-${raw.orderId}`);
         }
         void invalidateHotelRequestRealtimeQueries(queryClient, hotelId);
         router.refresh();
@@ -339,8 +342,10 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
         const roomLabel = raw?.roomNumber ? `Phòng ${raw.roomNumber}` : "Phòng";
         const targetLabel = raw?.status ? (statusLabels[raw.status] ?? raw.status) : "mới";
 
+        const roomKey = raw?.roomNumber ? String(raw.roomNumber).trim() : (raw?.roomId ?? "default");
+
         toast.info(`${roomLabel} đã cập nhật trạng thái`, {
-          id: `owner-room-status-${raw?.roomId ?? Date.now()}`,
+          id: `owner-room-status-${roomKey}`,
           description: `Trạng thái: ${targetLabel}. Sơ đồ phòng đã đồng bộ tự động.`,
           duration: 4000,
         });

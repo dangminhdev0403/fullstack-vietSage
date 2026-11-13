@@ -13,9 +13,14 @@ type Params = { params: Promise<{ hotelId: string; stayId: string }> };
 
 const updateSchema = z
   .object({
-    plannedCheckOutAt: z.string().trim().optional(),
-    guestDisplayName: z.string().trim().optional(),
+    plannedCheckOutAt: z
+      .string()
+      .trim()
+      .refine((v) => !Number.isNaN(Date.parse(v)), "Ngày trả phòng dự kiến không hợp lệ")
+      .optional(),
+    guestDisplayName: z.string().trim().min(1).optional(),
     guestPhone: z.string().trim().optional(),
+    expectedUpdatedAt: z.string().trim().min(1).optional(),
   })
   .strict();
 

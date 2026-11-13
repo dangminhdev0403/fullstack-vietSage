@@ -13,6 +13,10 @@ import {
 import { PrismaService } from "../../../prisma/prisma.service";
 import { HotelAccessService } from "./hotel-access.service";
 import type { GetHotelReportsQuery } from "../domain/schemas/hotel-reports.schema";
+import {
+  EXPENSE_CATEGORY_LABELS,
+  type ExpenseCategory,
+} from "../domain/schemas/hotel-expense.schema";
 
 import {
   resolveTimeZone,
@@ -188,6 +192,18 @@ export interface HotelReportsData {
     roomRevenue: number;
     serviceRevenue: number;
     otherRevenue: number;
+    manualRevenue: number;
+    collectedRevenue: number;
+    uncollectedRevenue: number;
+    operatingExpense: number;
+    paidOperatingExpense: number;
+    unpaidOperatingExpense: number;
+    saasFeeExpense: number;
+    totalExpense: number;
+    netProfit: number;
+    profitMargin: number;
+    expenseRatio: number;
+    netCashFlow: number;
     adr: number;
     revpar: number;
   };
@@ -197,6 +213,11 @@ export interface HotelReportsData {
     totalRevenue: number;
     roomRevenue: number;
     serviceRevenue: number;
+    manualRevenue: number;
+    collectedRevenue: number;
+    expense: number;
+    paidExpense: number;
+    netProfit: number;
     roomsOccupied: number;
     adr: number;
     occupancyRate: number;
@@ -207,10 +228,24 @@ export interface HotelReportsData {
     totalRevenue: number;
     roomRevenue: number;
     serviceRevenue: number;
+    manualRevenue: number;
+    collectedRevenue: number;
+    expense: number;
+    paidExpense: number;
+    netProfit: number;
     bookingCount: number;
     roomsSold: number;
     averageOccupancy: number;
     adr: number;
+  }>;
+  expenseByCategory: Array<{
+    category: ExpenseCategory | "SAAS_FEE";
+    categoryLabel: string;
+    amount: number;
+    paidAmount: number;
+    unpaidAmount: number;
+    count: number;
+    sharePercent: number;
   }>;
   revenueBySource: Array<{
     sourceKey: string;
@@ -383,6 +418,18 @@ export class HotelReportsService {
         ? { hotelId, folio: { roomId: scope.allowedRoomId } }
         : { hotelId };
 
+    const queryWindowDateOnlyStart = new Date(`${queryWindowStartPlain.toString()}T00:00:00.000Z`);
+    const endDateOnly = new Date(`${endPlain.toString()}T00:00:00.000Z`);
+
+    const safeOptionalQuery = <T>(fn: (() => Promise<T[]>) | null | undefined): Promise<T[]> => {
+      if (!fn) return Promise.resolve([]);
+      try {
+        return fn().catch(() => []);
+      } catch {
+        return Promise.resolve([]);
+      }
+    };
+
     const [
       totalRooms,
       occupiedRoomsNow,
@@ -392,6 +439,10 @@ export class HotelReportsService {
       staffAssignments,
       allReceivablesRaw,
       allBookingPaymentsRaw,
+      allManualRevenueRaw,
+      allExpensesRaw,
+      allSaasBillableDaysRaw,
+      allReceivableCollectionsRaw,
     ] = await Promise.all([
       this.prisma.room.count({ where: roomWhere }),
       this.prisma.room.count({ where: { ...roomWhere, status: RoomStatus.OCCUPIED } }),
@@ -581,6 +632,85 @@ export class HotelReportsService {
             },
           })
         : Promise.resolve([]),
+      safeOptionalQuery<{
+        id: string;
+        date: Date;
+        category: string;
+        amount: Prisma.Decimal | number;
+        collections: Array<{ amount: Prisma.Decimal | number; receivedAt: Date }>;
+      }>(
+        (this.prisma as any).hotelRevenueEntry
+          ? () =>
+              (this.prisma as any).hotelRevenueEntry.findMany({
+                where: {
+                  hotelId,
+                  voidedAt: null,
+                  date: { gte: queryWindowDateOnlyStart, lte: endDateOnly },
+                  ...(scope.allowedRoomId !== null ? { roomId: scope.allowedRoomId } : {}),
+                },
+                select: {
+                  id: true,
+                  date: true,
+                  category: true,
+                  amount: true,
+                  collections: { select: { amount: true, receivedAt: true } },
+                },
+              })
+          : null,
+      ),
+      safeOptionalQuery<{
+        id: string;
+        expenseDate: Date;
+        category: string;
+        amount: Prisma.Decimal | number;
+        paidAmount: Prisma.Decimal | number;
+        paymentStatus: string;
+      }>(
+        (this.prisma as any).hotelExpense
+          ? () =>
+              (this.prisma as any).hotelExpense.findMany({
+                where: {
+                  hotelId,
+                  voidedAt: null,
+                  expenseDate: { gte: queryWindowDateOnlyStart, lte: endDateOnly },
+                  ...(scope.allowedRoomId !== null ? { roomId: scope.allowedRoomId } : {}),
+                },
+                select: {
+                  id: true,
+                  expenseDate: true,
+                  category: true,
+                  amount: true,
+                  paidAmount: true,
+                  paymentStatus: true,
+                },
+              })
+          : null,
+      ),
+      safeOptionalQuery<{ serviceDate: Date; amount: Prisma.Decimal | number }>(
+        scope.allowedRoomId === null && (this.prisma as any).platformBillableDay
+          ? () =>
+              (this.prisma as any).platformBillableDay.findMany({
+                where: {
+                  hotelId,
+                  serviceDate: { gte: queryWindowDateOnlyStart, lte: endDateOnly },
+                },
+                select: { serviceDate: true, amount: true },
+              })
+          : null,
+      ),
+      safeOptionalQuery<{ collectedAmount: Prisma.Decimal | number; collectedAt: Date }>(
+        scope.allowedRoomId === null && (this.prisma as any).receivableCollection
+          ? () =>
+              (this.prisma as any).receivableCollection.findMany({
+                where: {
+                  hotelId,
+                  isVoided: false,
+                  collectedAt: { gte: queryWindowStartDate, lte: endDate },
+                },
+                select: { collectedAmount: true, collectedAt: true },
+              })
+          : null,
+      ),
     ]);
 
     const allStays = (allStaysRaw as StayRecord[]).filter(
@@ -660,6 +790,41 @@ export class HotelReportsService {
     // 3. Reconcile collected payments vs folio / stay charges without fabricated 85%/15% ratios
     const totalCollected = succeededPayments.reduce((sum, p) => sum + toNumber(p.paidAmount), 0);
 
+    const startYmd = startPlain.toString();
+    const endYmd = endPlain.toString();
+    const dateOnlyYmd = (value: Date) => value.toISOString().slice(0, 10);
+
+    const manualEntriesInPeriod = allManualRevenueRaw.filter((entry) => {
+      const ymd = dateOnlyYmd(entry.date);
+      return ymd >= startYmd && ymd <= endYmd;
+    });
+    const manualRevenue = manualEntriesInPeriod.reduce((sum, e) => sum + toNumber(e.amount), 0);
+
+    let manualCollected = 0;
+    for (const entry of allManualRevenueRaw) {
+      for (const col of entry.collections ?? []) {
+        const d = dateToPlainDate(col.receivedAt, timeZone);
+        if (
+          Temporal.PlainDate.compare(d, startPlain) >= 0 &&
+          Temporal.PlainDate.compare(d, endPlain) <= 0
+        ) {
+          manualCollected += toNumber(col.amount);
+        }
+      }
+    }
+
+    const receivableCollected = allReceivableCollectionsRaw
+      .filter((col) => {
+        const d = dateToPlainDate(col.collectedAt, timeZone);
+        return (
+          Temporal.PlainDate.compare(d, startPlain) >= 0 &&
+          Temporal.PlainDate.compare(d, endPlain) <= 0
+        );
+      })
+      .reduce((sum, col) => sum + toNumber(col.collectedAmount), 0);
+
+    const collectedRevenue = totalCollected + receivableCollected + manualCollected;
+
     const effectiveServiceRevenue = folioServiceRevenue;
     const effectiveOtherRevenue = folioOtherRevenue;
     let effectiveRoomRevenue = folioRoomRevenue > 0 ? folioRoomRevenue : accruedStayRoomRevenue;
@@ -667,15 +832,53 @@ export class HotelReportsService {
     const totalBilledRevenue =
       effectiveRoomRevenue + effectiveServiceRevenue + effectiveOtherRevenue;
 
-    const effectiveTotalRevenue =
+    const pmsTotalRevenue =
       totalBilledRevenue > 0 ? Math.max(totalCollected, totalBilledRevenue) : totalCollected;
 
-    if (effectiveTotalRevenue > totalBilledRevenue && effectiveRoomRevenue === 0) {
+    if (pmsTotalRevenue > totalBilledRevenue && effectiveRoomRevenue === 0) {
       effectiveRoomRevenue = Math.max(
         0,
-        effectiveTotalRevenue - effectiveServiceRevenue - effectiveOtherRevenue,
+        pmsTotalRevenue - effectiveServiceRevenue - effectiveOtherRevenue,
       );
     }
+
+    const effectiveTotalRevenue = pmsTotalRevenue + manualRevenue;
+    const uncollectedRevenue = Math.max(0, effectiveTotalRevenue - collectedRevenue);
+
+    const expensesInPeriod = allExpensesRaw.filter((exp) => {
+      const ymd = dateOnlyYmd(exp.expenseDate);
+      return ymd >= startYmd && ymd <= endYmd;
+    });
+    let operatingExpense = 0;
+    let paidOperatingExpense = 0;
+    for (const exp of expensesInPeriod) {
+      const amt = toNumber(exp.amount);
+      const paid = Math.min(amt, Math.max(0, toNumber(exp.paidAmount)));
+      operatingExpense += amt;
+      paidOperatingExpense += paid;
+    }
+    const unpaidOperatingExpense = Math.max(0, operatingExpense - paidOperatingExpense);
+
+    const saasDaysInPeriod = allSaasBillableDaysRaw.filter((day) => {
+      const ymd = dateOnlyYmd(day.serviceDate);
+      return ymd >= startYmd && ymd <= endYmd;
+    });
+    const saasFeeExpense = saasDaysInPeriod.reduce((sum, day) => sum + toNumber(day.amount), 0);
+    const totalExpense = operatingExpense + saasFeeExpense;
+    const netProfit = effectiveTotalRevenue - totalExpense;
+    const profitMargin =
+      effectiveTotalRevenue > 0
+        ? Math.round((netProfit / effectiveTotalRevenue) * 1000) / 10
+        : totalExpense > 0
+          ? -100
+          : 0;
+    const expenseRatio =
+      effectiveTotalRevenue > 0
+        ? Math.round((totalExpense / effectiveTotalRevenue) * 1000) / 10
+        : totalExpense > 0
+          ? 100
+          : 0;
+    const netCashFlow = collectedRevenue - paidOperatingExpense;
 
     const occupancyRate =
       availableRoomNights > 0
@@ -688,13 +891,13 @@ export class HotelReportsService {
     // ADR = Room Revenue / Total Room Nights
     const adr =
       totalRoomNights > 0
-        ? Math.round((effectiveRoomRevenue || effectiveTotalRevenue) / totalRoomNights)
+        ? Math.round((effectiveRoomRevenue || pmsTotalRevenue) / totalRoomNights)
         : 0;
 
     // RevPAR = Room Revenue / Available Room Nights
     const revpar =
       availableRoomNights > 0
-        ? Math.round((effectiveRoomRevenue || effectiveTotalRevenue) / availableRoomNights)
+        ? Math.round((effectiveRoomRevenue || pmsTotalRevenue) / availableRoomNights)
         : 0;
 
     // Total guests in period
@@ -713,6 +916,10 @@ export class HotelReportsService {
       succeededPayments,
       folioItems,
       stays,
+      allManualRevenueRaw,
+      allExpensesRaw,
+      allSaasBillableDaysRaw,
+      allReceivableCollectionsRaw,
     );
 
     // 5. Monthly Revenue Breakdown (uses full 12-month window datasets)
@@ -723,28 +930,40 @@ export class HotelReportsService {
       allSucceededPayments,
       allFolioItems,
       allStays,
+      allManualRevenueRaw,
+      allExpensesRaw,
+      allSaasBillableDaysRaw,
+      allReceivableCollectionsRaw,
     );
 
-    // 6. Revenue by Booking Source
+    // 6. Expense Category Breakdown (including VietSage SaaS fee)
+    const expenseByCategory = this.buildExpenseBreakdown(
+      expensesInPeriod,
+      saasFeeExpense,
+      saasDaysInPeriod.length,
+      totalExpense,
+    );
+
+    // 7. Revenue by Booking Source
     const revenueBySource = this.buildSourceBreakdown(
       stays,
       startPlain,
       endPlain,
       timeZone,
-      effectiveTotalRevenue,
+      pmsTotalRevenue,
       adr,
     );
 
-    // 7. Revenue by Staff Member
+    // 8. Revenue by Staff Member
     const revenueByStaff = this.buildStaffBreakdown(succeededPayments, stays, staffAssignments);
 
-    // 8. Guest Analytics (Nationalities & Demographics)
+    // 9. Guest Analytics (Nationalities & Demographics)
     const guestAnalytics = this.buildGuestAnalytics(stays, startPlain, endPlain, timeZone);
 
-    // 9. Payment Methods Breakdown
+    // 10. Payment Methods Breakdown
     const paymentMethods = this.buildPaymentMethodsBreakdown(succeededPayments);
 
-    // 10. Revenue by Booking Owner
+    // 11. Revenue by Booking Owner
     const revenueByBookingOwner = this.buildBookingOwnerBreakdown(
       stays,
       timeZone,
@@ -754,10 +973,10 @@ export class HotelReportsService {
       staffAssignments,
     );
 
-    // 11. Receivables Summary
+    // 12. Receivables Summary
     const receivablesSummary = this.buildReceivablesSummary(allReceivablesRaw);
 
-    // 12. Booking Payments / Deposits Summary
+    // 13. Booking Payments / Deposits Summary
     const bookingPaymentsSummary = this.buildBookingPaymentsSummary(allBookingPaymentsRaw);
 
     return {
@@ -780,11 +999,24 @@ export class HotelReportsService {
         roomRevenue: effectiveRoomRevenue,
         serviceRevenue: effectiveServiceRevenue,
         otherRevenue: effectiveOtherRevenue,
+        manualRevenue,
+        collectedRevenue,
+        uncollectedRevenue,
+        operatingExpense,
+        paidOperatingExpense,
+        unpaidOperatingExpense,
+        saasFeeExpense,
+        totalExpense,
+        netProfit,
+        profitMargin,
+        expenseRatio,
+        netCashFlow,
         adr,
         revpar,
       },
       revenueByDay,
       revenueByMonth,
+      expenseByCategory,
       revenueBySource,
       revenueByStaff,
       revenueByBookingOwner,
@@ -885,6 +1117,18 @@ export class HotelReportsService {
       postedAt: Date;
     }>,
     stays: StayRecord[],
+    manualEntries: Array<{
+      date: Date;
+      amount: Prisma.Decimal | number;
+      collections?: Array<{ amount: Prisma.Decimal | number; receivedAt: Date }>;
+    }> = [],
+    expenses: Array<{
+      expenseDate: Date;
+      amount: Prisma.Decimal | number;
+      paidAmount: Prisma.Decimal | number;
+    }> = [],
+    saasDays: Array<{ serviceDate: Date; amount: Prisma.Decimal | number }> = [],
+    receivableCollections: Array<{ collectedAmount: Prisma.Decimal | number; collectedAt: Date }> = [],
   ) {
     const days: HotelReportsData["revenueByDay"] = [];
 
@@ -893,6 +1137,39 @@ export class HotelReportsService {
       if (!p.confirmedAt) continue;
       const key = dateToPlainDate(p.confirmedAt, timeZone).toString();
       paymentMap.set(key, (paymentMap.get(key) || 0) + toNumber(p.paidAmount));
+    }
+
+    const manualRevMap = new Map<string, number>();
+    const manualColMap = new Map<string, number>();
+    for (const entry of manualEntries) {
+      const key = entry.date.toISOString().slice(0, 10);
+      manualRevMap.set(key, (manualRevMap.get(key) || 0) + toNumber(entry.amount));
+      for (const col of entry.collections ?? []) {
+        const cKey = dateToPlainDate(col.receivedAt, timeZone).toString();
+        manualColMap.set(cKey, (manualColMap.get(cKey) || 0) + toNumber(col.amount));
+      }
+    }
+
+    const receivableColMap = new Map<string, number>();
+    for (const col of receivableCollections) {
+      const cKey = dateToPlainDate(col.collectedAt, timeZone).toString();
+      receivableColMap.set(cKey, (receivableColMap.get(cKey) || 0) + toNumber(col.collectedAmount));
+    }
+
+    const expenseMap = new Map<string, number>();
+    const paidExpenseMap = new Map<string, number>();
+    for (const exp of expenses) {
+      const key = exp.expenseDate.toISOString().slice(0, 10);
+      const amt = toNumber(exp.amount);
+      const paid = Math.min(amt, Math.max(0, toNumber(exp.paidAmount)));
+      expenseMap.set(key, (expenseMap.get(key) || 0) + amt);
+      paidExpenseMap.set(key, (paidExpenseMap.get(key) || 0) + paid);
+    }
+
+    const saasMap = new Map<string, number>();
+    for (const day of saasDays) {
+      const key = day.serviceDate.toISOString().slice(0, 10);
+      saasMap.set(key, (saasMap.get(key) || 0) + toNumber(day.amount));
     }
 
     const roomChargeMap = new Map<string, number>();
@@ -957,15 +1234,22 @@ export class HotelReportsService {
       const dayRoomCharge = roomChargeMap.get(dateKey) || 0;
       const dayServiceCharge = serviceChargeMap.get(dateKey) || 0;
       const dayOtherCharge = otherChargeMap.get(dateKey) || 0;
+      const dayManualRevenue = manualRevMap.get(dateKey) || 0;
 
       const roomRevenue = dayRoomCharge > 0 ? dayRoomCharge : accruedRoomRevenue;
       const serviceRevenue = dayServiceCharge;
       const billedTotal = Math.max(0, roomRevenue + serviceRevenue + dayOtherCharge);
-      const totalRevenue = billedTotal > 0 ? Math.max(billedTotal, dayTotalPaid) : dayTotalPaid;
+      const pmsRevenue = billedTotal > 0 ? Math.max(billedTotal, dayTotalPaid) : dayTotalPaid;
+      const totalRevenue = pmsRevenue + dayManualRevenue;
+      const collectedRevenue =
+        dayTotalPaid + (manualColMap.get(dateKey) || 0) + (receivableColMap.get(dateKey) || 0);
+      const expense = (expenseMap.get(dateKey) || 0) + (saasMap.get(dateKey) || 0);
+      const paidExpense = paidExpenseMap.get(dateKey) || 0;
+      const netProfit = totalRevenue - expense;
 
       const occ =
         totalRooms > 0 ? Math.min(100, Math.round((roomsOccupied / totalRooms) * 1000) / 10) : 0;
-      const adr = roomsOccupied > 0 ? Math.round((roomRevenue || totalRevenue) / roomsOccupied) : 0;
+      const adr = roomsOccupied > 0 ? Math.round((roomRevenue || pmsRevenue) / roomsOccupied) : 0;
 
       days.push({
         date: dateKey,
@@ -973,6 +1257,11 @@ export class HotelReportsService {
         totalRevenue,
         roomRevenue,
         serviceRevenue,
+        manualRevenue: dayManualRevenue,
+        collectedRevenue,
+        expense,
+        paidExpense,
+        netProfit,
         roomsOccupied,
         adr,
         occupancyRate: occ,
@@ -997,6 +1286,18 @@ export class HotelReportsService {
       postedAt: Date;
     }>,
     stays: StayRecord[],
+    manualEntries: Array<{
+      date: Date;
+      amount: Prisma.Decimal | number;
+      collections?: Array<{ amount: Prisma.Decimal | number; receivedAt: Date }>;
+    }> = [],
+    expenses: Array<{
+      expenseDate: Date;
+      amount: Prisma.Decimal | number;
+      paidAmount: Prisma.Decimal | number;
+    }> = [],
+    saasDays: Array<{ serviceDate: Date; amount: Prisma.Decimal | number }> = [],
+    receivableCollections: Array<{ collectedAmount: Prisma.Decimal | number; collectedAt: Date }> = [],
   ) {
     const months: HotelReportsData["revenueByMonth"] = [];
     const endYearMonth = endPlain.toPlainYearMonth();
@@ -1007,6 +1308,8 @@ export class HotelReportsService {
       const monthLabel = `Thg ${ym.month}/${ym.year}`;
       const monthStartPlain = ym.toPlainDate({ day: 1 });
       const monthEndPlain = ym.toPlainDate({ day: ym.daysInMonth });
+      const monthStartYmd = monthStartPlain.toString();
+      const monthEndYmd = monthEndPlain.toString();
       const daysInMonth = ym.daysInMonth;
 
       let monthPaid = 0;
@@ -1046,6 +1349,54 @@ export class HotelReportsService {
         }
       }
 
+      let monthManualRevenue = 0;
+      let monthManualCollected = 0;
+      for (const entry of manualEntries) {
+        const ymd = entry.date.toISOString().slice(0, 10);
+        if (ymd >= monthStartYmd && ymd <= monthEndYmd) {
+          monthManualRevenue += toNumber(entry.amount);
+        }
+        for (const col of entry.collections ?? []) {
+          const cPlain = dateToPlainDate(col.receivedAt, timeZone);
+          if (
+            Temporal.PlainDate.compare(cPlain, monthStartPlain) >= 0 &&
+            Temporal.PlainDate.compare(cPlain, monthEndPlain) <= 0
+          ) {
+            monthManualCollected += toNumber(col.amount);
+          }
+        }
+      }
+
+      let monthReceivableCollected = 0;
+      for (const col of receivableCollections) {
+        const cPlain = dateToPlainDate(col.collectedAt, timeZone);
+        if (
+          Temporal.PlainDate.compare(cPlain, monthStartPlain) >= 0 &&
+          Temporal.PlainDate.compare(cPlain, monthEndPlain) <= 0
+        ) {
+          monthReceivableCollected += toNumber(col.collectedAmount);
+        }
+      }
+
+      let monthOperatingExpense = 0;
+      let monthPaidExpense = 0;
+      for (const exp of expenses) {
+        const ymd = exp.expenseDate.toISOString().slice(0, 10);
+        if (ymd >= monthStartYmd && ymd <= monthEndYmd) {
+          const amt = toNumber(exp.amount);
+          monthOperatingExpense += amt;
+          monthPaidExpense += Math.min(amt, Math.max(0, toNumber(exp.paidAmount)));
+        }
+      }
+
+      let monthSaasExpense = 0;
+      for (const day of saasDays) {
+        const ymd = day.serviceDate.toISOString().slice(0, 10);
+        if (ymd >= monthStartYmd && ymd <= monthEndYmd) {
+          monthSaasExpense += toNumber(day.amount);
+        }
+      }
+
       let bookingCount = 0;
       let roomsSold = 0;
       let accruedMonthRoomRevenue = 0;
@@ -1067,14 +1418,18 @@ export class HotelReportsService {
       const monthRoomRevenue = monthFolioRoom > 0 ? monthFolioRoom : accruedMonthRoomRevenue;
       const monthServiceRevenue = monthFolioService;
       const monthBilled = Math.max(0, monthRoomRevenue + monthServiceRevenue + monthFolioOther);
-      const monthRevenue = monthBilled > 0 ? Math.max(monthBilled, monthPaid) : monthPaid;
+      const monthPmsRevenue = monthBilled > 0 ? Math.max(monthBilled, monthPaid) : monthPaid;
+      const monthRevenue = monthPmsRevenue + monthManualRevenue;
+      const monthExpense = monthOperatingExpense + monthSaasExpense;
+      const monthCollected = monthPaid + monthManualCollected + monthReceivableCollected;
+      const monthNetProfit = monthRevenue - monthExpense;
 
       const availableNights = totalRooms * daysInMonth;
       const averageOccupancy =
         availableNights > 0
           ? Math.min(100, Math.round((roomsSold / availableNights) * 1000) / 10)
           : 0;
-      const adr = roomsSold > 0 ? Math.round((monthRoomRevenue || monthRevenue) / roomsSold) : 0;
+      const adr = roomsSold > 0 ? Math.round((monthRoomRevenue || monthPmsRevenue) / roomsSold) : 0;
 
       months.push({
         month: monthKey,
@@ -1082,6 +1437,11 @@ export class HotelReportsService {
         totalRevenue: monthRevenue,
         roomRevenue: monthRoomRevenue,
         serviceRevenue: monthServiceRevenue,
+        manualRevenue: monthManualRevenue,
+        collectedRevenue: monthCollected,
+        expense: monthExpense,
+        paidExpense: monthPaidExpense,
+        netProfit: monthNetProfit,
         bookingCount,
         roomsSold,
         averageOccupancy,
@@ -1090,6 +1450,58 @@ export class HotelReportsService {
     }
 
     return months;
+  }
+
+  private buildExpenseBreakdown(
+    expenses: Array<{
+      category: string;
+      amount: Prisma.Decimal | number;
+      paidAmount: Prisma.Decimal | number;
+    }>,
+    saasFeeExpense: number,
+    saasDaysCount: number,
+    totalExpense: number,
+  ): HotelReportsData["expenseByCategory"] {
+    const map = new Map<
+      ExpenseCategory | "SAAS_FEE",
+      { amount: number; paidAmount: number; unpaidAmount: number; count: number }
+    >();
+
+    for (const exp of expenses) {
+      const cat = (
+        exp.category in EXPENSE_CATEGORY_LABELS ? exp.category : "OTHER"
+      ) as ExpenseCategory;
+      const amt = toNumber(exp.amount);
+      const paid = Math.min(amt, Math.max(0, toNumber(exp.paidAmount)));
+      const unpaid = Math.max(0, amt - paid);
+      const current = map.get(cat) ?? { amount: 0, paidAmount: 0, unpaidAmount: 0, count: 0 };
+      current.amount += amt;
+      current.paidAmount += paid;
+      current.unpaidAmount += unpaid;
+      current.count += 1;
+      map.set(cat, current);
+    }
+
+    if (saasFeeExpense > 0) {
+      map.set("SAAS_FEE", {
+        amount: saasFeeExpense,
+        paidAmount: 0,
+        unpaidAmount: saasFeeExpense,
+        count: saasDaysCount,
+      });
+    }
+
+    return Array.from(map.entries())
+      .map(([category, val]) => ({
+        category,
+        categoryLabel: EXPENSE_CATEGORY_LABELS[category],
+        amount: val.amount,
+        paidAmount: val.paidAmount,
+        unpaidAmount: val.unpaidAmount,
+        count: val.count,
+        sharePercent: totalExpense > 0 ? Math.round((val.amount / totalExpense) * 1000) / 10 : 0,
+      }))
+      .sort((a, b) => b.amount - a.amount);
   }
 
   private buildSourceBreakdown(

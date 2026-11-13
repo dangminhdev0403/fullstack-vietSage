@@ -237,6 +237,12 @@ function createRepository(overrides: Record<string, jest.Mock> = {}) {
     updateRequestStatus: jest
       .fn()
       .mockImplementation((input) => ({ id: input.requestId, ...input })),
+    findPriorityAlertInputs: jest.fn().mockResolvedValue({
+      reservations: [],
+      reservedStays: [],
+      activeStays: [],
+      operationalRooms: [],
+    }),
     ...overrides,
   };
 }
@@ -333,6 +339,7 @@ function createService(
     rotateQr: hotelRoomsService.rotateQr.bind(hotelRoomsService),
     activateQr: hotelRoomsService.activateQr.bind(hotelRoomsService),
     deactivateQr: hotelRoomsService.deactivateQr.bind(hotelRoomsService),
+    listPriorityAlerts: hotelRoomsService.listPriorityAlerts.bind(hotelRoomsService),
     listServiceCategories: hotelServicesService.listServiceCategories.bind(hotelServicesService),
     createServiceCategory: hotelServicesService.createServiceCategory.bind(hotelServicesService),
     updateServiceCategory: hotelServicesService.updateServiceCategory.bind(hotelServicesService),
@@ -1506,5 +1513,133 @@ describe("HotelsService", () => {
       "room-1",
       expect.not.objectContaining({ status: expect.anything() }),
     );
+  });
+
+  it("listPriorityAlerts classifies overdue arrivals, overdue checkouts, dirty rooms, turnaround conflicts, and excludes idle blocked rooms", async () => {
+    const now = Date.now();
+    const repository = createRepository({
+      findPriorityAlertInputs: jest.fn().mockResolvedValue({
+        reservations: [
+          {
+            id: "res-overdue",
+            roomId: "room-101",
+            roomTypeSnapshot: "Deluxe",
+            reservationCode: "RES-OVERDUE",
+            groupCode: null,
+            status: "CONFIRMED",
+            guestDisplayName: "Nguyen Van Qua Han",
+            guestPhone: "0901000001",
+            guestCount: 2,
+            plannedCheckInAt: new Date(now - 36 * 60 * 60 * 1000),
+            plannedCheckOutAt: new Date(now + 12 * 60 * 60 * 1000),
+            room: {
+              id: "room-101",
+              roomNumber: "101",
+              floor: "1",
+              zone: "A",
+              type: "Deluxe",
+              status: RoomStatus.PROCESSING,
+              updatedAt: new Date("2026-11-12T00:00:00.000Z"),
+            },
+          },
+          {
+            id: "res-due-today",
+            roomId: "room-102",
+            roomTypeSnapshot: "Standard",
+            reservationCode: "RES-TODAY",
+            groupCode: null,
+            status: "CONFIRMED",
+            guestDisplayName: "Tran Thi Hom Nay",
+            guestPhone: "0901000002",
+            guestCount: 1,
+            plannedCheckInAt: new Date(now + 2 * 60 * 60 * 1000),
+            plannedCheckOutAt: new Date(now + 26 * 60 * 60 * 1000),
+            room: {
+              id: "room-102",
+              roomNumber: "102",
+              floor: "1",
+              zone: "A",
+              type: "Standard",
+              status: RoomStatus.AVAILABLE,
+              updatedAt: new Date("2026-11-12T00:00:00.000Z"),
+            },
+          },
+        ],
+        reservedStays: [],
+        activeStays: [
+          {
+            id: "stay-overdue",
+            roomId: "room-103",
+            reservationCode: "RES-STAY-OVERDUE",
+            status: "ACTIVE",
+            guestDisplayName: "Le Van Checkout Muon",
+            guestPhone: "0901000003",
+            plannedCheckInAt: new Date(now - 48 * 60 * 60 * 1000),
+            plannedCheckOutAt: new Date(now - 3 * 60 * 60 * 1000),
+            reservation: { id: "res-stay", groupCode: null },
+            room: {
+              id: "room-103",
+              roomNumber: "103",
+              floor: "1",
+              zone: "A",
+              type: "Deluxe",
+              status: RoomStatus.OCCUPIED,
+              updatedAt: new Date("2026-11-12T00:00:00.000Z"),
+            },
+          },
+        ],
+        operationalRooms: [
+          {
+            id: "room-101",
+            roomNumber: "101",
+            floor: "1",
+            zone: "A",
+            type: "Deluxe",
+            status: RoomStatus.PROCESSING,
+            updatedAt: new Date("2026-11-12T00:00:00.000Z"),
+          },
+          {
+            id: "room-idle-blocked",
+            roomNumber: "104",
+            floor: "1",
+            zone: "A",
+            type: "Standard",
+            status: RoomStatus.BLOCKED,
+            updatedAt: new Date("2026-11-12T00:00:00.000Z"),
+          },
+        ],
+      }),
+    });
+    const accessService = {
+      ...createAccessService(repository),
+      loadActorContext: jest.fn().mockResolvedValue({
+        userId: "actor-1",
+        isSuperAdmin: true,
+        isTenantOwner: false,
+        permissions: new Set<string>(),
+      }),
+      resolveRoomScope: jest.fn().mockResolvedValue({
+        hotel: { id: "hotel-1", tenantId: "tenant-1", timezone: "Asia/Ho_Chi_Minh" },
+        allowedRoomId: null,
+        allowedRoomIds: null,
+      }),
+    };
+    const service = createService(repository, createCodesService(), accessService);
+    const result = await service.listPriorityAlerts("actor-1", "active-role", "hotel-1");
+
+    expect(result.summary).toMatchObject({
+      overdueArrivals: 1,
+      dueTodayArrivals: 1,
+      overdueCheckouts: 1,
+      dirtyRooms: 1,
+      blockedOrMaintenance: 0,
+      turnaroundConflicts: 1,
+    });
+    expect(result.items.some((item) => item.roomId === "room-idle-blocked")).toBe(false);
+    expect(result.items[0]).toMatchObject({
+      category: "OVERDUE_ARRIVAL",
+      blockerCode: "ROOM_PROCESSING",
+      reservationCode: "RES-OVERDUE",
+    });
   });
 });

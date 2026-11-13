@@ -70,14 +70,6 @@ export async function POST(request: Request, context: Params) {
         },
         accessToken,
       );
-      if (parsed.data.roomId && !reservation.roomId) {
-        await hotelOpsService.assignReservationRoom(
-          hotelId,
-          reservation.id,
-          { roomId: parsed.data.roomId },
-          accessToken,
-        );
-      }
       return reservation;
     });
     if (data instanceof Response) return data;

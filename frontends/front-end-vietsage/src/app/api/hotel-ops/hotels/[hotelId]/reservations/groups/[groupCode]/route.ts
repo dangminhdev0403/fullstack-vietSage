@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { HttpError } from "@/core/http/http-error";
 import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
 import {
@@ -9,6 +10,25 @@ import {
 } from "@/app/api/hotel-ops/_utils";
 
 type Params = { params: Promise<{ hotelId: string; groupCode: string }> };
+
+const updateGroupBodySchema = z
+  .object({
+    groupName: z.string().trim().max(120).nullable().optional(),
+    leadGuestName: z
+      .string()
+      .trim()
+      .min(2, "Tên trưởng đoàn tối thiểu 2 ký tự")
+      .max(120)
+      .optional(),
+    leadGuestPhone: z.string().trim().max(40).nullable().optional(),
+    notes: z.string().trim().max(500).nullable().optional(),
+    sourceCategory: z
+      .enum(["DIRECT", "OTA", "TA", "TRAVEL_AGENCY", "CORPORATE", "OTHER"])
+      .optional(),
+    sourcePartnerId: z.string().trim().min(1).nullable().optional(),
+    bookingOwnerUserId: z.string().trim().min(1).nullable().optional(),
+  })
+  .strict();
 
 export async function GET(_request: Request, context: Params) {
   const { hotelId, groupCode } = await context.params;
@@ -26,6 +46,7 @@ export async function GET(_request: Request, context: Params) {
         });
       },
     );
+    if (data instanceof Response) return data;
     return successResponse(data);
   } catch (error) {
     if (error instanceof HttpError) {
@@ -40,11 +61,12 @@ export async function PATCH(request: Request, context: Params) {
   if (!hotelId) return validationErrorResponse("hotelId is required");
   if (!groupCode) return validationErrorResponse("groupCode is required");
 
-  let body: Record<string, unknown>;
-  try {
-    body = (await request.json()) as Record<string, unknown>;
-  } catch {
-    return validationErrorResponse("Invalid JSON body");
+  const rawBody = await request.json().catch(() => null);
+  const parsed = updateGroupBodySchema.safeParse(rawBody);
+  if (!parsed.success) {
+    return validationErrorResponse(
+      parsed.error.issues[0]?.message || "Thông tin cập nhật đoàn không hợp lệ",
+    );
   }
 
   const decodedGroupCode = decodeURIComponent(groupCode);
@@ -56,11 +78,12 @@ export async function PATCH(request: Request, context: Params) {
         return await hotelOpsService.updateGroupSharedFields(
           hotelId,
           decodedGroupCode,
-          body,
+          parsed.data,
           { accessToken },
         );
       },
     );
+    if (data instanceof Response) return data;
     return successResponse(data);
   } catch (error) {
     if (error instanceof HttpError) {
