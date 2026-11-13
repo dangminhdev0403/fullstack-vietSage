@@ -3923,6 +3923,19 @@ paths:
         "201":
           description: Đã tạo danh sách phòng
       tags: *a8
+  /hotels/{hotelId}/rooms/priority-alerts:
+    get:
+      operationId: HotelRoomsController_listPriorityAlerts
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Danh sách ưu tiên điều hành lễ tân
+      tags: *a8
   /hotels/{hotelId}/rooms/{roomId}:
     patch:
       operationId: HotelRoomsController_updateRoom
@@ -4944,6 +4957,19 @@ paths:
                               type: string
                       summary:
                         type: object
+                        required:
+                          - roomRevenue
+                          - minibarRevenue
+                          - laundryRevenue
+                          - otherRevenue
+                          - revenueTotal
+                          - openingBalance
+                          - closingBalance
+                          - balanceAdjustment
+                          - collectedTotal
+                          - cashTotal
+                          - bankTransferTotal
+                          - otherCollectedTotal
                         properties:
                           roomRevenue: &a10
                             type: number
@@ -4973,6 +4999,30 @@ paths:
                         type: array
                         items:
                           type: object
+                          required:
+                            - roomRevenue
+                            - minibarRevenue
+                            - laundryRevenue
+                            - otherRevenue
+                            - revenueTotal
+                            - openingBalance
+                            - closingBalance
+                            - balanceAdjustment
+                            - date
+                            - description
+                            - category
+                            - amount
+                            - roomId
+                            - documentNumber
+                            - notes
+                            - id
+                            - source
+                            - roomNumber
+                            - declarationStatus
+                            - version
+                            - voidedAt
+                            - revenueLines
+                            - collections
                           properties:
                             roomRevenue: *a10
                             minibarRevenue: *a11
@@ -5036,6 +5086,13 @@ paths:
                               type: array
                               items:
                                 type: object
+                                required:
+                                  - date
+                                  - roomRevenue
+                                  - minibarRevenue
+                                  - laundryRevenue
+                                  - otherRevenue
+                                  - revenueTotal
                                 properties:
                                   date:
                                     type: string
@@ -5049,6 +5106,12 @@ paths:
                               type: array
                               items:
                                 type: object
+                                required:
+                                  - id
+                                  - receivedAt
+                                  - amount
+                                  - method
+                                  - reference
                                 properties:
                                   id:
                                     type: string
@@ -5057,7 +5120,6 @@ paths:
                                     format: date-time
                                   amount:
                                     type: number
-                                    exclusiveMinimum: 0
                                   method:
                                     type: string
                                   reference:
@@ -5108,7 +5170,8 @@ paths:
                     - OTHER
                 amount:
                   type: number
-                  exclusiveMinimum: 0
+                  minimum: 0
+                  exclusiveMinimum: true
                 roomId:
                   type: string
                   nullable: true
@@ -5135,7 +5198,8 @@ paths:
                       format: date-time
                     amount:
                       type: number
-                      exclusiveMinimum: 0
+                      minimum: 0
+                      exclusiveMinimum: true
                     method:
                       type: string
                       enum:
@@ -5157,7 +5221,7 @@ paths:
                 properties:
                   status:
                     type: number
-                    example: 200
+                    example: 201
                   error:
                     type: object
                     nullable: true
@@ -5165,7 +5229,7 @@ paths:
                     example: null
                   message:
                     type: string
-                    example: Đã cập nhật sổ doanh thu
+                    example: Đã thêm khoản phát sinh
                   data:
                     type: object
                     required:
@@ -5224,7 +5288,8 @@ paths:
                     - OTHER
                 amount:
                   type: number
-                  exclusiveMinimum: 0
+                  minimum: 0
+                  exclusiveMinimum: true
                 roomId:
                   type: string
                   nullable: true
@@ -5299,13 +5364,15 @@ paths:
                 - amount
                 - method
                 - idempotencyKey
+                - version
               properties:
                 receivedAt:
                   type: string
                   format: date-time
                 amount:
                   type: number
-                  exclusiveMinimum: 0
+                  minimum: 0
+                  exclusiveMinimum: true
                 method:
                   type: string
                   enum:
@@ -5317,6 +5384,9 @@ paths:
                   type: string
                   nullable: true
                   maxLength: 120
+                version:
+                  type: integer
+                  minimum: 0
                 idempotencyKey:
                   type: string
                   maxLength: 120
@@ -5330,7 +5400,7 @@ paths:
                 properties:
                   status:
                     type: number
-                    example: 200
+                    example: 201
                   error:
                     type: object
                     nullable: true
@@ -5338,7 +5408,7 @@ paths:
                     example: null
                   message:
                     type: string
-                    example: Đã cập nhật sổ doanh thu
+                    example: Đã ghi nhận tiền thu
                   data:
                     type: object
                     required:
@@ -5395,7 +5465,7 @@ paths:
                 properties:
                   status:
                     type: number
-                    example: 200
+                    example: 201
                   error:
                     type: object
                     nullable: true
@@ -5403,7 +5473,7 @@ paths:
                     example: null
                   message:
                     type: string
-                    example: Đã cập nhật sổ doanh thu
+                    example: Đã hủy khoản phát sinh
                   data:
                     type: object
                     required:
@@ -8065,7 +8135,7 @@ paths:
             type: string
       responses:
         "200":
-          description: Danh sách folio
+          description: Danh sách hóa đơn lưu trú
       tags: &a41
         - billing-folios
   /hotels/{hotelId}/stays/{stayId}/active-folio:
@@ -8084,7 +8154,7 @@ paths:
             type: string
       responses:
         "200":
-          description: Folio đang mở
+          description: Hóa đơn lưu trú đang mở
       tags: *a41
   /hotels/{hotelId}/folios/{folioId}/summary:
     get:
@@ -8102,7 +8172,7 @@ paths:
             type: string
       responses:
         "200":
-          description: Tổng quan folio
+          description: Tổng quan hóa đơn lưu trú
       tags: *a41
   /hotels/{hotelId}/folios/{folioId}/checkout/issue-invoice:
     post:
@@ -8198,7 +8268,7 @@ paths:
             type: string
       responses:
         "200":
-          description: Danh sách FolioItem
+          description: Danh sách mục hóa đơn lưu trú
       tags: *a41
     post:
       operationId: FolioController_addFolioItem
@@ -8215,7 +8285,7 @@ paths:
             type: string
       responses:
         "200":
-          description: Mục FolioItem đã tạo
+          description: Mục hóa đơn lưu trú đã tạo
       tags: *a41
   /hotels/{hotelId}/folios/{folioId}:
     get:
@@ -8233,7 +8303,7 @@ paths:
             type: string
       responses:
         "200":
-          description: Chi tiết folio
+          description: Chi tiết hóa đơn lưu trú
       tags: *a41
   /hotels/{hotelId}/folios/{folioId}/items/{itemId}/void:
     post:
@@ -8324,7 +8394,8 @@ paths:
               type: object
       responses:
         "200":
-          description: Payment, invoice, folio và stay đã hoàn tất
+          description: Thanh toán, hóa đơn tài chính, hóa đơn lưu trú và lượt lưu trú đã
+            hoàn tất
       tags: *a42
   /hotels/{hotelId}/payments/{paymentId}/status:
     get:

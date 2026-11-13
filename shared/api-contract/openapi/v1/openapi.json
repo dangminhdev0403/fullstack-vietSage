@@ -5641,6 +5641,29 @@
         ]
       }
     },
+    "/hotels/{hotelId}/rooms/priority-alerts": {
+      "get": {
+        "operationId": "HotelRoomsController_listPriorityAlerts",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Danh sách ưu tiên điều hành lễ tân"
+          }
+        },
+        "tags": [
+          "hotel-rooms"
+        ]
+      }
+    },
     "/hotels/{hotelId}/rooms/{roomId}": {
       "patch": {
         "operationId": "HotelRoomsController_updateRoom",
@@ -7156,6 +7179,20 @@
                         },
                         "summary": {
                           "type": "object",
+                          "required": [
+                            "roomRevenue",
+                            "minibarRevenue",
+                            "laundryRevenue",
+                            "otherRevenue",
+                            "revenueTotal",
+                            "openingBalance",
+                            "closingBalance",
+                            "balanceAdjustment",
+                            "collectedTotal",
+                            "cashTotal",
+                            "bankTransferTotal",
+                            "otherCollectedTotal"
+                          ],
                           "properties": {
                             "roomRevenue": {
                               "type": "number"
@@ -7199,6 +7236,31 @@
                           "type": "array",
                           "items": {
                             "type": "object",
+                            "required": [
+                              "roomRevenue",
+                              "minibarRevenue",
+                              "laundryRevenue",
+                              "otherRevenue",
+                              "revenueTotal",
+                              "openingBalance",
+                              "closingBalance",
+                              "balanceAdjustment",
+                              "date",
+                              "description",
+                              "category",
+                              "amount",
+                              "roomId",
+                              "documentNumber",
+                              "notes",
+                              "id",
+                              "source",
+                              "roomNumber",
+                              "declarationStatus",
+                              "version",
+                              "voidedAt",
+                              "revenueLines",
+                              "collections"
+                            ],
                             "properties": {
                               "roomRevenue": {
                                 "type": "number"
@@ -7293,6 +7355,14 @@
                                 "type": "array",
                                 "items": {
                                   "type": "object",
+                                  "required": [
+                                    "date",
+                                    "roomRevenue",
+                                    "minibarRevenue",
+                                    "laundryRevenue",
+                                    "otherRevenue",
+                                    "revenueTotal"
+                                  ],
                                   "properties": {
                                     "date": {
                                       "type": "string",
@@ -7320,6 +7390,13 @@
                                 "type": "array",
                                 "items": {
                                   "type": "object",
+                                  "required": [
+                                    "id",
+                                    "receivedAt",
+                                    "amount",
+                                    "method",
+                                    "reference"
+                                  ],
                                   "properties": {
                                     "id": {
                                       "type": "string"
@@ -7329,8 +7406,7 @@
                                       "format": "date-time"
                                     },
                                     "amount": {
-                                      "type": "number",
-                                      "exclusiveMinimum": 0
+                                      "type": "number"
                                     },
                                     "method": {
                                       "type": "string"
@@ -7411,7 +7487,8 @@
                   },
                   "amount": {
                     "type": "number",
-                    "exclusiveMinimum": 0
+                    "minimum": 0,
+                    "exclusiveMinimum": true
                   },
                   "roomId": {
                     "type": "string",
@@ -7445,7 +7522,8 @@
                       },
                       "amount": {
                         "type": "number",
-                        "exclusiveMinimum": 0
+                        "minimum": 0,
+                        "exclusiveMinimum": true
                       },
                       "method": {
                         "type": "string",
@@ -7478,7 +7556,7 @@
                   "properties": {
                     "status": {
                       "type": "number",
-                      "example": 200
+                      "example": 201
                     },
                     "error": {
                       "type": "object",
@@ -7488,7 +7566,7 @@
                     },
                     "message": {
                       "type": "string",
-                      "example": "Đã cập nhật sổ doanh thu"
+                      "example": "Đã thêm khoản phát sinh"
                     },
                     "data": {
                       "type": "object",
@@ -7576,7 +7654,8 @@
                   },
                   "amount": {
                     "type": "number",
-                    "exclusiveMinimum": 0
+                    "minimum": 0,
+                    "exclusiveMinimum": true
                   },
                   "roomId": {
                     "type": "string",
@@ -7686,7 +7765,8 @@
                   "receivedAt",
                   "amount",
                   "method",
-                  "idempotencyKey"
+                  "idempotencyKey",
+                  "version"
                 ],
                 "properties": {
                   "receivedAt": {
@@ -7695,7 +7775,8 @@
                   },
                   "amount": {
                     "type": "number",
-                    "exclusiveMinimum": 0
+                    "minimum": 0,
+                    "exclusiveMinimum": true
                   },
                   "method": {
                     "type": "string",
@@ -7710,6 +7791,10 @@
                     "type": "string",
                     "nullable": true,
                     "maxLength": 120
+                  },
+                  "version": {
+                    "type": "integer",
+                    "minimum": 0
                   },
                   "idempotencyKey": {
                     "type": "string",
@@ -7730,7 +7815,7 @@
                   "properties": {
                     "status": {
                       "type": "number",
-                      "example": 200
+                      "example": 201
                     },
                     "error": {
                       "type": "object",
@@ -7740,7 +7825,7 @@
                     },
                     "message": {
                       "type": "string",
-                      "example": "Đã cập nhật sổ doanh thu"
+                      "example": "Đã ghi nhận tiền thu"
                     },
                     "data": {
                       "type": "object",
@@ -7829,7 +7914,7 @@
                   "properties": {
                     "status": {
                       "type": "number",
-                      "example": 200
+                      "example": 201
                     },
                     "error": {
                       "type": "object",
@@ -7839,7 +7924,7 @@
                     },
                     "message": {
                       "type": "string",
-                      "example": "Đã cập nhật sổ doanh thu"
+                      "example": "Đã hủy khoản phát sinh"
                     },
                     "data": {
                       "type": "object",
@@ -12097,7 +12182,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Danh sách folio"
+            "description": "Danh sách hóa đơn lưu trú"
           }
         },
         "tags": [
@@ -12128,7 +12213,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Folio đang mở"
+            "description": "Hóa đơn lưu trú đang mở"
           }
         },
         "tags": [
@@ -12159,7 +12244,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Tổng quan folio"
+            "description": "Tổng quan hóa đơn lưu trú"
           }
         },
         "tags": [
@@ -12306,7 +12391,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Danh sách FolioItem"
+            "description": "Danh sách mục hóa đơn lưu trú"
           }
         },
         "tags": [
@@ -12335,7 +12420,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Mục FolioItem đã tạo"
+            "description": "Mục hóa đơn lưu trú đã tạo"
           }
         },
         "tags": [
@@ -12366,7 +12451,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Chi tiết folio"
+            "description": "Chi tiết hóa đơn lưu trú"
           }
         },
         "tags": [
@@ -12518,7 +12603,7 @@
         },
         "responses": {
           "200": {
-            "description": "Payment, invoice, folio và stay đã hoàn tất"
+            "description": "Thanh toán, hóa đơn tài chính, hóa đơn lưu trú và lượt lưu trú đã hoàn tất"
           }
         },
         "tags": [

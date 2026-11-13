@@ -15,7 +15,7 @@ const sum = (events: MoneyEvent[]) => events.reduce((total, event) => total.add(
 export function revenueCategory(itemType: string, name: string, explicit?: unknown): RevenueBookCategory {
   if (explicit === "ROOM" || explicit === "MINIBAR" || explicit === "LAUNDRY" || explicit === "OTHER") return explicit;
   if (itemType === "ROOM_CHARGE") return "ROOM";
-  const normalized = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const normalized = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/đ/g, "d");
   if (/minibar|nuoc uong|beverage|do uong/.test(normalized)) return "MINIBAR";
   if (/giat|laundry/.test(normalized)) return "LAUNDRY";
   return "OTHER";
@@ -38,7 +38,7 @@ export function projectBookAccount(account: BookAccount, from: Date, end: Date, 
     line[category] = line[category].add(charge.amount);
     lines.set(key, line);
   }
-  const byCategory = (category: RevenueBookCategory) => sum(charges.filter((charge) => charge.category === category)).toNumber();
+  const byCategory = (category: RevenueBookCategory) => sum(charges.filter((charge) => (charge.category ?? "OTHER") === category)).toNumber();
   return {
     id: account.id, source: account.source, date: account.date, roomId: account.roomId, roomNumber: account.roomNumber,
     documentNumber: account.documentNumber, description: account.description, category: account.category, amount: account.amount,

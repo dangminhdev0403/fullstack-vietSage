@@ -3,9 +3,11 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import vm from "node:vm";
 import ts from "typescript";
+import { Temporal } from "@js-temporal/polyfill";
 
 import type { HotelPriorityAlertsResponse } from "../types/hotel-ops-contract.ts";
 import type { mapBackendPriorityAlerts as MapBackendPriorityAlertsFn } from "./priority-room-alerts.ts";
+import type { buildPriorityRoomAlerts as BuildPriorityRoomAlertsFn } from "./priority-room-alerts.ts";
 
 function loadTsModule<T>(relativePath: string, customRequire?: (id: string) => unknown): T {
   const source = readFileSync(new URL(relativePath, import.meta.url), "utf8");
@@ -23,9 +25,14 @@ function loadTsModule<T>(relativePath: string, customRequire?: (id: string) => u
 
 const vietnamTemporalMod = loadTsModule<Record<string, unknown>>(
   "../../../libs/vietnam-temporal.ts",
+  (id) => {
+    if (id === "@js-temporal/polyfill") return { Temporal };
+    throw new Error(`Unexpected temporal import: ${id}`);
+  },
 );
-const { mapBackendPriorityAlerts } = loadTsModule<{
+const { mapBackendPriorityAlerts, buildPriorityRoomAlerts } = loadTsModule<{
   mapBackendPriorityAlerts: typeof MapBackendPriorityAlertsFn;
+  buildPriorityRoomAlerts: typeof BuildPriorityRoomAlertsFn;
 }>("./priority-room-alerts.ts", (id) => {
   if (id === "@/libs/vietnam-temporal") return vietnamTemporalMod;
   throw new Error(`Unexpected runtime import in priority-room-alerts test: ${id}`);
@@ -172,7 +179,8 @@ test("mapBackendPriorityAlerts maps overdue checkout, overdue arrival, and dedup
 
   assert.equal(items[1].reservationId, "res-unassigned");
   assert.equal(items[1].bucket, "overdue");
-  assert.equal(items[1].actionKind, "assign-room");
+  assert.equal(items[1].actionKind, "resolve-overdue");
+  assert.equal(items[1].actionLabel, "Xử lý quá hạn");
 
   assert.equal(items[2].reservationId, "res-202");
   assert.equal(items[2].bucket, "urgent");
@@ -219,4 +227,82 @@ test("mapBackendPriorityAlerts marks occupied turnaround conflict as manage-stay
   assert.equal(items[0].actionKind, "manage-stay");
   assert.match(items[0].reasonText, /đang có khách/i);
   assert.match(items[0].readinessLabel, /Cần trả phòng cũ/);
+});
+
+function overdueAlert(overrides: Partial<HotelPriorityAlertsResponse["items"][number]> = {}): HotelPriorityAlertsResponse["items"][number] {
+  return {
+    id: "overdue-arrival", category: "OVERDUE_ARRIVAL", severity: "CRITICAL", priorityRank: 2,
+    roomId: "room-1", roomNumber: "101", floor: null, zone: null, roomType: "Deluxe",
+    roomStatus: "AVAILABLE", roomUpdatedAt: null, reservationId: "reservation-1", stayId: null,
+    reservationCode: "RES-1", groupCode: null, sourceType: "RESERVATION", status: "CONFIRMED",
+    guestDisplayName: "Nguyễn Văn An", guestPhone: null, guestCount: 1,
+    plannedCheckInAt: "2026-11-12T07:00:00.000Z", plannedCheckOutAt: "2026-11-14T05:00:00.000Z",
+    blockerCode: null, ...overrides,
+  };
+}
+
+for (const [name, overrides] of [
+  ["clean assigned room", {}],
+  ["unassigned room", { roomId: null, roomNumber: null, blockerCode: "UNASSIGNED_ROOM" }],
+  ["dirty room", { roomStatus: "PROCESSING", blockerCode: "ROOM_PROCESSING" }],
+  ["occupied room", { roomStatus: "OCCUPIED", blockerCode: "ROOM_OCCUPIED" }],
+  ["expired schedule", { plannedCheckOutAt: "2026-11-12T05:00:00.000Z" }],
+] satisfies Array<[string, Partial<HotelPriorityAlertsResponse["items"][number]>]>) {
+  test(`backend overdue arrival opens resolution for ${name}`, () => {
+    const [item] = mapBackendPriorityAlerts({
+      response: makeResponse([overdueAlert(overrides)]), nowMs: Date.parse("2026-11-13T06:00:00.000Z"),
+    });
+    assert.equal(item.actionKind, "resolve-overdue");
+    assert.equal(item.actionLabel, "Xử lý quá hạn");
+  });
+}
+
+test("an unassigned arrival that is still due today keeps the room assignment action", () => {
+  const [item] = mapBackendPriorityAlerts({ response: makeResponse([overdueAlert({
+    category: "DUE_TODAY_ARRIVAL", roomId: null, roomNumber: null,
+    plannedCheckInAt: "2026-11-13T07:00:00.000Z", blockerCode: "UNASSIGNED_ROOM",
+  })]) });
+  assert.equal(item.actionKind, "assign-room");
+});
+
+for (const roomId of ["room-1", null]) {
+  test(`local overdue fallback opens resolution with roomId=${roomId}`, () => {
+    const [item] = buildPriorityRoomAlerts({
+      rooms: roomId ? [{ id: roomId, roomNumber: "101", floor: null, type: "Deluxe", status: "AVAILABLE" }] : [],
+      arrivalsList: [{
+        id: "arrival-1", hotelId: "hotel-1", roomId, reservationCode: "RES-1",
+        status: "CONFIRMED", guestDisplayName: "Nguyễn Văn An", guestPhone: null,
+        plannedCheckInAt: "2026-11-12T07:00:00.000Z", plannedCheckOutAt: "2026-11-14T05:00:00.000Z",
+      }],
+      otaBookings: [], todayYmd: "2026-11-13", targetYmd: "2026-11-13", isFutureDate: false,
+      nowMs: Date.parse("2026-11-13T06:00:00.000Z"),
+    });
+    assert.equal(item.actionKind, "resolve-overdue");
+    assert.equal(item.actionLabel, "Xử lý quá hạn");
+  });
+}
+
+test("resolution opens details with either reservation-management or check-in permission", () => {
+  const controlSource = readFileSync(new URL("../components/priority-rooms-control-section.tsx", import.meta.url), "utf8");
+  const helperSource = controlSource.slice(controlSource.indexOf("function getPrimaryActionButtonClass"), controlSource.indexOf("/**"));
+  const { outputText } = ts.transpileModule(helperSource, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React },
+  });
+  const react = { createElement: (type: string, props: Record<string, unknown>, ...children: unknown[]) => ({ type, props, children }) };
+  const { PriorityRowActions } = vm.runInNewContext(`${outputText}\n({ PriorityRowActions })`, { React: react });
+  for (const [canManageReservations, canCheckInStay, expectedLabel] of [
+    [true, false, "Xử lý quá hạn"], [false, true, "Xử lý quá hạn"], [false, false, "Chi tiết"],
+  ]) {
+    let inspected = 0;
+    let mutated = 0;
+    const button = PriorityRowActions({
+      item: { bucket: "overdue", actionKind: "resolve-overdue", actionLabel: "Xử lý quá hạn" },
+      permissions: { canManageReservations, canCheckInStay, canManageRooms: false },
+      onInspectItem: () => inspected++, onPrimaryAction: () => mutated++,
+    });
+    assert.equal(button.children[0], expectedLabel);
+    button.props.onClick({ stopPropagation() {}, currentTarget: null });
+    assert.equal(inspected, 1);
+    assert.equal(mutated, 0);
+  }
 });

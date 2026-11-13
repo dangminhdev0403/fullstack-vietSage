@@ -336,7 +336,7 @@ export function HotelReportsWorkspaceClient({
                   Chi phí vận hành
                 </Link>
               )}
-              <Link href={`${pathname}?tab=book`} className="inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 dark:border-slate-700 dark:bg-slate-900 dark:text-white">
+              <Link href={`${pathname}?${new URLSearchParams({ tab: "book", from: initialFromPlain, to: initialToPlain })}`} className="inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 dark:border-slate-700 dark:bg-slate-900 dark:text-white">
                 <VsIcon name="receipt_long" className="text-lg" />
                 Sổ doanh thu
               </Link>

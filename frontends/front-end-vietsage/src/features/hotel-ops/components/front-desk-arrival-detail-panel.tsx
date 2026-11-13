@@ -2,7 +2,7 @@
 
 import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
@@ -18,19 +18,17 @@ import { BookingConfirmationModal } from "@/features/hotel-ops/components/bookin
 import { EditReservationModal } from "@/features/hotel-ops/components/edit-reservation-modal";
 import { GroupOperationsDrawer } from "@/features/hotel-ops/components/group-operations-drawer";
 import { RoomCheckoutSettlementModal } from "@/features/hotel-ops/components/room-checkout-settlement-modal";
-import { toVietnamYmd } from "@/libs/vietnam-temporal";
 import {
   formatFriendlyCheckInError,
   formatFriendlyHotelOpsError,
-  isEarlyCheckInError,
-  isLateCheckInError,
 } from "@/features/hotel-ops/utils/check-in-error";
 import {
   escapeHtml,
-  formatCancelReservationConfirmHtml,
-  formatEarlyCheckInConfirmHtml,
-  formatNoShowConfirmHtml,
   formatRoomAssignmentConfirmHtml,
+  SwalVietSage,
+  SWAL_CANCEL_BTN_CLASS,
+  SWAL_CONFIRM_BTN_CLASS,
+  SWAL_DANGER_BTN_CLASS,
   showConfirmDialog,
   showErrorAlert,
   showSuccessAlert,
@@ -52,20 +50,6 @@ export type FrontDeskArrivalDetailPanelProps = {
   onCheckIn?: (arrival: HotelArrival) => void;
   triggerElementRef?: React.RefObject<HTMLElement | null>;
 };
-
-function formatDateTime(value?: string | Date | null): string {
-  if (!value) return "Chưa xác định";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Chưa xác định";
-  return new Intl.DateTimeFormat("vi-VN", {
-    timeZone: "Asia/Ho_Chi_Minh",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
-}
 
 function formatVnd(val?: number | string | null): string {
   if (val === null || val === undefined || val === "") return "0 ₫";
@@ -92,7 +76,7 @@ export function FrontDeskArrivalDetailPanel({
   onClose,
   hotelId,
   arrival: suppliedArrival,
-  todayYmd,
+  todayYmd: suppliedTodayYmd,
   canCheckInStay = false,
   canManageReservations = false,
   canOperateArrivals = false,
@@ -118,7 +102,6 @@ export function FrontDeskArrivalDetailPanel({
   const [isSubmittingRoom, setIsSubmittingRoom] = useState<boolean>(false);
   const [isCheckingIn, setIsCheckingIn] = useState<boolean>(false);
   const [isCancelling, setIsCancelling] = useState<boolean>(false);
-  const [isMarkingNoShow, setIsMarkingNoShow] = useState<boolean>(false);
   const [isCheckInModalOpen, setIsCheckInModalOpen] = useState<boolean>(false);
   const [checkInError, setCheckInError] = useState<string | undefined>();
   const [isConfirmationOpen, setIsConfirmationOpen] = useState<boolean>(false);
@@ -132,6 +115,9 @@ export function FrontDeskArrivalDetailPanel({
   const [isSubmittingReceivable, setIsSubmittingReceivable] = useState<boolean>(false);
   const [localArrival, setLocalArrival] = useState<HotelArrival | null>(suppliedArrival);
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
+  const checkInReservation = useMutation(
+    staffRoomsResource.bind({ hotelId }).mutations.checkInReservation.options(),
+  );
 
   // Synchronize state when arrival changes without cascading render effect
   if (suppliedArrival && suppliedArrival.id !== prevArrivalId) {
@@ -143,7 +129,6 @@ export function FrontDeskArrivalDetailPanel({
     setIsEditModalOpen(false);
     setCheckInError(undefined);
     setIsCancelling(false);
-    setIsMarkingNoShow(false);
     setIsConfirmationOpen(false);
     setIsGroupDrawerOpen(false);
     setDepositMode("AMOUNT");
@@ -161,6 +146,7 @@ export function FrontDeskArrivalDetailPanel({
     if (!isOpen) return;
 
     function handleKeyDown(event: KeyboardEvent) {
+      if (SwalVietSage.isVisible()) return;
       if (event.key === "Escape") {
         event.preventDefault();
         onClose();
@@ -202,6 +188,11 @@ export function FrontDeskArrivalDetailPanel({
 
   // Query all rooms so we know both available rooms and live status/conflict of assigned room
   const canAssignRoom = Boolean(canManageReservations || canOperateArrivals);
+  const { data: priorityAlerts, isPending: isLoadingHotelCalendar, isError: isHotelCalendarError } = useQuery({
+    ...staffRoomsResource.bind({ hotelId }).queries.priorityAlerts.options(),
+    enabled: Boolean(isOpen && hotelId),
+    staleTime: 8_000,
+  });
   const { data: roomsPage, isPending: isLoadingRooms, isError: isRoomsError } = useQuery({
     ...staffRoomsResource.bind({ hotelId }).queries.allRooms.options(),
     enabled: Boolean(isOpen && hotelId),
@@ -261,7 +252,7 @@ export function FrontDeskArrivalDetailPanel({
         assignedRoomLiveStatus === "CLEANING"),
   );
 
-  const { data: bookingPaymentsPage, refetch: refetchBookingPayments } = useQuery({
+  const { data: bookingPaymentsPage, refetch: refetchBookingPayments, isPending: isLoadingBookingPayments, isError: isBookingPaymentsError } = useQuery({
     ...staffRoomsResource.bind({ hotelId }).queries.bookingPayments.options({
       reservationId: arrival?.id,
       groupCode: arrival?.groupCode || undefined,
@@ -287,8 +278,35 @@ export function FrontDeskArrivalDetailPanel({
   }
 
   const activeArrival = localArrival ?? arrival;
+  const hotelTimezone = priorityAlerts?.timezone || "Asia/Ho_Chi_Minh";
+  const todayYmd = priorityAlerts?.businessDate || suppliedTodayYmd;
+  const hotelDate = new Intl.DateTimeFormat("en-CA", {
+    timeZone: hotelTimezone, year: "numeric", month: "2-digit", day: "2-digit",
+  });
 
-  const checkInYmd = toVietnamYmd(activeArrival.plannedCheckInAt) || "";
+  function formatDateTime(value?: string | Date | null): string {
+    if (!value) return "Chưa xác định";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "Chưa xác định";
+    return new Intl.DateTimeFormat("vi-VN", {
+      timeZone: hotelTimezone, year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit",
+    }).format(date);
+  }
+
+  const checkInYmd = hotelDate.format(new Date(activeArrival.plannedCheckInAt));
+  const checkOutYmd = hotelDate.format(new Date(activeArrival.plannedCheckOutAt));
+  const hasActiveStay = Boolean(
+    assignedRoomLive?.activeStay &&
+      !assignedRoomLive.activeStay.checkedOutAt &&
+      assignedRoomLive.activeStay.status !== "CHECKED_OUT" &&
+      activeArrival.reservationCode &&
+      assignedRoomLive.activeStay.reservationCode === activeArrival.reservationCode,
+  );
+  const isOverdueUncheckedInArrival =
+    !hasActiveStay &&
+    ["PENDING", "CONFIRMED", "ARRIVAL_READY", "CHECKED_IN"].includes(activeArrival.status) &&
+    checkInYmd < todayYmd;
   const isToday = checkInYmd === todayYmd;
   const isFuture = checkInYmd > todayYmd;
   const nights = calculateNights(activeArrival.plannedCheckInAt, activeArrival.plannedCheckOutAt);
@@ -321,6 +339,99 @@ export function FrontDeskArrivalDetailPanel({
   })();
 
   const remainingBalance = Math.max(0, totalEstimated - paidDepositsSummary.total);
+  const depositPaidAmount = paidDepositsSummary.total;
+
+  function reservationResolutionSummaryHtml() {
+    return `<dl class="space-y-2 text-left text-sm text-pretty">
+      <div><dt class="font-semibold">Đặt phòng</dt><dd class="break-words">${escapeHtml(activeArrival.guestDisplayName)} · #${escapeHtml(activeArrival.reservationCode)}</dd></div>
+      <div><dt class="font-semibold">Phòng</dt><dd>${escapeHtml(activeArrival.room?.roomNumber || "Chưa gán phòng")}</dd></div>
+      <div><dt class="font-semibold">Lịch lưu trú</dt><dd>${escapeHtml(formatDateTime(activeArrival.plannedCheckInAt))} → ${escapeHtml(formatDateTime(activeArrival.plannedCheckOutAt))}</dd></div>
+      ${depositPaidAmount > 0 ? `<div><dt class="font-semibold">Cọc thực nhận</dt><dd>${escapeHtml(formatVnd(depositPaidAmount))}</dd></div>` : ""}
+    </dl><p class="mt-3 text-left text-sm text-pretty">Hủy đặt phòng sẽ bỏ giữ phòng.${depositPaidAmount > 0 ? " Tiền cọc được bảo toàn trong báo cáo doanh thu/cọc; không tự hoàn cọc." : ""}</p>`;
+  }
+
+  async function requireCurrentStaySchedule() {
+    if (checkOutYmd <= todayYmd) {
+      await SwalVietSage.fire({
+        icon: "warning",
+        title: "Lịch lưu trú đã hết hạn",
+        text: canAssignRoom
+          ? "Điều chỉnh lịch và kiểm tra xung đột phòng trước khi nhận khách."
+          : "Cần người có quyền quản lý đặt phòng điều chỉnh lịch và kiểm tra xung đột trước khi nhận khách.",
+        confirmButtonText: canAssignRoom ? "Điều chỉnh lịch" : "OK",
+        position: "center",
+      });
+      if (canAssignRoom) setIsEditModalOpen(true);
+      return false;
+    }
+    return true;
+  }
+
+  async function handleConfirmCheckIn({ confirmLateCheckIn }: { confirmLateCheckIn: true }) {
+    if (!arrival || !canCheckInStay || isCheckingIn) return;
+    if (!(await requireCurrentStaySchedule())) return;
+    if (!activeArrival.roomId) {
+      await showWarningAlert("Chưa gán phòng", "Gán phòng trước khi tiếp tục nhận khách.");
+      if (canAssignRoom) setIsEditModalOpen(true);
+      return;
+    }
+    setIsCheckingIn(true);
+    try {
+      await checkInReservation.mutateAsync({
+        reservationId: activeArrival.id,
+        payload: {
+          expectedRoomId: activeArrival.roomId,
+          expectedUpdatedAt: activeArrival.updatedAt,
+          confirmLateCheckIn,
+        },
+      });
+      await invalidateHotelRealtimeQueries(queryClient, hotelId);
+      await showSuccessAlert("Đã nhận phòng", `${activeArrival.guestDisplayName} · Phòng ${activeArrival.room?.roomNumber || "đã gán"}`);
+      onClose();
+    } catch (err) {
+      await showErrorAlert("Không thể nhận phòng", formatFriendlyCheckInError(err));
+    } finally {
+      setIsCheckingIn(false);
+    }
+  }
+
+  async function openOverdueResolutionPrompt() {
+    if (!isOverdueUncheckedInArrival || !(canManageReservations || canCheckInStay)) return;
+    if (isLoadingHotelCalendar || isLoadingBookingPayments) return;
+    if (isHotelCalendarError || isBookingPaymentsError) {
+      await showErrorAlert("Chưa tải đủ thông tin đặt phòng", "Vui lòng tải lại lịch khách sạn và tiền cọc trước khi xử lý.");
+      return;
+    }
+    const resolution = await SwalVietSage.fire({
+      icon: "warning",
+      title: "Xử lý đặt phòng quá hạn",
+      html: reservationResolutionSummaryHtml(),
+      position: "center",
+      showDenyButton: canAssignRoom,
+      showConfirmButton: canCheckInStay || (canAssignRoom && (checkOutYmd <= todayYmd || !activeArrival.roomId)),
+      showCancelButton: true,
+      confirmButtonText: "Tiếp tục nhận khách",
+      denyButtonText: "Hủy đặt phòng",
+      cancelButtonText: "Đóng",
+      reverseButtons: false,
+      customClass: {
+        confirmButton: `${SWAL_CONFIRM_BTN_CLASS} whitespace-nowrap`,
+        denyButton: `${SWAL_DANGER_BTN_CLASS} whitespace-nowrap`,
+        cancelButton: `${SWAL_CANCEL_BTN_CLASS} whitespace-nowrap`,
+      },
+    });
+    if (resolution.isDenied) {
+      await handleUnifiedCancelReservation();
+    } else if (resolution.isConfirmed) {
+      if (!(await requireCurrentStaySchedule())) return;
+      if (!activeArrival.roomId) {
+        await showWarningAlert("Chưa gán phòng", "Gán phòng trước khi tiếp tục nhận khách.");
+        if (canAssignRoom) setIsEditModalOpen(true);
+        return;
+      }
+      await handleConfirmCheckIn({ confirmLateCheckIn: true });
+    }
+  }
 
   async function handleConfirmAssignRoom() {
     if (!arrival) return;
@@ -378,6 +489,10 @@ export function FrontDeskArrivalDetailPanel({
 
   function handleStartCheckIn() {
     if (!arrival) return;
+    if (isOverdueUncheckedInArrival) {
+      void openOverdueResolutionPrompt();
+      return;
+    }
     if (!arrival.roomId) {
       void showWarningAlert(
         "Chưa gán phòng",
@@ -396,84 +511,67 @@ export function FrontDeskArrivalDetailPanel({
 
 
 
-  async function handleCancelReservation() {
-    if (!arrival) return;
-
-    const confirm = await showConfirmDialog({
+  async function handleUnifiedCancelReservation() {
+    if (!arrival || !canAssignRoom || hasActiveStay || isCancelling) return;
+    if (isLoadingBookingPayments) return;
+    if (isBookingPaymentsError) {
+      await showErrorAlert("Chưa tải được tiền cọc", "Vui lòng tải lại trước khi hủy đặt phòng.");
+      return;
+    }
+    const confirm = await SwalVietSage.fire({
       icon: "warning",
-      title: "Xác nhận hủy đặt phòng?",
-      html: formatCancelReservationConfirmHtml({
-        guestName: arrival.guestDisplayName,
-        reservationCode: arrival.reservationCode,
-        roomNumber: arrival.room?.roomNumber || null,
-      }),
-      confirmText: "Hủy đặt phòng",
-      cancelText: "Giữ lại",
+      title: "Hủy đặt phòng",
+      html: `${reservationResolutionSummaryHtml()}
+        <label for="${escapeHtml(titleId)}-cancel-reason" class="mt-3 block text-left text-sm font-semibold text-pretty">Chi tiết lý do (tùy chọn)</label>
+        <textarea id="${escapeHtml(titleId)}-cancel-reason" data-cancel-reason maxlength="470" class="mt-1 w-full rounded-lg border border-slate-300 p-3 text-base text-pretty" rows="2"></textarea>`,
+      input: "select",
+      inputLabel: "Lý do hủy",
+      inputOptions: {
+        NO_SHOW: "Khách không đến (No-show)",
+        GUEST_CANCELLED: "Khách báo hủy",
+      },
+      inputPlaceholder: "Chọn lý do hủy",
+      position: "center",
+      showCancelButton: true,
+      confirmButtonText: "Hủy đặt phòng",
+      cancelButtonText: "Giữ đặt phòng",
       reverseButtons: false,
-      confirmVariant: "danger",
+      customClass: {
+        confirmButton: `${SWAL_DANGER_BTN_CLASS} whitespace-nowrap`,
+        cancelButton: `${SWAL_CANCEL_BTN_CLASS} whitespace-nowrap`,
+      },
+      preConfirm: (reasonKind: string) => {
+        if (reasonKind !== "NO_SHOW" && reasonKind !== "GUEST_CANCELLED") {
+          SwalVietSage.showValidationMessage("Chọn lý do hủy đặt phòng.");
+          return false;
+        }
+        const details = SwalVietSage.getPopup()
+          ?.querySelector<HTMLTextAreaElement>("[data-cancel-reason]")?.value.trim();
+        const label = reasonKind === "NO_SHOW" ? "Khách không đến (No-show)" : "Khách báo hủy";
+        const reason = details ? `${label}: ${details}` : label;
+        if (reason.length > 500) {
+          SwalVietSage.showValidationMessage("Lý do hủy tối đa 500 ký tự.");
+          return false;
+        }
+        return { reasonKind, reason };
+      },
     });
-
-    if (!confirm.isConfirmed) return;
-
+    if (!confirm.isConfirmed || !confirm.value) return;
     setIsCancelling(true);
     try {
-      await staffRoomsRepository.cancelReservation(hotelId, arrival.id, {});
-
-      await showSuccessAlert(
-        "Hủy đặt phòng thành công",
-        `Đã hủy đơn đặt phòng #${arrival.reservationCode} của khách ${arrival.guestDisplayName} và giải phóng phòng thành công.`,
-      );
-
+      const { reasonKind, reason } = confirm.value;
+      if (reasonKind === "NO_SHOW") {
+        await staffRoomsRepository.markNoShowReservation(hotelId, arrival.id, { reason });
+      } else {
+        await staffRoomsRepository.cancelReservation(hotelId, arrival.id, { reason });
+      }
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
+      await showSuccessAlert("Đã hủy đặt phòng", "Đã bỏ giữ phòng cho đơn được chọn.");
       onClose();
-
     } catch (err) {
-      await showErrorAlert(
-        "Không thể hủy đặt phòng",
-        formatFriendlyHotelOpsError(err),
-      );
+      await showErrorAlert("Không thể hủy đặt phòng", formatFriendlyHotelOpsError(err));
     } finally {
       setIsCancelling(false);
-    }
-  }
-
-  async function handleMarkNoShow() {
-    if (!arrival) return;
-
-    const confirm = await showConfirmDialog({
-      icon: "warning",
-      title: "Xác nhận báo vắng mặt (No-show)?",
-      html: formatNoShowConfirmHtml({
-        guestName: arrival.guestDisplayName,
-        reservationCode: arrival.reservationCode,
-        roomNumber: arrival.room?.roomNumber || null,
-      }),
-      confirmText: "Báo vắng mặt",
-      cancelText: "Hủy bỏ",
-      reverseButtons: false,
-    });
-
-    if (!confirm.isConfirmed) return;
-
-    setIsMarkingNoShow(true);
-    try {
-      await staffRoomsRepository.markNoShowReservation(hotelId, arrival.id, {});
-
-      await showSuccessAlert(
-        "Ghi nhận vắng mặt thành công",
-        `Đã chuyển đơn đặt phòng #${arrival.reservationCode} của khách ${arrival.guestDisplayName} sang trạng thái vắng mặt (No-show).`,
-      );
-
-      await invalidateHotelRealtimeQueries(queryClient, hotelId);
-      onClose();
-
-    } catch (err) {
-      await showErrorAlert(
-        "Không thể ghi nhận vắng mặt",
-        formatFriendlyHotelOpsError(err),
-      );
-    } finally {
-      setIsMarkingNoShow(false);
     }
   }
 
@@ -649,14 +747,26 @@ export function FrontDeskArrivalDetailPanel({
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              {arrival.status !== "CANCELLED" &&
+              {isOverdueUncheckedInArrival ? (
+                canManageReservations || canCheckInStay ? (
+                  <button
+                    type="button"
+                    disabled={isCheckingIn || isCancelling || isLoadingHotelCalendar || isLoadingBookingPayments}
+                    onClick={() => openOverdueResolutionPrompt()}
+                    className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-amber-700 px-4 py-2 text-base font-bold text-white transition hover:bg-amber-800 disabled:opacity-50 whitespace-nowrap"
+                  >
+                    <VsIcon name="schedule" className="text-lg" />
+                    <span>Xử lý quá hạn</span>
+                  </button>
+                ) : null
+              ) : arrival.status !== "CANCELLED" &&
                 arrival.status !== "NO_SHOW" &&
                 arrival.status !== "CHECKED_IN" &&
                 (arrival.roomId ? (
                   canCheckInStay ? (
                     <button
                       type="button"
-                      disabled={isCheckingIn || isCancelling || isMarkingNoShow}
+                      disabled={isCheckingIn || isCancelling}
                       onClick={() => handleStartCheckIn()}
                       className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white px-3.5 text-xs sm:text-sm font-black shadow-xs transition active:scale-[0.98] cursor-pointer min-h-[40px] shrink-0 whitespace-nowrap"
                     >
@@ -1415,28 +1525,17 @@ export function FrontDeskArrivalDetailPanel({
                 <span>Xem trên sơ đồ phòng</span>
               </Link>
 
-              {canAssignRoom && (arrival.status === "CONFIRMED" || arrival.status === "ARRIVAL_READY") ? (
-                <>
+              {canAssignRoom && !hasActiveStay && (arrival.status === "CONFIRMED" || arrival.status === "ARRIVAL_READY") ? (
                   <button
                     type="button"
-                    disabled={isCancelling || isMarkingNoShow || isCheckingIn}
-                    onClick={() => void handleCancelReservation()}
+                    disabled={isCancelling || isCheckingIn || isLoadingBookingPayments}
+                    onClick={() => handleUnifiedCancelReservation()}
                     className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-rose-300 bg-white hover:bg-rose-50 px-3.5 py-2 text-rose-700 font-bold text-xs sm:text-sm transition-all cursor-pointer disabled:opacity-50 whitespace-nowrap"
                   >
                     <VsIcon name="cancel" className="text-base text-rose-600" />
                     <span>{isCancelling ? "Đang hủy..." : "Hủy đặt phòng"}</span>
                   </button>
 
-                  <button
-                    type="button"
-                    disabled={isCancelling || isMarkingNoShow || isCheckingIn}
-                    onClick={() => void handleMarkNoShow()}
-                    className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 px-3.5 py-2 text-slate-700 font-bold text-xs sm:text-sm transition-all cursor-pointer disabled:opacity-50 whitespace-nowrap"
-                  >
-                    <VsIcon name="person_off" className="text-base text-slate-500" />
-                    <span>{isMarkingNoShow ? "Đang ghi nhận..." : "Báo vắng mặt (No-show)"}</span>
-                  </button>
-                </>
               ) : null}
             </div>
 
@@ -1458,7 +1557,19 @@ export function FrontDeskArrivalDetailPanel({
                 <span>Đóng</span>
               </button>
 
-              {arrival.status === "CANCELLED" ? (
+              {isOverdueUncheckedInArrival ? (
+                canManageReservations || canCheckInStay ? (
+                  <button
+                    type="button"
+                    disabled={isCheckingIn || isCancelling || isLoadingHotelCalendar || isLoadingBookingPayments}
+                    onClick={() => openOverdueResolutionPrompt()}
+                    className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-amber-700 px-5 py-2.5 text-base font-bold text-white transition hover:bg-amber-800 disabled:opacity-50 whitespace-nowrap"
+                  >
+                    <VsIcon name="schedule" className="text-lg" />
+                    <span>Xử lý quá hạn</span>
+                  </button>
+                ) : null
+              ) : arrival.status === "CANCELLED" ? (
                 <div className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl bg-rose-50 px-4 py-2 text-rose-800 text-sm font-bold border border-rose-300 whitespace-nowrap">
                   <VsIcon name="cancel" className="text-base text-rose-600" />
                   <span>Đơn đặt phòng đã bị hủy</span>
@@ -1477,7 +1588,7 @@ export function FrontDeskArrivalDetailPanel({
                 canCheckInStay ? (
                   <button
                     type="button"
-                    disabled={isCheckingIn || isCancelling || isMarkingNoShow}
+                    disabled={isCheckingIn || isCancelling}
                     onClick={() => handleStartCheckIn()}
                     className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 px-6 py-2.5 text-white font-black text-sm sm:text-base shadow-md transition active:scale-[0.98] cursor-pointer min-h-[44px] whitespace-nowrap"
                   >
@@ -1654,6 +1765,7 @@ export function FrontDeskArrivalDetailPanel({
         }
         canCheckIn={Boolean(
           activeArrival.roomId &&
+            checkOutYmd > todayYmd &&
             canCheckInStay &&
             activeArrival.status !== "CANCELLED" &&
             activeArrival.status !== "NO_SHOW" &&

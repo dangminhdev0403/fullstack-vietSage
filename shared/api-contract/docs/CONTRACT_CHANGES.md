@@ -1,5 +1,11 @@
 # Contract Changes
 
+## 2026-11-13 — Hotel revenue book and off-catalog receipts
+
+- Added private `GET /hotels/{hotelId}/reports/revenue-book` (`hotel.billing.view`), with optional paired `from`/`to` hotel-local dates, dated revenue/collections, opening/closing balances, deposit allocation transfers, and authoritative totals. Maximum 366 days and 10,000 accounts; oversized books fail explicitly.
+- Added `POST .../entries`, `PATCH .../entries/{entryId}`, `POST .../entries/{entryId}/collections`, and `POST .../entries/{entryId}/void` (`hotel.billing.manage`). Standalone manual entries do not create catalog items, stays, invoices or platform charges. Creates/collections use content-checked idempotency keys; updates/collections/voids use row versions. Paid entries cannot be voided without resolving their collections.
+- Persistence migration `20261113010000_hotel_revenue_book` is additive and requires separate database application. See `services/docs/HOTEL_REVENUE_BOOK_API.md` for reconciliation and historical-data limits.
+
 ## 2026-11-13 — Arrivals overdue inclusion & unified operational query window
 
 - In `GET /hotels/{hotelId}/arrivals`, added optional `includeOverdue?: boolean` (and relaxed `from` to optional when `to` is supplied, keeping `to` required when `q` is omitted) and raised the `limit` cap from `100` to `200`.

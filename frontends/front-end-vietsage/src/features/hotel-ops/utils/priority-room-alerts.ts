@@ -14,6 +14,7 @@ export type PriorityRoomBucket = "overdue" | "urgent" | "due";
 export type PriorityActionKind =
   | "check-in"
   | "assign-room"
+  | "resolve-overdue"
   | "mark-ready"
   | "manage-stay"
   | "resolve-room";
@@ -522,14 +523,6 @@ export function mapBackendPriorityAlerts(
 
     if (raw.category === "OVERDUE_ARRIVAL") {
       const fullyExpired = checkOutMs !== null && checkOutMs < nowMs;
-      const isCleanReady = Boolean(raw.roomId && !raw.blockerCode);
-      const actionKind: PriorityActionKind = !raw.roomId
-        ? "assign-room"
-        : isCleanReady
-          ? "check-in"
-          : raw.blockerCode === "ROOM_PROCESSING"
-            ? "mark-ready"
-            : "resolve-room";
 
       items.push({
         id: raw.id,
@@ -540,15 +533,8 @@ export function mapBackendPriorityAlerts(
         readinessLabel: !raw.roomId
           ? "Chưa gán số phòng"
           : describeBackendPhysicalReadiness(raw.roomStatus, matchedRoom),
-        actionKind,
-        actionLabel:
-          actionKind === "assign-room"
-            ? "Gán phòng"
-            : actionKind === "check-in"
-              ? "Nhận phòng"
-              : actionKind === "mark-ready"
-                ? "Đã dọn xong"
-                : "Xử lý đơn",
+        actionKind: "resolve-overdue",
+        actionLabel: "Xử lý quá hạn",
         roomId: raw.roomId,
         roomUpdatedAt: raw.roomUpdatedAt,
         roomNumber,
@@ -874,12 +860,6 @@ export function buildPriorityRoomAlerts(
       const readinessLabel = assignedRoom
         ? describePhysicalReadiness(physical ?? "available")
         : "Chưa gán số phòng";
-      const canDirectCheckIn = Boolean(
-        assignedRoom &&
-          physical === "available" &&
-          !stay &&
-          (candidate.arrival || candidate.otaBooking || candidate.fallbackReservation),
-      );
 
       items.push({
         id: `res-overdue-${candidate.key}`,
@@ -888,16 +868,8 @@ export function buildPriorityRoomAlerts(
         badgeLabel: fullyExpired ? "Quá hạn cả lịch" : "Quá hạn nhận phòng",
         reasonText: `Lịch nhận ${formatVnDateTime(candidate.plannedCheckInAt)} (trễ ${overdueDays} ngày)`,
         readinessLabel,
-        actionKind: !assignedRoom
-          ? "assign-room"
-          : canDirectCheckIn
-            ? "check-in"
-            : "resolve-room",
-        actionLabel: !assignedRoom
-          ? "Gán phòng"
-          : canDirectCheckIn
-            ? "Nhận phòng"
-            : "Xử lý đơn",
+        actionKind: "resolve-overdue",
+        actionLabel: "Xử lý quá hạn",
         roomId: assignedRoom?.id ?? candidate.roomId,
         roomNumber: assignedRoom?.roomNumber ?? candidate.roomNumber,
         floorLabel: formatFloorLabel(assignedRoom?.floor),

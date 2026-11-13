@@ -641,6 +641,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/hotels/{hotelId}/rooms/priority-alerts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["HotelRoomsController_listPriorityAlerts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/hotels/{hotelId}/rooms/{roomId}": {
         parameters: {
             query?: never;
@@ -971,6 +987,150 @@ export interface paths {
         get: operations["HotelReportsController_getReports"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/reports/revenue-book": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["HotelRevenueBookController_getBook"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/reports/revenue-book/entries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["HotelRevenueBookController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/reports/revenue-book/entries/{entryId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["HotelRevenueBookController_update"];
+        trace?: never;
+    };
+    "/hotels/{hotelId}/reports/revenue-book/entries/{entryId}/collections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["HotelRevenueBookController_collect"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/reports/revenue-book/entries/{entryId}/void": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["HotelRevenueBookController_void"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/expenses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["HotelExpenseController_listExpenses"];
+        put?: never;
+        post: operations["HotelExpenseController_createExpense"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/expenses/{expenseId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["HotelExpenseController_updateExpense"];
+        trace?: never;
+    };
+    "/hotels/{hotelId}/expenses/{expenseId}/pay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["HotelExpenseController_payExpense"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/expenses/{expenseId}/void": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["HotelExpenseController_voidExpense"];
         delete?: never;
         options?: never;
         head?: never;
@@ -7307,6 +7467,26 @@ export interface operations {
             };
         };
     };
+    HotelRoomsController_listPriorityAlerts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Danh sách ưu tiên điều hành lễ tân */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     HotelRoomsController_updateRoom: {
         parameters: {
             query?: never;
@@ -8027,6 +8207,523 @@ export interface operations {
             };
         };
     };
+    HotelRevenueBookController_getBook: {
+        parameters: {
+            query?: {
+                /** @description Ngày kết thúc YYYY-MM-DD, bao gồm ngày này; tối đa 366 ngày */
+                to?: string;
+                /** @description Ngày bắt đầu YYYY-MM-DD; bỏ cả hai ngày để xem tháng hiện tại theo giờ khách sạn */
+                from?: string;
+            };
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example 200 */
+                        status: number;
+                        /** @example null */
+                        error: {
+                            [key: string]: unknown;
+                        } | null;
+                        /** @example Đã tải sổ doanh thu */
+                        message: string;
+                        data: {
+                            hotelId: string;
+                            hotelName: string;
+                            timeZone: string;
+                            /** @enum {string} */
+                            currency: "VND";
+                            /** Format: date */
+                            from: string;
+                            /** Format: date */
+                            to: string;
+                            canManage: boolean;
+                            rooms: {
+                                id: string;
+                                number: string;
+                            }[];
+                            summary: {
+                                roomRevenue: number;
+                                minibarRevenue: number;
+                                laundryRevenue: number;
+                                otherRevenue: number;
+                                revenueTotal: number;
+                                openingBalance: number;
+                                closingBalance: number;
+                                balanceAdjustment: number;
+                                collectedTotal: number;
+                                cashTotal: number;
+                                bankTransferTotal: number;
+                                otherCollectedTotal: number;
+                            };
+                            entries: {
+                                roomRevenue: number;
+                                minibarRevenue: number;
+                                laundryRevenue: number;
+                                otherRevenue: number;
+                                revenueTotal: number;
+                                openingBalance: number;
+                                closingBalance: number;
+                                balanceAdjustment: number;
+                                /** Format: date */
+                                date: string;
+                                description: string;
+                                /** @enum {string|null} */
+                                category: "ROOM" | "MINIBAR" | "LAUNDRY" | "OTHER" | null;
+                                amount: number | null;
+                                roomId: string | null;
+                                documentNumber: string | null;
+                                notes: string | null;
+                                id: string;
+                                /** @enum {string} */
+                                source: "FOLIO" | "MANUAL" | "DEPOSIT" | "RECEIVABLE";
+                                roomNumber: string | null;
+                                declarationStatus: string | null;
+                                version: number | null;
+                                /** Format: date-time */
+                                voidedAt: string | null;
+                                revenueLines: {
+                                    /** Format: date */
+                                    date: string;
+                                    roomRevenue: number;
+                                    minibarRevenue: number;
+                                    laundryRevenue: number;
+                                    otherRevenue: number;
+                                    revenueTotal: number;
+                                }[];
+                                collections: {
+                                    id: string;
+                                    /** Format: date-time */
+                                    receivedAt: string;
+                                    amount: number;
+                                    method: string;
+                                    reference: string | null;
+                                }[];
+                            }[];
+                        };
+                    };
+                };
+            };
+        };
+    };
+    HotelRevenueBookController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: date */
+                    date: string;
+                    description: string;
+                    /** @enum {string} */
+                    category: "ROOM" | "MINIBAR" | "LAUNDRY" | "OTHER";
+                    amount: number;
+                    roomId?: string | null;
+                    documentNumber?: string | null;
+                    notes?: string | null;
+                    idempotencyKey: string;
+                    collection?: {
+                        /** Format: date-time */
+                        receivedAt: string;
+                        amount: number;
+                        /** @enum {string} */
+                        method: "CASH" | "BANK_TRANSFER" | "CARD" | "OTHER";
+                        reference?: string | null;
+                    };
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example 201 */
+                        status: number;
+                        /** @example null */
+                        error: {
+                            [key: string]: unknown;
+                        } | null;
+                        /** @example Đã thêm khoản phát sinh */
+                        message: string;
+                        data: {
+                            id: string;
+                            version: number;
+                        };
+                    };
+                };
+            };
+        };
+    };
+    HotelRevenueBookController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                entryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: date */
+                    date: string;
+                    description: string;
+                    /** @enum {string} */
+                    category: "ROOM" | "MINIBAR" | "LAUNDRY" | "OTHER";
+                    amount: number;
+                    roomId?: string | null;
+                    documentNumber?: string | null;
+                    notes?: string | null;
+                    version: number;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example 200 */
+                        status: number;
+                        /** @example null */
+                        error: {
+                            [key: string]: unknown;
+                        } | null;
+                        /** @example Đã cập nhật sổ doanh thu */
+                        message: string;
+                        data: {
+                            id: string;
+                            version: number;
+                        };
+                    };
+                };
+            };
+        };
+    };
+    HotelRevenueBookController_collect: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                entryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: date-time */
+                    receivedAt: string;
+                    amount: number;
+                    /** @enum {string} */
+                    method: "CASH" | "BANK_TRANSFER" | "CARD" | "OTHER";
+                    reference?: string | null;
+                    version: number;
+                    idempotencyKey: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example 201 */
+                        status: number;
+                        /** @example null */
+                        error: {
+                            [key: string]: unknown;
+                        } | null;
+                        /** @example Đã ghi nhận tiền thu */
+                        message: string;
+                        data: {
+                            id: string;
+                            version: number;
+                        };
+                    };
+                };
+            };
+        };
+    };
+    HotelRevenueBookController_void: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                entryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    reason: string;
+                    version: number;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example 201 */
+                        status: number;
+                        /** @example null */
+                        error: {
+                            [key: string]: unknown;
+                        } | null;
+                        /** @example Đã hủy khoản phát sinh */
+                        message: string;
+                        data: {
+                            id: string;
+                            version: number;
+                        };
+                    };
+                };
+            };
+        };
+    };
+    HotelExpenseController_listExpenses: {
+        parameters: {
+            query?: {
+                includeVoided?: boolean;
+                paymentStatus?: "PAID" | "PARTIAL" | "UNPAID";
+                category?: "PAYROLL" | "UTILITIES" | "SUPPLIES" | "MAINTENANCE" | "MARKETING_OTA" | "RENT_FIXED" | "TAX_FEE" | "OTHER";
+                to?: string;
+                from?: string;
+            };
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example 200 */
+                        status: number;
+                        /** @example null */
+                        error: {
+                            [key: string]: unknown;
+                        } | null;
+                        /** @example Đã tải sổ chi phí vận hành */
+                        message: string;
+                        data: {
+                            hotelId?: string;
+                            hotelName?: string;
+                            currency?: string;
+                            timeZone?: string;
+                            from?: string;
+                            to?: string;
+                            summary?: {
+                                totalExpense?: number;
+                                paidExpense?: number;
+                                unpaidExpense?: number;
+                                saasFeeInPeriod?: number;
+                                totalWithSaas?: number;
+                                entryCount?: number;
+                                unpaidCount?: number;
+                            };
+                            byCategory?: Record<string, never>[];
+                            items?: Record<string, never>[];
+                            rooms?: Record<string, never>[];
+                        };
+                    };
+                };
+            };
+        };
+    };
+    HotelExpenseController_createExpense: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example 200 */
+                        status: number;
+                        /** @example null */
+                        error: {
+                            [key: string]: unknown;
+                        } | null;
+                        /** @example Đã lưu khoản chi phí */
+                        message: string;
+                        data: {
+                            id: string;
+                            version: number;
+                        };
+                    };
+                };
+            };
+        };
+    };
+    HotelExpenseController_updateExpense: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                expenseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example 200 */
+                        status: number;
+                        /** @example null */
+                        error: {
+                            [key: string]: unknown;
+                        } | null;
+                        /** @example Đã lưu khoản chi phí */
+                        message: string;
+                        data: {
+                            id: string;
+                            version: number;
+                        };
+                    };
+                };
+            };
+        };
+    };
+    HotelExpenseController_payExpense: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                expenseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example 200 */
+                        status: number;
+                        /** @example null */
+                        error: {
+                            [key: string]: unknown;
+                        } | null;
+                        /** @example Đã lưu khoản chi phí */
+                        message: string;
+                        data: {
+                            id: string;
+                            version: number;
+                        };
+                    };
+                };
+            };
+        };
+    };
+    HotelExpenseController_voidExpense: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                expenseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example 200 */
+                        status: number;
+                        /** @example null */
+                        error: {
+                            [key: string]: unknown;
+                        } | null;
+                        /** @example Đã lưu khoản chi phí */
+                        message: string;
+                        data: {
+                            id: string;
+                            version: number;
+                        };
+                    };
+                };
+            };
+        };
+    };
     ReservationsController_createReservation: {
         parameters: {
             query?: never;
@@ -8108,12 +8805,13 @@ export interface operations {
     };
     ReservationsController_listArrivals: {
         parameters: {
-            query: {
+            query?: {
                 q?: string;
                 limit?: number;
                 page?: number;
-                to: string;
-                from: string;
+                includeOverdue?: boolean;
+                to?: string;
+                from?: string;
             };
             header?: never;
             path: {
@@ -9349,7 +10047,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Danh sách folio */
+            /** @description Danh sách hóa đơn lưu trú */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -9370,7 +10068,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Folio đang mở */
+            /** @description Hóa đơn lưu trú đang mở */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -9391,7 +10089,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Tổng quan folio */
+            /** @description Tổng quan hóa đơn lưu trú */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -9457,7 +10155,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Danh sách FolioItem */
+            /** @description Danh sách mục hóa đơn lưu trú */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -9478,7 +10176,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Mục FolioItem đã tạo */
+            /** @description Mục hóa đơn lưu trú đã tạo */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -9499,7 +10197,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Chi tiết folio */
+            /** @description Chi tiết hóa đơn lưu trú */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -9592,7 +10290,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Payment, invoice, folio và stay đã hoàn tất */
+            /** @description Thanh toán, hóa đơn tài chính, hóa đơn lưu trú và lượt lưu trú đã hoàn tất */
             200: {
                 headers: {
                     [name: string]: unknown;

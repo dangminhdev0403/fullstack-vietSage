@@ -1346,6 +1346,11 @@ export class ReservationsRepository {
       const formatHotelDate = (date: Date) => toYmd(date, hotelTimezone);
 
       const now = input.now ?? new Date();
+      if (reservation.plannedCheckOutAt && reservation.plannedCheckOutAt.getTime() <= now.getTime()) {
+        throw new ConflictException(
+          "Lịch lưu trú đã hết hạn. Vui lòng điều chỉnh lịch và kiểm tra xung đột trước khi nhận phòng.",
+        );
+      }
       const todayStr = formatHotelDate(now);
       const reservationDateStr = reservation.plannedCheckInAt
         ? formatHotelDate(reservation.plannedCheckInAt)

@@ -14,18 +14,18 @@ interface RevenueRequest extends Request { user: AuthenticatedUser }
 const moneyProperties = Object.fromEntries(["roomRevenue", "minibarRevenue", "laundryRevenue", "otherRevenue", "revenueTotal", "openingBalance", "closingBalance", "balanceAdjustment"].map((key) => [key, { type: "number" }]));
 const collectionProperties = { receivedAt: { type: "string", format: "date-time" }, amount: { type: "number", minimum: 0, exclusiveMinimum: true }, method: { type: "string", enum: ["CASH", "BANK_TRANSFER", "CARD", "OTHER"] }, reference: { type: "string", nullable: true, maxLength: 120 } };
 const entryProperties = { date: { type: "string", format: "date" }, description: { type: "string", maxLength: 300 }, category: { type: "string", enum: ["ROOM", "MINIBAR", "LAUNDRY", "OTHER"] }, amount: { type: "number", minimum: 0, exclusiveMinimum: true }, roomId: { type: "string", nullable: true }, documentNumber: { type: "string", nullable: true, maxLength: 80 }, notes: { type: "string", nullable: true, maxLength: 1000 } };
-const mutationResponse = successEnvelopeSchema({ type: "object", required: ["id", "version"], properties: { id: { type: "string" }, version: { type: "integer" } } }, 200, "Đã cập nhật sổ doanh thu");
+const mutationResponse = (status = 200, message = "Đã cập nhật sổ doanh thu") => successEnvelopeSchema({ type: "object", required: ["id", "version"], properties: { id: { type: "string" }, version: { type: "integer" } } }, status, message);
 const bookResponse = successEnvelopeSchema({
   type: "object", required: ["hotelId", "hotelName", "timeZone", "currency", "from", "to", "entries", "summary", "rooms", "canManage"],
   properties: {
     hotelId: { type: "string" }, hotelName: { type: "string" }, timeZone: { type: "string" }, currency: { type: "string", enum: ["VND"] }, from: { type: "string", format: "date" }, to: { type: "string", format: "date" }, canManage: { type: "boolean" },
     rooms: { type: "array", items: { type: "object", required: ["id", "number"], properties: { id: { type: "string" }, number: { type: "string" } } } },
-    summary: { type: "object", properties: { ...moneyProperties, collectedTotal: { type: "number" }, cashTotal: { type: "number" }, bankTransferTotal: { type: "number" }, otherCollectedTotal: { type: "number" } } },
-    entries: { type: "array", items: { type: "object", properties: {
+    summary: { type: "object", required: [...Object.keys(moneyProperties), "collectedTotal", "cashTotal", "bankTransferTotal", "otherCollectedTotal"], properties: { ...moneyProperties, collectedTotal: { type: "number" }, cashTotal: { type: "number" }, bankTransferTotal: { type: "number" }, otherCollectedTotal: { type: "number" } } },
+    entries: { type: "array", items: { type: "object", required: [...Object.keys(moneyProperties), ...Object.keys(entryProperties), "id", "source", "roomNumber", "declarationStatus", "version", "voidedAt", "revenueLines", "collections"], properties: {
       ...moneyProperties, ...entryProperties, id: { type: "string" }, source: { type: "string", enum: ["FOLIO", "MANUAL", "DEPOSIT", "RECEIVABLE"] }, roomNumber: { type: "string", nullable: true },
       category: { ...entryProperties.category, nullable: true }, amount: { type: "number", nullable: true }, declarationStatus: { type: "string", nullable: true }, version: { type: "integer", nullable: true }, voidedAt: { type: "string", format: "date-time", nullable: true },
-      revenueLines: { type: "array", items: { type: "object", properties: { date: { type: "string", format: "date" }, ...Object.fromEntries(Object.entries(moneyProperties).filter(([key]) => !["openingBalance", "closingBalance", "balanceAdjustment"].includes(key))) } } },
-      collections: { type: "array", items: { type: "object", properties: { id: { type: "string" }, ...collectionProperties, method: { type: "string" } } } },
+      revenueLines: { type: "array", items: { type: "object", required: ["date", "roomRevenue", "minibarRevenue", "laundryRevenue", "otherRevenue", "revenueTotal"], properties: { date: { type: "string", format: "date" }, ...Object.fromEntries(Object.entries(moneyProperties).filter(([key]) => !["openingBalance", "closingBalance", "balanceAdjustment"].includes(key))) } } },
+      collections: { type: "array", items: { type: "object", required: ["id", ...Object.keys(collectionProperties)], properties: { id: { type: "string" }, ...collectionProperties, amount: { type: "number" }, method: { type: "string" } } } },
     } } },
   },
 }, 200, "Đã tải sổ doanh thu");
@@ -50,7 +50,7 @@ export class HotelRevenueBookController {
   @RequirePermission("hotel.billing.manage")
   @SuccessMessage("Đã thêm khoản phát sinh")
   @ApiBody({ schema: { type: "object", required: ["date", "description", "category", "amount", "idempotencyKey"], properties: { ...entryProperties, idempotencyKey: { type: "string", maxLength: 120 }, collection: { type: "object", required: ["receivedAt", "amount", "method"], properties: collectionProperties } } } })
-  @ApiCreatedResponse({ schema: mutationResponse })
+  @ApiCreatedResponse({ schema: mutationResponse(201, "Đã thêm khoản phát sinh") })
   create(@Req() request: RevenueRequest, @Param("hotelId") hotelId: string, @Body() body: unknown) {
     return this.service.create(request.user.userId, request.user.roleId, parseWithZod(hotelIdParamSchema, hotelId), parseWithZod(createRevenueEntrySchema, body));
   }
@@ -60,7 +60,7 @@ export class HotelRevenueBookController {
   @SuccessMessage("Đã cập nhật khoản phát sinh")
   @ApiParam({ name: "entryId", type: String })
   @ApiBody({ schema: { type: "object", required: ["date", "description", "category", "amount", "version"], properties: { ...entryProperties, version: { type: "integer", minimum: 0 } } } })
-  @ApiOkResponse({ schema: mutationResponse })
+  @ApiOkResponse({ schema: mutationResponse() })
   update(@Req() request: RevenueRequest, @Param("hotelId") hotelId: string, @Param("entryId") entryId: string, @Body() body: unknown) {
     return this.service.update(request.user.userId, request.user.roleId, parseWithZod(hotelIdParamSchema, hotelId), parseWithZod(revenueEntryIdSchema, entryId), parseWithZod(updateRevenueEntrySchema, body));
   }
@@ -69,8 +69,8 @@ export class HotelRevenueBookController {
   @RequirePermission("hotel.billing.manage")
   @SuccessMessage("Đã ghi nhận tiền thu")
   @ApiParam({ name: "entryId", type: String })
-  @ApiBody({ schema: { type: "object", required: ["receivedAt", "amount", "method", "idempotencyKey"], properties: { ...collectionProperties, idempotencyKey: { type: "string", maxLength: 120 } } } })
-  @ApiCreatedResponse({ schema: mutationResponse })
+  @ApiBody({ schema: { type: "object", required: ["receivedAt", "amount", "method", "idempotencyKey", "version"], properties: { ...collectionProperties, version: { type: "integer", minimum: 0 }, idempotencyKey: { type: "string", maxLength: 120 } } } })
+  @ApiCreatedResponse({ schema: mutationResponse(201, "Đã ghi nhận tiền thu") })
   collect(@Req() request: RevenueRequest, @Param("hotelId") hotelId: string, @Param("entryId") entryId: string, @Body() body: unknown) {
     return this.service.collect(request.user.userId, request.user.roleId, parseWithZod(hotelIdParamSchema, hotelId), parseWithZod(revenueEntryIdSchema, entryId), parseWithZod(collectRevenueEntrySchema, body));
   }
@@ -80,7 +80,7 @@ export class HotelRevenueBookController {
   @SuccessMessage("Đã hủy khoản phát sinh")
   @ApiParam({ name: "entryId", type: String })
   @ApiBody({ schema: { type: "object", required: ["reason", "version"], properties: { reason: { type: "string", maxLength: 500 }, version: { type: "integer", minimum: 0 } } } })
-  @ApiCreatedResponse({ schema: mutationResponse })
+  @ApiCreatedResponse({ schema: mutationResponse(201, "Đã hủy khoản phát sinh") })
   void(@Req() request: RevenueRequest, @Param("hotelId") hotelId: string, @Param("entryId") entryId: string, @Body() body: unknown) {
     return this.service.void(request.user.userId, request.user.roleId, parseWithZod(hotelIdParamSchema, hotelId), parseWithZod(revenueEntryIdSchema, entryId), parseWithZod(voidRevenueEntrySchema, body));
   }

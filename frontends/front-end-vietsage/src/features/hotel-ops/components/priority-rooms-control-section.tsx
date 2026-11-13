@@ -75,6 +75,7 @@ function canExecutePrimaryAction(
     case "mark-ready":
       return permissions.canManageRooms;
     case "assign-room":
+    case "resolve-overdue":
       return permissions.canManageReservations || permissions.canCheckInStay;
     case "manage-stay":
     case "resolve-room":
@@ -107,7 +108,10 @@ function PriorityRowActions({
     return (
       <button
         type="button"
-        onClick={(e) => onInspectItem(item, e.currentTarget)}
+        onClick={(e) => {
+          e.stopPropagation();
+          onInspectItem(item, e.currentTarget);
+        }}
         className={`inline-flex ${buttonHeight} items-center justify-center rounded-xl border px-3.5 py-1.5 text-xs font-bold shadow-2xs transition cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/25 ${
           canPrimary
             ? getPrimaryActionButtonClass(item)
@@ -124,7 +128,10 @@ function PriorityRowActions({
       {canPrimary ? (
         <button
           type="button"
-          onClick={(e) => onPrimaryAction(item, e.currentTarget)}
+          onClick={(e) => {
+            e.stopPropagation();
+            onPrimaryAction(item, e.currentTarget);
+          }}
           className={`inline-flex ${buttonHeight} items-center justify-center rounded-xl border px-3.5 py-1.5 text-xs font-bold shadow-2xs transition cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/25 ${getPrimaryActionButtonClass(item)}`}
         >
           {item.actionLabel}
@@ -132,7 +139,10 @@ function PriorityRowActions({
       ) : null}
       <button
         type="button"
-        onClick={(e) => onInspectItem(item, e.currentTarget)}
+        onClick={(e) => {
+          e.stopPropagation();
+          onInspectItem(item, e.currentTarget);
+        }}
         className={`inline-flex ${buttonHeight} items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-950 transition cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/20`}
       >
         Chi tiết
@@ -313,9 +323,9 @@ export function PriorityRoomsControlSection({
             <table className="w-full border-collapse text-left">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/70 text-xs font-bold uppercase tracking-wide text-slate-600">
-                  <th className="px-4 py-2.5 whitespace-nowrap">Phòng / Mã đơn</th>
-                  <th className="px-4 py-2.5 whitespace-nowrap">Khách & Nguồn</th>
-                  <th className="px-4 py-2.5 whitespace-nowrap">Tình trạng kiểm soát</th>
+                  <th className="px-4 py-2.5 whitespace-nowrap">Phòng</th>
+                  <th className="px-4 py-2.5 whitespace-nowrap">Khách hàng</th>
+                  <th className="px-4 py-2.5 whitespace-nowrap">Trạng thái</th>
                   <th className="px-4 py-2.5 whitespace-nowrap">Lịch lưu trú</th>
                   <th className="px-4 py-2.5 text-right whitespace-nowrap">Thao tác</th>
                 </tr>
@@ -326,12 +336,13 @@ export function PriorityRoomsControlSection({
                   return (
                     <tr
                       key={item.id}
-                      className="transition-colors hover:bg-amber-50/35"
+                      onClick={() => onInspectItem(item, null)}
+                      className="transition-colors hover:bg-slate-50/90 cursor-pointer"
                     >
-                      <td className="px-4 py-3 align-top">
-                        <div className="flex flex-wrap items-center gap-1.5">
+                      <td className="px-4 py-2.5 align-middle">
+                        <div className="flex flex-col gap-0.5">
                           <span
-                            className={`inline-flex items-center rounded-lg border px-2.5 py-1 text-xs font-bold whitespace-nowrap ${
+                            className={`inline-flex w-fit items-center rounded-lg border px-2.5 py-0.5 text-xs font-bold whitespace-nowrap ${
                               item.roomNumber
                                 ? "border-slate-300 bg-slate-50 text-slate-900"
                                 : "border-amber-300 bg-amber-50 text-amber-900"
@@ -339,48 +350,32 @@ export function PriorityRoomsControlSection({
                           >
                             {item.roomNumber ? `P.${item.roomNumber}` : "Chưa gán phòng"}
                           </span>
-                          {item.code ? (
-                            <span className="text-xs font-semibold text-slate-600 whitespace-nowrap">
-                              #{item.code}
+                          {item.roomTypeName ? (
+                            <span className="text-xs text-slate-500 truncate max-w-[180px] text-pretty">
+                              {item.roomTypeName}
                             </span>
                           ) : null}
                         </div>
-                        {item.floorLabel || item.roomTypeName ? (
-                          <p className="mt-1 text-xs text-slate-600 text-pretty">
-                            {[item.roomTypeName, item.floorLabel].filter(Boolean).join(" · ")}
-                          </p>
-                        ) : null}
                       </td>
 
-                      <td className="px-4 py-3 align-top">
+                      <td className="px-4 py-2.5 align-middle">
                         <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="text-sm font-semibold text-slate-900">
+                          <span className="text-xs font-bold text-slate-900">
                             {item.guestName}
                           </span>
                           {item.groupCode ? (
-                            <span className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-800 whitespace-nowrap">
-                              Đoàn {item.groupCode}
+                            <span className="inline-flex items-center rounded-md border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700 whitespace-nowrap">
+                              Đoàn khách
                             </span>
-                          ) : null}
-                        </div>
-                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-600">
-                          {item.guestPhone ? (
-                            <span className="font-medium text-slate-700 whitespace-nowrap">
-                              {item.guestPhone}
-                            </span>
-                          ) : null}
-                          {item.sourceLabel ? (
-                            <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 whitespace-nowrap">
+                          ) : item.sourceLabel ? (
+                            <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 whitespace-nowrap">
                               {item.sourceLabel}
                             </span>
-                          ) : null}
-                          {item.guestCount && item.guestCount > 1 ? (
-                            <span className="whitespace-nowrap">{item.guestCount} khách</span>
                           ) : null}
                         </div>
                       </td>
 
-                      <td className="px-4 py-3 align-top">
+                      <td className="px-4 py-2.5 align-middle">
                         <span
                           className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-bold whitespace-nowrap ${style.pillClass}`}
                         >
@@ -388,21 +383,15 @@ export function PriorityRoomsControlSection({
                           <VsIcon name={style.iconName} className="text-xs" />
                           <span>{item.badgeLabel}</span>
                         </span>
-                        <p className="mt-1.5 text-xs font-medium text-slate-800 text-pretty">
-                          {item.reasonText}
-                        </p>
-                        <p className="mt-0.5 text-xs text-slate-600 text-pretty">
-                          {item.readinessLabel}
-                        </p>
                       </td>
 
-                      <td className="px-4 py-3 align-top">
-                        <span className="text-xs font-semibold text-slate-800 whitespace-nowrap">
+                      <td className="px-4 py-2.5 align-middle">
+                        <span className="text-xs font-semibold text-slate-700 whitespace-nowrap">
                           {item.scheduleText}
                         </span>
                       </td>
 
-                      <td className="px-4 py-3 align-top text-right">
+                      <td className="px-4 py-2.5 align-middle text-right">
                         <div className="inline-flex items-center justify-end gap-2">
                           <PriorityRowActions
                             item={item}
@@ -423,11 +412,15 @@ export function PriorityRoomsControlSection({
             {visibleItems.map((item) => {
               const style = BUCKET_STYLES[item.bucket];
               return (
-                <div key={item.id} className="space-y-2.5 px-4 py-3.5">
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div className="flex flex-wrap items-center gap-2">
+                <div
+                  key={item.id}
+                  onClick={() => onInspectItem(item, null)}
+                  className="space-y-2 px-4 py-3 transition-colors hover:bg-slate-50/80 cursor-pointer"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
                       <span
-                        className={`inline-flex items-center rounded-lg border px-2.5 py-1 text-xs font-bold whitespace-nowrap ${
+                        className={`inline-flex items-center rounded-lg border px-2.5 py-0.5 text-xs font-bold whitespace-nowrap ${
                           item.roomNumber
                             ? "border-slate-300 bg-slate-50 text-slate-900"
                             : "border-amber-300 bg-amber-50 text-amber-900"
@@ -442,36 +435,37 @@ export function PriorityRoomsControlSection({
                         <span>{item.badgeLabel}</span>
                       </span>
                     </div>
-                    {item.code ? (
-                      <span className="text-xs font-semibold text-slate-600 whitespace-nowrap">
-                        #{item.code}
-                      </span>
-                    ) : null}
+                    <span className="text-xs font-semibold text-slate-600 whitespace-nowrap">
+                      {item.scheduleText}
+                    </span>
                   </div>
 
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-bold text-slate-900">{item.guestName}</span>
-                      {item.guestPhone ? (
-                        <span className="text-xs font-medium text-slate-700 whitespace-nowrap">
-                          {item.guestPhone}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-xs font-bold text-slate-900 truncate">
+                        {item.guestName}
+                      </span>
+                      {item.groupCode ? (
+                        <span className="inline-flex items-center rounded-md border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700 whitespace-nowrap">
+                          Đoàn khách
                         </span>
-                      ) : null}
-                      {item.sourceLabel ? (
-                        <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 whitespace-nowrap">
+                      ) : item.sourceLabel ? (
+                        <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 whitespace-nowrap">
                           {item.sourceLabel}
                         </span>
                       ) : null}
                     </div>
-                    <p className="mt-1 text-xs font-medium text-slate-800 text-pretty">
-                      {item.reasonText}
-                    </p>
-                    <p className="mt-0.5 text-xs text-slate-600 text-pretty">
-                      {item.scheduleText} · {item.readinessLabel}
-                    </p>
+                    {item.roomTypeName ? (
+                      <span className="text-xs text-slate-500 truncate max-w-[140px] text-right">
+                        {item.roomTypeName}
+                      </span>
+                    ) : null}
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                  <div
+                    className="flex items-center gap-2 pt-1"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <PriorityRowActions
                       item={item}
                       permissions={{ canCheckInStay, canManageRooms, canManageReservations }}

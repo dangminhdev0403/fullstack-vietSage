@@ -457,6 +457,16 @@ export class ReservationsService {
         throw new NotFoundException("Không tìm thấy đặt phòng");
       }
     }
+    if (
+      reservation &&
+      reservation.status !== ReservationStatus.CHECKED_IN &&
+      reservation.plannedCheckOutAt &&
+      reservation.plannedCheckOutAt.getTime() <= Date.now()
+    ) {
+      throw new ConflictException(
+        "Lịch lưu trú đã hết hạn. Vui lòng điều chỉnh lịch và kiểm tra xung đột trước khi nhận phòng.",
+      );
+    }
     const roomBeforeCheckIn = reservation?.roomId
       ? await this.reservationsRepository.findRoomStatusInHotel?.(hotelId, reservation.roomId)
       : null;

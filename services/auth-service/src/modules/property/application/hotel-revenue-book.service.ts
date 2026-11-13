@@ -62,7 +62,13 @@ export class HotelRevenueBookService {
             include: { allocations: { where: { folioId: { not: null }, allocatedAt: { lt: end } } }, reservation: { select: { guestDisplayName: true, reservationCode: true, roomId: true, room: { select: { roomNumber: true } } } } },
           }),
           tx.hotelRevenueEntry.findMany({
-            where: { hotelId, ...roomFilter, date: { lt: plainDate(addDaysYmd(to, 1)) }, OR: [{ voidedAt: null }, { voidedAt: { gte: start } }] },
+            where: {
+              hotelId, ...roomFilter,
+              AND: [
+                { OR: [{ date: { lt: plainDate(addDaysYmd(to, 1)) } }, { collections: { some: { receivedAt: { lt: end } } } }] },
+                { OR: [{ voidedAt: null }, { voidedAt: { gte: start } }] },
+              ],
+            },
             take: 10001, include: { collections: { where: { receivedAt: { lt: end } }, orderBy: { receivedAt: "asc" } } },
           }),
           tx.room.findMany({ where: { hotelId, ...(roomIds === null ? {} : { id: { in: roomIds } }) }, select: { id: true, roomNumber: true }, orderBy: { roomNumber: "asc" }, take: 10001 }),
@@ -120,7 +126,7 @@ export class HotelRevenueBookService {
         const businessDate = entry.date.toISOString().slice(0, 10);
         const category = entry.category as RevenueBookCategory;
         const charges: MoneyEvent[] = [{ date: startOfPlainDate(businessDate, timeZone), amount: entry.amount, category }];
-        if (entry.voidedAt) charges.push({ date: entry.voidedAt, amount: entry.amount.neg(), category });
+        if (entry.voidedAt) charges.push({ date: new Date(Math.max(entry.voidedAt.getTime(), charges[0].date.getTime())), amount: entry.amount.neg(), category });
         accounts.push({
           id: entry.id, source: "MANUAL", date: businessDate, roomId: entry.roomId, roomNumber: entry.roomNumberSnapshot,
           documentNumber: entry.documentNumber, description: entry.description, category, amount: entry.amount.toNumber(), notes: entry.notes,
@@ -222,6 +228,7 @@ export class HotelRevenueBookService {
         const entry = await this.lockedEntry(tx, scope, id);
         const existing = await tx.hotelRevenueCollection.findUnique({ where: { hotelId_idempotencyKey: { hotelId, idempotencyKey: input.idempotencyKey } } });
         if (existing) { this.assertReplay(requestHash, existing); return { id, version: entry.version }; }
+        if (entry.version !== input.version) throw changed();
         if (entry.voidedAt) throw new BadRequestException("Khoản phát sinh đã hủy không thể thu tiền");
         const collected = entry.collections.reduce((sum, value) => sum.add(value.amount), new Prisma.Decimal(0));
         if (collected.add(input.amount).gt(entry.amount)) throw new BadRequestException("Số tiền thu vượt quá số còn phải thu");

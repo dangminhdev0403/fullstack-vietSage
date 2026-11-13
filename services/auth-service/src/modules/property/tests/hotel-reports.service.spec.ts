@@ -29,6 +29,12 @@ describe("HotelReportsService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    delete (mockPrisma as any).hotelRevenueEntry;
+    delete (mockPrisma as any).hotelExpense;
+    delete (mockPrisma as any).platformBillableDay;
+    delete (mockPrisma as any).receivableCollection;
+    delete (mockPrisma as any).bookingPayment;
+    delete (mockPrisma as any).hotelReceivable;
     service = new HotelReportsService(mockPrisma as never, mockHotelAccessService as never);
 
     mockHotelAccessService.resolveRoomScope.mockResolvedValue({
@@ -405,5 +411,193 @@ describe("HotelReportsService", () => {
     expect(oct20.totalRevenue).toBe(5000000);
     expect(oct20.expense).toBe(2150000);
     expect(oct20.netProfit).toBe(2850000);
+  });
+
+  it("bảo toàn tiền cọc 500.000đ khi đặt phòng bị hủy / no-show: ghi nhận đúng tiền thu theo ngày nhận, không lưu trú/đêm phòng giả", async () => {
+    mockPrisma.room.count.mockResolvedValueOnce(10).mockResolvedValueOnce(0);
+    mockPrisma.payment.findMany.mockResolvedValue([]);
+    mockPrisma.folioItem.findMany.mockResolvedValue([]);
+    mockPrisma.guestStay.findMany.mockResolvedValue([]);
+    mockPrisma.hotelStaffAssignment.findMany.mockResolvedValue([]);
+
+    const extendedPrisma = mockPrisma as unknown as Record<string, unknown>;
+    const receivedAt = new Date("2026-10-20T10:00:00.000+07:00");
+    extendedPrisma.bookingPayment = {
+      findMany: jest.fn().mockResolvedValue([
+        {
+          id: "bp-1",
+          intent: "DEPOSIT",
+          receivedAmount: new Prisma.Decimal(500000),
+          requestedAmount: new Prisma.Decimal(500000),
+          status: "COMPLETED",
+          paymentMethod: PaymentMethod.BANK_TRANSFER,
+          receivedAt,
+          createdAt: receivedAt,
+          allocations: [],
+        },
+      ]),
+    };
+
+    const result = await service.getReports("user-1", "role-1", "hotel-1", {
+      range: "30d",
+      from: "2026-10-19",
+      to: "2026-10-21",
+    });
+
+    // Thống kê cọc riêng
+    expect(result.bookingPaymentsSummary).toBeDefined();
+    expect(result.bookingPaymentsSummary?.totalReceived).toBe(500000);
+    expect(result.bookingPaymentsSummary?.depositCount).toBe(1);
+
+    // Headline revenue & collected
+    expect(result.summary.totalRevenue).toBe(500000);
+    expect(result.summary.collectedRevenue).toBe(500000);
+    expect(result.summary.totalStays).toBe(0);
+    expect(result.summary.totalRoomNights).toBe(0);
+
+    // Phân bổ ngày thu: đúng ngày nhận 20/10, ngày 21/10 không thu lần hai
+    const oct20 = result.revenueByDay.find((d) => d.date === "2026-10-20")!;
+    expect(oct20.collectedRevenue).toBe(500000);
+    expect(oct20.totalRevenue).toBe(500000);
+    expect(oct20.roomsOccupied).toBe(0);
+
+    const oct21 = result.revenueByDay.find((d) => d.date === "2026-10-21")!;
+    expect(oct21.collectedRevenue).toBe(0);
+    expect(oct21.totalRevenue).toBe(0);
+
+    // Phương thức thanh toán
+    expect(result.paymentMethods).toHaveLength(1);
+    expect(result.paymentMethods[0].method).toBe(PaymentMethod.BANK_TRANSFER);
+    expect(result.paymentMethods[0].amount).toBe(500000);
+  });
+
+  it("không tính trùng tiền cọc khi cọc đã được chuyển / phân bổ vào folio (allocated)", async () => {
+    mockPrisma.room.count.mockResolvedValueOnce(10).mockResolvedValueOnce(1);
+    const date = new Date("2026-10-20T10:00:00.000+07:00");
+
+    // Succeeded payment đã được tạo từ billing khi chuyển cọc vào folio
+    mockPrisma.payment.findMany.mockResolvedValue([
+      {
+        id: "pay-from-deposit",
+        paidAmount: 500000,
+        method: PaymentMethod.BANK_TRANSFER,
+        confirmedAt: date,
+        createdByUserId: "user-1",
+        createdBy: null,
+      },
+    ]);
+    mockPrisma.folioItem.findMany.mockResolvedValue([
+      {
+        id: "fi-room",
+        itemType: FolioItemType.ROOM_CHARGE,
+        totalSnapshot: 500000,
+        postedAt: date,
+        postedByUserId: "user-1",
+      },
+    ]);
+    mockPrisma.guestStay.findMany.mockResolvedValue([]);
+    mockPrisma.hotelStaffAssignment.findMany.mockResolvedValue([]);
+
+    const extendedPrisma = mockPrisma as unknown as Record<string, unknown>;
+    extendedPrisma.bookingPayment = {
+      findMany: jest.fn().mockResolvedValue([
+        {
+          id: "bp-1",
+          intent: "DEPOSIT",
+          receivedAmount: new Prisma.Decimal(500000),
+          requestedAmount: new Prisma.Decimal(500000),
+          status: "ALLOCATED",
+          paymentMethod: PaymentMethod.BANK_TRANSFER,
+          receivedAt: date,
+          createdAt: date,
+          allocations: [
+            {
+              id: "alloc-1",
+              folioId: "folio-1",
+              invoiceId: "inv-1",
+              allocatedAmount: new Prisma.Decimal(500000),
+              allocatedAt: date,
+            },
+          ],
+        },
+      ]),
+    };
+
+    const result = await service.getReports("user-1", "role-1", "hotel-1", {
+      range: "30d",
+      from: "2026-10-19",
+      to: "2026-10-21",
+    });
+
+    // Cọc vẫn được ghi nhận trong headline cọc
+    expect(result.bookingPaymentsSummary?.totalReceived).toBe(500000);
+    // Không bị tính trùng: tổng thu đúng 500.000đ thay vì 1.000.000đ
+    expect(result.summary.totalRevenue).toBe(500000);
+    expect(result.summary.collectedRevenue).toBe(500000);
+  });
+
+  it("cọc đoàn phân bổ một phần: bảo toàn đúng phần cọc chưa phân bổ khi có thành viên đoàn hủy", async () => {
+    mockPrisma.room.count.mockResolvedValueOnce(10).mockResolvedValueOnce(1);
+    const date = new Date("2026-10-20T10:00:00.000+07:00");
+
+    // Room 1 của đoàn đã nhận phòng, folio payment nhận 500.000đ
+    mockPrisma.payment.findMany.mockResolvedValue([
+      {
+        id: "pay-room-1",
+        paidAmount: 500000,
+        method: PaymentMethod.BANK_TRANSFER,
+        confirmedAt: date,
+        createdByUserId: "user-1",
+        createdBy: null,
+      },
+    ]);
+    mockPrisma.folioItem.findMany.mockResolvedValue([
+      {
+        id: "fi-room-1",
+        itemType: FolioItemType.ROOM_CHARGE,
+        totalSnapshot: 500000,
+        postedAt: date,
+        postedByUserId: "user-1",
+      },
+    ]);
+    mockPrisma.guestStay.findMany.mockResolvedValue([]);
+    mockPrisma.hotelStaffAssignment.findMany.mockResolvedValue([]);
+
+    // Tổng cọc đoàn là 1.000.000đ, đã phân bổ 500.000đ cho Room 1, còn 500.000đ của Room 2 bị hủy
+    const extendedPrisma = mockPrisma as unknown as Record<string, unknown>;
+    extendedPrisma.bookingPayment = {
+      findMany: jest.fn().mockResolvedValue([
+        {
+          id: "bp-group",
+          intent: "DEPOSIT",
+          receivedAmount: new Prisma.Decimal(1000000),
+          requestedAmount: new Prisma.Decimal(1000000),
+          status: "ALLOCATED",
+          paymentMethod: PaymentMethod.BANK_TRANSFER,
+          receivedAt: date,
+          createdAt: date,
+          allocations: [
+            {
+              id: "alloc-room-1",
+              folioId: "folio-1",
+              invoiceId: "inv-1",
+              allocatedAmount: new Prisma.Decimal(500000),
+              allocatedAt: date,
+            },
+          ],
+        },
+      ]),
+    };
+
+    const result = await service.getReports("user-1", "role-1", "hotel-1", {
+      range: "30d",
+      from: "2026-10-19",
+      to: "2026-10-21",
+    });
+
+    expect(result.bookingPaymentsSummary?.totalReceived).toBe(1000000);
+    // Tổng thu: 500.000đ (folio Room 1) + 500.000đ (cọc chưa phân bổ được bảo toàn) = 1.000.000đ
+    expect(result.summary.totalRevenue).toBe(1000000);
+    expect(result.summary.collectedRevenue).toBe(1000000);
   });
 });

@@ -17,7 +17,7 @@ function account(overrides: Partial<RevenueBookEntry> = {}): RevenueBookEntry {
       { id: "bank-1", receivedAt: "2026-10-01T17:30:00Z", amount: 300, method: "BANK_TRANSFER", reference: "CK-001" },
       { id: "cash-1", receivedAt: "2026-10-03T02:00:00Z", amount: 200, method: "CASH", reference: null },
     ],
-    notes: null, declarationStatus: "Đã khai báo", version: null, voidedAt: null,
+    notes: null, declarationStatus: "SUBMITTED", version: null, voidedAt: null,
     ...overrides,
   };
 }
@@ -125,6 +125,14 @@ test("multiple same-day receipts retain one revenue row and exact cent totals", 
   assert.equal(details.filter((row) => row.J !== undefined).length, 1);
   assert.equal(details[1].P, 0.2, "Card payment remains an explicit other payment");
   assert.equal(rows.find((row) => String(row.A).startsWith("Cộng ngày"))!.O, 0.3);
+});
+
+test("declaration status uses Vietnamese labels with a safe unknown fallback and blank null", () => {
+  for (const [status, label] of [["SUBMITTED", "Đã khai báo"], ["READY", "Chờ gửi"], ["FUTURE_STATUS", "Chưa xác định"], [null, undefined]] as const) {
+    const details = rowsOf(book([account({ declarationStatus: status })])).filter((row) => typeof row.A === "number");
+    assert.ok(details.length > 0);
+    assert.ok(details.every((row) => row.R === label), `Status ${status} should display ${label}`);
+  }
 });
 
 test("old-debt collections do not become revenue and carry-only accounts keep an undated balance", () => {

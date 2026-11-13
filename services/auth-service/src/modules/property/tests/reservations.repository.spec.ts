@@ -18,6 +18,7 @@ import {
   RoomStatus,
 } from "@prisma/client";
 import { ReservationsRepository } from "../infrastructure/repositories/reservations.repository";
+import { ReservationsService } from "../application/reservations.service";
 
 function createRepository(tx: Record<string, unknown>) {
   const prisma = {
@@ -662,12 +663,13 @@ describe("ReservationsRepository transactional lifecycle", () => {
     expect(prisma.$transaction).toHaveBeenCalledTimes(3);
   });
 
-  it("returns the existing stay and folio when check-in is repeated", async () => {
+  it("returns the existing stay and folio when check-in is repeated even after the planned checkout", async () => {
     const reservation = {
       id: "reservation-1",
       hotelId: "hotel-1",
       roomId: "room-1",
       status: ReservationStatus.CHECKED_IN,
+      plannedCheckOutAt: new Date("2026-07-31T05:00:00.000Z"),
     };
     const stay = { id: "stay-1" };
     const folio = { id: "folio-1" };
@@ -932,6 +934,7 @@ describe("ReservationsRepository transactional lifecycle", () => {
       guestDisplayName: "Late Guest",
       status: ReservationStatus.ARRIVAL_READY,
       plannedCheckInAt: pastDate,
+      plannedCheckOutAt: new Date("2026-08-03T05:00:00.000Z"),
       hotel: { timezone: "Asia/Ho_Chi_Minh" },
     };
     const tx = {
@@ -981,6 +984,71 @@ describe("ReservationsRepository transactional lifecycle", () => {
 
     expect(result.reservation.status).toBe(ReservationStatus.CHECKED_IN);
     expect(result.stay.status).toBe("ACTIVE");
+  });
+
+  it.each<[string, string, { confirmLateCheckIn?: boolean; allowLateCheckIn?: boolean; plannedCheckOutAt?: string }]>([
+    ["past checkout", "2026-08-01T11:59:59.999Z", { confirmLateCheckIn: true }],
+    ["checkout exactly now", "2026-08-01T12:00:00.000Z", { confirmLateCheckIn: true }],
+    ["legacy late flag", "2026-08-01T05:00:00.000Z", { allowLateCheckIn: true }],
+    ["without confirmation", "2026-08-01T05:00:00.000Z", {}],
+    ["inline extension", "2026-08-01T05:00:00.000Z", {
+      confirmLateCheckIn: true,
+      plannedCheckOutAt: "2026-08-04T05:00:00.000Z",
+    }],
+  ])("rejects expired late arrivals (%s) before any room, stay or money writes", async (_case, checkout, dto) => {
+    const reservation = {
+      id: "res-expired",
+      hotelId: "hotel-1",
+      roomId: "room-1",
+      status: ReservationStatus.ARRIVAL_READY,
+      plannedCheckInAt: new Date("2026-07-30T07:00:00.000Z"),
+      plannedCheckOutAt: new Date(checkout),
+    };
+    const tx = {
+      $queryRawUnsafe: jest.fn(),
+      reservation: { findFirst: jest.fn().mockResolvedValue(reservation), update: jest.fn() },
+      room: { findFirst: jest.fn(), updateMany: jest.fn() },
+      guestStay: { create: jest.fn(), updateMany: jest.fn() },
+      folio: { create: jest.fn(), updateMany: jest.fn() },
+      folioItem: { create: jest.fn(), createMany: jest.fn() },
+      bookingPayment: { create: jest.fn(), updateMany: jest.fn(), deleteMany: jest.fn() },
+      domainEvent: { create: jest.fn() },
+    };
+    const { repository } = createRepository(tx);
+    const generateFolioNumber = jest.fn();
+    await expect(repository.checkInReservation({
+      hotelId: "hotel-1", tenantId: "tenant-1", reservationId: reservation.id,
+      actorUserId: "actor-1", accessCodeHash: "hash", accessCodeExpiresAt: new Date(),
+      generateFolioNumber, timezone: "America/Los_Angeles", dto,
+    })).rejects.toThrow("Lịch lưu trú đã hết hạn");
+    expect(tx.$queryRawUnsafe).toHaveBeenCalledTimes(1);
+    expect(tx.room.findFirst).not.toHaveBeenCalled();
+    expect(generateFolioNumber).not.toHaveBeenCalled();
+    for (const delegate of [tx.room, tx.guestStay, tx.folio, tx.folioItem, tx.bookingPayment, tx.domainEvent]) {
+      for (const operation of Object.values(delegate)) expect(operation).not.toHaveBeenCalled();
+    }
+    expect(tx.reservation.update).not.toHaveBeenCalled();
+  });
+
+  it("service rejects expired late arrivals before invoking the repository or publishing check-in", async () => {
+    const repository = {
+      findReservationById: jest.fn().mockResolvedValue({
+        id: "res-expired", roomId: "room-1", status: ReservationStatus.ARRIVAL_READY,
+        plannedCheckOutAt: new Date("2026-08-01T12:00:00.000Z"),
+      }),
+      checkInReservation: jest.fn(),
+    };
+    const access = {
+      assertHotelAccess: jest.fn().mockResolvedValue({ tenantId: "tenant-1", timezone: "Asia/Ho_Chi_Minh" }),
+      assertRoomAccess: jest.fn(),
+    };
+    const publisher = { publishStayCheckedIn: jest.fn() };
+    const service = new ReservationsService(repository as never, {} as never, access as never, publisher);
+    await expect(service.checkIn("actor-1", "role-1", "hotel-1", "res-expired", {
+      confirmLateCheckIn: true,
+    })).rejects.toThrow("Lịch lưu trú đã hết hạn");
+    expect(repository.checkInReservation).not.toHaveBeenCalled();
+    expect(publisher.publishStayCheckedIn).not.toHaveBeenCalled();
   });
 
   it("blocks check-in when reservation is CANCELLED or NO_SHOW", async () => {
@@ -1864,6 +1932,116 @@ describe("ReservationsRepository transactional lifecycle", () => {
       ).rejects.toThrow(new ConflictException("ROOM_RESERVATION_OVERLAP"));
 
       expect(tx.reservation.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe.each([
+    ["cancelReservation", ReservationStatus.CANCELLED, "RESERVATION_CANCELLED"],
+    ["markNoShow", ReservationStatus.NO_SHOW, "RESERVATION_NO_SHOW"],
+  ] as const)("%s deposit preservation and group isolation", (method, status, eventType) => {
+    it.each([false, true])("releases only the selected arrival and retains received payments (group=%s)", async (isGroup) => {
+      const selected = {
+        id: "selected", hotelId: "hotel-1", roomId: "room-1",
+        status: ReservationStatus.ARRIVAL_READY,
+        groupId: isGroup ? "group-1" : null,
+        groupCode: isGroup ? "GRP-1" : null,
+        plannedCheckInAt: new Date("2026-07-28T07:00:00.000Z"),
+        plannedCheckOutAt: new Date("2026-07-30T05:00:00.000Z"),
+      };
+      const checkedInMember = { ...selected, id: "checked-in-member", roomId: "room-2", status: ReservationStatus.CHECKED_IN };
+      const waitingMember = { ...selected, id: "waiting-member", roomId: "room-3" };
+      const reservations = [selected, ...(isGroup ? [checkedInMember, waitingMember] : [])];
+      const otherMembersBefore = reservations.slice(1).map((r) => ({ ...r }));
+      const receivedAt = new Date("2026-07-20T02:30:00.000Z");
+      const payments = [Object.freeze({
+        id: "deposit-1", hotelId: "hotel-1", reservationId: selected.id,
+        amount: 500000, receivedAmount: 500000, receivedAt,
+        paymentType: "DEPOSIT", status: "COMPLETED",
+      }), ...(isGroup ? [Object.freeze({
+        id: "group-deposit", hotelId: "hotel-1", reservationId: null,
+        groupId: "group-1", groupCode: "GRP-1", amount: 1500000,
+        receivedAmount: 1500000, receivedAt: new Date("2026-07-19T03:00:00.000Z"),
+        paymentType: "DEPOSIT", status: "COMPLETED",
+      })] : [])];
+      const paymentsBefore = payments.map((p) => ({ ...p }));
+      const activeStay = Object.freeze({
+        id: "stay-2", reservationId: checkedInMember.id, roomId: "room-2",
+        status: GuestStayStatus.ACTIVE, checkedInAt: new Date("2026-07-28T07:00:00.000Z"),
+        checkedOutAt: null,
+      });
+      const forbiddenWrites = () => ({
+        create: jest.fn(), createMany: jest.fn(), update: jest.fn(), updateMany: jest.fn(),
+        delete: jest.fn(), deleteMany: jest.fn(), upsert: jest.fn(),
+      });
+      const tx = {
+        $queryRawUnsafe: jest.fn(),
+        reservation: {
+          findFirst: jest.fn(async ({ where }: { where: { id: string; hotelId: string } }) =>
+            reservations.find((r) => r.id === where.id && r.hotelId === where.hotelId)),
+          update: jest.fn(async ({ where, data }: { where: { id: string }; data: { status: ReservationStatus; roomId: null } }) => {
+            const index = reservations.findIndex((r) => r.id === where.id);
+            reservations[index] = { ...reservations[index], ...data };
+            return reservations[index];
+          }),
+          updateMany: jest.fn(),
+        },
+        bookingPayment: { ...forbiddenWrites(), findMany: jest.fn().mockResolvedValue(payments) },
+        bookingPaymentAllocation: forbiddenWrites(),
+        reservationGroup: forbiddenWrites(),
+        reservationChargeLine: forbiddenWrites(),
+        guestStay: { ...forbiddenWrites(), findUnique: jest.fn().mockResolvedValue(activeStay) },
+        room: forbiddenWrites(),
+        folio: forbiddenWrites(),
+        folioItem: forbiddenWrites(),
+        payment: forbiddenWrites(),
+        auditLog: { create: jest.fn() },
+        domainEvent: { create: jest.fn() },
+      };
+      const { repository, prisma } = createRepository(tx);
+      await repository[method]({
+        hotelId: "hotel-1", tenantId: "tenant-1", reservationId: selected.id,
+        actorUserId: "actor-1", reason: "Khách không tiếp tục lưu trú",
+      });
+      expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), expect.objectContaining({
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      }));
+      expect(tx.reservation.findFirst).toHaveBeenCalledWith({ where: { id: "selected", hotelId: "hotel-1" } });
+      expect(reservations[0]).toMatchObject({ roomId: null, status });
+      expect(tx.reservation.update).toHaveBeenCalledTimes(1);
+      expect(tx.reservation.updateMany).not.toHaveBeenCalled();
+      expect(tx.auditLog.create).toHaveBeenCalledWith({ data: expect.objectContaining({
+        entityId: "selected", action: eventType,
+        metadata: expect.objectContaining({ previousRoomId: "room-1", reason: "Khách không tiếp tục lưu trú" }),
+      }) });
+      expect(tx.domainEvent.create).toHaveBeenCalledTimes(1);
+      expect(tx.domainEvent.create).toHaveBeenCalledWith({ data: expect.objectContaining({
+        eventType, aggregateId: "selected",
+      }) });
+      expect(payments).toEqual(paymentsBefore);
+      expect(payments[0].receivedAt).toEqual(receivedAt);
+      expect(reservations.slice(1)).toEqual(otherMembersBefore);
+      expect(activeStay).toMatchObject({ status: GuestStayStatus.ACTIVE, checkedOutAt: null });
+      for (const delegate of [tx.bookingPayment, tx.bookingPaymentAllocation, tx.reservationGroup,
+        tx.reservationChargeLine, tx.guestStay, tx.room, tx.folio, tx.folioItem, tx.payment]) {
+        for (const operation of Object.values(delegate)) expect(operation).not.toHaveBeenCalled();
+      }
+    });
+
+    it("rejects selecting an already checked-in group member without releasing its room", async () => {
+      const member = { id: "member-checked-in", hotelId: "hotel-1", groupCode: "GRP-1", roomId: "room-2", status: ReservationStatus.CHECKED_IN };
+      const tx = {
+        $queryRawUnsafe: jest.fn(),
+        reservation: { findFirst: jest.fn().mockResolvedValue(member), update: jest.fn() },
+        auditLog: { create: jest.fn() }, domainEvent: { create: jest.fn() },
+      };
+      const { repository } = createRepository(tx);
+      await expect(repository[method]({
+        hotelId: "hotel-1", tenantId: "tenant-1", reservationId: member.id, actorUserId: "actor-1",
+      })).rejects.toThrow(ConflictException);
+      expect(member.roomId).toBe("room-2");
+      expect(tx.reservation.update).not.toHaveBeenCalled();
+      expect(tx.auditLog.create).not.toHaveBeenCalled();
+      expect(tx.domainEvent.create).not.toHaveBeenCalled();
     });
   });
 

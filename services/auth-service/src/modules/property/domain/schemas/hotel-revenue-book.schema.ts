@@ -33,7 +33,7 @@ export const createRevenueEntrySchema = z.object({
   collection: revenueBookCollectionSchema.optional(),
 }).strict().refine((value) => !value.collection || value.collection.amount <= value.amount, "Số tiền thu vượt quá khoản phát sinh");
 export const updateRevenueEntrySchema = z.object({ ...fields, version: z.number().int().nonnegative() }).strict();
-export const collectRevenueEntrySchema = revenueBookCollectionSchema.extend({ idempotencyKey: text(120) }).strict();
+export const collectRevenueEntrySchema = revenueBookCollectionSchema.extend({ idempotencyKey: text(120), version: z.number().int().nonnegative() }).strict();
 export const voidRevenueEntrySchema = z.object({ reason: text(500), version: z.number().int().nonnegative() }).strict();
 export const revenueEntryIdSchema = text(120);
 export type RevenueBookCategory = z.infer<typeof revenueBookCategorySchema>;

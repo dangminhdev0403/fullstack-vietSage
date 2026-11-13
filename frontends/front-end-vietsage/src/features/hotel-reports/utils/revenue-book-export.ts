@@ -8,6 +8,10 @@ const encoder = new TextEncoder();
 const columns = "ABCDEFGHIJKLMNOPQRS";
 const emptyRevenue = (): Revenue => ({ roomRevenue: 0, minibarRevenue: 0, laundryRevenue: 0, otherRevenue: 0, revenueTotal: 0 });
 const addMoney = (left: number, right: number) => (Math.round(left * 100) + Math.round(right * 100)) / 100;
+const declarationLabels: Record<string, string> = {
+  DRAFT: "Bản nháp", READY: "Chờ gửi", SENDING: "Đang gửi", SUBMITTED: "Đã khai báo",
+  FAILED: "Gửi thất bại", UNKNOWN: "Chưa xác định", CANCELLED: "Đã hủy",
+};
 
 function escapeXml(value: string): string {
   return value.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\ufffe\uffff]/g, "")
@@ -126,7 +130,8 @@ function sheetXml(book: RevenueBook): string {
       ++sequence, activity.date ? dateLabel(activity.date) : null, entry.roomNumber, entry.documentNumber, entry.description,
       revenue?.roomRevenue, revenue?.minibarRevenue, revenue?.laundryRevenue, revenue?.otherRevenue, revenue?.revenueTotal,
       local ? dateLabel(local.date) : null, collection ? cash : null, bank ? local?.time : null, collection ? bank : null,
-      collection ? paid : null, collection ? other : null, activity.closing, entry.declarationStatus, notes,
+      collection ? paid : null, collection ? other : null, activity.closing,
+      entry.declarationStatus ? declarationLabels[entry.declarationStatus] ?? "Chưa xác định" : null, notes,
     ]);
     if (revenue) for (const key of Object.keys(dayRevenue) as Array<keyof Revenue>) dayRevenue[key] = addMoney(dayRevenue[key], revenue[key]);
     dayCash = addMoney(dayCash, cash);

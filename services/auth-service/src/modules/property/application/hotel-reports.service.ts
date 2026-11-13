@@ -619,7 +619,13 @@ export class HotelReportsService {
         ? (this.prisma as any).bookingPayment.findMany({
             where: {
               hotelId,
-              createdAt: { gte: queryWindowStartDate, lte: endDate },
+              ...(scope.allowedRoomId !== null
+                ? { reservation: { roomId: scope.allowedRoomId } }
+                : {}),
+              OR: [
+                { receivedAt: { gte: queryWindowStartDate, lte: endDate } },
+                { createdAt: { gte: queryWindowStartDate, lte: endDate } },
+              ],
             },
             select: {
               id: true,
@@ -628,7 +634,17 @@ export class HotelReportsService {
               requestedAmount: true,
               status: true,
               paymentMethod: true,
+              receivedAt: true,
               createdAt: true,
+              allocations: {
+                select: {
+                  id: true,
+                  folioId: true,
+                  invoiceId: true,
+                  allocatedAmount: true,
+                  allocatedAt: true,
+                },
+              },
             },
           })
         : Promise.resolve([]),
@@ -790,6 +806,40 @@ export class HotelReportsService {
     // 3. Reconcile collected payments vs folio / stay charges without fabricated 85%/15% ratios
     const totalCollected = succeededPayments.reduce((sum, p) => sum + toNumber(p.paidAmount), 0);
 
+    const unallocatedDeposits: Array<{
+      id: string;
+      paidAmount: number;
+      method: PaymentMethod;
+      confirmedAt: Date;
+    }> = [];
+
+    for (const bp of allBookingPaymentsRaw) {
+      if (bp.status === "CANCELLED" || bp.status === "FAILED") continue;
+      const rec = toNumber(bp.receivedAmount ?? bp.amountReceived ?? 0);
+      if (rec <= 0) continue;
+      const allocated = (bp.allocations ?? [])
+        .filter((a: any) => a.folioId != null || a.invoiceId != null)
+        .reduce((sum: number, a: any) => sum + toNumber(a.allocatedAmount), 0);
+      const unallocated = Math.max(0, rec - allocated);
+      if (unallocated > 0) {
+        unallocatedDeposits.push({
+          id: bp.id,
+          paidAmount: unallocated,
+          method: (bp.paymentMethod as PaymentMethod) || PaymentMethod.CASH,
+          confirmedAt: bp.receivedAt ?? bp.createdAt,
+        });
+      }
+    }
+
+    const unallocatedDepositsInPeriod = unallocatedDeposits.filter((d) => {
+      const dt = dateToPlainDate(d.confirmedAt, timeZone);
+      return (
+        Temporal.PlainDate.compare(dt, startPlain) >= 0 &&
+        Temporal.PlainDate.compare(dt, endPlain) <= 0
+      );
+    });
+    const depositCollected = unallocatedDepositsInPeriod.reduce((sum, d) => sum + d.paidAmount, 0);
+
     const startYmd = startPlain.toString();
     const endYmd = endPlain.toString();
     const dateOnlyYmd = (value: Date) => value.toISOString().slice(0, 10);
@@ -823,7 +873,8 @@ export class HotelReportsService {
       })
       .reduce((sum, col) => sum + toNumber(col.collectedAmount), 0);
 
-    const collectedRevenue = totalCollected + receivableCollected + manualCollected;
+    const totalCollectedWithDeposits = totalCollected + depositCollected;
+    const collectedRevenue = totalCollectedWithDeposits + receivableCollected + manualCollected;
 
     const effectiveServiceRevenue = folioServiceRevenue;
     const effectiveOtherRevenue = folioOtherRevenue;
@@ -833,7 +884,7 @@ export class HotelReportsService {
       effectiveRoomRevenue + effectiveServiceRevenue + effectiveOtherRevenue;
 
     const pmsTotalRevenue =
-      totalBilledRevenue > 0 ? Math.max(totalCollected, totalBilledRevenue) : totalCollected;
+      totalBilledRevenue > 0 ? Math.max(totalCollectedWithDeposits, totalBilledRevenue) : totalCollectedWithDeposits;
 
     if (pmsTotalRevenue > totalBilledRevenue && effectiveRoomRevenue === 0) {
       effectiveRoomRevenue = Math.max(
@@ -908,12 +959,13 @@ export class HotelReportsService {
     }
 
     // 4. Daily Revenue & Occupancy Breakdown (timezone-accurate via Temporal.PlainDate)
+    const combinedDailyPayments = [...succeededPayments, ...unallocatedDepositsInPeriod];
     const revenueByDay = this.buildDailyBreakdown(
       startPlain,
       endPlain,
       timeZone,
       totalRooms,
-      succeededPayments,
+      combinedDailyPayments,
       folioItems,
       stays,
       allManualRevenueRaw,
@@ -923,11 +975,12 @@ export class HotelReportsService {
     );
 
     // 5. Monthly Revenue Breakdown (uses full 12-month window datasets)
+    const combinedMonthlyPayments = [...allSucceededPayments, ...unallocatedDeposits];
     const revenueByMonth = this.buildMonthlyBreakdown(
       endPlain,
       timeZone,
       totalRooms,
-      allSucceededPayments,
+      combinedMonthlyPayments,
       allFolioItems,
       allStays,
       allManualRevenueRaw,
@@ -961,7 +1014,7 @@ export class HotelReportsService {
     const guestAnalytics = this.buildGuestAnalytics(stays, startPlain, endPlain, timeZone);
 
     // 10. Payment Methods Breakdown
-    const paymentMethods = this.buildPaymentMethodsBreakdown(succeededPayments);
+    const paymentMethods = this.buildPaymentMethodsBreakdown(combinedDailyPayments);
 
     // 11. Revenue by Booking Owner
     const revenueByBookingOwner = this.buildBookingOwnerBreakdown(
@@ -1753,6 +1806,7 @@ export class HotelReportsService {
     let depositCount = 0;
 
     for (const p of payments) {
+      if (p.status === "CANCELLED" || p.status === "FAILED") continue;
       totalRequested += toNumber(p.requestedAmount ?? p.amountRequested);
       totalReceived += toNumber(p.receivedAmount ?? p.amountReceived);
       depositCount++;

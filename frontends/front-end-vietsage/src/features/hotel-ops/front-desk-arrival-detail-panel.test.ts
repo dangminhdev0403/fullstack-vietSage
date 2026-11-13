@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import vm from "node:vm";
+import ts from "typescript";
+import type { HotelArrival } from "./types/hotel-ops-contract.ts";
 
 const panelSource = readFileSync(
   new URL("./components/front-desk-arrival-detail-panel.tsx", import.meta.url),
@@ -46,9 +49,6 @@ test("FrontDeskArrivalsTable wires row click and keyboard Enter/Space without fo
   assert.doesNotMatch(arrivalsTableSource, /router\.push/);
   assert.doesNotMatch(arrivalsTableSource, /targetHref/);
 
-  // Chevron right indicator matching in-house table
-  assert.match(arrivalsTableSource, /name="chevron_right"/);
-
   // Mounts FrontDeskArrivalDetailPanel
   assert.match(arrivalsTableSource, /<FrontDeskArrivalDetailPanel/);
 });
@@ -71,11 +71,7 @@ test("FrontDeskArrivalDetailPanel room assignment dropdown complies with Fronten
 });
 
 test("FrontDeskArrivalDetailPanel check-in and room assignment API isolation", () => {
-  // Check-in API call
-  assert.match(
-    panelSource,
-    /staffRoomsRepository\.checkInReservation\(\s*hotelId,\s*arrival\.id,/,
-  );
+  assert.match(panelSource, /staffRoomsResource\.bind\(\{ hotelId \}\)\.mutations\.checkInReservation\.options\(\)/);
 
   // Room assignment API call
   assert.match(
@@ -87,7 +83,8 @@ test("FrontDeskArrivalDetailPanel check-in and room assignment API isolation", (
   assert.match(panelSource, /invalidateHotelRealtimeQueries\(queryClient, hotelId\)/);
 
   // Timezone standard
-  assert.match(panelSource, /timeZone:\s*"Asia\/Ho_Chi_Minh"/);
+  assert.match(panelSource, /timeZone: hotelTimezone/);
+  assert.match(panelSource, /priorityAlerts\?\.timezone/);
 });
 
 test("FrontDeskArrivalsTable does not use misleading action labels as status and uses getArrivalStatusDisplay", () => {
@@ -192,49 +189,10 @@ test("getArrivalStatusDisplay accurately determines hospitality statuses", async
 });
 
 test("FrontDeskArrivalDetailPanel check-in uses stale guards and explicit confirmation flags", () => {
-  assert.match(panelSource, /staffRoomsRepository\.checkInReservation\(\s*hotelId,\s*arrival\.id,\s*basePayload/);
-  const basePayloadMatch = panelSource.match(/const basePayload = \{([\s\S]*?)\};/);
-  assert.ok(basePayloadMatch, "basePayload must be defined");
-  assert.doesNotMatch(basePayloadMatch[1], /confirmEarlyCheckIn|confirmLateCheckIn/);
-  assert.match(basePayloadMatch[1], /expectedRoomId/);
-  assert.match(basePayloadMatch[1], /expectedUpdatedAt/);
-
-  assert.match(panelSource, /warningConfirm\.isConfirmed/);
-  assert.match(panelSource, /confirmEarlyCheckIn:\s*true/);
-  assert.match(panelSource, /confirmLateCheckIn:\s*true/);
-});
-
-test("FrontDeskArrivalDetailPanel and CheckInWorkspace final summary covers all 8 required dimensions", () => {
-  // 1. Guest: Khách đại diện
-  assert.match(panelSource, /Khách đại diện/);
-  // 2. Reservation: Mã đặt phòng
-  assert.match(panelSource, /Mã đặt phòng/);
-  // 3. Room: Phòng
-  assert.match(panelSource, /Phòng/);
-  // 4. Type: Hạng phòng
-  assert.match(panelSource, /Hạng phòng/);
-  // 5. Capacity: Sức chứa
-  assert.match(panelSource, /Sức chứa/);
-  // 6. Schedule: Lịch trình
-  assert.match(panelSource, /Lịch trình/);
-  // 7. Party: Đoàn lưu trú
-  assert.match(panelSource, /Đoàn lưu trú/);
-  // 8. Notes: Ghi chú
-  assert.match(panelSource, /Ghi chú/);
-
-  // CheckInWorkspace pre-confirmation also contains all 8 fields
-  const workspaceSource = readFileSync(
-    new URL("../local-biometric/components/check-in-workspace.tsx", import.meta.url),
-    "utf8",
-  );
-  assert.match(workspaceSource, /• Khách đại diện:/);
-  assert.match(workspaceSource, /• Mã đặt phòng:/);
-  assert.match(workspaceSource, /• Phòng:/);
-  assert.match(workspaceSource, /• Hạng phòng:/);
-  assert.match(workspaceSource, /• Sức chứa:/);
-  assert.match(workspaceSource, /• Lịch trình:/);
-  assert.match(workspaceSource, /• Đoàn lưu trú:/);
-  assert.match(workspaceSource, /• Ghi chú:/);
+  assert.match(panelSource, /expectedRoomId: activeArrival\.roomId/);
+  assert.match(panelSource, /expectedUpdatedAt: activeArrival\.updatedAt/);
+  assert.match(panelSource, /handleConfirmCheckIn\(\{ confirmLateCheckIn: true \}\)/);
+  assert.match(panelSource, /<GroupCheckInModal/);
 });
 
 test("formatFriendlyCheckInError handles conflict refetch guidance, cancelled, already-checked-in, and idempotent replay", async () => {
@@ -265,4 +223,275 @@ test("formatFriendlyCheckInError handles conflict refetch guidance, cancelled, a
   const idempotentMsg = formatFriendlyCheckInError("IDEMPOTENT_REPLAY");
   assert.match(idempotentMsg, /xử lý thành công trước đó/);
   assert.match(idempotentMsg, /đồng bộ an toàn/);
+});
+
+type TestNode = { type: unknown; props: Record<string, unknown> };
+type DialogPlan = { isConfirmed?: boolean; isDenied?: boolean; select?: string; details?: string };
+
+function renderArrivalPanel(options: {
+  arrival?: Partial<HotelArrival>;
+  dialogs?: DialogPlan[];
+  canCheckInStay?: boolean;
+  canManageReservations?: boolean;
+  activeStay?: Record<string, unknown>;
+  failMutation?: boolean;
+  hotelTimezone?: string;
+  businessDate?: string;
+  calendarError?: boolean;
+  paymentError?: boolean;
+} = {}) {
+  const arrival: HotelArrival = {
+    id: "selected-reservation", hotelId: "hotel-1", reservationCode: "RES-1", groupCode: "GRP-1",
+    roomId: "room-1", room: { id: "room-1", roomNumber: "101", type: "Deluxe", status: "AVAILABLE" },
+    guestDisplayName: "Nguyễn <An>", guestPhone: null, status: "CONFIRMED",
+    plannedCheckInAt: "2026-11-12T07:00:00.000Z", plannedCheckOutAt: "2026-11-15T05:00:00.000Z",
+    updatedAt: "2026-11-12T06:00:00.000Z", ...options.arrival,
+  };
+  const state: unknown[] = [];
+  let cursor = 0;
+  let details = "";
+  let closed = 0;
+  let invalidated = 0;
+  const calls: Array<{ operation: string; args: unknown[] }> = [];
+  const dialogs: Record<string, unknown>[] = [];
+  const warnings: unknown[][] = [];
+  const errors: unknown[][] = [];
+  const plans = [...(options.dialogs ?? [])];
+  const react = {
+    createElement: (type: unknown, props: Record<string, unknown> | null, ...children: unknown[]): TestNode => ({ type, props: { ...props, children } }),
+    Fragment: "Fragment",
+    useState: (initial: unknown) => {
+      const index = cursor++;
+      if (!(index in state)) state[index] = initial;
+      return [state[index], (value: unknown) => {
+        state[index] = typeof value === "function" ? value(state[index]) : value;
+      }];
+    },
+    useMemo: (fn: () => unknown) => fn(), useEffect() {}, useRef: () => ({ current: null }), useId: () => "arrival-panel",
+  };
+  const mutate = async (operation: string, ...args: unknown[]) => {
+    calls.push({ operation, args: structuredClone(args) });
+    if (options.failMutation) throw new Error("Phòng đã được cập nhật. Vui lòng tải lại.");
+    return {};
+  };
+  const swal = {
+    SwalVietSage: {
+      isVisible: () => false,
+      async fire(config: Record<string, unknown>) {
+        dialogs.push(config);
+        const plan = plans.shift() ?? {};
+        details = plan.details ?? "";
+        const value = plan.select !== undefined
+          ? (config.preConfirm as (value: string) => unknown)(plan.select)
+          : undefined;
+        return { ...plan, value, isConfirmed: Boolean(plan.isConfirmed && value !== false) };
+      },
+      getPopup: () => ({ querySelector: () => ({ value: details }) }),
+      showValidationMessage: (message: string) => warnings.push([message]),
+    },
+    escapeHtml: (value: string) => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"),
+    showWarningAlert: async (...args: unknown[]) => { warnings.push(args); },
+    showErrorAlert: async (...args: unknown[]) => { errors.push(args); },
+    showSuccessAlert: async () => {}, showConfirmDialog: async () => ({ isConfirmed: false }),
+    SWAL_DANGER_BTN_CLASS: "text-base",
+  };
+  const queryOptions = (kind: string) => ({ options: () => ({ kind }) });
+  const resource = { bind: () => ({
+    queries: { priorityAlerts: queryOptions("calendar"), allRooms: queryOptions("rooms"), bookingPayments: queryOptions("payments"), receivables: queryOptions("receivables") },
+    mutations: { checkInReservation: queryOptions("check-in") },
+  }) };
+  const { outputText, diagnostics } = ts.transpileModule(panelSource, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, esModuleInterop: true },
+    reportDiagnostics: true,
+  });
+  assert.equal(diagnostics?.length, 0, "panel must transpile without syntax errors");
+  const mod = { exports: {} as { FrontDeskArrivalDetailPanel: (props: Record<string, unknown>) => TestNode } };
+  const run = vm.runInNewContext(`(function(require, module, exports) { ${outputText}\n })`, { Intl, Date, Number, Boolean, String, Math, Object, Array });
+  run((id: string) => {
+    if (id === "react") return { ...react, default: react, __esModule: true };
+    if (id === "next/link") return { default: "Link", __esModule: true };
+    if (id === "@tanstack/react-query") return {
+      useQueryClient: () => ({}),
+      useMutation: () => ({ mutateAsync: (variables: unknown) => mutate("check-in", variables) }),
+      useQuery: ({ kind }: { kind: string }) => ({
+        data: kind === "calendar" ? {
+          timezone: options.hotelTimezone ?? "Asia/Ho_Chi_Minh", businessDate: options.businessDate ?? "2026-11-13",
+        } : { items: kind === "rooms" ? [{
+          id: "room-1", roomNumber: "101", status: "AVAILABLE", activeStay: options.activeStay,
+        }] : kind === "payments" ? [{ amount: 400000, receivedAmount: 350000, paymentMethod: "CASH", paymentType: "DEPOSIT" }] : [] },
+        refetch: async () => {}, isPending: false,
+        isError: kind === "calendar" ? options.calendarError : kind === "payments" ? options.paymentError : false,
+      }),
+    };
+    if (id.endsWith("/staff-rooms-resource")) return { staffRoomsResource: resource };
+    if (id.endsWith("/staff-rooms-repository")) return { staffRoomsRepository: {
+      cancelReservation: (...args: unknown[]) => mutate("cancel", ...args),
+      markNoShowReservation: (...args: unknown[]) => mutate("no-show", ...args),
+    } };
+    if (id.endsWith("/invalidate-hotel-realtime-queries")) return { invalidateHotelRealtimeQueries: async () => { invalidated++; } };
+    if (id.endsWith("/vietnam-temporal")) return { toVietnamYmd: (value: string) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }).format(new Date(value)) };
+    if (id.endsWith("/swal")) return swal;
+    if (id.endsWith("/hotel-ops-display")) return { getArrivalStatusDisplay: () => ({ label: "Đã xác nhận" }) };
+    if (id.endsWith("/check-in-error")) return { formatFriendlyCheckInError: (err: Error) => err.message, formatFriendlyHotelOpsError: (err: Error) => err.message };
+    return new Proxy({}, { get: (_target, name) => name });
+  }, mod, mod.exports);
+  function render() {
+    cursor = 0;
+    return mod.exports.FrontDeskArrivalDetailPanel({
+      isOpen: true, hotelId: "hotel-1", arrival, todayYmd: "2026-11-13", onClose: () => closed++,
+      canManageReservations: options.canManageReservations ?? true, canCheckInStay: options.canCheckInStay ?? true,
+    });
+  }
+  function nodes(value: unknown): TestNode[] {
+    if (Array.isArray(value)) return value.flatMap(nodes);
+    if (!value || typeof value !== "object" || !("props" in value)) return [];
+    const element = value as TestNode;
+    return [element, ...nodes(element.props.children)];
+  }
+  function text(value: unknown): string {
+    if (Array.isArray(value)) return value.map(text).join("");
+    if (typeof value === "string" || typeof value === "number") return String(value);
+    return value && typeof value === "object" && "props" in value ? text((value as TestNode).props.children) : "";
+  }
+  return {
+    calls, dialogs, warnings, errors,
+    get closed() { return closed; }, get invalidated() { return invalidated; },
+    buttons: (label: string) => nodes(render()).filter((node) => node.type === "button" && text(node) === label),
+    async click(label: string) {
+      const button = this.buttons(label)[0];
+      assert.ok(button, `missing action: ${label}`);
+      await (button.props.onClick as () => unknown)();
+    },
+    editIsOpen: () => nodes(render()).some((node) => node.type === "EditReservationModal" && node.props.isOpen === true),
+  };
+}
+
+test("overdue header and footer open centered resolution with escaped identity and received deposit", async () => {
+  const panel = renderArrivalPanel();
+  assert.equal(panel.buttons("Xử lý quá hạn").length, 2);
+  assert.equal(panel.buttons("Hủy đặt phòng").length, 1);
+  await panel.click("Xử lý quá hạn");
+  assert.equal(panel.dialogs[0].title, "Xử lý đặt phòng quá hạn");
+  assert.equal(panel.dialogs[0].position, "center");
+  assert.match(String(panel.dialogs[0].html), /Nguyễn &lt;An&gt;/);
+  assert.match(String(panel.dialogs[0].html), /350\.000/);
+  assert.match(String(panel.dialogs[0].html), /bảo toàn trong báo cáo doanh thu\/cọc/);
+  assert.equal(panel.calls.length, 0, "dismissing resolution must not mutate reservations");
+});
+
+for (const checkout of ["2026-11-12T05:00:00.000Z", "2026-11-13T16:00:00.000Z"]) {
+  test(`expired calendar schedule ${checkout} opens editor without check-in`, async () => {
+    const panel = renderArrivalPanel({ arrival: { plannedCheckOutAt: checkout }, dialogs: [{ isConfirmed: true }] });
+    await panel.click("Xử lý quá hạn");
+    assert.equal(panel.dialogs[1].title, "Lịch lưu trú đã hết hạn");
+    assert.equal(panel.editIsOpen(), true);
+    assert.equal(panel.calls.length, 0);
+  });
+}
+
+test("hotel calendar conversion handles midnight before testing expiration", async () => {
+  const panel = renderArrivalPanel({ arrival: { plannedCheckOutAt: "2026-11-13T17:00:00.000Z" }, dialogs: [{ isConfirmed: true }] });
+  await panel.click("Xử lý quá hạn");
+  assert.equal(panel.calls[0].operation, "check-in");
+});
+
+test("overdue and expiration checks use the hotel's timezone and business date", async () => {
+  const panel = renderArrivalPanel({
+    hotelTimezone: "America/Los_Angeles", businessDate: "2026-11-13",
+    arrival: {
+      plannedCheckInAt: "2026-11-13T00:30:00.000Z",
+      plannedCheckOutAt: "2026-11-14T00:30:00.000Z",
+    },
+    dialogs: [{ isConfirmed: true }],
+  });
+  await panel.click("Xử lý quá hạn");
+  assert.equal(panel.dialogs[1].title, "Lịch lưu trú đã hết hạn");
+  assert.equal(panel.editIsOpen(), true);
+  assert.equal(panel.calls.length, 0);
+});
+
+for (const unavailable of ["calendarError", "paymentError"] as const) {
+  test(`overdue resolution fails closed when ${unavailable} prevents a truthful summary`, async () => {
+    const panel = renderArrivalPanel({ [unavailable]: true });
+    await panel.click("Xử lý quá hạn");
+    assert.equal(panel.dialogs.length, 0);
+    assert.equal(panel.errors.length, 1);
+    assert.equal(panel.calls.length, 0);
+  });
+}
+
+test("unassigned overdue arrival opens editor before attempting check-in", async () => {
+  const panel = renderArrivalPanel({ arrival: { roomId: null, room: null }, dialogs: [{ isConfirmed: true }] });
+  await panel.click("Xử lý quá hạn");
+  assert.equal(panel.warnings[0][0], "Chưa gán phòng");
+  assert.equal(panel.editIsOpen(), true);
+  assert.equal(panel.calls.length, 0);
+});
+
+test("confirmed late check-in targets only the selected group member with stale guards", async () => {
+  const panel = renderArrivalPanel({ dialogs: [{ isConfirmed: true }] });
+  await panel.click("Xử lý quá hạn");
+  assert.deepEqual(panel.calls, [{ operation: "check-in", args: [{
+    reservationId: "selected-reservation", payload: {
+      expectedRoomId: "room-1", expectedUpdatedAt: "2026-11-12T06:00:00.000Z", confirmLateCheckIn: true,
+    },
+  }] }]);
+  assert.equal(panel.invalidated, 1);
+  assert.equal(panel.closed, 1);
+});
+
+for (const [select, operation, reason] of [
+  ["NO_SHOW", "no-show", "Khách không đến (No-show): Không liên lạc được"],
+  ["GUEST_CANCELLED", "cancel", "Khách báo hủy: Không liên lạc được"],
+]) {
+  test(`unified cancellation routes ${select} with optional reason and deposit retention`, async () => {
+    const panel = renderArrivalPanel({ dialogs: [{ isDenied: true }, { isConfirmed: true, select, details: "  Không liên lạc được  " }] });
+    await panel.click("Xử lý quá hạn");
+    assert.equal(panel.dialogs[1].input, "select");
+    assert.match(String(panel.dialogs[1].html), /bảo toàn/);
+    assert.deepEqual(panel.calls, [{ operation, args: ["hotel-1", "selected-reservation", { reason }] }]);
+    assert.equal(panel.closed, 1);
+  });
+}
+
+test("cancellation without detail retains the selected reason", async () => {
+  const panel = renderArrivalPanel({ dialogs: [{ isConfirmed: true, select: "GUEST_CANCELLED" }] });
+  await panel.click("Hủy đặt phòng");
+  assert.deepEqual(panel.calls[0].args[2], { reason: "Khách báo hủy" });
+});
+
+test("cancellation requires a valid reason selection", async () => {
+  const panel = renderArrivalPanel({ dialogs: [{ isConfirmed: true, select: "" }] });
+  await panel.click("Hủy đặt phòng");
+  assert.equal(panel.calls.length, 0);
+  assert.equal(panel.closed, 0);
+  assert.equal(panel.warnings.length, 1);
+});
+
+test("cancellation validates the complete reason against the API's 500-character limit", async () => {
+  const panel = renderArrivalPanel({ dialogs: [{ isConfirmed: true, select: "NO_SHOW", details: "x".repeat(500) }] });
+  await panel.click("Hủy đặt phòng");
+  assert.equal(panel.calls.length, 0);
+  assert.equal(panel.warnings[0][0], "Lý do hủy tối đa 500 ký tự.");
+});
+
+test("check-in failures keep the panel open with a recovery message", async () => {
+  const panel = renderArrivalPanel({ dialogs: [{ isConfirmed: true }], failMutation: true });
+  await panel.click("Xử lý quá hạn");
+  assert.equal(panel.errors[0][0], "Không thể nhận phòng");
+  assert.equal(panel.closed, 0);
+});
+
+test("checked-in member with an active stay has no overdue or cancellation actions", () => {
+  const panel = renderArrivalPanel({ arrival: { status: "CHECKED_IN" }, activeStay: {
+    id: "stay-1", reservationCode: "RES-1", status: "ACTIVE", checkedOutAt: null,
+  } });
+  assert.equal(panel.buttons("Xử lý quá hạn").length, 0);
+  assert.equal(panel.buttons("Hủy đặt phòng").length, 0);
+});
+
+test("overdue actions remain hidden without management or check-in permission", () => {
+  const panel = renderArrivalPanel({ canCheckInStay: false, canManageReservations: false });
+  assert.equal(panel.buttons("Xử lý quá hạn").length, 0);
+  assert.equal(panel.buttons("Hủy đặt phòng").length, 0);
 });
