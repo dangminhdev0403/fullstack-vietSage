@@ -176,7 +176,7 @@ export class HotelRevenueBookService {
           hotelId, roomId: input.roomId || null, roomNumberSnapshot, date: plainDate(input.date), description: input.description,
           category: input.category, amount: input.amount, documentNumber: input.documentNumber || null, notes: input.notes || null,
           idempotencyKey: input.idempotencyKey, requestHash, createdByUserId: userId,
-          ...(input.collection ? { collections: { create: { hotelId, amount: input.collection.amount, method: input.collection.method, receivedAt: new Date(input.collection.receivedAt), reference: input.collection.reference || null, idempotencyKey: `initial:${requestHash}`, requestHash: fingerprint(input.collection), createdByUserId: userId } } } : {}),
+          ...(input.collection ? { collections: { create: { amount: input.collection.amount, method: input.collection.method, receivedAt: new Date(input.collection.receivedAt), reference: input.collection.reference || null, idempotencyKey: `initial:${requestHash}`, requestHash: fingerprint(input.collection), createdByUserId: userId } } } : {}),
         } });
         await this.audit(tx, userId, scope.hotel.tenantId, entry.id, "HOTEL_REVENUE_ENTRY_CREATED", { hotelId, input });
         return { id: entry.id, version: entry.version };

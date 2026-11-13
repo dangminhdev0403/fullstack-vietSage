@@ -12,8 +12,8 @@ import { hotelIdParamSchema } from "../domain/schemas/shared.schema";
 
 interface RevenueRequest extends Request { user: AuthenticatedUser }
 const moneyProperties = Object.fromEntries(["roomRevenue", "minibarRevenue", "laundryRevenue", "otherRevenue", "revenueTotal", "openingBalance", "closingBalance", "balanceAdjustment"].map((key) => [key, { type: "number" }]));
-const collectionProperties = { receivedAt: { type: "string", format: "date-time" }, amount: { type: "number", exclusiveMinimum: 0 }, method: { type: "string", enum: ["CASH", "BANK_TRANSFER", "CARD", "OTHER"] }, reference: { type: "string", nullable: true, maxLength: 120 } };
-const entryProperties = { date: { type: "string", format: "date" }, description: { type: "string", maxLength: 300 }, category: { type: "string", enum: ["ROOM", "MINIBAR", "LAUNDRY", "OTHER"] }, amount: { type: "number", exclusiveMinimum: 0 }, roomId: { type: "string", nullable: true }, documentNumber: { type: "string", nullable: true, maxLength: 80 }, notes: { type: "string", nullable: true, maxLength: 1000 } };
+const collectionProperties = { receivedAt: { type: "string", format: "date-time" }, amount: { type: "number", minimum: 0, exclusiveMinimum: true }, method: { type: "string", enum: ["CASH", "BANK_TRANSFER", "CARD", "OTHER"] }, reference: { type: "string", nullable: true, maxLength: 120 } };
+const entryProperties = { date: { type: "string", format: "date" }, description: { type: "string", maxLength: 300 }, category: { type: "string", enum: ["ROOM", "MINIBAR", "LAUNDRY", "OTHER"] }, amount: { type: "number", minimum: 0, exclusiveMinimum: true }, roomId: { type: "string", nullable: true }, documentNumber: { type: "string", nullable: true, maxLength: 80 }, notes: { type: "string", nullable: true, maxLength: 1000 } };
 const mutationResponse = successEnvelopeSchema({ type: "object", required: ["id", "version"], properties: { id: { type: "string" }, version: { type: "integer" } } }, 200, "Đã cập nhật sổ doanh thu");
 const bookResponse = successEnvelopeSchema({
   type: "object", required: ["hotelId", "hotelName", "timeZone", "currency", "from", "to", "entries", "summary", "rooms", "canManage"],
