@@ -1,6 +1,10 @@
 import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { createHash } from "node:crypto";
-import { google } from "googleapis";
+import {
+  GOOGLE_SHEETS_READWRITE_SCOPE,
+  batchUpdateSpreadsheetValues,
+  getSpreadsheetSheetTitles,
+} from "../../../common/import/google-sheets.client";
 import { PrismaService } from "../../../prisma/prisma.service";
 import type {
   ImportContext,
@@ -262,28 +266,17 @@ export class ServiceItemImportService {
       /\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/,
     )?.[1];
     if (!spreadsheetId) throw new ConflictException("URL Google Sheets đã lưu không hợp lệ");
-    const auth = new google.auth.GoogleAuth({
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
-    const sheets = google.sheets({ version: "v4", auth });
-    const metadata = await sheets.spreadsheets.get({
-      spreadsheetId,
-      fields: "sheets.properties(index,title)",
-    });
-    const title = (metadata.data.sheets ?? [])
-      .map((sheet) => sheet.properties)
-      .sort((a, b) => (a?.index ?? 0) - (b?.index ?? 0))[0]?.title;
+    const titles = await getSpreadsheetSheetTitles(spreadsheetId, [GOOGLE_SHEETS_READWRITE_SCOPE]);
+    const title = titles[0];
     if (!title) throw new ConflictException("Google Sheets không có tab dữ liệu");
-    await sheets.spreadsheets.values.batchUpdate({
+    await batchUpdateSpreadsheetValues(
       spreadsheetId,
-      requestBody: {
-        valueInputOption: "RAW",
-        data: generatedCodes.map(({ rowNumber, code }) => ({
-          range: `'${title.replace(/'/g, "''")}'!A${rowNumber}`,
-          values: [[code]],
-        })),
-      },
-    });
+      generatedCodes.map(({ rowNumber, code }) => ({
+        range: `'${title.replace(/'/g, "''")}'!A${rowNumber}`,
+        values: [[code]],
+      })),
+      [GOOGLE_SHEETS_READWRITE_SCOPE],
+    );
   }
 
   private stateHash(state: unknown) {

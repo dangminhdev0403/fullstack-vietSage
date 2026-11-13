@@ -52,6 +52,13 @@ describe("BillingService - Commercial Ledger, Deposit Modes, Idempotency & Recei
       guestStay: {
         findFirst: jest.fn(),
         update: jest.fn(),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      hotel: {
+        findUniqueOrThrow: jest.fn().mockResolvedValue({ tenantId: "tenant-1" }),
+      },
+      domainEvent: {
+        create: jest.fn(),
       },
       folio: {
         findFirst: jest.fn(),
@@ -80,7 +87,26 @@ describe("BillingService - Commercial Ledger, Deposit Modes, Idempotency & Recei
         updateMany: jest.fn(),
       },
       room: {
-        updateMany: jest.fn(),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      housekeepingTask: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue({
+          id: "hk-1",
+          roomId: "room-101",
+          status: "QUEUED",
+          priority: "NORMAL",
+          notes: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          room: { roomNumber: "101" },
+        }),
+      },
+      housekeepingTaskHistory: {
+        create: jest.fn(),
+      },
+      housekeepingNotification: {
+        create: jest.fn(),
       },
       auditLog: {
         create: jest.fn(),
@@ -160,6 +186,10 @@ describe("BillingService - Commercial Ledger, Deposit Modes, Idempotency & Recei
       mockTx.reservation.findFirst.mockResolvedValue({
         id: "res-1",
         hotelId,
+        plannedCheckInAt: new Date("2026-10-01T14:00:00.000+07:00"),
+        plannedCheckOutAt: new Date("2026-10-03T12:00:00.000+07:00"),
+        nightlyRateSnapshot: new Prisma.Decimal(1000000),
+        chargeLines: [],
         totalAmount: new Prisma.Decimal(2000000),
         stay: { folioId: "folio-1" },
       });
@@ -210,6 +240,10 @@ describe("BillingService - Commercial Ledger, Deposit Modes, Idempotency & Recei
       mockTx.reservation.findFirst.mockResolvedValue({
         id: "res-full",
         hotelId,
+        plannedCheckInAt: new Date("2026-10-01T14:00:00.000+07:00"),
+        plannedCheckOutAt: new Date("2026-10-02T12:00:00.000+07:00"),
+        nightlyRateSnapshot: new Prisma.Decimal(1500000),
+        chargeLines: [],
         totalAmount: new Prisma.Decimal(1500000),
         paidDepositAmount: new Prisma.Decimal(500000),
       });

@@ -7,8 +7,12 @@ import {
 } from "@nestjs/common";
 import crypto from "node:crypto";
 import { Cron, CronExpression } from "@nestjs/schedule";
-import { google } from "googleapis";
 import { AppLogger } from "../../../../common/logging/app-logger.service";
+import {
+  GOOGLE_SHEETS_READONLY_SCOPE,
+  batchGetSpreadsheetValues,
+  getSpreadsheetSheetTitles,
+} from "../../../../common/import/google-sheets.client";
 import { ImportService } from "../../../../common/import/import.service";
 import type {
   ImportValidationIssue,
@@ -347,27 +351,11 @@ export class GoogleSheetsServiceCatalogSyncService {
     }
 
     try {
-      const auth = new google.auth.GoogleAuth({
-        scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
-      });
-      const sheets = google.sheets({ version: "v4", auth });
-      const metadata = await sheets.spreadsheets.get({
-        spreadsheetId,
-        fields: "sheets.properties(index,title)",
-      });
-      const ranges = this.rangesForFirstTwoSheets(
-        (metadata.data.sheets ?? [])
-          .map((sheet) => sheet.properties)
-          .filter((properties): properties is NonNullable<typeof properties> => Boolean(properties))
-          .sort((left, right) => (left.index ?? 0) - (right.index ?? 0))
-          .map((properties) => properties.title ?? ""),
-      );
-      const response = await sheets.spreadsheets.values.batchGet({
-        spreadsheetId,
-        ranges,
-        valueRenderOption: "UNFORMATTED_VALUE",
-      });
-      const valueRanges = response.data.valueRanges ?? [];
+      const titles = await getSpreadsheetSheetTitles(spreadsheetId, [GOOGLE_SHEETS_READONLY_SCOPE]);
+      const ranges = this.rangesForFirstTwoSheets(titles);
+      const valueRanges = await batchGetSpreadsheetValues(spreadsheetId, ranges, [
+        GOOGLE_SHEETS_READONLY_SCOPE,
+      ]);
 
       return {
         fileName: `google-sheet:${spreadsheetId}`,

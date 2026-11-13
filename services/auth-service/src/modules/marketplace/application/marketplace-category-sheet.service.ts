@@ -6,7 +6,11 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import crypto from "node:crypto";
-import { google } from "googleapis";
+import {
+  GOOGLE_SHEETS_READONLY_SCOPE,
+  getSpreadsheetSheetTitles,
+  getSpreadsheetValues,
+} from "../../../common/import/google-sheets.client";
 import { ImportService } from "../../../common/import/import.service";
 import { ParsedImportRow, ParsedImportWorkbook } from "../../../common/import/import.types";
 
@@ -93,35 +97,17 @@ export class MarketplaceCategorySheetService {
     }
 
     try {
-      const auth = new google.auth.GoogleAuth({
-        scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
-      });
-      const sheets = google.sheets({ version: "v4", auth });
+      const titles = await getSpreadsheetSheetTitles(spreadsheetId, [GOOGLE_SHEETS_READONLY_SCOPE]);
+      const sheetTitle = titles[0];
 
-      const metadata = await sheets.spreadsheets.get({
-        spreadsheetId,
-        fields: "sheets.properties(index,title)",
-      });
-
-      const firstSheetProperties = (metadata.data.sheets ?? [])
-        .map((s) => s.properties)
-        .filter((p): p is NonNullable<typeof p> => Boolean(p))
-        .sort((a, b) => (a.index ?? 0) - (b.index ?? 0))[0];
-
-      if (!firstSheetProperties?.title) {
+      if (!sheetTitle) {
         throw new BadRequestException("Google Sheets không chứa tab dữ liệu nào");
       }
 
-      const sheetTitle = firstSheetProperties.title;
       const range = `'${sheetTitle.replace(/'/g, "''")}'!A1:Z`;
-
-      const response = await sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range,
-        valueRenderOption: "UNFORMATTED_VALUE",
-      });
-
-      const values = response.data.values ?? [];
+      const values = await getSpreadsheetValues(spreadsheetId, range, [
+        GOOGLE_SHEETS_READONLY_SCOPE,
+      ]);
       if (values.length < 2) {
         throw new BadRequestException(
           "Sheet không có dữ liệu hàng (yêu cầu hàng tiêu đề và ít nhất 1 dòng dữ liệu)",
