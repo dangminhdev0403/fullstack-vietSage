@@ -134,7 +134,7 @@ export class HotelExpenseService {
   private storageError(error: unknown): never {
     if (isMissingExpenseStorageError(error)) {
       throw new ServiceUnavailableException(
-        "Tính năng sổ chi phí đang chờ đồng bộ bảng dữ liệu. Vui lòng chạy migration cơ sở dữ liệu.",
+        "Sổ chi phí tạm thời không khả dụng. Vui lòng thử lại sau.",
       );
     }
     throw error;
@@ -204,69 +204,34 @@ export class HotelExpenseService {
       ...roomWhere,
     };
 
-    const saasPromise: Promise<Array<{ amount: Prisma.Decimal }>> = this.prisma.platformBillableDay
-      ? this.prisma.platformBillableDay
-          .findMany({
-            where: {
-              hotelId,
-              serviceDate: { gte: fromDate, lte: toDate },
-            },
-            select: { amount: true },
-          })
-          .catch(() => [] as Array<{ amount: Prisma.Decimal }>)
-      : Promise.resolve([] as Array<{ amount: Prisma.Decimal }>);
-
-    const roomsPromise = this.prisma.room.findMany({
-      where: {
-        hotelId,
-        ...(scope.allowedRoomIds
-          ? { id: { in: scope.allowedRoomIds } }
-          : scope.allowedRoomId
-            ? { id: scope.allowedRoomId }
-            : {}),
-      },
-      select: { id: true, roomNumber: true },
-      orderBy: { roomNumber: "asc" },
-    });
-
-    let rows: Array<{
-      id: string;
-      roomId: string | null;
-      roomNumberSnapshot: string | null;
-      expenseDate: Date;
-      category: string;
-      title: string;
-      vendorName: string | null;
-      amount: Prisma.Decimal;
-      paidAmount: Prisma.Decimal;
-      paymentStatus: string;
-      paymentMethod: string | null;
-      paidAt: Date | null;
-      documentNumber: string | null;
-      notes: string | null;
-      version: number;
-      voidedAt: Date | null;
-      voidReason: string | null;
-      createdAt: Date;
-      room: { roomNumber: string } | null;
-    }> = [];
-
-    try {
-      rows = await this.prisma.hotelExpense.findMany({
+    const [rows, saasRows, rooms] = await Promise.all([
+      this.prisma.hotelExpense.findMany({
         where,
         include: {
           room: { select: { roomNumber: true } },
         },
         orderBy: [{ expenseDate: "desc" }, { createdAt: "desc" }],
-      });
-    } catch (error) {
-      if (!isMissingExpenseStorageError(error)) {
-        throw error;
-      }
-      rows = [];
-    }
-
-    const [saasRows, rooms] = await Promise.all([saasPromise, roomsPromise]);
+      }),
+      this.prisma.platformBillableDay.findMany({
+        where: {
+          hotelId,
+          serviceDate: { gte: fromDate, lte: toDate },
+        },
+        select: { amount: true },
+      }),
+      this.prisma.room.findMany({
+        where: {
+          hotelId,
+          ...(scope.allowedRoomIds
+            ? { id: { in: scope.allowedRoomIds } }
+            : scope.allowedRoomId
+              ? { id: scope.allowedRoomId }
+              : {}),
+        },
+        select: { id: true, roomNumber: true },
+        orderBy: { roomNumber: "asc" },
+      }),
+    ]).catch((error: unknown) => this.storageError(error));
 
     const saasFeeInPeriod = saasRows.reduce((sum, item) => sum + num(item.amount), 0);
 

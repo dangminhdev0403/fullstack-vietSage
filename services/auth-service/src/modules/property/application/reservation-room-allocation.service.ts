@@ -189,7 +189,14 @@ export class ReservationRoomAllocationService {
         throw new ConflictException("ROOM_RESERVATION_OVERLAP");
       }
 
-      const isOverdue = await this.hasOverdueActiveStay(tx, hotelId, room.id, now);
+      const isOverdue = await this.hasOverdueActiveStay(
+        tx,
+        hotelId,
+        room.id,
+        now,
+        checkInAt,
+        checkOutAt,
+      );
       if (isOverdue) {
         throw new ConflictException("ROOM_OVERDUE_STAY_CONFLICT");
       }
@@ -241,22 +248,25 @@ export class ReservationRoomAllocationService {
     let blockedRoomIds: Set<string> | null = null;
     if (canBatchPrefetch) {
       const [overdueRows, overlappingStayRows, overlappingResRows] = await Promise.all([
-        tx.guestStay.findMany({
-          where: {
-            hotelId,
-            roomId: { in: candidateIds },
-            status: {
-              in: [
-                GuestStayStatus.ACTIVE,
-                GuestStayStatus.CHECKED_IN,
-                GuestStayStatus.CHECKOUT_PENDING,
-              ],
-            },
-            checkedOutAt: null,
-            plannedCheckOutAt: { lt: now },
-          },
-          select: { roomId: true },
-        }),
+        checkInAt < now
+          ? tx.guestStay.findMany({
+              where: {
+                hotelId,
+                roomId: { in: candidateIds },
+                status: {
+                  in: [
+                    GuestStayStatus.ACTIVE,
+                    GuestStayStatus.CHECKED_IN,
+                    GuestStayStatus.CHECKOUT_PENDING,
+                  ],
+                },
+                checkedOutAt: null,
+                plannedCheckOutAt: { lt: now },
+                plannedCheckInAt: { lt: checkOutAt },
+              },
+              select: { roomId: true },
+            })
+          : Promise.resolve([]),
         tx.guestStay.findMany({
           where: {
             hotelId,
@@ -296,7 +306,14 @@ export class ReservationRoomAllocationService {
         }
       } else {
         // Overdue active stays are excluded from automatic allocation rather than pretending they are free
-        const isOverdue = await this.hasOverdueActiveStay(tx, hotelId, candidate.id, now);
+        const isOverdue = await this.hasOverdueActiveStay(
+          tx,
+          hotelId,
+          candidate.id,
+          now,
+          checkInAt,
+          checkOutAt,
+        );
         if (isOverdue) {
           continue;
         }
@@ -375,7 +392,14 @@ export class ReservationRoomAllocationService {
         continue;
       }
 
-      const recheckOverdue = await this.hasOverdueActiveStay(tx, hotelId, lockedRoom.id, now);
+      const recheckOverdue = await this.hasOverdueActiveStay(
+        tx,
+        hotelId,
+        lockedRoom.id,
+        now,
+        checkInAt,
+        checkOutAt,
+      );
       if (recheckOverdue) {
         continue;
       }
@@ -584,8 +608,16 @@ export class ReservationRoomAllocationService {
     hotelId: string,
     roomId: string,
     now: Date,
+    checkInAt?: Date,
+    checkOutAt?: Date,
   ): Promise<boolean> {
     if (!tx.guestStay?.findFirst) return false;
+    // An overdue active stay physically blocks the room until `now`.
+    // Future non-overlapping intervals (checkInAt >= now) are permitted,
+    // unifying interval availability with direct reservation creation.
+    if (checkInAt && checkInAt >= now) {
+      return false;
+    }
 
     const overdue = await tx.guestStay.findFirst({
       where: {
@@ -600,6 +632,7 @@ export class ReservationRoomAllocationService {
         },
         checkedOutAt: null,
         plannedCheckOutAt: { lt: now },
+        ...(checkOutAt ? { plannedCheckInAt: { lt: checkOutAt } } : {}),
       },
       select: { id: true },
     });

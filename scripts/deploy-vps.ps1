@@ -67,8 +67,8 @@ fi
 
 if [ "$SKIP_DB" = "0" ]; then
   echo "=== [2/5] Verifying Production Topology & Migrations ==="
-  python3 scripts/verify-production-migration.py || true
-  python3 scripts/verify-production-topology.py || true
+  python3 scripts/verify-production-migration.py
+  python3 scripts/verify-production-topology.py
 fi
 
 echo "=== [3/5] Building Fresh Docker Production Images (${BUILD_TARGET}) ==="

@@ -8545,27 +8545,80 @@ export interface operations {
                         /** @example Đã tải sổ chi phí vận hành */
                         message: string;
                         data: {
-                            hotelId?: string;
-                            hotelName?: string;
-                            currency?: string;
-                            timeZone?: string;
-                            from?: string;
-                            to?: string;
-                            summary?: {
-                                totalExpense?: number;
-                                paidExpense?: number;
-                                unpaidExpense?: number;
-                                saasFeeInPeriod?: number;
-                                totalWithSaas?: number;
-                                entryCount?: number;
-                                unpaidCount?: number;
+                            hotelId: string;
+                            hotelName: string;
+                            /** @enum {string} */
+                            currency: "VND";
+                            timeZone: string;
+                            /** Format: date */
+                            from: string;
+                            /** Format: date */
+                            to: string;
+                            summary: {
+                                totalExpense: number;
+                                paidExpense: number;
+                                unpaidExpense: number;
+                                saasFeeInPeriod: number;
+                                totalWithSaas: number;
+                                entryCount: number;
+                                unpaidCount: number;
                             };
-                            byCategory?: Record<string, never>[];
-                            items?: Record<string, never>[];
-                            rooms?: Record<string, never>[];
+                            byCategory: {
+                                /** @enum {string} */
+                                category: "PAYROLL" | "UTILITIES" | "SUPPLIES" | "MAINTENANCE" | "MARKETING_OTA" | "RENT_FIXED" | "TAX_FEE" | "OTHER";
+                                categoryLabel: string;
+                                amount: number;
+                                paidAmount: number;
+                                unpaidAmount: number;
+                                count: number;
+                                sharePercent: number;
+                            }[];
+                            items: {
+                                /** Format: date */
+                                expenseDate: string;
+                                /** @enum {string} */
+                                category: "PAYROLL" | "UTILITIES" | "SUPPLIES" | "MAINTENANCE" | "MARKETING_OTA" | "RENT_FIXED" | "TAX_FEE" | "OTHER";
+                                title: string;
+                                vendorName: string | null;
+                                roomId: string | null;
+                                amount: number;
+                                paidAmount: number;
+                                /** @enum {string} */
+                                paymentStatus: "PAID" | "PARTIAL" | "UNPAID";
+                                /** @enum {string|null} */
+                                paymentMethod: "CASH" | "BANK_TRANSFER" | "CARD" | "OTHER" | null;
+                                /**
+                                 * Format: date-time
+                                 * @description Thời điểm có múi giờ; chuỗi rỗng được coi là null.
+                                 */
+                                paidAt: string | null;
+                                documentNumber: string | null;
+                                notes: string | null;
+                                id: string;
+                                categoryLabel: string;
+                                roomNumber: string | null;
+                                unpaidAmount: number;
+                                version: number;
+                                /** Format: date-time */
+                                voidedAt: string | null;
+                                voidReason: string | null;
+                                /** Format: date-time */
+                                createdAt: string;
+                            }[];
+                            rooms: {
+                                id: string;
+                                roomNumber: string;
+                            }[];
                         };
                     };
                 };
+            };
+            /** @description Sổ chi phí tạm thời không khả dụng */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -8580,7 +8633,34 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": Record<string, never>;
+                "application/json": {
+                    /** Format: date */
+                    expenseDate: string;
+                    /** @enum {string} */
+                    category: "PAYROLL" | "UTILITIES" | "SUPPLIES" | "MAINTENANCE" | "MARKETING_OTA" | "RENT_FIXED" | "TAX_FEE" | "OTHER";
+                    title: string;
+                    vendorName?: string | null;
+                    roomId?: string | null;
+                    /** @description Số tiền VND; cũng chấp nhận chuỗi số và áp dụng cùng giới hạn. */
+                    amount: number;
+                    /** @description Bỏ trống hoặc null để không chỉ định. PARTIAL yêu cầu lớn hơn 0 và nhỏ hơn amount; các trạng thái khác không được vượt amount. */
+                    paidAmount?: number | null;
+                    /**
+                     * @default PAID
+                     * @enum {string}
+                     */
+                    paymentStatus?: "PAID" | "PARTIAL" | "UNPAID";
+                    /** @enum {string|null} */
+                    paymentMethod?: "CASH" | "BANK_TRANSFER" | "CARD" | "OTHER" | null;
+                    /**
+                     * Format: date-time
+                     * @description Thời điểm có múi giờ; chuỗi rỗng được coi là null.
+                     */
+                    paidAt?: string | null;
+                    documentNumber?: string | null;
+                    notes?: string | null;
+                    idempotencyKey: string;
+                };
             };
         };
         responses: {
@@ -8619,7 +8699,34 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": Record<string, never>;
+                "application/json": {
+                    /** Format: date */
+                    expenseDate: string;
+                    /** @enum {string} */
+                    category: "PAYROLL" | "UTILITIES" | "SUPPLIES" | "MAINTENANCE" | "MARKETING_OTA" | "RENT_FIXED" | "TAX_FEE" | "OTHER";
+                    title: string;
+                    vendorName?: string | null;
+                    roomId?: string | null;
+                    /** @description Số tiền VND; cũng chấp nhận chuỗi số và áp dụng cùng giới hạn. */
+                    amount: number;
+                    /** @description Bỏ trống hoặc null để không chỉ định. PARTIAL yêu cầu lớn hơn 0 và nhỏ hơn amount; các trạng thái khác không được vượt amount. */
+                    paidAmount?: number | null;
+                    /**
+                     * @default PAID
+                     * @enum {string}
+                     */
+                    paymentStatus?: "PAID" | "PARTIAL" | "UNPAID";
+                    /** @enum {string|null} */
+                    paymentMethod?: "CASH" | "BANK_TRANSFER" | "CARD" | "OTHER" | null;
+                    /**
+                     * Format: date-time
+                     * @description Thời điểm có múi giờ; chuỗi rỗng được coi là null.
+                     */
+                    paidAt?: string | null;
+                    documentNumber?: string | null;
+                    notes?: string | null;
+                    version: number;
+                };
             };
         };
         responses: {
@@ -8658,7 +8765,27 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": Record<string, never>;
+                "application/json": {
+                    version: number;
+                    /** @default false */
+                    markFull?: boolean;
+                    /** @description Số tiền VND; cũng chấp nhận chuỗi số và áp dụng cùng giới hạn. */
+                    payAmount?: number;
+                    /**
+                     * @default BANK_TRANSFER
+                     * @enum {string}
+                     */
+                    paymentMethod?: "CASH" | "BANK_TRANSFER" | "CARD" | "OTHER";
+                    /**
+                     * Format: date-time
+                     * @description Thời điểm có múi giờ; chuỗi rỗng được coi là null.
+                     */
+                    paidAt?: string | null;
+                    notes?: string | null;
+                } | unknown | {
+                    /** @enum {unknown} */
+                    markFull: true;
+                };
             };
         };
         responses: {
@@ -8697,7 +8824,10 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": Record<string, never>;
+                "application/json": {
+                    version: number;
+                    reason: string;
+                };
             };
         };
         responses: {

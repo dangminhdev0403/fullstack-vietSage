@@ -449,17 +449,30 @@ describe("HotelReportsService", () => {
     expect(result.bookingPaymentsSummary?.totalReceived).toBe(500000);
     expect(result.bookingPaymentsSummary?.depositCount).toBe(1);
 
-    // Headline revenue & collected
-    expect(result.summary.totalRevenue).toBe(500000);
+    // Deposits are cash receipts until an earned charge is recognized.
+    expect(result.summary.totalRevenue).toBe(0);
+    expect(result.summary.roomRevenue).toBe(0);
+    expect(result.summary.otherRevenue).toBe(0);
+    expect(result.summary.netProfit).toBe(0);
     expect(result.summary.collectedRevenue).toBe(500000);
+    expect(result.summary.netCashFlow).toBe(500000);
     expect(result.summary.totalStays).toBe(0);
     expect(result.summary.totalRoomNights).toBe(0);
 
     // Phân bổ ngày thu: đúng ngày nhận 20/10, ngày 21/10 không thu lần hai
     const oct20 = result.revenueByDay.find((d) => d.date === "2026-10-20")!;
     expect(oct20.collectedRevenue).toBe(500000);
-    expect(oct20.totalRevenue).toBe(500000);
+    expect(oct20.totalRevenue).toBe(0);
+    expect(oct20.roomRevenue).toBe(0);
+    expect(oct20.netProfit).toBe(0);
     expect(oct20.roomsOccupied).toBe(0);
+
+    expect(result.revenueByMonth.find((m) => m.month === "2026-10")).toMatchObject({
+      totalRevenue: 0,
+      roomRevenue: 0,
+      collectedRevenue: 500000,
+      netProfit: 0,
+    });
 
     const oct21 = result.revenueByDay.find((d) => d.date === "2026-10-21")!;
     expect(oct21.collectedRevenue).toBe(0);
@@ -479,6 +492,7 @@ describe("HotelReportsService", () => {
     mockPrisma.payment.findMany.mockResolvedValue([
       {
         id: "pay-from-deposit",
+        metadataJson: { source: "booking_deposit" },
         paidAmount: 500000,
         method: PaymentMethod.BANK_TRANSFER,
         confirmedAt: date,
@@ -534,6 +548,16 @@ describe("HotelReportsService", () => {
     // Không bị tính trùng: tổng thu đúng 500.000đ thay vì 1.000.000đ
     expect(result.summary.totalRevenue).toBe(500000);
     expect(result.summary.collectedRevenue).toBe(500000);
+    expect(result.revenueByDay.find((d) => d.date === "2026-10-20")).toMatchObject({
+      totalRevenue: 500000,
+      collectedRevenue: 500000,
+      netProfit: 500000,
+    });
+    expect(result.revenueByMonth.find((m) => m.month === "2026-10")).toMatchObject({
+      totalRevenue: 500000,
+      collectedRevenue: 500000,
+      netProfit: 500000,
+    });
   });
 
   it("cọc đoàn phân bổ một phần: bảo toàn đúng phần cọc chưa phân bổ khi có thành viên đoàn hủy", async () => {
@@ -597,7 +621,177 @@ describe("HotelReportsService", () => {
 
     expect(result.bookingPaymentsSummary?.totalReceived).toBe(1000000);
     // Tổng thu: 500.000đ (folio Room 1) + 500.000đ (cọc chưa phân bổ được bảo toàn) = 1.000.000đ
-    expect(result.summary.totalRevenue).toBe(1000000);
+    expect(result.summary.totalRevenue).toBe(500000);
     expect(result.summary.collectedRevenue).toBe(1000000);
+    expect(result.summary.netProfit).toBe(500000);
+    expect(result.revenueByDay.find((d) => d.date === "2026-10-20")).toMatchObject({
+      totalRevenue: 500000,
+      collectedRevenue: 1000000,
+    });
+    expect(result.revenueByMonth.find((m) => m.month === "2026-10")).toMatchObject({
+      totalRevenue: 500000,
+      collectedRevenue: 1000000,
+    });
   });
+
+  it.each([false, true])("recognizes October deposit cash and November revenue only once (allocated: %s)", async (allocated) => {
+    mockPrisma.room.count.mockResolvedValue(10);
+    mockPrisma.guestStay.findMany.mockResolvedValue([]);
+    mockPrisma.hotelStaffAssignment.findMany.mockResolvedValue([]);
+    const receivedAt = new Date("2026-10-20T01:15:00.000+07:00");
+    const chargedAt = new Date("2026-11-13T14:00:00.000+07:00");
+    mockPrisma.payment.findMany.mockResolvedValue(allocated ? [{
+      id: "pay-allocated-deposit",
+      paidAmount: 500000,
+      method: PaymentMethod.BANK_TRANSFER,
+      confirmedAt: receivedAt,
+      metadataJson: { source: "booking_deposit" },
+      createdByUserId: "user-1",
+      createdBy: null,
+    }] : []);
+    mockPrisma.folioItem.findMany.mockImplementation(({ where }) => Promise.resolve(
+      chargedAt <= where.postedAt.lte
+        ? [{
+            id: "fi-november-room",
+            itemType: FolioItemType.ROOM_CHARGE,
+            totalSnapshot: 500000,
+            postedAt: chargedAt,
+            postedByUserId: "user-1",
+          }]
+        : [],
+    ));
+    const extendedPrisma = mockPrisma as unknown as Record<string, unknown>;
+    extendedPrisma.bookingPayment = {
+      findMany: jest.fn().mockResolvedValue([{
+        id: "bp-october-deposit",
+        intent: "DEPOSIT",
+        receivedAmount: new Prisma.Decimal(500000),
+        requestedAmount: new Prisma.Decimal(500000),
+        status: allocated ? "ALLOCATED" : "COMPLETED",
+        paymentMethod: PaymentMethod.BANK_TRANSFER,
+        receivedAt,
+        createdAt: new Date("2026-10-19T10:00:00.000+07:00"),
+        allocations: allocated ? [{
+          id: "alloc-november",
+          folioId: "folio-november",
+          invoiceId: "invoice-november",
+          allocatedAmount: new Prisma.Decimal(500000),
+          allocatedAt: chargedAt,
+        }] : [],
+      }]),
+    };
+
+    const october = await service.getReports("user-1", "role-1", "hotel-1", {
+      range: "30d", from: "2026-10-01", to: "2026-10-31",
+    });
+    const november = await service.getReports("user-1", "role-1", "hotel-1", {
+      range: "30d", from: "2026-11-01", to: "2026-11-13",
+    });
+
+    expect(october.summary).toMatchObject({
+      totalRevenue: 0, roomRevenue: 0, otherRevenue: 0, collectedRevenue: 500000, netProfit: 0,
+    });
+    expect(october.bookingPaymentsSummary?.totalReceived).toBe(500000);
+    expect(october.revenueByDay.find((d) => d.date === "2026-10-20")).toMatchObject({
+      totalRevenue: 0, collectedRevenue: 500000, netProfit: 0,
+    });
+    expect(october.revenueByDay.find((d) => d.date === "2026-10-19")?.collectedRevenue).toBe(0);
+    expect(november.summary).toMatchObject({
+      totalRevenue: 500000, roomRevenue: 500000, collectedRevenue: 0, netProfit: 500000,
+    });
+    expect(november.bookingPaymentsSummary?.totalReceived).toBe(0);
+    expect(november.revenueByDay.find((d) => d.date === "2026-11-13")).toMatchObject({
+      totalRevenue: 500000, collectedRevenue: 0, netProfit: 500000,
+    });
+    expect(november.revenueByMonth.find((m) => m.month === "2026-10")).toMatchObject({
+      totalRevenue: 0, roomRevenue: 0, collectedRevenue: 500000, netProfit: 0,
+    });
+    expect(november.revenueByMonth.find((m) => m.month === "2026-11")).toMatchObject({
+      totalRevenue: 500000, roomRevenue: 500000, collectedRevenue: 0, netProfit: 500000,
+    });
+    expect(october.summary.totalRevenue + november.summary.totalRevenue).toBe(500000);
+    expect(november.revenueByMonth.reduce((sum, month) => sum + month.totalRevenue, 0)).toBe(500000);
+  });
+
+  it.each(["2026-11-20", "2026-12-20", "2025-11-20"])(
+    "includes November 13 receipts for a manual charge dated %s without moving its revenue date",
+    async (chargeDate) => {
+      mockPrisma.room.count.mockResolvedValue(10);
+      mockPrisma.payment.findMany.mockResolvedValue([]);
+      mockPrisma.folioItem.findMany.mockResolvedValue([]);
+      mockPrisma.guestStay.findMany.mockResolvedValue([]);
+      mockPrisma.hotelStaffAssignment.findMany.mockResolvedValue([]);
+      const receivedAt = new Date("2026-11-13T00:15:00.000+07:00");
+      const findMany = jest.fn().mockResolvedValue([{
+        id: "manual-laundry",
+        date: new Date(`${chargeDate}T00:00:00.000Z`),
+        category: "LAUNDRY",
+        amount: new Prisma.Decimal(100),
+        collections: [{ amount: new Prisma.Decimal(40), receivedAt }],
+      }]);
+      const extendedPrisma = mockPrisma as unknown as Record<string, unknown>;
+      extendedPrisma.hotelRevenueEntry = { findMany };
+
+      const result = await service.getReports("user-1", "role-1", "hotel-1", {
+        range: "30d", from: "2026-11-13", to: "2026-11-13",
+      });
+
+      expect(findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({
+          hotelId: "hotel-1",
+          voidedAt: null,
+          OR: [
+            { date: { gte: new Date("2025-12-01T00:00:00.000Z"), lte: new Date("2026-11-13T00:00:00.000Z") } },
+            { collections: { some: { receivedAt: {
+              gte: new Date("2025-12-01T00:00:00.000+07:00"),
+              lte: new Date("2026-11-13T23:59:59.999+07:00"),
+            } } } },
+          ],
+        }),
+      }));
+      expect(result.summary).toMatchObject({
+        totalRevenue: 0, manualRevenue: 0, collectedRevenue: 40, netProfit: 0, netCashFlow: 40,
+      });
+      expect(result.revenueByDay[0]).toMatchObject({
+        date: "2026-11-13", totalRevenue: 0, manualRevenue: 0, collectedRevenue: 40, netProfit: 0,
+      });
+      expect(result.revenueByMonth.find((m) => m.month === "2026-11")).toMatchObject({
+        totalRevenue: 0, manualRevenue: 0, collectedRevenue: 40, netProfit: 0,
+      });
+
+      if (chargeDate === "2026-11-20") {
+        const charged = await service.getReports("user-1", "role-1", "hotel-1", {
+          range: "30d", from: chargeDate, to: chargeDate,
+        });
+        expect(charged.summary).toMatchObject({ totalRevenue: 100, manualRevenue: 100, collectedRevenue: 0 });
+        expect(charged.revenueByDay[0]).toMatchObject({ totalRevenue: 100, manualRevenue: 100, collectedRevenue: 0 });
+        expect(charged.revenueByMonth.find((m) => m.month === "2026-11")).toMatchObject({
+          totalRevenue: 100, manualRevenue: 100, collectedRevenue: 40,
+        });
+      }
+    },
+  );
+
+  describe.each(["hotelRevenueEntry", "hotelExpense", "platformBillableDay", "receivableCollection"])(
+    "%s query failures",
+    (model) => {
+      it.each(["rejected", "thrown"])("propagates a %s financial query error", async (failure) => {
+        mockPrisma.room.count.mockResolvedValue(10);
+        mockPrisma.payment.findMany.mockResolvedValue([]);
+        mockPrisma.folioItem.findMany.mockResolvedValue([]);
+        mockPrisma.guestStay.findMany.mockResolvedValue([]);
+        mockPrisma.hotelStaffAssignment.findMany.mockResolvedValue([]);
+        const error = new Error(`${model} unavailable`);
+        const findMany = failure === "rejected"
+          ? jest.fn().mockRejectedValue(error)
+          : jest.fn().mockImplementation(() => { throw error; });
+        const extendedPrisma = mockPrisma as unknown as Record<string, unknown>;
+        extendedPrisma[model] = { findMany };
+
+        await expect(service.getReports("user-1", "role-1", "hotel-1", {
+          range: "30d", from: "2026-11-13", to: "2026-11-13",
+        })).rejects.toBe(error);
+      });
+    },
+  );
 });

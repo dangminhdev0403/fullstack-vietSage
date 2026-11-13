@@ -237,6 +237,7 @@ function renderArrivalPanel(options: {
   failMutation?: boolean;
   hotelTimezone?: string;
   businessDate?: string;
+  generatedAt?: string;
   calendarError?: boolean;
   paymentError?: boolean;
 } = {}) {
@@ -315,7 +316,9 @@ function renderArrivalPanel(options: {
       useMutation: () => ({ mutateAsync: (variables: unknown) => mutate("check-in", variables) }),
       useQuery: ({ kind }: { kind: string }) => ({
         data: kind === "calendar" ? {
-          timezone: options.hotelTimezone ?? "Asia/Ho_Chi_Minh", businessDate: options.businessDate ?? "2026-11-13",
+          timezone: options.hotelTimezone ?? "Asia/Ho_Chi_Minh",
+          businessDate: options.businessDate ?? "2026-11-13",
+          generatedAt: options.generatedAt ?? "2026-11-13T01:00:00.000Z",
         } : { items: kind === "rooms" ? [{
           id: "room-1", roomNumber: "101", status: "AVAILABLE", activeStay: options.activeStay,
         }] : kind === "payments" ? [{ amount: 400000, receivedAmount: 350000, paymentMethod: "CASH", paymentType: "DEPOSIT" }] : [] },
@@ -379,28 +382,25 @@ test("overdue header and footer open centered resolution with escaped identity a
   assert.equal(panel.calls.length, 0, "dismissing resolution must not mutate reservations");
 });
 
-for (const checkout of ["2026-11-12T05:00:00.000Z", "2026-11-13T16:00:00.000Z"]) {
-  test(`expired calendar schedule ${checkout} opens editor without check-in`, async () => {
-    const panel = renderArrivalPanel({ arrival: { plannedCheckOutAt: checkout }, dialogs: [{ isConfirmed: true }] });
-    await panel.click("Xử lý quá hạn");
-    assert.equal(panel.dialogs[1].title, "Lịch lưu trú đã hết hạn");
-    assert.equal(panel.editIsOpen(), true);
-    assert.equal(panel.calls.length, 0);
+test("valid same-day arrival before checkout (08:00 arrival departing noon) proceeds with check-in", async () => {
+  const panel = renderArrivalPanel({
+    generatedAt: "2026-11-13T01:00:00.000Z",
+    arrival: {
+      plannedCheckInAt: "2026-11-12T07:00:00.000Z",
+      plannedCheckOutAt: "2026-11-13T05:00:00.000Z",
+    },
+    dialogs: [{ isConfirmed: true }],
   });
-}
-
-test("hotel calendar conversion handles midnight before testing expiration", async () => {
-  const panel = renderArrivalPanel({ arrival: { plannedCheckOutAt: "2026-11-13T17:00:00.000Z" }, dialogs: [{ isConfirmed: true }] });
   await panel.click("Xử lý quá hạn");
   assert.equal(panel.calls[0].operation, "check-in");
 });
 
-test("overdue and expiration checks use the hotel's timezone and business date", async () => {
+test("schedule at exact checkout instant is expired and opens editor without check-in", async () => {
   const panel = renderArrivalPanel({
-    hotelTimezone: "America/Los_Angeles", businessDate: "2026-11-13",
+    generatedAt: "2026-11-13T01:00:00.000Z",
     arrival: {
-      plannedCheckInAt: "2026-11-13T00:30:00.000Z",
-      plannedCheckOutAt: "2026-11-14T00:30:00.000Z",
+      plannedCheckInAt: "2026-11-12T07:00:00.000Z",
+      plannedCheckOutAt: "2026-11-13T01:00:00.000Z",
     },
     dialogs: [{ isConfirmed: true }],
   });
@@ -408,6 +408,56 @@ test("overdue and expiration checks use the hotel's timezone and business date",
   assert.equal(panel.dialogs[1].title, "Lịch lưu trú đã hết hạn");
   assert.equal(panel.editIsOpen(), true);
   assert.equal(panel.calls.length, 0);
+});
+
+for (const checkout of ["2026-11-12T05:00:00.000Z", "2026-11-13T00:30:00.000Z"]) {
+  test(`expired schedule after checkout (${checkout}) opens editor without check-in`, async () => {
+    const panel = renderArrivalPanel({
+      generatedAt: "2026-11-13T01:00:00.000Z",
+      arrival: { plannedCheckOutAt: checkout },
+      dialogs: [{ isConfirmed: true }],
+    });
+    await panel.click("Xử lý quá hạn");
+    assert.equal(panel.dialogs[1].title, "Lịch lưu trú đã hết hạn");
+    assert.equal(panel.editIsOpen(), true);
+    assert.equal(panel.calls.length, 0);
+  });
+}
+
+test("hotel calendar conversion handles hotel-local midnight before and after checkout", async () => {
+  const panelBefore = renderArrivalPanel({
+    generatedAt: "2026-11-13T01:00:00.000Z",
+    arrival: { plannedCheckOutAt: "2026-11-13T17:00:00.000Z" },
+    dialogs: [{ isConfirmed: true }],
+  });
+  await panelBefore.click("Xử lý quá hạn");
+  assert.equal(panelBefore.calls[0].operation, "check-in");
+
+  const panelAfter = renderArrivalPanel({
+    generatedAt: "2026-11-13T17:05:00.000Z",
+    businessDate: "2026-11-14",
+    arrival: { plannedCheckOutAt: "2026-11-13T17:00:00.000Z" },
+    dialogs: [{ isConfirmed: true }],
+  });
+  await panelAfter.click("Xử lý quá hạn");
+  assert.equal(panelAfter.dialogs[1].title, "Lịch lưu trú đã hết hạn");
+  assert.equal(panelAfter.editIsOpen(), true);
+  assert.equal(panelAfter.calls.length, 0);
+});
+
+test("overdue check uses business date while expiration compares exact instants", async () => {
+  const panel = renderArrivalPanel({
+    hotelTimezone: "America/Los_Angeles",
+    businessDate: "2026-11-13",
+    generatedAt: "2026-11-13T16:00:00.000Z",
+    arrival: {
+      plannedCheckInAt: "2026-11-12T16:00:00.000Z",
+      plannedCheckOutAt: "2026-11-14T00:30:00.000Z",
+    },
+    dialogs: [{ isConfirmed: true }],
+  });
+  await panel.click("Xử lý quá hạn");
+  assert.equal(panel.calls[0].operation, "check-in");
 });
 
 for (const unavailable of ["calendarError", "paymentError"] as const) {

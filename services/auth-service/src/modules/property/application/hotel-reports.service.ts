@@ -421,14 +421,8 @@ export class HotelReportsService {
     const queryWindowDateOnlyStart = new Date(`${queryWindowStartPlain.toString()}T00:00:00.000Z`);
     const endDateOnly = new Date(`${endPlain.toString()}T00:00:00.000Z`);
 
-    const safeOptionalQuery = <T>(fn: (() => Promise<T[]>) | null | undefined): Promise<T[]> => {
-      if (!fn) return Promise.resolve([]);
-      try {
-        return fn().catch(() => []);
-      } catch {
-        return Promise.resolve([]);
-      }
-    };
+    const optionalQuery = <T>(fn: (() => Promise<T[]>) | null | undefined): Promise<T[]> =>
+      fn ? fn() : Promise.resolve([]);
 
     const [
       totalRooms,
@@ -648,7 +642,7 @@ export class HotelReportsService {
             },
           })
         : Promise.resolve([]),
-      safeOptionalQuery<{
+      optionalQuery<{
         id: string;
         date: Date;
         category: string;
@@ -661,7 +655,14 @@ export class HotelReportsService {
                 where: {
                   hotelId,
                   voidedAt: null,
-                  date: { gte: queryWindowDateOnlyStart, lte: endDateOnly },
+                  OR: [
+                    { date: { gte: queryWindowDateOnlyStart, lte: endDateOnly } },
+                    {
+                      collections: {
+                        some: { receivedAt: { gte: queryWindowStartDate, lte: endDate } },
+                      },
+                    },
+                  ],
                   ...(scope.allowedRoomId !== null ? { roomId: scope.allowedRoomId } : {}),
                 },
                 select: {
@@ -669,12 +670,15 @@ export class HotelReportsService {
                   date: true,
                   category: true,
                   amount: true,
-                  collections: { select: { amount: true, receivedAt: true } },
+                  collections: {
+                    where: { receivedAt: { gte: queryWindowStartDate, lte: endDate } },
+                    select: { amount: true, receivedAt: true },
+                  },
                 },
               })
           : null,
       ),
-      safeOptionalQuery<{
+      optionalQuery<{
         id: string;
         expenseDate: Date;
         category: string;
@@ -702,7 +706,7 @@ export class HotelReportsService {
               })
           : null,
       ),
-      safeOptionalQuery<{ serviceDate: Date; amount: Prisma.Decimal | number }>(
+      optionalQuery<{ serviceDate: Date; amount: Prisma.Decimal | number }>(
         scope.allowedRoomId === null && (this.prisma as any).platformBillableDay
           ? () =>
               (this.prisma as any).platformBillableDay.findMany({
@@ -714,7 +718,7 @@ export class HotelReportsService {
               })
           : null,
       ),
-      safeOptionalQuery<{ collectedAmount: Prisma.Decimal | number; collectedAt: Date }>(
+      optionalQuery<{ collectedAmount: Prisma.Decimal | number; collectedAt: Date }>(
         scope.allowedRoomId === null && (this.prisma as any).receivableCollection
           ? () =>
               (this.prisma as any).receivableCollection.findMany({
@@ -873,25 +877,15 @@ export class HotelReportsService {
       })
       .reduce((sum, col) => sum + toNumber(col.collectedAmount), 0);
 
-    const totalCollectedWithDeposits = totalCollected + depositCollected;
-    const collectedRevenue = totalCollectedWithDeposits + receivableCollected + manualCollected;
+    const collectedRevenue = totalCollected + depositCollected + receivableCollected + manualCollected;
 
     const effectiveServiceRevenue = folioServiceRevenue;
     const effectiveOtherRevenue = folioOtherRevenue;
-    let effectiveRoomRevenue = folioRoomRevenue > 0 ? folioRoomRevenue : accruedStayRoomRevenue;
+    const effectiveRoomRevenue = folioRoomRevenue > 0 ? folioRoomRevenue : accruedStayRoomRevenue;
 
-    const totalBilledRevenue =
-      effectiveRoomRevenue + effectiveServiceRevenue + effectiveOtherRevenue;
-
+    // Cash receipts, including deposits, do not recognize additional earned revenue.
     const pmsTotalRevenue =
-      totalBilledRevenue > 0 ? Math.max(totalCollectedWithDeposits, totalBilledRevenue) : totalCollectedWithDeposits;
-
-    if (pmsTotalRevenue > totalBilledRevenue && effectiveRoomRevenue === 0) {
-      effectiveRoomRevenue = Math.max(
-        0,
-        pmsTotalRevenue - effectiveServiceRevenue - effectiveOtherRevenue,
-      );
-    }
+      effectiveRoomRevenue + effectiveServiceRevenue + effectiveOtherRevenue;
 
     const effectiveTotalRevenue = pmsTotalRevenue + manualRevenue;
     const uncollectedRevenue = Math.max(0, effectiveTotalRevenue - collectedRevenue);
@@ -1030,7 +1024,15 @@ export class HotelReportsService {
     const receivablesSummary = this.buildReceivablesSummary(allReceivablesRaw);
 
     // 13. Booking Payments / Deposits Summary
-    const bookingPaymentsSummary = this.buildBookingPaymentsSummary(allBookingPaymentsRaw);
+    const bookingPaymentsSummary = this.buildBookingPaymentsSummary(
+      allBookingPaymentsRaw.filter((payment) => {
+        const date = dateToPlainDate(payment.receivedAt ?? payment.createdAt, timeZone);
+        return (
+          Temporal.PlainDate.compare(date, startPlain) >= 0 &&
+          Temporal.PlainDate.compare(date, endPlain) <= 0
+        );
+      }),
+    );
 
     return {
       hotelId,
@@ -1291,8 +1293,7 @@ export class HotelReportsService {
 
       const roomRevenue = dayRoomCharge > 0 ? dayRoomCharge : accruedRoomRevenue;
       const serviceRevenue = dayServiceCharge;
-      const billedTotal = Math.max(0, roomRevenue + serviceRevenue + dayOtherCharge);
-      const pmsRevenue = billedTotal > 0 ? Math.max(billedTotal, dayTotalPaid) : dayTotalPaid;
+      const pmsRevenue = roomRevenue + serviceRevenue + dayOtherCharge;
       const totalRevenue = pmsRevenue + dayManualRevenue;
       const collectedRevenue =
         dayTotalPaid + (manualColMap.get(dateKey) || 0) + (receivableColMap.get(dateKey) || 0);
@@ -1360,7 +1361,7 @@ export class HotelReportsService {
       const monthKey = ym.toString(); // YYYY-MM
       const monthLabel = `Thg ${ym.month}/${ym.year}`;
       const monthStartPlain = ym.toPlainDate({ day: 1 });
-      const monthEndPlain = ym.toPlainDate({ day: ym.daysInMonth });
+      const monthEndPlain = i === 0 ? endPlain : ym.toPlainDate({ day: ym.daysInMonth });
       const monthStartYmd = monthStartPlain.toString();
       const monthEndYmd = monthEndPlain.toString();
       const daysInMonth = ym.daysInMonth;
@@ -1470,8 +1471,7 @@ export class HotelReportsService {
 
       const monthRoomRevenue = monthFolioRoom > 0 ? monthFolioRoom : accruedMonthRoomRevenue;
       const monthServiceRevenue = monthFolioService;
-      const monthBilled = Math.max(0, monthRoomRevenue + monthServiceRevenue + monthFolioOther);
-      const monthPmsRevenue = monthBilled > 0 ? Math.max(monthBilled, monthPaid) : monthPaid;
+      const monthPmsRevenue = monthRoomRevenue + monthServiceRevenue + monthFolioOther;
       const monthRevenue = monthPmsRevenue + monthManualRevenue;
       const monthExpense = monthOperatingExpense + monthSaasExpense;
       const monthCollected = monthPaid + monthManualCollected + monthReceivableCollected;

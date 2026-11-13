@@ -1,6 +1,95 @@
-import { BadRequestException, ConflictException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ServiceUnavailableException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
+import { parseWithZod } from "../../../common/validation/parse-with-zod";
 import { HotelExpenseService } from "../application/hotel-expense.service";
+import {
+  createHotelExpenseSchema,
+  listHotelExpensesQuerySchema,
+  payHotelExpenseSchema,
+  updateHotelExpenseSchema,
+} from "../domain/schemas/hotel-expense.schema";
+
+describe("Hotel expense validation", () => {
+  const payload = {
+    expenseDate: "2026-11-10",
+    category: "UTILITIES",
+    title: "Tiền điện tháng 11",
+    amount: 100,
+    paymentStatus: "PAID",
+  };
+
+  it.each([
+    "2026-02-30",
+    "2026-04-31",
+    "2025-02-29",
+    "1900-02-29",
+    "2026-13-01",
+    "2026-00-01",
+    "2026-2-28",
+  ])("rejects invalid calendar date %s on every date input", (expenseDate) => {
+    expect(() => parseWithZod(createHotelExpenseSchema, {
+      ...payload, expenseDate, idempotencyKey: "date-validation",
+    })).toThrow(BadRequestException);
+    expect(() => parseWithZod(updateHotelExpenseSchema, {
+      ...payload, expenseDate, version: 0,
+    })).toThrow(BadRequestException);
+    expect(() => parseWithZod(listHotelExpensesQuerySchema, { from: expenseDate }))
+      .toThrow(BadRequestException);
+    expect(() => parseWithZod(listHotelExpensesQuerySchema, { to: expenseDate }))
+      .toThrow(BadRequestException);
+  });
+
+  it.each(["2024-02-29", "2000-02-29", "2026-02-28"])(
+    "accepts valid calendar date %s, including leap centuries",
+    (expenseDate) => {
+      expect(createHotelExpenseSchema.safeParse({
+        ...payload, expenseDate, idempotencyKey: "valid-date",
+      }).success).toBe(true);
+      expect(updateHotelExpenseSchema.safeParse({
+        ...payload, expenseDate, version: 0,
+      }).success).toBe(true);
+      expect(listHotelExpensesQuerySchema.safeParse({
+        from: expenseDate, to: expenseDate,
+      }).success).toBe(true);
+    },
+  );
+
+  it.each([0.001, "0.001", 1.999, 9_999_999_999.991, 10_000_000_000, "10000000000"])(
+    "rejects money outside DECIMAL(12, 2): %s",
+    (value) => {
+      for (const field of ["amount", "paidAmount"]) {
+        const input = { ...payload, amount: 9_999_999_999.99, [field]: value };
+        expect(createHotelExpenseSchema.safeParse({
+          ...input, idempotencyKey: "invalid-money",
+        }).success).toBe(false);
+        expect(updateHotelExpenseSchema.safeParse({ ...input, version: 0 }).success).toBe(false);
+      }
+      expect(payHotelExpenseSchema.safeParse({ version: 0, payAmount: value }).success).toBe(false);
+    },
+  );
+
+  it.each([0.01, 0.1, 0.29, 12.34, 9_999_999_999.99, "9999999999.99"])(
+    "accepts exactly representable stored money %s",
+    (value) => {
+      expect(createHotelExpenseSchema.safeParse({
+        ...payload, amount: value, paidAmount: value, idempotencyKey: "valid-money",
+      }).success).toBe(true);
+      expect(updateHotelExpenseSchema.safeParse({
+        ...payload, amount: value, paidAmount: value, version: 0,
+      }).success).toBe(true);
+      expect(payHotelExpenseSchema.safeParse({ version: 0, payAmount: value }).success).toBe(true);
+    },
+  );
+
+  it("allows zero paid amount for unpaid expenses while requiring a positive expense", () => {
+    expect(createHotelExpenseSchema.safeParse({
+      ...payload, paidAmount: 0, paymentStatus: "UNPAID", idempotencyKey: "unpaid",
+    }).success).toBe(true);
+    expect(createHotelExpenseSchema.safeParse({
+      ...payload, amount: 0, idempotencyKey: "zero-expense",
+    }).success).toBe(false);
+  });
+});
 
 describe("HotelExpenseService", () => {
   let service: HotelExpenseService;
@@ -123,6 +212,52 @@ describe("HotelExpenseService", () => {
     });
     expect(result.items[1].unpaidAmount).toBe(2500000);
     expect(result.byCategory[0].category).toBe("PAYROLL");
+  });
+
+  it.each([
+    ["hotelExpense", "P2021"],
+    ["hotelExpense", "P2022"],
+    ["platformBillableDay", "P2021"],
+    ["platformBillableDay", "P2022"],
+  ])("reports unavailable when %s fails with %s instead of returning zero totals", async (model, code) => {
+    mockPrisma[model].findMany.mockRejectedValue(new Prisma.PrismaClientKnownRequestError(
+      "Required financial storage is unavailable",
+      { code, clientVersion: "7.9.1" },
+    ));
+
+    await expect(service.listExpenses("u1", "r1", "hotel-1", {
+      from: "2026-11-01", to: "2026-11-30", includeVoided: false,
+    })).rejects.toBeInstanceOf(ServiceUnavailableException);
+  });
+
+  it.each(["hotelExpense", "platformBillableDay", "room"])(
+    "propagates unexpected %s read errors instead of fabricating financial totals",
+    async (model) => {
+      const error = new Error("Storage connection lost");
+      mockPrisma[model].findMany.mockRejectedValue(error);
+
+      await expect(service.listExpenses("u1", "r1", "hotel-1", {
+        from: "2026-11-01", to: "2026-11-30", includeVoided: false,
+      })).rejects.toBe(error);
+    },
+  );
+
+  it("returns zero totals only after successful empty financial reads", async () => {
+    const result = await service.listExpenses("u1", "r1", "hotel-1", {
+      from: "2026-11-01", to: "2026-11-30", includeVoided: false,
+    });
+
+    expect(result.summary).toEqual({
+      totalExpense: 0,
+      paidExpense: 0,
+      unpaidExpense: 0,
+      saasFeeInPeriod: 0,
+      totalWithSaas: 0,
+      entryCount: 0,
+      unpaidCount: 0,
+    });
+    expect(mockPrisma.hotelExpense.findMany).toHaveBeenCalledTimes(1);
+    expect(mockPrisma.platformBillableDay.findMany).toHaveBeenCalledTimes(1);
   });
 
   it("tạo khoản chi mới idempotent và phát hiện xung đột payload khi trùng key", async () => {

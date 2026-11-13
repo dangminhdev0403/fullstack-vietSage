@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException } from "@nestjs/common";
 import {
+  FolioItemType,
   FolioStatus,
   GuestSessionStatus,
   GuestStayStatus,
@@ -214,6 +215,13 @@ export async function checkStayHasUnpaidOrPendingFolio(
   tx: Prisma.TransactionClient,
   hotelId: string,
   stayId: string,
+  stayContext?: {
+    nightlyRateSnapshot?: Prisma.Decimal | number | null;
+    baseNightlyRateSnapshot?: Prisma.Decimal | number | null;
+    plannedCheckInAt?: Date | null;
+    plannedCheckOutAt?: Date | null;
+    checkedInAt?: Date | null;
+  } | null,
 ): Promise<boolean> {
   if (typeof tx.folio?.findMany !== "function") {
     return false;
@@ -252,45 +260,114 @@ export async function checkStayHasUnpaidOrPendingFolio(
     }
   }
 
-  if (typeof tx.folioItem?.findMany === "function") {
-    const folioIds = openFolios.map((f: any) => f.id);
-    const items = await tx.folioItem.findMany({
+  if (typeof (tx as any).hotelReceivable?.findMany === "function") {
+    const unpaidReceivables = await (tx as any).hotelReceivable.findMany({
       where: {
         hotelId,
-        folioId: { in: folioIds },
-        voidedAt: null,
+        stayId,
+        outstandingAmount: { gt: 0 },
       },
-      select: { totalSnapshot: true },
+      select: { id: true },
+      take: 1,
     });
-    const chargeTotal = items.reduce(
-      (sum: number, item: any) => sum + Number(item.totalSnapshot ?? 0),
-      0,
+    if (unpaidReceivables.length > 0) {
+      return true;
+    }
+  }
+
+  const folioIds = openFolios.map((f: any) => f.id);
+  const items =
+    typeof tx.folioItem?.findMany === "function"
+      ? await tx.folioItem.findMany({
+          where: {
+            hotelId,
+            folioId: { in: folioIds },
+            voidedAt: null,
+          },
+          select: { totalSnapshot: true, itemType: true },
+        })
+      : [];
+
+  const postedChargeTotal = items.reduce(
+    (sum: number, item: any) => sum + Number(item.totalSnapshot ?? 0),
+    0,
+  );
+  const hasPostedRoomCharge = items.some(
+    (item: any) => item.itemType === FolioItemType.ROOM_CHARGE || item.itemType === "ROOM_CHARGE",
+  );
+
+  let unpostedRoomCharge = 0;
+  let stay = stayContext;
+  if (
+    (!stay || (stay.nightlyRateSnapshot === undefined && (stay as any).room?.price === undefined)) &&
+    typeof tx.guestStay?.findUnique === "function"
+  ) {
+    stay = (await tx.guestStay.findUnique({
+      where: { id: stayId },
+      select: {
+        id: true,
+        nightlyRateSnapshot: true,
+        baseNightlyRateSnapshot: true,
+        plannedCheckInAt: true,
+        plannedCheckOutAt: true,
+        checkedInAt: true,
+        room: { select: { price: true } },
+      },
+    })) as any;
+  }
+
+  if (stay && !hasPostedRoomCharge) {
+    const rate = Number(
+      stay.nightlyRateSnapshot ??
+        stay.baseNightlyRateSnapshot ??
+        (stay as any).room?.price ??
+        0,
     );
-    if (chargeTotal > 0) {
-      const allocations =
-        typeof tx.bookingPaymentAllocation?.findMany === "function"
-          ? await tx.bookingPaymentAllocation.findMany({
-              where: { hotelId, folioId: { in: folioIds } },
-              select: { allocatedAmount: true },
-            })
-          : [];
-      const payments =
-        typeof (tx as any).payment?.findMany === "function"
-          ? await (tx as any).payment.findMany({
-              where: {
-                hotelId,
-                invoice: { stayId, status: { not: InvoiceStatus.VOID } },
-                status: PaymentStatus.SUCCEEDED,
-              },
-              select: { amount: true },
-            })
-          : [];
-      const paidTotal =
-        allocations.reduce((s: number, a: any) => s + Number(a.allocatedAmount ?? 0), 0) +
-        payments.reduce((s: number, p: any) => s + Number(p.amount ?? 0), 0);
-      if (chargeTotal - paidTotal > 0.01) {
-        return true;
-      }
+    if (rate > 0) {
+      const start = stay.checkedInAt ?? stay.plannedCheckInAt ?? new Date();
+      const end = stay.plannedCheckOutAt ?? new Date();
+      const diffMs = Math.max(0, new Date(end).getTime() - new Date(start).getTime());
+      const nights = Math.max(1, Math.round(diffMs / (24 * 60 * 60 * 1000)));
+      unpostedRoomCharge = rate * nights;
+    }
+  }
+
+  const totalCharges = postedChargeTotal + unpostedRoomCharge;
+
+  const allocations =
+    typeof tx.bookingPaymentAllocation?.findMany === "function"
+      ? await tx.bookingPaymentAllocation.findMany({
+          where: { hotelId, folioId: { in: folioIds } },
+          select: { allocatedAmount: true },
+        })
+      : [];
+  const payments =
+    typeof (tx as any).payment?.findMany === "function"
+      ? await (tx as any).payment.findMany({
+          where: {
+            hotelId,
+            OR: [
+              { folioId: { in: folioIds } },
+              { invoice: { stayId, status: { not: InvoiceStatus.VOID } } },
+            ],
+            status: PaymentStatus.SUCCEEDED,
+          },
+          select: { amount: true, paidAmount: true },
+        })
+      : [];
+  const paidTotal =
+    allocations.reduce((s: number, a: any) => s + Number(a.allocatedAmount ?? 0), 0) +
+    payments.reduce((s: number, p: any) => s + Number(p.paidAmount ?? p.amount ?? 0), 0);
+
+  if (totalCharges > 0) {
+    if (totalCharges - paidTotal > 0.01) {
+      return true;
+    }
+  } else {
+    // An open folio without posted items, no payments, and unresolved room charges
+    // cannot be assumed settled since room charges are materialized at checkout (billing.service.ts).
+    if (paidTotal <= 0.01) {
+      return true;
     }
   }
 

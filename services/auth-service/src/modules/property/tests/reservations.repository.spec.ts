@@ -986,14 +986,14 @@ describe("ReservationsRepository transactional lifecycle", () => {
     expect(result.stay.status).toBe("ACTIVE");
   });
 
-  it.each<[string, string, { confirmLateCheckIn?: boolean; allowLateCheckIn?: boolean; plannedCheckOutAt?: string }]>([
+  it.each<[string, string, { confirmLateCheckIn?: boolean; allowLateCheckIn?: boolean; plannedCheckOutAt?: Date }]>([
     ["past checkout", "2026-08-01T11:59:59.999Z", { confirmLateCheckIn: true }],
     ["checkout exactly now", "2026-08-01T12:00:00.000Z", { confirmLateCheckIn: true }],
     ["legacy late flag", "2026-08-01T05:00:00.000Z", { allowLateCheckIn: true }],
     ["without confirmation", "2026-08-01T05:00:00.000Z", {}],
     ["inline extension", "2026-08-01T05:00:00.000Z", {
       confirmLateCheckIn: true,
-      plannedCheckOutAt: "2026-08-04T05:00:00.000Z",
+      plannedCheckOutAt: new Date("2026-08-04T05:00:00.000Z"),
     }],
   ])("rejects expired late arrivals (%s) before any room, stay or money writes", async (_case, checkout, dto) => {
     const reservation = {
@@ -1574,6 +1574,84 @@ describe("ReservationsRepository transactional lifecycle", () => {
     expect(tx.guestStay.updateMany).not.toHaveBeenCalled();
   });
 
+  it("rejects check-in when overdue stay has an empty OPEN folio with unmaterialized room charges and no payments", async () => {
+    const pastCheckout = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    const reservation = {
+      id: "res-overdue-unposted-charges",
+      hotelId: "hotel-1",
+      roomId: "room-1",
+      reservationCode: "RES-NEW-UNPAID",
+      status: ReservationStatus.CONFIRMED,
+      guestDisplayName: "Khach Moi",
+      guestPhone: "0901112223",
+      plannedCheckInAt: new Date(Date.now() - 60 * 60 * 1000),
+      plannedCheckOutAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      nightlyRateSnapshot: new Prisma.Decimal(600000),
+      hotel: { timezone: "Asia/Ho_Chi_Minh" },
+    };
+    const tx = {
+      $queryRawUnsafe: jest.fn(),
+      reservation: {
+        findFirst: jest.fn().mockResolvedValue(reservation),
+        update: jest.fn(),
+      },
+      room: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: "room-1",
+          status: RoomStatus.OCCUPIED,
+          price: new Prisma.Decimal(600000),
+        }),
+        updateMany: jest.fn(),
+      },
+      guestStay: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: "stay-overdue-open-folio",
+            reservationId: "other-res",
+            plannedCheckInAt: new Date(Date.now() - 26 * 60 * 60 * 1000),
+            plannedCheckOutAt: pastCheckout,
+            nightlyRateSnapshot: new Prisma.Decimal(600000),
+            status: GuestStayStatus.ACTIVE,
+          },
+        ]),
+        updateMany: jest.fn(),
+      },
+      folio: {
+        findMany: jest.fn().mockResolvedValue([{ id: "folio-empty-open", status: FolioStatus.OPEN }]),
+      },
+      folioItem: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      invoice: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      bookingPaymentAllocation: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      payment: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      hotelReceivable: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+    };
+    const { repository } = createRepository(tx);
+
+    await expect(
+      repository.checkInReservation({
+        hotelId: "hotel-1",
+        tenantId: "tenant-1",
+        reservationId: "res-overdue-unposted-charges",
+        actorUserId: "actor-1",
+        accessCodeHash: "hash",
+        accessCodeExpiresAt: new Date(),
+        generateFolioNumber: jest.fn().mockResolvedValue("FOL-01"),
+        timezone: "Asia/Ho_Chi_Minh",
+      }),
+    ).rejects.toThrow("OVERDUE_STAY_HAS_UNPAID_FOLIO");
+    expect(tx.guestStay.updateMany).not.toHaveBeenCalled();
+  });
+
   it("auto-closes settled overdue stay, closes active guest sessions, and completes check-in", async () => {
     const pastCheckout = new Date(Date.now() - 2 * 60 * 60 * 1000);
     const reservation = {
@@ -1940,7 +2018,16 @@ describe("ReservationsRepository transactional lifecycle", () => {
     ["markNoShow", ReservationStatus.NO_SHOW, "RESERVATION_NO_SHOW"],
   ] as const)("%s deposit preservation and group isolation", (method, status, eventType) => {
     it.each([false, true])("releases only the selected arrival and retains received payments (group=%s)", async (isGroup) => {
-      const selected = {
+      const selected: {
+        id: string;
+        hotelId: string;
+        roomId: string | null;
+        status: ReservationStatus;
+        groupId: string | null;
+        groupCode: string | null;
+        plannedCheckInAt: Date;
+        plannedCheckOutAt: Date;
+      } = {
         id: "selected", hotelId: "hotel-1", roomId: "room-1",
         status: ReservationStatus.ARRIVAL_READY,
         groupId: isGroup ? "group-1" : null,

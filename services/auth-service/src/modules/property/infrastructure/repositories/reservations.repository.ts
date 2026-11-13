@@ -1443,7 +1443,11 @@ export class ReservationsRepository {
           select: {
             id: true,
             reservationId: true,
+            plannedCheckInAt: true,
             plannedCheckOutAt: true,
+            checkedInAt: true,
+            nightlyRateSnapshot: true,
+            baseNightlyRateSnapshot: true,
             status: true,
           },
         });
@@ -1459,6 +1463,7 @@ export class ReservationsRepository {
               tx,
               input.hotelId,
               existingStay.id,
+              existingStay,
             );
             if (hasUnpaidFolio) {
               throw new ConflictException("OVERDUE_STAY_HAS_UNPAID_FOLIO");

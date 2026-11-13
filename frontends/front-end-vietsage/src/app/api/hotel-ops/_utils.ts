@@ -83,7 +83,14 @@ export async function executeHotelOpsBackendRequest<T>(
     }
 
     runtimeConsole.info("[API_AUTH] 401_hotel_ops_refresh_retry", { operationName });
-    const refreshed = await refreshAndSaveSessionTokens(sessionTokens.refreshToken);
+    const refreshed = await refreshAndSaveSessionTokens(sessionTokens.refreshToken).catch((refreshError: unknown) => {
+      if (refreshError instanceof HttpError) throw refreshError;
+      console.warn("[API_AUTH] 401_hotel_ops_refresh_failed", {
+        operationName,
+        errorMessage: refreshError instanceof Error ? refreshError.message : "Unknown refresh error",
+      });
+      throw error;
+    });
     return request(refreshed.accessToken);
   }
 }

@@ -31,8 +31,6 @@ export type ExpensePaymentStatus = (typeof EXPENSE_PAYMENT_STATUSES)[number];
 export const EXPENSE_PAYMENT_METHODS = ["CASH", "BANK_TRANSFER", "CARD", "OTHER"] as const;
 export type ExpensePaymentMethod = (typeof EXPENSE_PAYMENT_METHODS)[number];
 
-const YMD_REGEX = /^\d{4}-\d{2}-\d{2}$/;
-
 const optionalTrimmed = (max: number) =>
   z.preprocess(
     (val) => (typeof val === "string" ? (val.trim() === "" ? null : val.trim()) : val),
@@ -45,7 +43,8 @@ const positiveMoney = z.preprocess(
     .number()
     .finite("Số tiền chi phí phải là số hợp lệ")
     .positive("Số tiền chi phí phải lớn hơn 0")
-    .max(999_999_999_999, "Số tiền vượt giới hạn cho phép"),
+    .max(9_999_999_999.99, "Số tiền vượt giới hạn cho phép")
+    .multipleOf(0.01, "Số tiền chỉ được có tối đa 2 chữ số thập phân"),
 );
 
 const nonNegativeMoney = z.preprocess(
@@ -57,7 +56,8 @@ const nonNegativeMoney = z.preprocess(
     .number()
     .finite("Số tiền đã trả phải là số hợp lệ")
     .nonnegative("Số tiền đã trả không được âm")
-    .max(999_999_999_999, "Số tiền vượt giới hạn cho phép")
+    .max(9_999_999_999.99, "Số tiền vượt giới hạn cho phép")
+    .multipleOf(0.01, "Số tiền chỉ được có tối đa 2 chữ số thập phân")
     .optional(),
 );
 
@@ -80,8 +80,8 @@ export const expenseIdParamSchema = z
 
 export const listHotelExpensesQuerySchema = z
   .object({
-    from: z.string().trim().regex(YMD_REGEX, "Ngày bắt đầu phải có định dạng YYYY-MM-DD").optional(),
-    to: z.string().trim().regex(YMD_REGEX, "Ngày kết thúc phải có định dạng YYYY-MM-DD").optional(),
+    from: z.string().trim().date("Ngày bắt đầu phải hợp lệ và có định dạng YYYY-MM-DD").optional(),
+    to: z.string().trim().date("Ngày kết thúc phải hợp lệ và có định dạng YYYY-MM-DD").optional(),
     category: z.enum(EXPENSE_CATEGORIES).optional(),
     paymentStatus: z.enum(EXPENSE_PAYMENT_STATUSES).optional(),
     includeVoided: booleanFromQuery,
@@ -118,7 +118,7 @@ function validateExpensePaymentConsistency(
 }
 
 const baseExpensePayloadShape = {
-  expenseDate: z.string().trim().regex(YMD_REGEX, "Ngày phát sinh chi phí phải có định dạng YYYY-MM-DD"),
+  expenseDate: z.string().trim().date("Ngày phát sinh chi phí phải hợp lệ và có định dạng YYYY-MM-DD"),
   category: z.enum(EXPENSE_CATEGORIES),
   title: z.string().trim().min(1, "Vui lòng nhập nội dung khoản chi").max(240, "Nội dung tối đa 240 ký tự"),
   vendorName: optionalTrimmed(160),

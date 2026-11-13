@@ -296,6 +296,19 @@ export function FrontDeskArrivalDetailPanel({
 
   const checkInYmd = hotelDate.format(new Date(activeArrival.plannedCheckInAt));
   const checkOutYmd = hotelDate.format(new Date(activeArrival.plannedCheckOutAt));
+  const referenceNowMs = useMemo(() => {
+    if (priorityAlerts?.generatedAt) {
+      const parsed = new Date(priorityAlerts.generatedAt).getTime();
+      if (!Number.isNaN(parsed)) return parsed;
+    }
+    return Date.now();
+  }, [priorityAlerts?.generatedAt]);
+  const checkOutMs = useMemo(() => {
+    if (!activeArrival.plannedCheckOutAt) return NaN;
+    return new Date(activeArrival.plannedCheckOutAt).getTime();
+  }, [activeArrival.plannedCheckOutAt]);
+  const isScheduleExpired = Number.isNaN(checkOutMs) || checkOutMs <= referenceNowMs;
+
   const hasActiveStay = Boolean(
     assignedRoomLive?.activeStay &&
       !assignedRoomLive.activeStay.checkedOutAt &&
@@ -351,7 +364,7 @@ export function FrontDeskArrivalDetailPanel({
   }
 
   async function requireCurrentStaySchedule() {
-    if (checkOutYmd <= todayYmd) {
+    if (isScheduleExpired) {
       await SwalVietSage.fire({
         icon: "warning",
         title: "Lịch lưu trú đã hết hạn",
@@ -408,7 +421,7 @@ export function FrontDeskArrivalDetailPanel({
       html: reservationResolutionSummaryHtml(),
       position: "center",
       showDenyButton: canAssignRoom,
-      showConfirmButton: canCheckInStay || (canAssignRoom && (checkOutYmd <= todayYmd || !activeArrival.roomId)),
+      showConfirmButton: canCheckInStay || (canAssignRoom && (isScheduleExpired || !activeArrival.roomId)),
       showCancelButton: true,
       confirmButtonText: "Tiếp tục nhận khách",
       denyButtonText: "Hủy đặt phòng",
@@ -1765,7 +1778,7 @@ export function FrontDeskArrivalDetailPanel({
         }
         canCheckIn={Boolean(
           activeArrival.roomId &&
-            checkOutYmd > todayYmd &&
+            !isScheduleExpired &&
             canCheckInStay &&
             activeArrival.status !== "CANCELLED" &&
             activeArrival.status !== "NO_SHOW" &&

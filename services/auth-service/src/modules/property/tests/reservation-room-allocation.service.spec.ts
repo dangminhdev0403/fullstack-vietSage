@@ -382,7 +382,7 @@ describe("ReservationRoomAllocationService", () => {
   });
 
   describe("Overdue active stays excluded from automatic allocation", () => {
-    it("auto mode excludes room with overdue active stay even if requested interval is after planned checkout", async () => {
+    it("auto mode permits room with overdue active stay when requested interval is in the future", async () => {
       const now = new Date();
       const pastCheckIn = new Date(now.getTime() - 48 * 60 * 60 * 1000);
       const pastCheckOut = new Date(now.getTime() - 2 * 60 * 60 * 1000); // 2 hours overdue
@@ -420,7 +420,7 @@ describe("ReservationRoomAllocationService", () => {
 
       const tx = createMockTx({ rooms: [room101, room102], guestStays: [overdueStay] });
 
-      // Request for tonight / tomorrow
+      // Future non-overlapping booking: room 101 sorts first and is allowed
       const futureCheckIn = new Date(now.getTime() + 2 * 60 * 60 * 1000);
       const futureCheckOut = new Date(now.getTime() + 26 * 60 * 60 * 1000);
 
@@ -434,7 +434,59 @@ describe("ReservationRoomAllocationService", () => {
         mode: "auto",
       });
 
-      // Must bypass room-101 and choose room-102!
+      expect(result.id).toBe("room-101");
+    });
+
+    it("auto mode excludes room with overdue active stay when requested interval conflicts with present occupancy", async () => {
+      const now = new Date();
+      const pastCheckIn = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+      const pastCheckOut = new Date(now.getTime() - 2 * 60 * 60 * 1000); // 2 hours overdue
+
+      const room101 = {
+        id: "room-101",
+        hotelId,
+        roomNumber: "101",
+        roomTypeId: deluxeType.id,
+        type: deluxeType.name,
+        status: RoomStatus.OCCUPIED,
+        price: new Prisma.Decimal("100.00"),
+      };
+      const room102 = {
+        id: "room-102",
+        hotelId,
+        roomNumber: "102",
+        roomTypeId: deluxeType.id,
+        type: deluxeType.name,
+        status: RoomStatus.AVAILABLE,
+        price: new Prisma.Decimal("100.00"),
+      };
+
+      const overdueStay = {
+        id: "stay-overdue",
+        hotelId,
+        roomId: "room-101",
+        status: GuestStayStatus.ACTIVE,
+        plannedCheckInAt: pastCheckIn,
+        plannedCheckOutAt: pastCheckOut,
+        checkedOutAt: null,
+      };
+
+      const tx = createMockTx({ rooms: [room101, room102], guestStays: [overdueStay] });
+
+      // Immediate booking (checkInAt < now): room 101 is physically occupied, must bypass to room 102
+      const immediateCheckIn = new Date(now.getTime() - 30 * 60 * 1000);
+      const immediateCheckOut = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+      const result = await service.allocateRoom(tx as any, {
+        hotelId,
+        roomTypeId: deluxeType.id,
+        interval: {
+          checkInAt: immediateCheckIn,
+          checkOutAt: immediateCheckOut,
+        },
+        mode: "auto",
+      });
+
       expect(result.id).toBe("room-102");
     });
   });
@@ -911,7 +963,7 @@ describe("ReservationRoomAllocationService", () => {
   });
 
   describe("Overdue active stay in manual mode", () => {
-    it("manual mode throws ROOM_OVERDUE_STAY_CONFLICT when requested room has an overdue active stay", async () => {
+    it("manual mode throws ROOM_OVERDUE_STAY_CONFLICT when requested interval overlaps with current overdue occupancy", async () => {
       const now = new Date();
       const room = {
         id: "room-101",
@@ -931,17 +983,52 @@ describe("ReservationRoomAllocationService", () => {
 
       const tx = createMockTx({ rooms: [room], guestStays: [overdueStay] });
 
+      // Immediate / past check-in conflicts with current overdue occupancy
       await expect(
         service.allocateRoom(tx as any, {
           hotelId,
           requestedRoomId: "room-101",
           interval: {
-            checkInAt: new Date(now.getTime() + 3600000),
+            checkInAt: new Date(now.getTime() - 3600000),
             checkOutAt: new Date(now.getTime() + 24 * 3600000),
           },
           mode: "manual",
         }),
       ).rejects.toThrow(new ConflictException("ROOM_OVERDUE_STAY_CONFLICT"));
+    });
+
+    it("manual mode allows future non-overlapping interval for room with overdue active stay", async () => {
+      const now = new Date();
+      const room = {
+        id: "room-101",
+        hotelId,
+        roomNumber: "101",
+        status: RoomStatus.OCCUPIED,
+      };
+      const overdueStay = {
+        id: "stay-overdue",
+        hotelId,
+        roomId: "room-101",
+        status: GuestStayStatus.ACTIVE,
+        plannedCheckInAt: new Date(now.getTime() - 48 * 3600000),
+        plannedCheckOutAt: new Date(now.getTime() - 2 * 3600000),
+        checkedOutAt: null,
+      };
+
+      const tx = createMockTx({ rooms: [room], guestStays: [overdueStay] });
+
+      // Future booking (checkInAt >= now) does not overlap with overdue stay
+      const result = await service.allocateRoom(tx as any, {
+        hotelId,
+        requestedRoomId: "room-101",
+        interval: {
+          checkInAt: new Date(now.getTime() + 3600000),
+          checkOutAt: new Date(now.getTime() + 24 * 3600000),
+        },
+        mode: "manual",
+      });
+
+      expect(result.id).toBe("room-101");
     });
   });
 

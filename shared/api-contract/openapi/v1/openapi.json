@@ -7975,7 +7975,8 @@
             "required": false,
             "in": "query",
             "schema": {
-              "type": "boolean"
+              "type": "boolean",
+              "default": false
             }
           },
           {
@@ -8014,7 +8015,8 @@
             "required": false,
             "in": "query",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "date"
             }
           },
           {
@@ -8022,7 +8024,8 @@
             "required": false,
             "in": "query",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "date"
             }
           }
         ],
@@ -8050,6 +8053,18 @@
                     },
                     "data": {
                       "type": "object",
+                      "required": [
+                        "hotelId",
+                        "hotelName",
+                        "currency",
+                        "timeZone",
+                        "from",
+                        "to",
+                        "summary",
+                        "byCategory",
+                        "items",
+                        "rooms"
+                      ],
                       "properties": {
                         "hotelId": {
                           "type": "string"
@@ -8058,19 +8073,33 @@
                           "type": "string"
                         },
                         "currency": {
-                          "type": "string"
+                          "type": "string",
+                          "enum": [
+                            "VND"
+                          ]
                         },
                         "timeZone": {
                           "type": "string"
                         },
                         "from": {
-                          "type": "string"
+                          "type": "string",
+                          "format": "date"
                         },
                         "to": {
-                          "type": "string"
+                          "type": "string",
+                          "format": "date"
                         },
                         "summary": {
                           "type": "object",
+                          "required": [
+                            "totalExpense",
+                            "paidExpense",
+                            "unpaidExpense",
+                            "saasFeeInPeriod",
+                            "totalWithSaas",
+                            "entryCount",
+                            "unpaidCount"
+                          ],
                           "properties": {
                             "totalExpense": {
                               "type": "number"
@@ -8088,29 +8117,214 @@
                               "type": "number"
                             },
                             "entryCount": {
-                              "type": "number"
+                              "type": "integer",
+                              "minimum": 0
                             },
                             "unpaidCount": {
-                              "type": "number"
+                              "type": "integer",
+                              "minimum": 0
                             }
                           }
                         },
                         "byCategory": {
                           "type": "array",
                           "items": {
-                            "type": "object"
+                            "type": "object",
+                            "required": [
+                              "category",
+                              "categoryLabel",
+                              "amount",
+                              "paidAmount",
+                              "unpaidAmount",
+                              "count",
+                              "sharePercent"
+                            ],
+                            "properties": {
+                              "category": {
+                                "type": "string",
+                                "enum": [
+                                  "PAYROLL",
+                                  "UTILITIES",
+                                  "SUPPLIES",
+                                  "MAINTENANCE",
+                                  "MARKETING_OTA",
+                                  "RENT_FIXED",
+                                  "TAX_FEE",
+                                  "OTHER"
+                                ]
+                              },
+                              "categoryLabel": {
+                                "type": "string"
+                              },
+                              "amount": {
+                                "type": "number"
+                              },
+                              "paidAmount": {
+                                "type": "number"
+                              },
+                              "unpaidAmount": {
+                                "type": "number"
+                              },
+                              "count": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "sharePercent": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 100
+                              }
+                            }
                           }
                         },
                         "items": {
                           "type": "array",
                           "items": {
-                            "type": "object"
+                            "type": "object",
+                            "required": [
+                              "id",
+                              "expenseDate",
+                              "category",
+                              "title",
+                              "vendorName",
+                              "roomId",
+                              "amount",
+                              "paidAmount",
+                              "paymentStatus",
+                              "paymentMethod",
+                              "paidAt",
+                              "documentNumber",
+                              "notes",
+                              "categoryLabel",
+                              "roomNumber",
+                              "unpaidAmount",
+                              "version",
+                              "voidedAt",
+                              "voidReason",
+                              "createdAt"
+                            ],
+                            "properties": {
+                              "expenseDate": {
+                                "type": "string",
+                                "format": "date"
+                              },
+                              "category": {
+                                "type": "string",
+                                "enum": [
+                                  "PAYROLL",
+                                  "UTILITIES",
+                                  "SUPPLIES",
+                                  "MAINTENANCE",
+                                  "MARKETING_OTA",
+                                  "RENT_FIXED",
+                                  "TAX_FEE",
+                                  "OTHER"
+                                ]
+                              },
+                              "title": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 240
+                              },
+                              "vendorName": {
+                                "type": "string",
+                                "nullable": true,
+                                "maxLength": 160
+                              },
+                              "roomId": {
+                                "type": "string",
+                                "nullable": true,
+                                "maxLength": 80
+                              },
+                              "amount": {
+                                "type": "number"
+                              },
+                              "paidAmount": {
+                                "type": "number"
+                              },
+                              "paymentStatus": {
+                                "type": "string",
+                                "enum": [
+                                  "PAID",
+                                  "PARTIAL",
+                                  "UNPAID"
+                                ]
+                              },
+                              "paymentMethod": {
+                                "type": "string",
+                                "enum": [
+                                  "CASH",
+                                  "BANK_TRANSFER",
+                                  "CARD",
+                                  "OTHER"
+                                ],
+                                "nullable": true
+                              },
+                              "paidAt": {
+                                "type": "string",
+                                "format": "date-time",
+                                "nullable": true,
+                                "description": "Thời điểm có múi giờ; chuỗi rỗng được coi là null."
+                              },
+                              "documentNumber": {
+                                "type": "string",
+                                "nullable": true,
+                                "maxLength": 80
+                              },
+                              "notes": {
+                                "type": "string",
+                                "nullable": true,
+                                "maxLength": 1000
+                              },
+                              "id": {
+                                "type": "string"
+                              },
+                              "categoryLabel": {
+                                "type": "string"
+                              },
+                              "roomNumber": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "unpaidAmount": {
+                                "type": "number"
+                              },
+                              "version": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "voidedAt": {
+                                "type": "string",
+                                "format": "date-time",
+                                "nullable": true
+                              },
+                              "voidReason": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "createdAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            }
                           }
                         },
                         "rooms": {
                           "type": "array",
                           "items": {
-                            "type": "object"
+                            "type": "object",
+                            "required": [
+                              "id",
+                              "roomNumber"
+                            ],
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "roomNumber": {
+                                "type": "string"
+                              }
+                            }
                           }
                         }
                       }
@@ -8125,6 +8339,9 @@
                 }
               }
             }
+          },
+          "503": {
+            "description": "Sổ chi phí tạm thời không khả dụng"
           }
         },
         "tags": [
@@ -8148,7 +8365,104 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object"
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "expenseDate",
+                  "category",
+                  "title",
+                  "amount",
+                  "idempotencyKey"
+                ],
+                "properties": {
+                  "expenseDate": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "category": {
+                    "type": "string",
+                    "enum": [
+                      "PAYROLL",
+                      "UTILITIES",
+                      "SUPPLIES",
+                      "MAINTENANCE",
+                      "MARKETING_OTA",
+                      "RENT_FIXED",
+                      "TAX_FEE",
+                      "OTHER"
+                    ]
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 240
+                  },
+                  "vendorName": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 160
+                  },
+                  "roomId": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 80
+                  },
+                  "amount": {
+                    "type": "number",
+                    "minimum": 0.01,
+                    "maximum": 9999999999.99,
+                    "multipleOf": 0.01,
+                    "description": "Số tiền VND; cũng chấp nhận chuỗi số và áp dụng cùng giới hạn."
+                  },
+                  "paidAmount": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 9999999999.99,
+                    "multipleOf": 0.01,
+                    "nullable": true,
+                    "description": "Bỏ trống hoặc null để không chỉ định. PARTIAL yêu cầu lớn hơn 0 và nhỏ hơn amount; các trạng thái khác không được vượt amount."
+                  },
+                  "paymentStatus": {
+                    "type": "string",
+                    "enum": [
+                      "PAID",
+                      "PARTIAL",
+                      "UNPAID"
+                    ],
+                    "default": "PAID"
+                  },
+                  "paymentMethod": {
+                    "type": "string",
+                    "enum": [
+                      "CASH",
+                      "BANK_TRANSFER",
+                      "CARD",
+                      "OTHER"
+                    ],
+                    "nullable": true
+                  },
+                  "paidAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "nullable": true,
+                    "description": "Thời điểm có múi giờ; chuỗi rỗng được coi là null."
+                  },
+                  "documentNumber": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 80
+                  },
+                  "notes": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 1000
+                  },
+                  "idempotencyKey": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  }
+                }
               }
             }
           }
@@ -8182,7 +8496,8 @@
                           "type": "string"
                         },
                         "version": {
-                          "type": "number"
+                          "type": "integer",
+                          "minimum": 0
                         }
                       },
                       "required": [
@@ -8233,7 +8548,103 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object"
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "expenseDate",
+                  "category",
+                  "title",
+                  "amount",
+                  "version"
+                ],
+                "properties": {
+                  "expenseDate": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "category": {
+                    "type": "string",
+                    "enum": [
+                      "PAYROLL",
+                      "UTILITIES",
+                      "SUPPLIES",
+                      "MAINTENANCE",
+                      "MARKETING_OTA",
+                      "RENT_FIXED",
+                      "TAX_FEE",
+                      "OTHER"
+                    ]
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 240
+                  },
+                  "vendorName": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 160
+                  },
+                  "roomId": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 80
+                  },
+                  "amount": {
+                    "type": "number",
+                    "minimum": 0.01,
+                    "maximum": 9999999999.99,
+                    "multipleOf": 0.01,
+                    "description": "Số tiền VND; cũng chấp nhận chuỗi số và áp dụng cùng giới hạn."
+                  },
+                  "paidAmount": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 9999999999.99,
+                    "multipleOf": 0.01,
+                    "nullable": true,
+                    "description": "Bỏ trống hoặc null để không chỉ định. PARTIAL yêu cầu lớn hơn 0 và nhỏ hơn amount; các trạng thái khác không được vượt amount."
+                  },
+                  "paymentStatus": {
+                    "type": "string",
+                    "enum": [
+                      "PAID",
+                      "PARTIAL",
+                      "UNPAID"
+                    ],
+                    "default": "PAID"
+                  },
+                  "paymentMethod": {
+                    "type": "string",
+                    "enum": [
+                      "CASH",
+                      "BANK_TRANSFER",
+                      "CARD",
+                      "OTHER"
+                    ],
+                    "nullable": true
+                  },
+                  "paidAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "nullable": true,
+                    "description": "Thời điểm có múi giờ; chuỗi rỗng được coi là null."
+                  },
+                  "documentNumber": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 80
+                  },
+                  "notes": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 1000
+                  },
+                  "version": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
               }
             }
           }
@@ -8267,7 +8678,8 @@
                           "type": "string"
                         },
                         "version": {
-                          "type": "number"
+                          "type": "integer",
+                          "minimum": 0
                         }
                       },
                       "required": [
@@ -8318,7 +8730,69 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object"
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "version"
+                ],
+                "description": "Phải nhập payAmount hoặc chọn markFull=true để tất toán toàn bộ.",
+                "anyOf": [
+                  {
+                    "required": [
+                      "payAmount"
+                    ]
+                  },
+                  {
+                    "properties": {
+                      "markFull": {
+                        "enum": [
+                          true
+                        ]
+                      }
+                    },
+                    "required": [
+                      "markFull"
+                    ]
+                  }
+                ],
+                "properties": {
+                  "version": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "markFull": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "payAmount": {
+                    "type": "number",
+                    "minimum": 0.01,
+                    "maximum": 9999999999.99,
+                    "multipleOf": 0.01,
+                    "description": "Số tiền VND; cũng chấp nhận chuỗi số và áp dụng cùng giới hạn."
+                  },
+                  "paymentMethod": {
+                    "type": "string",
+                    "enum": [
+                      "CASH",
+                      "BANK_TRANSFER",
+                      "CARD",
+                      "OTHER"
+                    ],
+                    "default": "BANK_TRANSFER"
+                  },
+                  "paidAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "nullable": true,
+                    "description": "Thời điểm có múi giờ; chuỗi rỗng được coi là null."
+                  },
+                  "notes": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 1000
+                  }
+                }
               }
             }
           }
@@ -8352,7 +8826,8 @@
                           "type": "string"
                         },
                         "version": {
-                          "type": "number"
+                          "type": "integer",
+                          "minimum": 0
                         }
                       },
                       "required": [
@@ -8403,7 +8878,23 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object"
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "version",
+                  "reason"
+                ],
+                "properties": {
+                  "version": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 500
+                  }
+                }
               }
             }
           }
@@ -8437,7 +8928,8 @@
                           "type": "string"
                         },
                         "version": {
-                          "type": "number"
+                          "type": "integer",
+                          "minimum": 0
                         }
                       },
                       "required": [
