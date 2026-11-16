@@ -1,4 +1,37 @@
+## 2026-11-17 — Both-country in-house BCA reconciliation
+
+Added private GET reconciliation with force/localOnly options, both-country completion/error states, guest-level read-only merged rows and conservative evidence matching. No provider authentication or guest import from this endpoint.
+
+## 2026-11-16 — Safe BCA accommodation summary after connection
+
+- Connection GET/connect/check/disconnect responses now include `providerProfile` (state, nullable whitelisted accommodation summary, fetchedAt, safe error). Existing username is explicitly documented.
+- Successful authentication/check fetches the profile; profile failure is distinct from authentication failure. Normal connection GET remains local, with no provider or token-refresh side effect.
+- No migration, credentials, token or raw provider response is added to the public contract.
+
 # Contract Changes
+
+## 2026-11-16 — In-house BCA reconciliation
+
+- Added private hotel-scoped `GET /hotels/{hotelId}/kbtt/reconciliation` (`hotel.kbtt.declarations.view`, `hotel.kbtt.declarations.manage`). Reads all active in-house stay occupants for the hotel and correlates them read-only against BOTH Vietnamese and foreign BCA resident/history lists.
+- Supports optional `localOnly=true` for immediate local guest preview without provider calls, and `force=true` to refresh both provider groups concurrently while sharing in-flight queries.
+- Bounded to Vietnam timezone local arrival dates; never alters PMS guest data, persists provider records, or authenticates credentials.
+- Requires both country provider results to succeed before declaring complete reconciliation; partial failures remain visible without masking or defaulting unsent status.
+
+## 2026-11-16 — Unified in-house BCA status
+
+- Front desk in-house combines operational stays with per-occupant BCA evidence, detail editing and safe explicit failed-send retries. The retired kbtt tab remains an alias; one sidebar guest entry replaces duplicate lists. Automatic post-check-in delivery stays in the backend and respects current controls.
+- Declaration GET adds optional bounded CSV `stayIds` (1–20 IDs, maximum 128 characters each). Filtering occurs at the hotel-scoped occupant query, retaining room permissions and existing pagination. No database migration or provider contract change.
+
+## 2026-11-16 — Canonical guest profile and compact BCA drafts
+
+- KBTT draft saves atomically update the canonical occupant and primary stay compatibility summary. Persisted draft JSON stores BCA-specific fields/lossless deltas, while the existing public draftPayload remains fully hydrated. Wire validation and transmitted snapshots are preserved.
+- Data-only migration `20261116010000_compact_kbtt_draft_profiles` removes only exact reconstructible copies from the latest mutable drafts; no columns or submitted evidence are removed. Writer-stop deployment and separate database authorization are required; see `services/docs/KBTT_DRAFT_STORAGE.md`.
+
+## 2026-11-16 — Immediate background BCA submission
+
+- Declaration submit now validates and claims `SENDING`, starts an immediate backend call and returns without waiting for BCA. Check-in starts this same detached path after commit; receptionist submission no longer has queue actions or BCA popups. Provider acceptance and failures remain local saved evidence.
+- Removed the `QUEUED` declaration-list status filter and the initial `READY / LOCAL_QUEUED` producer/scanner. Historical queued records are review items and are never automatically dispatched. Existing global/hotel delivery controls and independent lifecycle/batch capabilities remain in force.
+- Initial delivery retains concurrency guards and immutable sent snapshots. Ambiguous or interrupted calls require reconciliation; no durable retry queue or automatic replay is introduced. No database schema change is required.
 
 ## 2026-11-13 — Hotel revenue book and off-catalog receipts
 

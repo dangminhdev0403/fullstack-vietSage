@@ -1,5 +1,7 @@
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import {
+  kbttReconciliationSchema,
+  type KbttReconciliation,
   kbttAutoSubmitConfigSchema,
   kbttAutoSubmitEnabledSchema,
   kbttAutoSubmitRunSummarySchema,
@@ -80,6 +82,13 @@ function catalogPath(kind: KbttCatalogKind, parentCode?: string) {
 }
 
 export const kbttRepository = {
+  async reconciliation(hotelId: string, signal?: AbortSignal, force = false, localOnly = false): Promise<KbttReconciliation> {
+    const payload = await requestInternalApiEnvelope<unknown>(
+      `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/kbtt/reconciliation${localOnly ? "?localOnly=true" : force ? "?force=true" : ""}`,
+      { method: "GET", signal },
+    );
+    return kbttReconciliationSchema.parse(payload.data);
+  },
   async connection(
     hotelId: string,
     signal?: AbortSignal,
@@ -140,6 +149,7 @@ export const kbttRepository = {
     if (params?.status) query.set("status", params.status);
     if (params?.nationality) query.set("nationality", params.nationality);
     if (params?.checkInDate) query.set("checkInDate", params.checkInDate);
+    if (params?.stayIds) query.set("stayIds", params.stayIds);
     const url = `${declarationsPath(hotelId)}?${query}`;
     const payload = await requestInternalApiEnvelope<unknown>(url, {
       method: "GET",

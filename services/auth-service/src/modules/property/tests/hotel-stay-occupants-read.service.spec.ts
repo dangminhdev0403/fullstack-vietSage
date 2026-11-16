@@ -52,6 +52,7 @@ describe("HotelStayOccupantsReadService & Repository (AGY-10/AGY-11 KBTT Foundat
             hotelId: mockHotelId,
             roomId: "room-101",
             reservationCode: "RES-101",
+        groupCode: null,
             status: GuestStayStatus.ACTIVE,
             plannedCheckInAt: checkInTime,
             plannedCheckOutAt: checkOutTime,
@@ -82,6 +83,7 @@ describe("HotelStayOccupantsReadService & Repository (AGY-10/AGY-11 KBTT Foundat
             hotelId: mockHotelId,
             roomId: "room-101",
             reservationCode: "RES-101",
+        groupCode: null,
             status: GuestStayStatus.ACTIVE,
             plannedCheckInAt: checkInTime,
             plannedCheckOutAt: checkOutTime,
@@ -123,6 +125,7 @@ describe("HotelStayOccupantsReadService & Repository (AGY-10/AGY-11 KBTT Foundat
         checkedInAt: checkInTime,
         stayStatus: GuestStayStatus.ACTIVE,
         reservationCode: "RES-101",
+        groupCode: null,
         createdAt: new Date("2026-09-13T07:00:00.000Z"),
         updatedAt: new Date("2026-09-13T07:00:00.000Z"),
       });
@@ -149,6 +152,7 @@ describe("HotelStayOccupantsReadService & Repository (AGY-10/AGY-11 KBTT Foundat
         checkedInAt: checkInTime,
         stayStatus: GuestStayStatus.ACTIVE,
         reservationCode: "RES-101",
+        groupCode: null,
         createdAt: new Date("2026-09-13T07:05:00.000Z"),
         updatedAt: new Date("2026-09-13T07:05:00.000Z"),
       });
@@ -542,4 +546,22 @@ describe("HotelStayOccupantsReadService & Repository (AGY-10/AGY-11 KBTT Foundat
       expect(mockTx.guestStayOccupant.deleteMany).not.toHaveBeenCalled();
     });
   });
+});
+
+ it("filters BCA occupants by hotel and requested stay IDs in the database", async () => {
+  const findMany = jest.fn().mockResolvedValue([]);
+  const repository = new HotelRoomsRepository({ guestStayOccupant: { findMany } } as never);
+  const service = new HotelStayOccupantsReadService(repository);
+  await expect(service.getActiveStayOccupants("hotel-1", { stayIds: ["stay-1", "stay-2"] })).resolves.toEqual([]);
+  expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ hotelId: "hotel-1", stayId: { in: ["stay-1", "stay-2"] }, stay: expect.objectContaining({ hotelId: "hotel-1" }) }) }));
+});
+
+ it("keeps assigned-room scope and unclosed stay predicates in SQL before reading guests", async () => {
+  const findMany = jest.fn().mockResolvedValue([]);
+  const service = new HotelStayOccupantsReadService(new HotelRoomsRepository({ guestStayOccupant: { findMany } } as never));
+  await service.getActiveStayOccupants("hotel-1", { roomIds: ["room-1"] });
+  expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ hotelId: "hotel-1", stay: expect.objectContaining({ hotelId: "hotel-1", roomId: { in: ["room-1"] }, checkedOutAt: null }) }) }));
+  findMany.mockClear();
+  await service.getActiveStayOccupants("hotel-1", { roomIds: [] });
+  expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ stay: expect.objectContaining({ roomId: { in: [] } }) }) }));
 });

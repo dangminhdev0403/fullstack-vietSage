@@ -11725,6 +11725,8 @@ paths:
                     type: object
                     additionalProperties: false
                     required:
+                      - providerProfile
+                      - username
                       - configured
                       - status
                       - maskedUsername
@@ -11734,6 +11736,70 @@ paths:
                       - lastErrorCode
                       - lastErrorMessage
                     properties:
+                      providerProfile:
+                        type: object
+                        additionalProperties: false
+                        required:
+                          - state
+                          - accommodation
+                          - fetchedAt
+                          - error
+                        properties:
+                          state:
+                            type: string
+                            enum:
+                              - NOT_LOADED
+                              - READY
+                              - FAILED
+                          accommodation:
+                            type: object
+                            nullable: true
+                            additionalProperties: false
+                            required:
+                              - name
+                              - address
+                              - representative
+                              - phone
+                              - email
+                              - managingUnit
+                            properties:
+                              name:
+                                type: string
+                                nullable: true
+                              address:
+                                type: string
+                                nullable: true
+                              representative:
+                                type: string
+                                nullable: true
+                              phone:
+                                type: string
+                                nullable: true
+                              email:
+                                type: string
+                                nullable: true
+                              managingUnit:
+                                type: string
+                                nullable: true
+                          fetchedAt:
+                            type: string
+                            format: date-time
+                            nullable: true
+                          error:
+                            type: object
+                            nullable: true
+                            additionalProperties: false
+                            required:
+                              - code
+                              - message
+                            properties:
+                              code:
+                                type: string
+                              message:
+                                type: string
+                      username:
+                        type: string
+                        nullable: true
                       configured:
                         type: boolean
                       status:
@@ -11832,6 +11898,8 @@ paths:
                     type: object
                     additionalProperties: false
                     required:
+                      - providerProfile
+                      - username
                       - configured
                       - status
                       - maskedUsername
@@ -11841,6 +11909,70 @@ paths:
                       - lastErrorCode
                       - lastErrorMessage
                     properties:
+                      providerProfile:
+                        type: object
+                        additionalProperties: false
+                        required:
+                          - state
+                          - accommodation
+                          - fetchedAt
+                          - error
+                        properties:
+                          state:
+                            type: string
+                            enum:
+                              - NOT_LOADED
+                              - READY
+                              - FAILED
+                          accommodation:
+                            type: object
+                            nullable: true
+                            additionalProperties: false
+                            required:
+                              - name
+                              - address
+                              - representative
+                              - phone
+                              - email
+                              - managingUnit
+                            properties:
+                              name:
+                                type: string
+                                nullable: true
+                              address:
+                                type: string
+                                nullable: true
+                              representative:
+                                type: string
+                                nullable: true
+                              phone:
+                                type: string
+                                nullable: true
+                              email:
+                                type: string
+                                nullable: true
+                              managingUnit:
+                                type: string
+                                nullable: true
+                          fetchedAt:
+                            type: string
+                            format: date-time
+                            nullable: true
+                          error:
+                            type: object
+                            nullable: true
+                            additionalProperties: false
+                            required:
+                              - code
+                              - message
+                            properties:
+                              code:
+                                type: string
+                              message:
+                                type: string
+                      username:
+                        type: string
+                        nullable: true
                       configured:
                         type: boolean
                       status:
@@ -11912,6 +12044,8 @@ paths:
                     type: object
                     additionalProperties: false
                     required:
+                      - providerProfile
+                      - username
                       - configured
                       - status
                       - maskedUsername
@@ -11921,6 +12055,70 @@ paths:
                       - lastErrorCode
                       - lastErrorMessage
                     properties:
+                      providerProfile:
+                        type: object
+                        additionalProperties: false
+                        required:
+                          - state
+                          - accommodation
+                          - fetchedAt
+                          - error
+                        properties:
+                          state:
+                            type: string
+                            enum:
+                              - NOT_LOADED
+                              - READY
+                              - FAILED
+                          accommodation:
+                            type: object
+                            nullable: true
+                            additionalProperties: false
+                            required:
+                              - name
+                              - address
+                              - representative
+                              - phone
+                              - email
+                              - managingUnit
+                            properties:
+                              name:
+                                type: string
+                                nullable: true
+                              address:
+                                type: string
+                                nullable: true
+                              representative:
+                                type: string
+                                nullable: true
+                              phone:
+                                type: string
+                                nullable: true
+                              email:
+                                type: string
+                                nullable: true
+                              managingUnit:
+                                type: string
+                                nullable: true
+                          fetchedAt:
+                            type: string
+                            format: date-time
+                            nullable: true
+                          error:
+                            type: object
+                            nullable: true
+                            additionalProperties: false
+                            required:
+                              - code
+                              - message
+                            properties:
+                              code:
+                                type: string
+                              message:
+                                type: string
+                      username:
+                        type: string
+                        nullable: true
                       configured:
                         type: boolean
                       status:
@@ -11993,6 +12191,8 @@ paths:
                     type: object
                     additionalProperties: false
                     required:
+                      - providerProfile
+                      - username
                       - configured
                       - status
                       - maskedUsername
@@ -12002,6 +12202,70 @@ paths:
                       - lastErrorCode
                       - lastErrorMessage
                     properties:
+                      providerProfile:
+                        type: object
+                        additionalProperties: false
+                        required:
+                          - state
+                          - accommodation
+                          - fetchedAt
+                          - error
+                        properties:
+                          state:
+                            type: string
+                            enum:
+                              - NOT_LOADED
+                              - READY
+                              - FAILED
+                          accommodation:
+                            type: object
+                            nullable: true
+                            additionalProperties: false
+                            required:
+                              - name
+                              - address
+                              - representative
+                              - phone
+                              - email
+                              - managingUnit
+                            properties:
+                              name:
+                                type: string
+                                nullable: true
+                              address:
+                                type: string
+                                nullable: true
+                              representative:
+                                type: string
+                                nullable: true
+                              phone:
+                                type: string
+                                nullable: true
+                              email:
+                                type: string
+                                nullable: true
+                              managingUnit:
+                                type: string
+                                nullable: true
+                          fetchedAt:
+                            type: string
+                            format: date-time
+                            nullable: true
+                          error:
+                            type: object
+                            nullable: true
+                            additionalProperties: false
+                            required:
+                              - code
+                              - message
+                            properties:
+                              code:
+                                type: string
+                              message:
+                                type: string
+                      username:
+                        type: string
+                        nullable: true
                       configured:
                         type: boolean
                       status:
@@ -12042,6 +12306,195 @@ paths:
       security: *a67
       summary: Manually authenticate saved credentials; refresh near expiry, otherwise
         re-login
+      tags: *a68
+  /hotels/{hotelId}/kbtt/reconciliation:
+    get:
+      operationId: KbttController_getReconciliation
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: force
+          required: false
+          in: query
+          description: Refresh BOTH provider groups; concurrent calls share the same read
+          schema:
+            enum:
+              - "true"
+              - "false"
+            type: string
+        - name: localOnly
+          required: false
+          in: query
+          description: Immediate local guest preview; never contacts BCA
+          schema:
+            enum:
+              - "true"
+              - "false"
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 200
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Thành công
+                  data:
+                    type: object
+                    additionalProperties: false
+                    required:
+                      - items
+                      - checkedAt
+                      - range
+                      - sources
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          additionalProperties: false
+                          required:
+                            - occupantId
+                            - stayId
+                            - roomId
+                            - roomNumber
+                            - groupCode
+                            - identityNumber
+                            - nationality
+                            - checkedInAt
+                            - plannedCheckOutAt
+                            - reason
+                            - bcaRecordId
+                            - declarationStatus
+                            - providerMessage
+                            - id
+                            - source
+                            - kind
+                            - fullName
+                            - documentType
+                            - status
+                            - canRetry
+                          properties:
+                            occupantId: &a69
+                              type: string
+                              nullable: true
+                            stayId: *a69
+                            roomId: *a69
+                            roomNumber: *a69
+                            groupCode: *a69
+                            identityNumber: *a69
+                            nationality: *a69
+                            checkedInAt: *a69
+                            plannedCheckOutAt: *a69
+                            reason: *a69
+                            bcaRecordId: *a69
+                            declarationStatus: *a69
+                            providerMessage: *a69
+                            id:
+                              type: string
+                            source:
+                              type: string
+                              enum:
+                                - VIETSAGE
+                                - BCA_ONLY
+                            kind:
+                              type: string
+                              enum:
+                                - VIETNAMESE
+                                - FOREIGN
+                              nullable: true
+                            fullName:
+                              type: string
+                            documentType:
+                              type: number
+                              nullable: true
+                            status:
+                              type: string
+                              enum:
+                                - MATCHED
+                                - NOT_FOUND
+                                - REVIEW
+                              nullable: true
+                            canRetry:
+                              type: boolean
+                      checkedAt: *a69
+                      range:
+                        type: object
+                        additionalProperties: false
+                        required:
+                          - dateFrom
+                          - dateTo
+                        properties:
+                          dateFrom:
+                            type: string
+                            format: date
+                          dateTo:
+                            type: string
+                            format: date
+                      sources:
+                        type: object
+                        additionalProperties: false
+                        required:
+                          - VIETNAMESE
+                          - FOREIGN
+                        properties:
+                          VIETNAMESE: &a70
+                            type: object
+                            additionalProperties: false
+                            required:
+                              - state
+                              - checkedAt
+                              - error
+                            properties:
+                              state:
+                                type: string
+                                enum:
+                                  - PENDING
+                                  - COMPLETE
+                                  - FAILED
+                                  - NOT_CONNECTED
+                                  - NEEDS_LOGIN
+                                  - INCOMPLETE
+                              checkedAt: *a69
+                              error:
+                                type: object
+                                nullable: true
+                                additionalProperties: false
+                                required:
+                                  - code
+                                  - message
+                                properties:
+                                  code:
+                                    type: string
+                                  message:
+                                    type: string
+                          FOREIGN: *a70
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+        "401": *a63
+        "403": *a64
+        "422": *a65
+        "503": *a66
+      security: *a67
+      summary: Read-only reconciliation of all in-house guests against BOTH Vietnamese
+        and foreign BCA sources; never authenticates or imports guests
       tags: *a68
   /hotels/{hotelId}/kbtt/daily-movements:
     get:
@@ -12091,13 +12544,19 @@ paths:
           schema:
             enum:
               - UNSENT
-              - QUEUED
               - SUBMITTED
               - LOCAL_ERROR
               - REJECTED
               - SENDING
               - UNKNOWN
               - CANCELLED
+            type: string
+        - name: stayIds
+          required: false
+          in: query
+          description: Comma-separated current-page stay IDs; at most 20 IDs, each at most
+            128 characters
+          schema:
             type: string
         - name: q
           required: false
@@ -12198,7 +12657,7 @@ paths:
         "422": *a65
         "503": *a66
       security: *a67
-      summary: Queue validated declaration for background BCA delivery
+      summary: Start immediate background BCA delivery for a validated declaration
       tags: *a68
   /hotels/{hotelId}/kbtt/catalogs:
     get:
@@ -12630,7 +13089,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: &a69
+      tags: &a71
         - channel-manager
   /api/v1/channel-manager/hotels/{hotelId}/connections:
     get:
@@ -12644,7 +13103,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a69
+      tags: *a71
     post:
       operationId: ChannelManagerController_createConnection
       parameters:
@@ -12656,7 +13115,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a69
+      tags: *a71
   /api/v1/channel-manager/hotels/{hotelId}/connections/{id}:
     delete:
       operationId: ChannelManagerController_deleteConnection
@@ -12674,7 +13133,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a69
+      tags: *a71
   /api/v1/channel-manager/hotels/{hotelId}/inventory:
     get:
       operationId: ChannelManagerController_getInventory
@@ -12808,7 +13267,7 @@ paths:
                   - error
                   - message
                   - data
-      tags: *a69
+      tags: *a71
   /api/v1/channel-manager/hotels/{hotelId}/inventory/restrictions:
     post:
       operationId: ChannelManagerController_updateRestrictions
@@ -12871,7 +13330,7 @@ paths:
                   - status
                   - message
                   - data
-      tags: *a69
+      tags: *a71
   /api/v1/channel-manager/hotels/{hotelId}/inventory/availability:
     post:
       operationId: ChannelManagerController_updateAvailability
@@ -12934,7 +13393,7 @@ paths:
                   - status
                   - message
                   - data
-      tags: *a69
+      tags: *a71
   /api/v1/channel-manager/hotels/{hotelId}/inventory/bulk-update:
     post:
       operationId: ChannelManagerController_bulkUpdate
@@ -12997,7 +13456,7 @@ paths:
                   - status
                   - message
                   - data
-      tags: *a69
+      tags: *a71
   /api/v1/channel-manager/ical/{token}.ics:
     get:
       operationId: ChannelManagerController_getIcalFeed[0]
@@ -13010,7 +13469,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a69
+      tags: *a71
   /api/v1/channel-manager/ical/{token}:
     get:
       operationId: ChannelManagerController_getIcalFeed[1]
@@ -13023,7 +13482,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a69
+      tags: *a71
   /api/v1/channel-manager/hotels/{hotelId}/connections/{id}/sync-now:
     post:
       operationId: ChannelManagerController_syncNow
@@ -13041,7 +13500,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a69
+      tags: *a71
   /api/v1/channel-manager/hotels/{hotelId}/channex/sync-content:
     post:
       operationId: ChannelManagerController_syncChannexContent
@@ -13054,7 +13513,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a69
+      tags: *a71
   /api/v1/channel-manager/hotels/{hotelId}/channex/push-ari:
     post:
       operationId: ChannelManagerController_pushChannexAri
@@ -13117,7 +13576,7 @@ paths:
                   - status
                   - message
                   - data
-      tags: *a69
+      tags: *a71
   /api/v1/channel-manager/hotels/{hotelId}/channex/poll-feed:
     post:
       operationId: ChannelManagerController_pollChannexFeed
@@ -13130,7 +13589,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a69
+      tags: *a71
   /api/v1/channel-manager/channex/webhook:
     post:
       operationId: ChannelManagerController_channexWebhook
@@ -13144,7 +13603,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a69
+      tags: *a71
   /api/v1/channel-manager/hotels/{hotelId}/channex/recover:
     post:
       operationId: ChannelManagerController_recoverChannexBookings
@@ -13157,7 +13616,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a69
+      tags: *a71
   /api/v1/channel-manager/hotels/{hotelId}/channex/pending-modifications:
     get:
       operationId: ChannelManagerController_getPendingChannexModifications
@@ -13170,7 +13629,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a69
+      tags: *a71
   /api/v1/channel-manager/hotels/{hotelId}/channex/pending-modifications/{logId}/resolve:
     post:
       operationId: ChannelManagerController_resolveChannexModification
@@ -13188,7 +13647,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a69
+      tags: *a71
   /api/v1/channel-manager/hotels/{hotelId}/channex/doctor:
     get:
       operationId: ChannelManagerController_runChannexDoctor
@@ -13201,7 +13660,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a69
+      tags: *a71
   /api/v1/channel-manager/hotels/{hotelId}/channex/mappings:
     get:
       operationId: ChannelManagerController_getChannexMappings
@@ -13214,7 +13673,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a69
+      tags: *a71
   /api/v1/channel-manager/hotels/{hotelId}/channex/channels:
     get:
       operationId: ChannelManagerController_getChannexChannels
@@ -13227,7 +13686,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a69
+      tags: *a71
     post:
       operationId: ChannelManagerController_createChannexChannel
       parameters:
@@ -13239,7 +13698,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a69
+      tags: *a71
   /api/v1/channel-manager/hotels/{hotelId}/channex/channels/prepare:
     post:
       operationId: ChannelManagerController_prepareChannexChannel
@@ -13252,7 +13711,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a69
+      tags: *a71
   /api/v1/channel-manager/hotels/{hotelId}/channex/channels/{channelId}/activate:
     post:
       operationId: ChannelManagerController_activateChannexChannel
@@ -13270,7 +13729,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a69
+      tags: *a71
   /api/v1/channel-manager/hotels/{hotelId}/channex/channels/{channelId}/deactivate:
     post:
       operationId: ChannelManagerController_deactivateChannexChannel
@@ -13288,7 +13747,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a69
+      tags: *a71
   /api/v1/channel-manager/hotels/{hotelId}/channex/channels/{channelId}:
     get:
       operationId: ChannelManagerController_getChannexChannel
@@ -13306,7 +13765,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a69
+      tags: *a71
     put:
       operationId: ChannelManagerController_updateChannexChannel
       parameters:
@@ -13323,7 +13782,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a69
+      tags: *a71
     delete:
       operationId: ChannelManagerController_deleteChannexChannel
       parameters:
@@ -13340,7 +13799,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a69
+      tags: *a71
   /api/v1/channel-manager/hotels/{hotelId}/channex/channels/{channelId}/sync:
     post:
       operationId: ChannelManagerController_syncChannexChannel
@@ -13358,7 +13817,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a69
+      tags: *a71
   /api/v1/channel-manager/hotels/{hotelId}/channex/channel-session:
     post:
       operationId: ChannelManagerController_createChannexChannelSession
@@ -13371,7 +13830,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a69
+      tags: *a71
   /api/v1/channel-manager/hotels/{hotelId}/channex/simulate-booking:
     post:
       operationId: ChannelManagerController_simulateBooking
@@ -13384,7 +13843,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a69
+      tags: *a71
   /api/v1/channel-manager/hotels/{hotelId}/channex/simulate-booking/cancel:
     post:
       operationId: ChannelManagerController_cancelSimulatedBooking
@@ -13397,7 +13856,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a69
+      tags: *a71
   /api/v1/channel-manager/hotels/{hotelId}/channex/simulated-bookings:
     get:
       operationId: ChannelManagerController_getSimulatedBookings
@@ -13410,7 +13869,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a69
+      tags: *a71
   /api/v1/channel-manager/hotels/{hotelId}/channex/config:
     get:
       operationId: ChannelManagerController_getChannexConfig
@@ -13423,7 +13882,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a69
+      tags: *a71
     post:
       operationId: ChannelManagerController_configureChannexProperty
       parameters:
@@ -13435,7 +13894,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a69
+      tags: *a71
   /channel-manager/direct-booking/holds:
     post:
       operationId: DirectBookingController_createHold[0]
@@ -13443,7 +13902,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: &a70
+      tags: &a72
         - channel-manager-direct-booking
   /api/v1/channel-manager/direct-booking/holds:
     post:
@@ -13452,7 +13911,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a70
+      tags: *a72
   /channel-manager/direct-booking/holds/{id}/confirm:
     post:
       operationId: DirectBookingController_confirmHold[0]
@@ -13460,7 +13919,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a70
+      tags: *a72
   /channel-manager/direct-booking/holds/confirm:
     post:
       operationId: DirectBookingController_confirmHold[1]
@@ -13468,7 +13927,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a70
+      tags: *a72
   /api/v1/channel-manager/direct-booking/holds/{id}/confirm:
     post:
       operationId: DirectBookingController_confirmHold[2]
@@ -13476,7 +13935,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a70
+      tags: *a72
   /api/v1/channel-manager/direct-booking/holds/confirm:
     post:
       operationId: DirectBookingController_confirmHold[3]
@@ -13484,7 +13943,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a70
+      tags: *a72
   /channel-manager/direct-booking/holds/{id}/release:
     post:
       operationId: DirectBookingController_releaseHold[0]
@@ -13492,7 +13951,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a70
+      tags: *a72
   /channel-manager/direct-booking/holds/release:
     post:
       operationId: DirectBookingController_releaseHold[1]
@@ -13500,7 +13959,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a70
+      tags: *a72
   /api/v1/channel-manager/direct-booking/holds/{id}/release:
     post:
       operationId: DirectBookingController_releaseHold[2]
@@ -13508,7 +13967,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a70
+      tags: *a72
   /api/v1/channel-manager/direct-booking/holds/release:
     post:
       operationId: DirectBookingController_releaseHold[3]
@@ -13516,7 +13975,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a70
+      tags: *a72
   /channel-manager/direct-booking/status:
     get:
       operationId: DirectBookingController_getStatus[0]
@@ -13524,7 +13983,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a70
+      tags: *a72
   /api/v1/channel-manager/direct-booking/status:
     get:
       operationId: DirectBookingController_getStatus[1]
@@ -13532,7 +13991,7 @@ paths:
       responses:
         "200":
           description: ""
-      tags: *a70
+      tags: *a72
   /channel-manager/direct-booking/catalog-export:
     post:
       operationId: DirectBookingController_exportCatalog[0]
@@ -13540,7 +13999,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a70
+      tags: *a72
   /api/v1/channel-manager/direct-booking/catalog-export:
     post:
       operationId: DirectBookingController_exportCatalog[1]
@@ -13548,7 +14007,7 @@ paths:
       responses:
         "201":
           description: ""
-      tags: *a70
+      tags: *a72
   /hotels/{hotelId}/housekeeping/scope:
     get:
       operationId: HousekeepingController_getScope
@@ -13561,7 +14020,7 @@ paths:
       responses:
         "200":
           description: Phạm vi buồng phòng hiệu lực
-      tags: &a71
+      tags: &a73
         - housekeeping
   /hotels/housekeeping/rooms/by-qr/{qrCode}:
     get:
@@ -13575,7 +14034,7 @@ paths:
       responses:
         "200":
           description: Trạng thái phòng
-      tags: *a71
+      tags: *a73
   /hotels/{hotelId}/housekeeping/rooms/{roomId}:
     get:
       operationId: HousekeepingController_getRoom
@@ -13593,7 +14052,7 @@ paths:
       responses:
         "200":
           description: Trạng thái phòng
-      tags: *a71
+      tags: *a73
   /hotels/{hotelId}/housekeeping/tasks:
     get:
       operationId: HousekeepingController_listTasks
@@ -13646,7 +14105,7 @@ paths:
       responses:
         "200":
           description: Danh sách công việc buồng phòng
-      tags: *a71
+      tags: *a73
     post:
       operationId: HousekeepingController_createTask
       parameters:
@@ -13666,7 +14125,7 @@ paths:
       responses:
         "201":
           description: Đã tạo công việc buồng phòng
-      tags: *a71
+      tags: *a73
   /hotels/{hotelId}/housekeeping/tasks/summary:
     get:
       operationId: HousekeepingController_getTasksSummary
@@ -13679,7 +14138,7 @@ paths:
       responses:
         "200":
           description: Tổng quan công việc buồng phòng
-      tags: *a71
+      tags: *a73
   /hotels/{hotelId}/housekeeping/tasks/{taskId}:
     get:
       operationId: HousekeepingController_getTaskDetail
@@ -13697,7 +14156,7 @@ paths:
       responses:
         "200":
           description: Chi tiết công việc buồng phòng
-      tags: *a71
+      tags: *a73
   /hotels/{hotelId}/housekeeping/tasks/{taskId}/claim:
     post:
       operationId: HousekeepingController_claimTask
@@ -13724,7 +14183,7 @@ paths:
       responses:
         "200":
           description: Đã nhận công việc dọn phòng
-      tags: *a71
+      tags: *a73
   /hotels/{hotelId}/housekeeping/tasks/{taskId}/start:
     post:
       operationId: HousekeepingController_startTask
@@ -13751,7 +14210,7 @@ paths:
       responses:
         "200":
           description: Đã bắt đầu công việc dọn phòng
-      tags: *a71
+      tags: *a73
   /hotels/{hotelId}/housekeeping/tasks/{taskId}/block:
     post:
       operationId: HousekeepingController_blockTask
@@ -13784,7 +14243,7 @@ paths:
       responses:
         "200":
           description: Đã tạm dừng công việc dọn phòng
-      tags: *a71
+      tags: *a73
   /hotels/{hotelId}/housekeeping/tasks/{taskId}/complete:
     post:
       operationId: HousekeepingController_completeTask
@@ -13813,7 +14272,7 @@ paths:
       responses:
         "200":
           description: Đã hoàn thành công việc và cập nhật phòng AVAILABLE
-      tags: *a71
+      tags: *a73
   /hotels/{hotelId}/housekeeping/tasks/{taskId}/reopen:
     post:
       operationId: HousekeepingController_reopenTask
@@ -13842,7 +14301,7 @@ paths:
       responses:
         "200":
           description: Đã mở lại công việc dọn phòng
-      tags: *a71
+      tags: *a73
   /hotels/{hotelId}/housekeeping/notifications:
     get:
       operationId: HousekeepingController_listNotifications
@@ -13869,7 +14328,7 @@ paths:
       responses:
         "200":
           description: Danh sách thông báo buồng phòng
-      tags: *a71
+      tags: *a73
   /hotels/{hotelId}/housekeeping/notifications/{notificationId}/read:
     patch:
       operationId: HousekeepingController_markNotificationRead
@@ -13887,7 +14346,7 @@ paths:
       responses:
         "200":
           description: Đã đánh dấu thông báo đã đọc
-      tags: *a71
+      tags: *a73
 info:
   title: VietSage Auth Service API
   description: HTTP API contract for auth, rbac, and hotel-users modules

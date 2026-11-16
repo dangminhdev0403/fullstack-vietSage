@@ -16,25 +16,81 @@ const originalGuest = {
 };
 
 describe("BCA automatic work selection", () => {
-  it("excludes paused hotels before bounded queues are selected", async () => {
-    const declarations = jest.fn().mockResolvedValue([]);
+  it("excludes paused hotels before selecting error recovery and lifecycle work", async () => {
     const operations = jest.fn().mockResolvedValue([]);
     const connections = jest.fn().mockResolvedValue([]);
-    const db = { kbttGuestDeclaration: { findMany: declarations }, kbttStayOperation: { findMany: operations },
+    const db = { kbttStayOperation: { findMany: operations },
       kbttHotelConnection: { findMany: connections } };
     const repository = new KbttRepository(db as never);
-    await repository.findQueuedInitialDeclarations();
     await repository.findHotelsWithPendingErrorDeclarations();
     await new KbttStayRepository(db as never).runnable();
-    expect(declarations).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({ hotel: { kbttConnection: { status: "CONNECTED", autoSubmitEnabled: true } } }),
-    }));
     expect(connections).toHaveBeenCalledWith(expect.objectContaining({
       where: expect.objectContaining({ autoSubmitEnabled: true }),
     }));
     expect(operations).toHaveBeenCalledWith(expect.objectContaining({
       where: expect.objectContaining({ hotel: { kbttConnection: { autoSubmitEnabled: true } } }),
     }));
+  });
+
+  it("monitors initial delivery locally without counting retired queued records as pending work", async () => {
+    const snapshot = { pendingCount: 0, sendingCount: 0, reviewCount: 1, lastSucceededAt: null,
+      recentIssues: [{ id: "legacy-1", kind: "INITIAL", status: "FAILED", providerCode: "LOCAL_QUEUED",
+        roomNumber: "201", fullName: "Nguyen Van An", updatedAt: "2026-11-16T00:00:00Z" }] };
+    const queryRaw = jest.fn().mockResolvedValue([snapshot]);
+    const repository = new KbttRepository({ $queryRaw: queryRaw } as never);
+
+    await expect(repository.getDeliverySnapshot("hotel-1", "room-201")).resolves.toEqual(snapshot);
+
+    const [strings, ...parameters] = queryRaw.mock.calls[0] as [TemplateStringsArray, ...unknown[]];
+    const sql = strings.join("?");
+    const pendingProjection = sql.match(/\) SELECT\s+([\s\S]*?)AS "pendingCount"/)?.[1];
+    expect(pendingProjection).toBeDefined();
+    expect(pendingProjection).toContain("FROM current_operations WHERE status = 'PENDING'");
+    expect(pendingProjection).not.toContain("latest_declarations");
+    expect(sql).toMatch(/CASE WHEN status = 'READY' AND "providerCode" = 'LOCAL_QUEUED' THEN 'FAILED' ELSE status::text END AS status/);
+    expect(sql).toMatch(/FROM latest_declarations WHERE status IN \('FAILED', 'UNKNOWN'\)\s+OR \(status = 'READY' AND "providerCode" = 'LOCAL_QUEUED'\)/);
+    expect(parameters).toEqual(["hotel-1", "room-201", "room-201", "hotel-1", "room-201", "room-201"]);
+    expect(queryRaw).toHaveBeenCalledTimes(1);
+  });
+
+  it("marks only stale orphaned sends unknown while preserving active detached delivery", async () => {
+    const now = new Date("2026-11-16T00:00:00Z");
+    jest.useFakeTimers().setSystemTime(now);
+    try {
+      const rows: Array<{ id: string; status: string; updatedAt: Date; version: number; providerCode: string | null }> = [
+        { id: "active-1", status: "SENDING", updatedAt: new Date(now.getTime() - 10 * 60_000), version: 2, providerCode: null },
+        { id: "orphan-1", status: "SENDING", updatedAt: new Date(now.getTime() - 10 * 60_000), version: 2, providerCode: null },
+        { id: "recent-1", status: "SENDING", updatedAt: new Date(now.getTime() - 60_000), version: 2, providerCode: null },
+        { id: "confirmed-1", status: "SUBMITTED", updatedAt: new Date(now.getTime() - 10 * 60_000), version: 2, providerCode: "200" },
+      ];
+      const updateMany = jest.fn(async ({ where, data }: {
+        where: { status: string; updatedAt: { lt: Date }; id?: { notIn: string[] } };
+        data: { status: string; providerCode: string; version: { increment: number } };
+      }) => {
+        const candidates = rows.filter((row) => row.status === where.status && row.updatedAt < where.updatedAt.lt &&
+          !where.id?.notIn.includes(row.id));
+        for (const row of candidates) {
+          row.status = data.status;
+          row.providerCode = data.providerCode;
+          row.version += data.version.increment;
+        }
+        return { count: candidates.length };
+      });
+      const repository = new KbttRepository({ kbttGuestDeclaration: { updateMany } } as never);
+
+      await repository.markInterruptedDeclarationsUnknown(["active-1"]);
+
+      expect(rows.map(({ id, status, version }) => ({ id, status, version }))).toEqual([
+        { id: "active-1", status: "SENDING", version: 2 },
+        { id: "orphan-1", status: "UNKNOWN", version: 3 },
+        { id: "recent-1", status: "SENDING", version: 2 },
+        { id: "confirmed-1", status: "SUBMITTED", version: 2 },
+      ]);
+      expect(rows[1].providerCode).toBe("INTERRUPTED_DELIVERY");
+      expect(updateMany).toHaveBeenCalledTimes(1);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });
 

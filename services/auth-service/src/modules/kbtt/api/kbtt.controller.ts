@@ -1,3 +1,5 @@
+import { KbttReconciliationService } from "../application/kbtt-reconciliation.service";
+import { kbttReconciliationQuerySchema, kbttReconciliationOpenApiSchema } from "../domain/schemas/kbtt-reconciliation.schema";
 import {
   BadRequestException,
   Body,
@@ -7,6 +9,8 @@ import {
   Header,
   HttpCode,
   Param,
+  Optional,
+  ServiceUnavailableException,
   Post,
   Put,
   Query,
@@ -55,6 +59,8 @@ const connectionSchema = successEnvelopeSchema(
     type: "object",
     additionalProperties: false,
     required: [
+      "providerProfile",
+      "username",
       "configured",
       "status",
       "maskedUsername",
@@ -65,6 +71,28 @@ const connectionSchema = successEnvelopeSchema(
       "lastErrorMessage",
     ],
     properties: {
+      providerProfile: {
+        type: "object", additionalProperties: false,
+        required: ["state", "accommodation", "fetchedAt", "error"],
+        properties: {
+          state: { type: "string", enum: ["NOT_LOADED", "READY", "FAILED"] },
+          accommodation: {
+            type: "object", nullable: true, additionalProperties: false,
+            required: ["name", "address", "representative", "phone", "email", "managingUnit"],
+            properties: {
+              name: { type: "string", nullable: true }, address: { type: "string", nullable: true },
+              representative: { type: "string", nullable: true }, phone: { type: "string", nullable: true },
+              email: { type: "string", nullable: true }, managingUnit: { type: "string", nullable: true },
+            },
+          },
+          fetchedAt: { type: "string", format: "date-time", nullable: true },
+          error: {
+            type: "object", nullable: true, additionalProperties: false, required: ["code", "message"],
+            properties: { code: { type: "string" }, message: { type: "string" } },
+          },
+        },
+      },
+      username: { type: "string", nullable: true },
       configured: { type: "boolean" },
       status: { type: "string", enum: ["DISCONNECTED", "CONNECTED", "AUTH_FAILED"] },
       maskedUsername: { type: "string", nullable: true },
@@ -94,7 +122,7 @@ const connectionSchema = successEnvelopeSchema(
 })
 @Controller("hotels/:hotelId/kbtt")
 export class KbttController {
-  constructor(private readonly service: KbttService) {}
+  constructor(private readonly service: KbttService, @Optional() private readonly reconciliation?: KbttReconciliationService) {}
 
   @Get("connection")
   @Header("Cache-Control", "no-store")
@@ -176,6 +204,19 @@ export class KbttController {
     );
   }
 
+  @Get("reconciliation")
+  @Header("Cache-Control", "no-store")
+  @RequirePermission(["hotel.kbtt.declarations.view", "hotel.kbtt.declarations.manage"])
+  @ApiOperation({ summary: "Read-only reconciliation of all in-house guests against BOTH Vietnamese and foreign BCA sources; never authenticates or imports guests" })
+  @ApiQuery({ name: "localOnly", required: false, enum: ["true", "false"], description: "Immediate local guest preview; never contacts BCA" })
+  @ApiQuery({ name: "force", required: false, enum: ["true", "false"], description: "Refresh BOTH provider groups; concurrent calls share the same read" })
+  @ApiOkResponse({ schema: successEnvelopeSchema(kbttReconciliationOpenApiSchema, 200, "Thành công") })
+  getReconciliation(@Req() request: RequestWithRequiredUser, @Param("hotelId") hotelId: string, @Query() query?: unknown) {
+    const options = parseWithZod(kbttReconciliationQuerySchema, query ?? {});
+    if (!this.reconciliation) throw new ServiceUnavailableException("Đối soát BCA chưa sẵn sàng.");
+    return this.reconciliation.get(request.user.userId, request.user.roleId, parseWithZod(hotelIdParamSchema, hotelId), options.force, options.localOnly);
+  }
+
   @Get("daily-movements")
   @Header("Cache-Control", "no-store")
   @RequirePermission(["hotel.kbtt.view", "hotel.kbtt.declarations.view"])
@@ -201,7 +242,8 @@ export class KbttController {
   @ApiQuery({ name: "page", required: false, type: Number, minimum: 1 })
   @ApiQuery({ name: "limit", required: false, type: Number, minimum: 1, maximum: 100 })
   @ApiQuery({ name: "q", required: false, type: String, maxLength: 200 })
-  @ApiQuery({ name: "status", required: false, enum: ["UNSENT", "QUEUED", "SUBMITTED", "LOCAL_ERROR", "REJECTED", "SENDING", "UNKNOWN", "CANCELLED"] })
+  @ApiQuery({ name: "stayIds", required: false, type: String, description: "Comma-separated current-page stay IDs; at most 20 IDs, each at most 128 characters" })
+  @ApiQuery({ name: "status", required: false, enum: ["UNSENT", "SUBMITTED", "LOCAL_ERROR", "REJECTED", "SENDING", "UNKNOWN", "CANCELLED"] })
   @ApiQuery({ name: "nationality", required: false, enum: ["VNM", "FOREIGN"] })
   @ApiQuery({ name: "checkInDate", required: false, type: String, format: "date" })
   listDeclarations(
@@ -261,7 +303,7 @@ export class KbttController {
   @Header("Cache-Control", "no-store")
   @ApiParam({ name: "occupantId", type: String })
   @RequirePermission("hotel.kbtt.declarations.manage")
-  @ApiOperation({ summary: "Queue validated declaration for background BCA delivery" })
+  @ApiOperation({ summary: "Start immediate background BCA delivery for a validated declaration" })
   submit(
     @Req() request: RequestWithRequiredUser,
     @Param("hotelId") hotelId: string,

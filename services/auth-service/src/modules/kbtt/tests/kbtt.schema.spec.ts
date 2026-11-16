@@ -1,4 +1,5 @@
 ﻿import {
+  kbttPaginationQuerySchema,
   kbttAutoSubmitConfigSchema,
   kbttAutoSubmitRunStatusSchema,
   kbttAutoSubmitRunSummarySchema,
@@ -95,5 +96,14 @@ describe("KBTT Auto-Submit Schemas", () => {
       expect(kbttAutoSubmitTestQuerySchema.safeParse({ dryRun: false }).success).toBe(false);
       expect(kbttAutoSubmitTestQuerySchema.safeParse({ dryRun: "false" }).success).toBe(false);
     });
+  });
+});
+
+describe("KBTT current-page stay scope", () => {
+  it("parses bounded CSV IDs without accepting empty or excessive scope", () => {
+    expect(kbttPaginationQuerySchema.parse({ stayIds: "stay-1, stay-2" }).stayIds).toEqual(["stay-1", "stay-2"]);
+    for (const stayIds of ["", "stay-1,", Array.from({ length: 21 }, (_, i) => `stay-${i}`).join(","), "x".repeat(129)]) {
+      expect(kbttPaginationQuerySchema.safeParse({ stayIds }).success).toBe(false);
+    }
   });
 });

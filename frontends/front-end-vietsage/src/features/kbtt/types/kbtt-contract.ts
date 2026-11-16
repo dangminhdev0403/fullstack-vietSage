@@ -11,6 +11,21 @@ export const kbttCredentialsSchema = z
   })
   .strict();
 
+export const kbttProviderProfileSchema = z.object({
+  state: z.enum(["NOT_LOADED", "READY", "FAILED"]),
+  accommodation: z.object({
+    name: z.string().nullable(),
+    address: z.string().nullable(),
+    representative: z.string().nullable(),
+    phone: z.string().nullable(),
+    email: z.string().nullable(),
+    managingUnit: z.string().nullable(),
+  }).nullable(),
+  fetchedAt: z.string().nullable(),
+  error: z.object({ code: z.string(), message: z.string() }).nullable(),
+});
+export type KbttProviderProfile = z.infer<typeof kbttProviderProfileSchema>;
+
 export const kbttConnectionSchema = z.object({
   configured: z.boolean(),
   status: z.enum(["CONNECTED", "AUTH_FAILED", "DISCONNECTED"]),
@@ -21,6 +36,9 @@ export const kbttConnectionSchema = z.object({
   lastConnectedAt: z.string().nullable(),
   lastErrorCode: z.string().nullable(),
   lastErrorMessage: z.string().nullable(),
+  providerProfile: kbttProviderProfileSchema.default({
+    state: "NOT_LOADED", accommodation: null, fetchedAt: null, error: null,
+  }),
 });
 
 export type KbttCredentials = z.infer<typeof kbttCredentialsSchema>;
@@ -70,10 +88,14 @@ export const kbttDerivedStatusSchema = z.enum([
 export type KbttDerivedStatus = z.infer<typeof kbttDerivedStatusSchema>;
 
 export const kbttPaginationQuerySchema = z.object({
+  stayIds: z.string().trim().max(2579).refine((value) => {
+    const ids = value.split(",");
+    return ids.length <= 20 && ids.every((id) => id.length > 0 && id.length <= 128);
+  }, "Phạm vi lượt lưu trú không hợp lệ.").optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(50),
   q: z.string().trim().max(200).optional(),
-  status: z.enum(["UNSENT", "QUEUED", "SUBMITTED", "LOCAL_ERROR", "REJECTED", "SENDING", "UNKNOWN", "CANCELLED"]).optional(),
+  status: z.enum(["UNSENT", "SUBMITTED", "LOCAL_ERROR", "REJECTED", "SENDING", "UNKNOWN", "CANCELLED"]).optional(),
   nationality: z.enum(["VNM", "FOREIGN"]).optional(),
   checkInDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 });
@@ -123,14 +145,14 @@ export type KbttDeclarationListItem = z.infer<
 >;
 export const kbttDeclarationListSchema = z.array(kbttDeclarationListItemSchema);
 
-const KBTT_LOCAL_FAILURE_CODES = new Set(["LOCAL_VALIDATION","LOCAL_STATE_CHANGED","CONNECTION_SCOPE_CHANGED","DELIVERY_BUSY","RECONCILIATION_REQUIRED","LOCAL_PREPARATION","LOCAL_STAY_ENDED","DELIVERY_PAUSED"]);
+const KBTT_LOCAL_FAILURE_CODES = new Set(["LOCAL_VALIDATION","LOCAL_STATE_CHANGED","CONNECTION_SCOPE_CHANGED","DELIVERY_BUSY","RECONCILIATION_REQUIRED","LOCAL_PREPARATION","LOCAL_STAY_ENDED","DELIVERY_PAUSED","KBTT_NOT_CONFIGURED","KBTT_AUTH_FAILED","KBTT_PROVIDER_UNAVAILABLE"]);
 
 export function getKbttDeclarationDisplayStatus(
   row: Pick<KbttDeclarationListItem, "declaration" | "derivedStatus">,
 ): NonNullable<KbttPaginationQuery["status"]> {
   const declaration = row.declaration;
   const status = declaration?.status ?? row.derivedStatus;
-  if (isKbttDeclarationQueued(declaration)) return "QUEUED";
+  if (status === "READY" && declaration?.providerCode === "LOCAL_QUEUED") return "LOCAL_ERROR";
   if (status === "FAILED") return KBTT_LOCAL_FAILURE_CODES.has(declaration?.providerCode ?? "") ? "LOCAL_ERROR" : "REJECTED";
   if (status === "SUBMITTED" || status === "SENDING" || status === "UNKNOWN" || status === "CANCELLED") return status;
   return "UNSENT";
@@ -427,14 +449,18 @@ export function canSelectKbttDeclaration(
   row: Pick<KbttDeclarationListItem, "derivedStatus"> &
     Partial<Pick<KbttDeclarationListItem, "declaration">>,
 ): boolean {
-  return !isKbttDeclarationQueued(row.declaration) &&
-    ["MISSING_PROFILE", "DRAFT", "READY", "FAILED"].includes(row.derivedStatus);
+  return ["MISSING_PROFILE", "DRAFT", "READY", "FAILED"].includes(row.derivedStatus);
 }
 
-export function isKbttDeclarationQueued(
-  declaration: Pick<KbttDeclarationSummary, "status" | "providerCode"> | null | undefined,
-): boolean {
-  return declaration?.status === "READY" && declaration.providerCode === "LOCAL_QUEUED";
+export function getKbttSubmissionIssue(
+  declaration: Pick<KbttDeclarationSummary, "status" | "providerMessage">,
+): string | null {
+  if (declaration.status === "SENDING" || declaration.status === "SUBMITTED") return null;
+  if (declaration.providerMessage) return sanitizeErrorMessage(declaration.providerMessage);
+  if (declaration.status === "UNKNOWN") return "Chưa xác định kết quả gửi BCA. Cần đối soát trước khi gửi lại.";
+  if (declaration.status === "FAILED") return "Chưa gửi được hồ sơ BCA. Vui lòng kiểm tra lý do trong hồ sơ.";
+  if (declaration.status === "CANCELLED") return "Hồ sơ đã hủy, chưa gửi BCA.";
+  return "Chưa thể bắt đầu gửi BCA. Vui lòng làm mới để kiểm tra.";
 }
 
 export function getKbttListState(
@@ -790,3 +816,32 @@ export function getVietnamTodayDate(): string {
 }
 
 
+
+
+export const kbttReconciliationSourceSchema = z.object({
+  state: z.enum(["PENDING", "COMPLETE", "FAILED", "NOT_CONNECTED", "NEEDS_LOGIN", "INCOMPLETE"]),
+  checkedAt: z.string().nullable(),
+  error: z.object({ code: z.string(), message: z.string() }).nullable(),
+});
+export const kbttReconciliationRowSchema = z.object({
+  id: z.string(), source: z.enum(["VIETSAGE", "BCA_ONLY"]),
+  kind: citizenshipKindSchema.nullable(), occupantId: z.string().nullable(), stayId: z.string().nullable(), roomId: z.string().nullable(),
+  roomNumber: z.string().nullable(), groupCode: z.string().nullable(), fullName: z.string(),
+  identityNumber: z.string().nullable(), documentType: z.number().nullable(), nationality: z.string().nullable(),
+  checkedInAt: z.string().nullable(), plannedCheckOutAt: z.string().nullable(),
+  status: z.enum(["MATCHED", "NOT_FOUND", "REVIEW"]).nullable(), reason: z.string().nullable(), bcaRecordId: z.string().nullable(),
+  declarationStatus: z.string().nullable(), providerMessage: z.string().nullable(), canRetry: z.boolean(),
+}).superRefine((row, ctx) => {
+  if (row.source === "BCA_ONLY" && (row.occupantId !== null || row.canRetry)) ctx.addIssue({ code: "custom", message: "BCA-only records must remain read-only" });
+  if (row.canRetry && !(row.source === "VIETSAGE" && row.occupantId && row.status === "NOT_FOUND" && row.declarationStatus === "FAILED")) ctx.addIssue({ code: "custom", message: "Unsafe reconciliation retry state" });
+});
+export const kbttReconciliationSchema = z.object({
+  items: z.array(kbttReconciliationRowSchema), checkedAt: z.string().nullable(),
+  range: z.object({ dateFrom: z.string(), dateTo: z.string() }),
+  sources: z.object({ VIETNAMESE: kbttReconciliationSourceSchema, FOREIGN: kbttReconciliationSourceSchema }),
+});
+export type KbttReconciliationRow = z.infer<typeof kbttReconciliationRowSchema>;
+export type KbttReconciliation = z.infer<typeof kbttReconciliationSchema>;
+export function canRetryReconciledGuest(row: KbttReconciliationRow): boolean {
+  return row.source === "VIETSAGE" && row.occupantId !== null && row.status === "NOT_FOUND" && row.declarationStatus === "FAILED" && row.canRetry;
+}

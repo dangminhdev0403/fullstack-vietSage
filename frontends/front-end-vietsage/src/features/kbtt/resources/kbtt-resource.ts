@@ -8,6 +8,7 @@ import {
 import { kbttRepository } from "../repositories/kbtt-repository";
 import type { PaginatedKbttDeclarations } from "../repositories/kbtt-repository";
 import type {
+  KbttReconciliation,
   KbttAutoSubmitConfig,
   KbttAutoSubmitEnabled,
   KbttAutoSubmitState,
@@ -27,9 +28,13 @@ import type {
 
 type HotelScope = { hotelId: string };
 const connectionInvalidates = [
+  { type: "query", operation: "reconciliation" },
+  { type: "query", operation: "reconciliationLocal" },
   { type: "query", operation: "connection" },
 ] as const;
 const declarationInvalidates = [
+  { type: "query", operation: "reconciliation" },
+  { type: "query", operation: "inHouseDeclarations" },
   { type: "query", operation: "declarations" },
   { type: "query", operation: "declarationDetail" },
 ] as const;
@@ -39,6 +44,31 @@ export const kbttResource = createResource<HotelScope>()({
   name: "kbtt",
   scopeKey: ({ hotelId }) => ["hotel", hotelId],
   queries: {
+    reconciliationLocal: defineQuery({
+      inputKey: () => [],
+      queryFn: ({ scope, signal }: ResourceQueryContext<HotelScope, void>): Promise<KbttReconciliation> =>
+        kbttRepository.reconciliation(scope.hotelId, signal, false, true),
+    }),
+    reconciliation: defineQuery({
+      inputKey: () => [],
+      queryFn: ({ scope, signal }: ResourceQueryContext<HotelScope, void>): Promise<KbttReconciliation> =>
+        kbttRepository.reconciliation(scope.hotelId, signal, true),
+    }),
+    inHouseDeclarations: defineQuery({
+      inputKey: ({ stayIds }: { stayIds: string }) => [stayIds],
+      queryFn: async ({ scope, input, signal }: ResourceQueryContext<HotelScope, { stayIds: string }>) => {
+        const first = await kbttRepository.listDeclarations(scope.hotelId, { stayIds: input.stayIds, page: 1, limit: 100 }, signal);
+        if (first.total === undefined || first.totalPages === undefined) throw new Error("Không xác định được số hồ sơ BCA.");
+        const items = [...first];
+        for (let page = 2; page <= first.totalPages; page += 1) {
+          const next = await kbttRepository.listDeclarations(scope.hotelId, { stayIds: input.stayIds, page, limit: 100 }, signal);
+          if (next.total !== first.total) throw new Error("Danh sách BCA vừa thay đổi. Vui lòng làm mới.");
+          items.push(...next);
+        }
+        if (items.length !== first.total || new Set(items.map((item) => item.occupantId)).size !== items.length) throw new Error("Chưa tải đủ hồ sơ BCA. Vui lòng làm mới.");
+        return Object.assign(items, { delivery: first.delivery });
+      },
+    }),
     connection: defineQuery({
       inputKey: () => [],
       queryFn: ({
@@ -57,6 +87,7 @@ export const kbttResource = createResource<HotelScope>()({
         input.status ?? "",
         input.nationality ?? "",
         input.checkInDate ?? "",
+        input.stayIds ?? "",
       ],
       queryFn: ({
         scope,
@@ -130,6 +161,11 @@ export const kbttResource = createResource<HotelScope>()({
     }),
   },
   mutations: {
+    refreshReconciliation: defineMutation({
+      defaults: { retry: false },
+      mutationFn: ({ scope }: ResourceMutationContext<HotelScope, void>): Promise<KbttReconciliation> =>
+        kbttRepository.reconciliation(scope.hotelId, undefined, true),
+    }),
     connect: defineMutation({
       defaults: { gcTime: 0, retry: false, networkMode: "always" },
       mutationFn: ({

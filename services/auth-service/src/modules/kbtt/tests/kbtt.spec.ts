@@ -1,3 +1,4 @@
+import { KbttProviderReadClient, KbttProviderReadError } from "../infrastructure/kbtt-provider-read.client";
 import {
   BadRequestException,
   ConflictException,
@@ -66,6 +67,10 @@ function enableAutomaticDelivery(f: ReturnType<typeof fixture>) {
   if (connection) connection.autoSubmitEnabled = true;
 }
 
+async function finishInitialDeliveries(f: ReturnType<typeof fixture>) {
+  await Promise.all([...(f.service as any).initialDeliveries.values()]);
+}
+
 const originalEnv = { ...process.env };
 const originalFetch = global.fetch;
 
@@ -80,7 +85,7 @@ function session(overrides: Partial<KbttSession> = {}): KbttSession {
   };
 }
 
-function fixture() {
+function fixture(providerRead?: KbttProviderReadClient) {
   const rows = new Map<string, KbttHotelConnection>();
   const declarations = new Map<string, any>();
   const occupants = new Map<string, any>();
@@ -105,11 +110,8 @@ function fixture() {
       rows.delete(hotelId);
     }),
     findPendingScheduledAutoSubmitRuns: jest.fn(async () => []),
-    findQueuedInitialDeclarations: jest.fn(async () =>
-      [...declarations.values()]
-        .filter((declaration) => declaration.status === "READY" && declaration.providerCode === "LOCAL_QUEUED")
-        .map(({ hotelId, occupantId }) => ({ hotelId, occupantId })),
-    ),
+    findOccupantsByStay: jest.fn(async (hotelId: string, stayId: string) =>
+      [...occupants.values()].filter((occupant) => occupant.hotelId === hotelId && occupant.stayId === stayId)),
     getDeliverySnapshot: jest.fn(async (_hotelId: string, _allowedRoomId: string | null): Promise<{
       pendingCount: number; sendingCount: number; reviewCount: number;
       lastSucceededAt: Date | null; recentIssues: any[];
@@ -149,9 +151,9 @@ function fixture() {
         },
       };
     }),
-    markInterruptedDeclarationsUnknown: jest.fn(async () => {
+    markInterruptedDeclarationsUnknown: jest.fn(async (activeDeclarationIds: string[] = []) => {
       for (const declaration of declarations.values()) {
-        if (declaration.status === "SENDING" &&
+        if (declaration.status === "SENDING" && !activeDeclarationIds.includes(declaration.id) &&
             declaration.updatedAt < new Date(Date.now() - 5 * 60_000)) {
           Object.assign(declaration, {
             status: "UNKNOWN",
@@ -322,6 +324,18 @@ function fixture() {
       createdAt: new Date(),
       updatedAt: new Date(),
     })),
+    saveCanonicalDraft: jest.fn(async (params: any) => {
+      const occupant = occupants.get(params.occupantId);
+      if (!occupant || occupant.hotelId !== params.hotelId || occupant.stayId !== params.stayId) throw new ConflictException('Profile conflict');
+      const saved = params.existing
+        ? await repository.updateDeclaration({ id: params.existing.id, hotelId: params.hotelId, expectedVersion: params.existing.version, data: {
+            declarationKind: params.declarationKind, draftPayloadJson: params.draftPayloadJson, status: 'DRAFT',
+            providerCode: null, providerMessage: null, providerResponseJson: null, submittedAt: null } })
+        : await repository.createDeclaration({ hotelId: params.hotelId, stayId: params.stayId, occupantId: params.occupantId,
+            declarationKind: params.declarationKind, draftPayloadJson: params.draftPayloadJson, status: 'DRAFT' });
+      Object.assign(occupant, Object.fromEntries(Object.entries(params.profile).filter(([, value]) => value !== undefined)));
+      return saved;
+    }),
     updateOccupantCitizenship: jest.fn(
       async (occupantId: string, hotelId: string, citizenshipKind: any) => {
         const occ = occupants.get(occupantId);
@@ -480,6 +494,7 @@ function fixture() {
     cipher,
     provider as never,
     occupantsReadService as never,
+    undefined, undefined, undefined, providerRead,
   );
   return {
     rows,
@@ -687,38 +702,41 @@ describe("KBTT secure manual authentication", () => {
     expect(kbttAutoSubmitConfigSchema.safeParse({}).success).toBe(false);
   });
 
-  it("keeps queued initial declarations and monitoring paused until either workspace enables the shared switch", async () => {
+  it("records paused immediate delivery without retaining an automatic queue", async () => {
     const f = fixture();
     f.occupants.set(primaryOccupant.id, primaryOccupant);
     await f.service.connect("owner", "owner-role", "hotel-1", credentials);
-    const queued = await f.service.submit("owner", "owner-role", "hotel-1", primaryOccupant.id);
     f.provider.login.mockClear();
-    await f.service.processQueuedInitialDeclarations();
-    expect(f.declarations.get(queued.id)).toMatchObject({ status: "READY", providerCode: "LOCAL_QUEUED" });
+    const result = await f.service.submit("owner", "owner-role", "hotel-1", primaryOccupant.id);
+    expect(result).toMatchObject({ status: "FAILED", providerCode: "DELIVERY_PAUSED" });
     expect((await f.service.listDeclarations("owner", "owner-role", "hotel-1")).delivery.state).toBe("PAUSED");
     expect(f.provider.login).not.toHaveBeenCalled();
     expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
     await f.service.updateAutoSubmitEnabled("front-desk", "staff-role", "hotel-1", true);
-    await f.service.processQueuedInitialDeclarations();
+    await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
+    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+    const retry = await f.service.submit("owner", "owner-role", "hotel-1", primaryOccupant.id);
+    expect(retry.status).toBe("SENDING");
+    await finishInitialDeliveries(f);
     expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
-    expect(f.declarations.get(queued.id)?.status).toBe("SUBMITTED");
+    expect(f.declarations.get(result.id)?.status).toBe("SUBMITTED");
   });
 
-  it("restores a queued initial declaration when the switch is disabled immediately before transmission", async () => {
+  it("records a paused result when the switch is disabled immediately before transmission", async () => {
     const f = fixture();
     f.occupants.set(primaryOccupant.id, primaryOccupant);
     await f.service.connect("owner", "owner-role", "hotel-1", credentials);
-    await f.service.updateAutoSubmitEnabled("owner", "owner-role", "hotel-1", true);
-    const queued = await f.service.submit("owner", "owner-role", "hotel-1", primaryOccupant.id);
+    enableAutomaticDelivery(f);
     const current = f.repository.findDeclarationForDispatch.getMockImplementation()!;
     f.repository.findDeclarationForDispatch.mockImplementationOnce(async (hotelId, declarationId) => {
       const declaration = await current(hotelId, declarationId);
       await f.service.updateAutoSubmitEnabled("owner", "owner-role", "hotel-1", false);
       return declaration;
     });
-    await f.service.processQueuedInitialDeclarations();
+    const result = await f.service.submit("owner", "owner-role", "hotel-1", primaryOccupant.id);
+    await finishInitialDeliveries(f);
     expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
-    expect(f.declarations.get(queued.id)).toMatchObject({ status: "READY", providerCode: "LOCAL_QUEUED" });
+    expect(f.declarations.get(result.id)).toMatchObject({ status: "FAILED", providerCode: "DELIVERY_PAUSED" });
   });
 
   it("stops the remaining guests in an active automatic run when either workspace pauses delivery", async () => {
@@ -924,6 +942,71 @@ describe("KBTT secure manual authentication", () => {
 });
 
 describe("KBTT edit and submit", () => {
+  it.each(['VIETNAMESE', 'FOREIGN'] as const)('keeps %s provider payload identical while storing canonical shared fields once', async (kind) => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-09-15T03:00:00.000Z'));
+    const f = fixture();
+    const occupant = { ...primaryOccupant, id: 'compact-' + kind, citizenshipKind: kind,
+      fullName: 'Nguyen Hoang Nam', identityNumber: kind === 'VIETNAMESE' ? '001090012345' : 'P1234567',
+      nationality: kind === 'VIETNAMESE' ? 'VNM' : 'KOR', dateOfBirth: kind === 'FOREIGN' ? '1990' : '1990-01-01' };
+    f.occupants.set(occupant.id, occupant);
+    const data = kind === 'VIETNAMESE'
+      ? { lyDoCuTru: 1, loaiGiayTo: 8, hoTen: 'Nguyen Hoang Nam', soGiayTo: '001090012345', soDienThoai: null }
+      : { quocTich: 'PROVIDER_KR_7', loaiNgayThangNamSinh: 'Y', thoiHanTamTruStr: '2026-10-15 23:59:59' };
+    const saved = await f.service.saveDraft('user-1', 'role-1', 'hotel-1', occupant.id, { citizenshipKind: kind, data });
+    const stored = await f.repository.findLatestDeclaration('hotel-1', occupant.id);
+    for (const key of ['hoTen', 'gioiTinh', 'ngayThangNamSinhStr', 'soGiayTo', 'soHoChieu', 'soPhong', 'ngayDenCsltStr', 'ngayDiDuKienStr'])
+      expect(stored.draftPayloadJson).not.toHaveProperty(key);
+    const expected = { hoTen: 'Nguyen Hoang Nam', gioiTinh: 'M', ngayThangNamSinhStr: '1990-01-01',
+      soPhong: '101', ngayDenCsltStr: '2026-09-14 10:00:00', ngayDiDuKienStr: '2026-09-15 12:00:00',
+      ...(kind === 'VIETNAMESE' ? { soGiayTo: '001090012345', loaiGiayTo: 8, lyDoCuTru: 1, soDienThoai: null }
+        : { soHoChieu: 'P1234567', quocTich: 'PROVIDER_KR_7', loaiNgayThangNamSinh: 'Y', thoiHanTamTruStr: '2026-10-15 23:59:59' }) };
+    expect(saved.draftPayload).toEqual(expected);
+    if (kind === 'FOREIGN') expect(occupant.nationality).toBe('PROVIDER_KR_7');
+    await f.service.connect('user-1', 'role-1', 'hotel-1', credentials);
+    enableAutomaticDelivery(f);
+    await f.service.submit('user-1', 'role-1', 'hotel-1', occupant.id);
+    await finishInitialDeliveries(f);
+    expect(f.provider.submitDeclaration).toHaveBeenCalledWith(kind, [expected], expect.any(String));
+    const sent = await f.repository.findLatestDeclaration('hotel-1', occupant.id);
+    const snapshot = JSON.stringify(sent.submittedPayloadJson);
+    const fingerprint = sent.submittedPayloadFingerprint;
+    occupant.fullName = 'Bui Thanh Hong';
+    occupant.identityNumber = 'NEW12345';
+    const view = await f.service.getDeclaration('user-1', 'role-1', 'hotel-1', occupant.id);
+    expect(view.declaration?.draftPayload).toEqual(expected);
+    expect(JSON.stringify(sent.submittedPayloadJson)).toBe(snapshot);
+    expect(sent.submittedPayloadFingerprint).toBe(fingerprint);
+    jest.useRealTimers();
+  });
+
+  it('reads current canonical data after a later profile edit while preserving provider-only and legacy deltas', async () => {
+    const f = fixture();
+    const occupant = { ...primaryOccupant, id: 'canonical-edit' };
+    f.occupants.set(occupant.id, occupant);
+    await f.service.saveDraft('user-1', 'role-1', 'hotel-1', occupant.id, { citizenshipKind: 'VIETNAMESE', data: { lyDoCuTru: 20, lyDoChiTiet: 'Cong tac' } });
+    occupant.fullName = 'Bui Thanh Hong';
+    occupant.gender = 'F';
+    const view = await f.service.getDeclaration('user-1', 'role-1', 'hotel-1', occupant.id);
+    expect(view.declaration?.draftPayload).toMatchObject({ hoTen: 'Bui Thanh Hong', gioiTinh: 'F', lyDoCuTru: 20, lyDoChiTiet: 'Cong tac' });
+    const longName = Array(50).fill('Nguyen').join(' ').slice(0, 150).trim();
+    const saved = await f.service.saveDraft('user-1', 'role-1', 'hotel-1', occupant.id, { citizenshipKind: 'VIETNAMESE', data: { hoTen: longName } });
+    expect(occupant.fullName).toBe('Bui Thanh Hong');
+    expect(saved.draftPayload).toHaveProperty('hoTen', longName);
+    expect((await f.repository.findLatestDeclaration('hotel-1', occupant.id)).draftPayloadJson.hoTen).toBe(longName);
+  });
+
+  it('clears explicit shared phone/address values without restoring stale canonical data', async () => {
+    const f = fixture();
+    const occupant = { ...primaryOccupant, id: 'clear-shared', residencePlace: 'Ha Noi', phone: '0901234567' };
+    f.occupants.set(occupant.id, occupant);
+    const result = await f.service.saveDraft('user-1', 'role-1', 'hotel-1', occupant.id, { citizenshipKind: 'VIETNAMESE', data: { soDienThoai: null, diaChi: null } });
+    expect(occupant.phone).toBeNull();
+    expect(occupant.residencePlace).toBeNull();
+    expect(result.draftPayload).toMatchObject({ soDienThoai: null, diaChi: null });
+    const next = await f.service.getDeclaration('user-1', 'role-1', 'hotel-1', occupant.id);
+    expect(next.occupant).toMatchObject({ phone: null, residencePlace: null });
+  });
+
   it("saves current form data as DRAFT without status gates", async () => {
     const f = fixture();
     f.occupants.set("occ-vn", primaryOccupant);
@@ -944,10 +1027,9 @@ describe("KBTT edit and submit", () => {
     };
     f.occupants.set(vietnamesePassport.id, vietnamesePassport);
     await f.service.connect("user-1", "role-1", "hotel-1", credentials);
-    await f.service.submit("user-1", "role-1", "hotel-1", vietnamesePassport.id);
-    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
     enableAutomaticDelivery(f);
-    await f.service.processQueuedInitialDeclarations();
+    await f.service.submit("user-1", "role-1", "hotel-1", vietnamesePassport.id);
+    await finishInitialDeliveries(f);
     expect(f.provider.submitDeclaration).toHaveBeenCalledWith(
       "VIETNAMESE",
       [expect.objectContaining({ loaiGiayTo: 4, lyDoCuTru: 1, gioiTinh: "F" })],
@@ -955,40 +1037,31 @@ describe("KBTT edit and submit", () => {
     );
   });
 
-  it("validates and queues the current draft without provider or authentication calls", async () => {
+  it("starts delivery immediately and returns before the provider reply while fencing duplicate submits and edits", async () => {
     const f = fixture();
     f.occupants.set("occ-vn", primaryOccupant);
     await f.service.connect("user-1", "role-1", "hotel-1", credentials);
+    enableAutomaticDelivery(f);
     await f.service.saveDraft("user-1", "role-1", "hotel-1", "occ-vn", {
-      citizenshipKind: "VIETNAMESE",
-      data: { lyDoCuTru: 1, loaiGiayTo: 1, soGiayTo: "001090012345" },
+      citizenshipKind: "VIETNAMESE", data: { lyDoCuTru: 1, loaiGiayTo: 1, soGiayTo: "001090012345" },
     });
-
-    f.provider.login.mockClear();
-    f.provider.refresh.mockClear();
+    let complete!: (value: any) => void;
+    f.provider.submitDeclaration.mockImplementationOnce(() => new Promise((resolve) => { complete = resolve; }));
     const result = await f.service.submit("user-1", "role-1", "hotel-1", "occ-vn");
-    expect(result.status).toBe("READY");
-    expect(result.providerCode).toBe("LOCAL_QUEUED");
-    expect(result.submittedAt).toBeNull();
-    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
-    expect(f.provider.login).not.toHaveBeenCalled();
-    expect(f.provider.refresh).not.toHaveBeenCalled();
-
+    expect(result).toMatchObject({ status: "SENDING", providerCode: null, submittedAt: null });
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
     const repeated = await f.service.submit("user-1", "role-1", "hotel-1", "occ-vn");
     expect(repeated.id).toBe(result.id);
-    expect(f.declarations.size).toBe(1);
-    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
-
-    enableAutomaticDelivery(f);
-
-    await f.service.processQueuedInitialDeclarations();
     expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
-    expect(f.provider.submitDeclaration).toHaveBeenCalledWith(
-      "VIETNAMESE",
-      [expect.objectContaining({ loaiGiayTo: 1, lyDoCuTru: 1 })],
-      expect.any(String),
-    );
-    expect(f.declarations.get(result.id)?.status).toBe("SUBMITTED");
+    await expect(f.service.saveDraft("user-1", "role-1", "hotel-1", "occ-vn", {
+      citizenshipKind: "VIETNAMESE", data: { hoTen: "Changed" },
+    })).rejects.toMatchObject({ status: 409 });
+    complete({ outcome: "SUCCESS", code: "200", message: "Thành công" });
+    await finishInitialDeliveries(f);
+    expect(f.declarations.get(result.id)).toMatchObject({ status: "SUBMITTED", providerCode: "200" });
+    expect(f.provider.submitDeclaration).toHaveBeenCalledWith("VIETNAMESE",
+      [expect.objectContaining({ loaiGiayTo: 1, lyDoCuTru: 1 })], expect.any(String));
   });
 
   it.each([
@@ -998,48 +1071,43 @@ describe("KBTT edit and submit", () => {
     const f = fixture();
     f.occupants.set("occ-vn", primaryOccupant);
     await f.service.connect("user-1", "role-1", "hotel-1", credentials);
-    const queued = await f.service.submit("user-1", "role-1", "hotel-1", "occ-vn");
+    enableAutomaticDelivery(f);
     const readCurrent = f.repository.findDeclarationForDispatch.getMockImplementation();
     f.repository.findDeclarationForDispatch.mockImplementationOnce(async (hotelId, declarationId) => {
       const current = await readCurrent?.(hotelId, declarationId);
       if (!current) throw new Error("Missing queued declaration");
       return { ...current, stay: { ...current.stay, plannedCheckOutAt: new Date(departure) } };
     });
-    enableAutomaticDelivery(f);
-    await f.service.processQueuedInitialDeclarations();
+    const queued = await f.service.submit("user-1", "role-1", "hotel-1", "occ-vn");
+    await finishInitialDeliveries(f);
     expect(f.declarations.get(queued.id)?.status).toBe(expectedStatus);
     expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(expectedStatus === "SUBMITTED" ? 1 : 0);
     if (expectedStatus === "FAILED") expect(f.declarations.get(queued.id)?.providerCode).toBe("LOCAL_STATE_CHANGED");
   });
 
-  it("stops queued initial delivery when the guest checks out before dispatch", async () => {
+  it("rechecks checkout before the immediate provider transmission", async () => {
     const f = fixture();
     f.occupants.set("occ-vn", primaryOccupant);
     await f.service.connect("user-1", "role-1", "hotel-1", credentials);
-    const queued = await f.service.submit("user-1", "role-1", "hotel-1", "occ-vn");
-    f.occupants.set("occ-vn", {
-      ...primaryOccupant,
-      stay: { ...primaryOccupant.stay, status: "CHECKED_OUT", checkedOutAt: new Date() },
-    });
-    f.provider.login.mockClear();
-    f.provider.refresh.mockClear();
-
     enableAutomaticDelivery(f);
-
-    await f.service.processQueuedInitialDeclarations();
-
-    expect(f.declarations.get(queued.id)).toMatchObject({
-      status: "FAILED", providerCode: "LOCAL_STAY_ENDED", submittedAt: null,
-    });
+    (f.service as any).sessions.clear();
+    let finishLogin!: (value: any) => void;
+    f.provider.login.mockImplementationOnce(() => new Promise((resolve) => { finishLogin = resolve; }));
+    const result = await f.service.submit("user-1", "role-1", "hotel-1", "occ-vn");
+    await new Promise((resolve) => setImmediate(resolve));
+    f.occupants.set("occ-vn", { ...primaryOccupant,
+      stay: { ...primaryOccupant.stay, status: "CHECKED_OUT", checkedOutAt: new Date() } });
+    finishLogin(session());
+    await finishInitialDeliveries(f);
+    expect(f.declarations.get(result.id)).toMatchObject({ status: "FAILED", providerCode: "LOCAL_STATE_CHANGED" });
     expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
-    expect(f.provider.login).not.toHaveBeenCalled();
-    expect(f.provider.refresh).not.toHaveBeenCalled();
   });
 
   it("keeps matching BCA duplicate rejection FAILED without inferring success", async () => {
     const f = fixture();
     f.occupants.set("occ-vn", primaryOccupant);
     await f.service.connect("user-1", "role-1", "hotel-1", credentials);
+    enableAutomaticDelivery(f);
     await f.service.saveDraft("user-1", "role-1", "hotel-1", "occ-vn", {
       citizenshipKind: "VIETNAMESE",
       data: { lyDoCuTru: 1, loaiGiayTo: 1, soGiayTo: "001090012345" },
@@ -1054,10 +1122,8 @@ describe("KBTT edit and submit", () => {
     });
 
     const queued = await f.service.submit("user-1", "role-1", "hotel-1", "occ-vn");
-    expect(queued.status).toBe("READY");
-    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
-    enableAutomaticDelivery(f);
-    await f.service.processQueuedInitialDeclarations();
+    expect(queued.status).toBe("SENDING");
+    await finishInitialDeliveries(f);
     const stored = await f.repository.findLatestDeclaration("hotel-1", "occ-vn");
     expect(stored?.status).toBe("FAILED");
     expect(stored?.providerCode).toBe("400");
@@ -1080,10 +1146,9 @@ describe("KBTT edit and submit", () => {
       citizenshipKind: "FOREIGN", data: { thoiHanTamTruStr: "2026-10-15 23:59:59" },
     });
     await f.service.connect("user-1", "role-1", "hotel-1", credentials);
-    await f.service.submit("user-1", "role-1", "hotel-1", foreignOccupant.id);
-    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
     enableAutomaticDelivery(f);
-    await f.service.processQueuedInitialDeclarations();
+    await f.service.submit("user-1", "role-1", "hotel-1", foreignOccupant.id);
+    await finishInitialDeliveries(f);
 
     expect(f.provider.submitDeclaration).toHaveBeenCalledWith(
       "FOREIGN",
@@ -1109,11 +1174,11 @@ describe("KBTT edit and submit", () => {
     const declaration = await f.repository.findLatestDeclaration("hotel-1", occupant.id);
     expect(declaration).toMatchObject({ status: "FAILED", providerCode: "LOCAL_VALIDATION" });
     expect(declaration.draftPayloadJson.thoiHanTamTruStr).toBeUndefined();
-    expect(declaration.draftPayloadJson.ngayDiDuKienStr).toBe("2026-09-15 12:00:00");
+    expect((await f.service.getDeclaration("user-1", "role-1", "hotel-1", occupant.id)).declaration?.draftPayload?.ngayDiDuKienStr).toBe("2026-09-15 12:00:00");
     await expect(f.service.submit("user-1", "role-1", "hotel-1", occupant.id))
       .rejects.toMatchObject({ response: { code: "KBTT_PAYLOAD_INVALID", message: expect.stringContaining("Thời hạn tạm trú") } });
     enableAutomaticDelivery(f);
-    await f.service.processQueuedInitialDeclarations();
+    await finishInitialDeliveries(f);
     expect(f.provider.login).not.toHaveBeenCalled();
     expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
   });
@@ -1125,7 +1190,7 @@ describe("KBTT edit and submit", () => {
       f.occupants.set(occupant.id, occupant);
       await f.service.saveDraft("user-1", "role-1", "hotel-1", occupant.id, { citizenshipKind: kind, data: {} });
       const declaration = await f.repository.findLatestDeclaration("hotel-1", occupant.id);
-      if (kind === "FOREIGN") expect(declaration.draftPayloadJson).toMatchObject({
+      if (kind === "FOREIGN") expect((await f.service.getDeclaration("user-1", "role-1", "hotel-1", occupant.id)).declaration?.draftPayload).toMatchObject({
         loaiNgayThangNamSinh: "Y", ngayThangNamSinhStr: "1990-01-01",
       });
       else expect(declaration.draftPayloadJson.ngayThangNamSinhStr).toBeUndefined();
@@ -1144,7 +1209,7 @@ describe("KBTT edit and submit", () => {
       loaiNgayThangNamSinh: "D", ngayThangNamSinhStr: "1990-04-06", thoiHanTamTruStr: "2026-12-31 23:59:59",
     } });
     const declaration = await f.repository.findLatestDeclaration("hotel-1", occupant.id);
-    expect(declaration.draftPayloadJson).toMatchObject({
+    expect((await f.service.getDeclaration("user-1", "role-1", "hotel-1", occupant.id)).declaration?.draftPayload).toMatchObject({
       loaiNgayThangNamSinh: "D", ngayThangNamSinhStr: "1990-04-06", thoiHanTamTruStr: "2026-12-31 23:59:59",
     });
     expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
@@ -1225,6 +1290,7 @@ describe("KBTT edit and submit", () => {
     const f = fixture();
     f.occupants.set("occ-vn", primaryOccupant);
     await f.service.connect("user-1", "role-1", "hotel-1", credentials);
+    enableAutomaticDelivery(f);
     await f.service.saveDraft("user-1", "role-1", "hotel-1", "occ-vn", {
       citizenshipKind: "VIETNAMESE",
       data: { lyDoCuTru: 1, loaiGiayTo: 1, soGiayTo: "001090012345" },
@@ -1237,67 +1303,179 @@ describe("KBTT edit and submit", () => {
     });
 
     const queued = await f.service.submit("user-1", "role-1", "hotel-1", "occ-vn");
-    expect(queued.status).toBe("READY");
-    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
-    enableAutomaticDelivery(f);
-    await f.service.processQueuedInitialDeclarations();
+    expect(queued.status).toBe("SENDING");
+    await finishInitialDeliveries(f);
     const stored = await f.repository.findLatestDeclaration("hotel-1", "occ-vn");
     expect(stored?.status).toBe("FAILED");
     expect(stored?.providerCode).toBe("400");
     expect(stored?.providerMessage).toBe("Bản khai báo 1: Khách đang tạm trú tại CSLT.");
   });
 
-  it("preserves a draft edit made after queue preparation and fences the stale provider send", async () => {
+  it("keeps a persisted transport failure UNKNOWN and never automatically retries it", async () => {
     const f = fixture();
-    f.occupants.set("occ-vn", { ...primaryOccupant });
+    f.occupants.set("occ-vn", primaryOccupant);
     await f.service.connect("user-1", "role-1", "hotel-1", credentials);
-    const queued = await f.service.submit("user-1", "role-1", "hotel-1", "occ-vn");
-    (f.service as any).sessions.clear();
-    f.provider.login.mockImplementationOnce(async () => {
-      await f.service.saveDraft("user-1", "role-1", "hotel-1", "occ-vn", {
-        citizenshipKind: "VIETNAMESE", data: { hoTen: "Updated Guest" },
-      });
-      return session();
-    });
-
     enableAutomaticDelivery(f);
-
-    await f.service.processQueuedInitialDeclarations();
-
-    const current = f.declarations.get(queued.id);
-    expect(current.status).toBe("DRAFT");
-    expect(current.providerCode).toBeNull();
-    expect(current.draftPayloadJson.hoTen).toBe("Updated Guest");
-    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+    f.provider.submitDeclaration.mockRejectedValueOnce(new Error("Connection reset after transmission"));
+    const result = await f.service.submit("user-1", "role-1", "hotel-1", "occ-vn");
+    await finishInitialDeliveries(f);
+    expect(f.declarations.get(result.id)).toMatchObject({ status: "UNKNOWN", providerCode: "INTERRUPTED_DELIVERY" });
+    await expect(f.service.submit("user-1", "role-1", "hotel-1", "occ-vn")).rejects.toMatchObject({ status: 409 });
+    await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
+    expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
   });
 
   it.each([
     ["live delivery is disabled", "false", "false"],
     ["the kill switch is active", "true", "true"],
-  ])("keeps queued initials pending when %s", async (_name, liveEnabled, killSwitch) => {
+  ])("records a definitive local failure without provider calls when %s", async (_name, liveEnabled, killSwitch) => {
     const f = fixture();
     f.occupants.set("occ-vn", primaryOccupant);
     await f.service.connect("user-1", "role-1", "hotel-1", credentials);
-    const queued = await f.service.submit("user-1", "role-1", "hotel-1", "occ-vn");
+    enableAutomaticDelivery(f);
     f.provider.login.mockClear();
     f.provider.refresh.mockClear();
     process.env.KBTT_AUTO_SUBMIT_LIVE_ENABLED = liveEnabled;
     process.env.KBTT_AUTO_SUBMIT_KILL_SWITCH = killSwitch;
-
-    enableAutomaticDelivery(f);
-
-    await f.service.processQueuedInitialDeclarations();
-
-    expect(f.declarations.get(queued.id)?.status).toBe("READY");
-    expect(f.repository.findQueuedInitialDeclarations).not.toHaveBeenCalled();
+    const result = await f.service.submit("user-1", "role-1", "hotel-1", "occ-vn");
+    expect(result).toMatchObject({ status: "FAILED", providerCode: "DELIVERY_PAUSED" });
     expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
     expect(f.provider.login).not.toHaveBeenCalled();
     expect(f.provider.refresh).not.toHaveBeenCalled();
   });
 
+  it("starts both guests from one check-in without establishment lease collisions or waiting on the provider reply", async () => {
+    const f = fixture();
+    f.occupants.set(primaryOccupant.id, primaryOccupant);
+    f.occupants.set("second-guest", { ...primaryOccupant, id: "second-guest", identityNumber: "001090012346" });
+    await f.service.connect("user-1", "role-1", "hotel-1", credentials);
+    enableAutomaticDelivery(f);
+    let completeFirst!: (value: any) => void;
+    f.provider.submitDeclaration.mockImplementationOnce(() => new Promise((resolve) => { completeFirst = resolve; }));
+    let establishmentBusy = false;
+    const sendInitial = jest.fn(async (_hotelId, kind, payload, token) => {
+      if (establishmentBusy) return { outcome: "BUSINESS_REJECTION", code: "DELIVERY_BUSY", message: "Busy" };
+      establishmentBusy = true;
+      try { return await f.provider.submitDeclaration(kind, payload, token); }
+      finally { establishmentBusy = false; }
+    });
+    (f.service as any).staySync = { enabled: () => true, sendInitial };
+    await f.service.triggerCheckInBcaPush("hotel-1", primaryOccupant.stayId);
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(f.declarations.size).toBe(2);
+    expect([...f.declarations.values()].every((d) => d.status === "SENDING")).toBe(true);
+    expect(sendInitial).toHaveBeenCalledTimes(1);
+    completeFirst({ outcome: "SUCCESS", code: "200", message: "Thành công" });
+    await finishInitialDeliveries(f);
+    expect(sendInitial).toHaveBeenCalledTimes(2);
+    expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(2);
+    expect([...f.declarations.values()].every((d) => d.status === "SUBMITTED")).toBe(true);
+  });
+
+  it("isolates one guest preparation failure while starting the next guest from the same check-in", async () => {
+    const f = fixture();
+    f.occupants.set(primaryOccupant.id, primaryOccupant);
+    f.occupants.set("second-guest", { ...primaryOccupant, id: "second-guest", identityNumber: "001090012346" });
+    await f.service.connect("user-1", "role-1", "hotel-1", credentials);
+    enableAutomaticDelivery(f);
+    f.repository.findActiveSubmittedOccupantByIdentity.mockRejectedValueOnce(new Error("First guest preparation conflict"));
+    await f.service.triggerCheckInBcaPush("hotel-1", primaryOccupant.stayId);
+    await finishInitialDeliveries(f);
+    expect(await f.repository.findLatestDeclaration("hotel-1", primaryOccupant.id))
+      .toMatchObject({ status: "FAILED", providerCode: "LOCAL_PREPARATION" });
+    expect(await f.repository.findLatestDeclaration("hotel-1", "second-guest"))
+      .toMatchObject({ status: "SUBMITTED" });
+    expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps historical queued records in local review without automatic check-in or scheduled replay", async () => {
+    const f = fixture();
+    f.occupants.set(primaryOccupant.id, primaryOccupant);
+    await f.service.connect("user-1", "role-1", "hotel-1", credentials);
+    enableAutomaticDelivery(f);
+    const draft = await f.service.saveDraft("user-1", "role-1", "hotel-1", primaryOccupant.id, {
+      citizenshipKind: "VIETNAMESE", data: { loaiGiayTo: 1, lyDoCuTru: 1, soGiayTo: primaryOccupant.identityNumber },
+    });
+    await f.repository.updateDeclaration({ id: draft.id, hotelId: "hotel-1", expectedVersion: draft.version,
+      data: { status: "READY", providerCode: "LOCAL_QUEUED", providerMessage: "Đang chờ gửi BCA." } });
+    await f.service.triggerCheckInBcaPush("hotel-1", primaryOccupant.stayId);
+    await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
+    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+    expect(f.declarations.get(draft.id)).toMatchObject({ status: "READY", providerCode: "LOCAL_QUEUED" });
+    const list = await f.service.listDeclarations("user-1", "role-1", "hotel-1", { status: "LOCAL_ERROR" });
+    expect(list.items).toHaveLength(1);
+    expect(list.items[0].declaration?.providerMessage).toBe("Hồ sơ chưa được gửi BCA. Kiểm tra dữ liệu trước khi gửi.");
+    const explicit = await f.service.submit("user-1", "role-1", "hotel-1", primaryOccupant.id);
+    expect(explicit.status).toBe("SENDING");
+    await finishInitialDeliveries(f);
+    expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
+  });
+
+  it("persists UNKNOWN if storing a provider acknowledgement fails without repeating the external call", async () => {
+    const f = fixture();
+    f.occupants.set(primaryOccupant.id, primaryOccupant);
+    await f.service.connect("user-1", "role-1", "hotel-1", credentials);
+    enableAutomaticDelivery(f);
+    const update = f.repository.updateDeclaration.getMockImplementation()!;
+    let failedOnce = false;
+    f.repository.updateDeclaration.mockImplementation(async (params) => {
+      if (params.data.status === "SUBMITTED" && !failedOnce) { failedOnce = true; throw new Error("Persistence failed"); }
+      return update(params);
+    });
+    const result = await f.service.submit("user-1", "role-1", "hotel-1", primaryOccupant.id);
+    await finishInitialDeliveries(f);
+    expect(f.declarations.get(result.id)).toMatchObject({ status: "UNKNOWN", providerCode: "INTERRUPTED_DELIVERY" });
+    expect(f.declarations.get(result.id).submittedPayloadJson).toEqual([
+      expect.objectContaining({ soGiayTo: primaryOccupant.identityNumber })]);
+    await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
+    expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
+  });
+
+  it("reconciles abandoned SENDING locally while paused without marking an active immediate delivery unknown", async () => {
+    const f = fixture();
+    f.occupants.set(primaryOccupant.id, primaryOccupant);
+    await f.service.connect("user-1", "role-1", "hotel-1", credentials);
+    enableAutomaticDelivery(f);
+    let complete!: (value: any) => void;
+    f.provider.submitDeclaration.mockImplementationOnce(() => new Promise((resolve) => { complete = resolve; }));
+    const result = await f.service.submit("user-1", "role-1", "hotel-1", primaryOccupant.id);
+    await new Promise((resolve) => setImmediate(resolve));
+    const active = f.declarations.get(result.id);
+    active.updatedAt = new Date(Date.now() - 10 * 60_000);
+    f.declarations.set("abandoned", { ...active, id: "abandoned", occupantId: "abandoned-guest" });
+    process.env.KBTT_AUTO_SUBMIT_KILL_SWITCH = "true";
+    await f.service.reconcileInterruptedInitialDeclarations();
+    expect(f.declarations.get(result.id).status).toBe("SENDING");
+    expect(f.declarations.get("abandoned")).toMatchObject({ status: "UNKNOWN", providerCode: "INTERRUPTED_DELIVERY" });
+    complete({ outcome: "SUCCESS", code: "200", message: "Thành công" });
+    await finishInitialDeliveries(f);
+    expect(f.declarations.get(result.id).status).toBe("SUBMITTED");
+    expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
+  });
+
+  it("distinguishes unsent local delivery issues from a provider rejection in passive monitoring", async () => {
+    const f = fixture();
+    const codes = ["DELIVERY_PAUSED", "KBTT_NOT_CONFIGURED", "KBTT_AUTH_FAILED", "KBTT_PROVIDER_UNAVAILABLE", "LOCAL_QUEUED"];
+    f.repository.getDeliverySnapshot.mockResolvedValueOnce({ pendingCount: 0, sendingCount: 0,
+      reviewCount: codes.length + 1, lastSucceededAt: null,
+      recentIssues: [...codes, "400"].map((providerCode) => ({
+        id: providerCode, kind: "INITIAL", status: "FAILED", providerCode,
+        roomNumber: "101", fullName: "Nguyen Van A", updatedAt: new Date().toISOString(),
+      })),
+    });
+    const list = await f.service.listDeclarations("user-1", "role-1", "hotel-1");
+    for (const issue of list.delivery.recentIssues.filter((issue) => issue.id !== "400")) {
+      expect(issue.message).not.toContain("BCA chưa chấp nhận");
+    }
+    expect(list.delivery.recentIssues.find((issue) => issue.id === "400")?.message).toContain("BCA chưa chấp nhận");
+    expect(f.provider.login).not.toHaveBeenCalled();
+    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+  });
+
   it("schedules the live test action without provider or authentication calls", async () => {
     const f = fixture();
     await f.service.connect("user-1", "role-1", "hotel-1", credentials);
+    enableAutomaticDelivery(f);
     f.provider.login.mockClear();
     f.provider.refresh.mockClear();
 
@@ -1318,6 +1496,7 @@ describe("KBTT edit and submit", () => {
   it("reads scoped local delivery projection without provider calls or private messages", async () => {
     const f = fixture();
     await f.service.connect("user-1", "role-1", "hotel-1", credentials);
+    enableAutomaticDelivery(f);
     f.provider.login.mockClear();
     f.provider.refresh.mockClear();
     (f.access as any).resolveRoomScope = jest.fn(async () => ({
@@ -2424,7 +2603,7 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
       expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
       expect(f.declarations.get("decl-stale")?.status).toBe("SENDING");
 
-      await f.service.processStayLifecycleEvents();
+      await f.service.reconcileInterruptedInitialDeclarations();
       expect(f.repository.markInterruptedDeclarationsUnknown).toHaveBeenCalledTimes(1);
       expect(f.declarations.get("decl-stale")?.status).toBe("UNKNOWN");
       expect(f.declarations.get("decl-stale")?.providerCode).toBe("INTERRUPTED_DELIVERY");
@@ -2911,5 +3090,67 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
       );
       expect(f.repository.createScheduledAutoSubmitRun).not.toHaveBeenCalled();
     });
+  });
+});
+
+
+describe("BCA connection safe accommodation profile", () => {
+  function reader() {
+    const client = new KbttProviderReadClient();
+    const get = jest.spyOn(client, "getAccommodation").mockResolvedValue({ httpStatus: 200, envelope: { code: "200" }, data: {
+      id: 1000227, tenCSLT: "Cơ sở mẫu", diaChi: "Địa chỉ mẫu", nguoiDD: "Người đại diện mẫu", sdt: "0000000000",
+      email: "fixture@example.invalid", tenDvql: "Đơn vị quản lý mẫu", password: "must-not-leak", secretExtension: "must-not-leak",
+    } });
+    return { client, get };
+  }
+  it("loads the whitelisted profile after login and reads it locally without provider calls", async () => {
+    const r = reader(); const f = fixture(r.client);
+    const connected = await f.service.connect("owner", "owner-role", "hotel-1", credentials);
+    expect(connected.providerProfile).toMatchObject({ state: "READY", accommodation: { name: "Cơ sở mẫu", address: "Địa chỉ mẫu", representative: "Người đại diện mẫu", phone: "0000000000", email: "fixture@example.invalid", managingUnit: "Đơn vị quản lý mẫu" }, error: null });
+    expect(connected.providerProfile.fetchedAt).toEqual(expect.any(String));
+    expect(JSON.stringify(connected)).not.toContain("must-not-leak");
+    expect(r.get).toHaveBeenCalledTimes(1);
+    r.get.mockClear(); f.provider.login.mockClear();
+    expect((await f.service.get("owner", "owner-role", "hotel-1")).providerProfile).toEqual(connected.providerProfile);
+    expect(r.get).not.toHaveBeenCalled(); expect(f.provider.login).not.toHaveBeenCalled();
+    f.rows.get("hotel-1")!.ciphertext = "changed-connection";
+    expect((await f.service.get("owner", "owner-role", "hotel-1")).providerProfile.state).toBe("NOT_LOADED");
+  });
+  it("keeps successful login distinct from failed profile GET and preserves a safe provider error", async () => {
+    const r = reader(); const f = fixture(r.client); const auth = session();
+    f.provider.login.mockResolvedValueOnce(auth);
+    r.get.mockRejectedValueOnce(new KbttProviderReadError("PROVIDER", "rejected", { providerCode: "E_PROFILE", providerMessage: "Thiếu quyền đọc cơ sở " + auth.AccessToken }));
+    const result = await f.service.connect("owner", "owner-role", "hotel-1", credentials);
+    expect(result.status).toBe("CONNECTED");
+    expect(result.providerProfile).toMatchObject({ state: "FAILED", accommodation: null, error: { code: "E_PROFILE", message: "Thiếu quyền đọc cơ sở [REDACTED]" } });
+    expect(JSON.stringify(result)).not.toContain(auth.AccessToken);
+    expect(f.provider.revoke).not.toHaveBeenCalled();
+  });
+  it("rejects profile from another accommodation without exposing its data", async () => {
+    const r = reader(); const f = fixture(r.client);
+    r.get.mockResolvedValueOnce({ httpStatus: 200, envelope: { code: "200" }, data: { id: 999999, tenCSLT: "Wrong hotel" } });
+    const result = await f.service.connect("owner", "owner-role", "hotel-1", credentials);
+    expect(result.status).toBe("CONNECTED");
+    expect(result.providerProfile).toMatchObject({ state: "FAILED", accommodation: null });
+    expect(JSON.stringify(result)).not.toContain("Wrong hotel");
+  });
+  it("does not read profile when authentication or hotel access fails", async () => {
+    const r = reader(); const f = fixture(r.client);
+    f.provider.login.mockRejectedValueOnce(kbttAuthFailed());
+    await expect(f.service.connect("owner", "owner-role", "hotel-1", credentials)).rejects.toThrow();
+    f.access.assertHotelAccess.mockRejectedValueOnce(new ForbiddenException("Denied"));
+    await expect(f.service.connect("owner", "owner-role", "hotel-2", credentials)).rejects.toThrow();
+    expect(r.get).not.toHaveBeenCalled();
+  });
+  it("refreshes safe profile on explicit check and clears it on disconnect", async () => {
+    const r = reader(); const f = fixture(r.client);
+    await f.service.connect("owner", "owner-role", "hotel-1", credentials);
+    r.get.mockResolvedValueOnce({ httpStatus: 200, envelope: { code: "200" }, data: { id: 1000227, tenCSLT: "Tên cơ sở cập nhật" } });
+    const checked = await f.service.check("owner", "owner-role", "hotel-1");
+    expect(checked.providerProfile.accommodation?.name).toBe("Tên cơ sở cập nhật");
+    expect(checked.providerProfile.accommodation?.phone).toBeNull();
+    expect(r.get).toHaveBeenCalledTimes(2);
+    const disconnected = await f.service.disconnect("owner", "owner-role", "hotel-1");
+    expect(disconnected.providerProfile).toMatchObject({ state: "NOT_LOADED", accommodation: null });
   });
 });

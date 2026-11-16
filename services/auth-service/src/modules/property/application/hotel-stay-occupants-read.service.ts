@@ -25,6 +25,7 @@ export interface ActiveStayOccupantRow {
   checkedInAt: Date | null;
   stayStatus: GuestStayStatus;
   reservationCode: string;
+  groupCode?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -33,13 +34,15 @@ export interface ActiveStayOccupantRow {
 export class HotelStayOccupantsReadService {
   constructor(private readonly hotelRoomsRepository: HotelRoomsRepository) {}
 
-  async getActiveStayOccupants(hotelId: string): Promise<ActiveStayOccupantRow[]> {
+  async getActiveStayOccupants(hotelId: string, options?: { stayIds?: string[]; roomIds?: string[] }): Promise<ActiveStayOccupantRow[]> {
     if (!hotelId || typeof hotelId !== "string" || !hotelId.trim()) {
       return [];
     }
 
     const normalizedHotelId = hotelId.trim();
-    const rows = await this.hotelRoomsRepository.findActiveStayOccupantsByHotel(normalizedHotelId);
+    const rows = await (options?.stayIds || options?.roomIds
+      ? this.hotelRoomsRepository.findActiveStayOccupantsByHotel(normalizedHotelId, options)
+      : this.hotelRoomsRepository.findActiveStayOccupantsByHotel(normalizedHotelId));
 
     return rows.map((row) => ({
       id: row.id,
@@ -62,6 +65,7 @@ export class HotelStayOccupantsReadService {
       checkedInAt: row.stay.checkedInAt ?? null,
       stayStatus: row.stay.status,
       reservationCode: row.stay.reservationCode,
+      groupCode: row.stay.reservation?.groupCode ?? null,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     }));
@@ -111,6 +115,7 @@ export class HotelStayOccupantsReadService {
       checkedInAt: row.stay.checkedInAt ?? null,
       stayStatus: row.stay.status,
       reservationCode: row.stay.reservationCode,
+      groupCode: row.stay.reservation?.groupCode ?? null,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     }));

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 // @ts-expect-error Node's strip-types runner requires explicit TypeScript extension.
-import { isNavItemActive } from "./workspace-nav-active.ts";
+import { isNavItemActive, parseSidebarUrl, resolveWorkspaceSubNavigation } from "./workspace-nav-active.ts";
 // @ts-expect-error Node's strip-types runner requires explicit TypeScript extension.
 import { buildWorkspaceNavigation } from "../config/workspace-registry.ts";
 import type { DashboardNavItem } from "../types/workspace-navigation.ts";
@@ -12,6 +12,15 @@ const ownerHotelItems: readonly DashboardNavItem[] = [
   { key: "owner.hotel.billing", href: "/owner/hotels/hotel-1/billing", label: "Tài chính & đối soát", icon: "payments" },
   { key: "owner.hotel.settings", href: "/owner/hotels/hotel-1", label: "Cài đặt khách sạn", icon: "settings" },
 ];
+
+test("front desk navigation exposes one shared guest entry with BCA capabilities", () => {
+  const items = [{ key: "staff.front-desk", href: "/owner/hotels/hotel-1/front-desk", label: "Khách lưu trú", icon: "person" }] as const;
+  const nav = resolveWorkspaceSubNavigation(items, { permissions: ["hotel.rooms.view", "hotel.reservations.view", "hotel.kbtt.declarations.view"] });
+  assert.deepEqual(nav[0].children?.map((item) => item.tabValue), ["in-house", "arrivals", "groups"]);
+  const bcaNav = resolveWorkspaceSubNavigation(items, { permissions: ["hotel.kbtt.declarations.view", "hotel.reservations.view"] });
+  assert.ok(bcaNav[0].children?.some((item) => item.tabValue === "in-house"));
+  assert.equal(bcaNav[0].children?.some((item) => item.tabValue === "kbtt"), false);
+});
 
 test("isNavItemActive highlights exact match for owner dashboard", () => {
   assert.equal(isNavItemActive("/owner/dashboard", "/owner/dashboard", ownerHotelItems), true);
@@ -94,3 +103,8 @@ test("buildWorkspaceNavigation produces shift, rooms, requests, messages, checko
 });
 
 
+
+test("legacy BCA tab bookmark resolves to the unified in-house sidebar", () => {
+  assert.equal(parseSidebarUrl("/owner/hotels/hotel-1/front-desk?tab=kbtt").searchParams.get("tab"), "in-house");
+  assert.equal(parseSidebarUrl("/hotels/hotel-1/front-desk?tab=arrivals").searchParams.get("tab"), "arrivals");
+});

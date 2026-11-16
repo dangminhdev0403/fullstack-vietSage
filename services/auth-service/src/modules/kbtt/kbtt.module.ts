@@ -1,3 +1,4 @@
+import { KbttReconciliationService } from "./application/kbtt-reconciliation.service";
 import { Module } from "@nestjs/common";
 import { PrismaModule } from "../../prisma/prisma.module";
 import { PropertyModule } from "../property/property.module";
@@ -6,6 +7,7 @@ import { KbttController } from "./api/kbtt.controller";
 import { KbttAutoSubmitSchedulerService } from "./application/kbtt-auto-submit-scheduler.service";
 import { KbttService } from "./application/kbtt.service";
 import { KbttCredentialCipher } from "./infrastructure/kbtt-credential-cipher";
+import { KbttProviderReadClient } from "./infrastructure/kbtt-provider-read.client";
 import { KbttProviderClient } from "./infrastructure/kbtt-provider.client";
 import { KbttRepository } from "./infrastructure/kbtt.repository";
 import { KbttStayRepository } from "./infrastructure/kbtt-stay.repository";
@@ -16,9 +18,11 @@ import { KbttStaySyncService } from "./application/kbtt-stay-sync.service";
   controllers: [KbttController],
   providers: [
     KbttService,
+    KbttReconciliationService,
     KbttRepository,
     KbttCredentialCipher,
     KbttProviderClient,
+    KbttProviderReadClient,
     KbttAutoSubmitSchedulerService,
     KbttStayRepository,
     KbttStaySyncService,

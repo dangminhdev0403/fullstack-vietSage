@@ -17863,6 +17863,8 @@
                       "type": "object",
                       "additionalProperties": false,
                       "required": [
+                        "providerProfile",
+                        "username",
                         "configured",
                         "status",
                         "maskedUsername",
@@ -17873,6 +17875,91 @@
                         "lastErrorMessage"
                       ],
                       "properties": {
+                        "providerProfile": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "state",
+                            "accommodation",
+                            "fetchedAt",
+                            "error"
+                          ],
+                          "properties": {
+                            "state": {
+                              "type": "string",
+                              "enum": [
+                                "NOT_LOADED",
+                                "READY",
+                                "FAILED"
+                              ]
+                            },
+                            "accommodation": {
+                              "type": "object",
+                              "nullable": true,
+                              "additionalProperties": false,
+                              "required": [
+                                "name",
+                                "address",
+                                "representative",
+                                "phone",
+                                "email",
+                                "managingUnit"
+                              ],
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "address": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "representative": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "phone": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "email": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "managingUnit": {
+                                  "type": "string",
+                                  "nullable": true
+                                }
+                              }
+                            },
+                            "fetchedAt": {
+                              "type": "string",
+                              "format": "date-time",
+                              "nullable": true
+                            },
+                            "error": {
+                              "type": "object",
+                              "nullable": true,
+                              "additionalProperties": false,
+                              "required": [
+                                "code",
+                                "message"
+                              ],
+                              "properties": {
+                                "code": {
+                                  "type": "string"
+                                },
+                                "message": {
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "username": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "configured": {
                           "type": "boolean"
                         },
@@ -18013,6 +18100,8 @@
                       "type": "object",
                       "additionalProperties": false,
                       "required": [
+                        "providerProfile",
+                        "username",
                         "configured",
                         "status",
                         "maskedUsername",
@@ -18023,6 +18112,91 @@
                         "lastErrorMessage"
                       ],
                       "properties": {
+                        "providerProfile": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "state",
+                            "accommodation",
+                            "fetchedAt",
+                            "error"
+                          ],
+                          "properties": {
+                            "state": {
+                              "type": "string",
+                              "enum": [
+                                "NOT_LOADED",
+                                "READY",
+                                "FAILED"
+                              ]
+                            },
+                            "accommodation": {
+                              "type": "object",
+                              "nullable": true,
+                              "additionalProperties": false,
+                              "required": [
+                                "name",
+                                "address",
+                                "representative",
+                                "phone",
+                                "email",
+                                "managingUnit"
+                              ],
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "address": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "representative": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "phone": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "email": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "managingUnit": {
+                                  "type": "string",
+                                  "nullable": true
+                                }
+                              }
+                            },
+                            "fetchedAt": {
+                              "type": "string",
+                              "format": "date-time",
+                              "nullable": true
+                            },
+                            "error": {
+                              "type": "object",
+                              "nullable": true,
+                              "additionalProperties": false,
+                              "required": [
+                                "code",
+                                "message"
+                              ],
+                              "properties": {
+                                "code": {
+                                  "type": "string"
+                                },
+                                "message": {
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "username": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "configured": {
                           "type": "boolean"
                         },
@@ -18134,6 +18308,8 @@
                       "type": "object",
                       "additionalProperties": false,
                       "required": [
+                        "providerProfile",
+                        "username",
                         "configured",
                         "status",
                         "maskedUsername",
@@ -18144,6 +18320,91 @@
                         "lastErrorMessage"
                       ],
                       "properties": {
+                        "providerProfile": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "state",
+                            "accommodation",
+                            "fetchedAt",
+                            "error"
+                          ],
+                          "properties": {
+                            "state": {
+                              "type": "string",
+                              "enum": [
+                                "NOT_LOADED",
+                                "READY",
+                                "FAILED"
+                              ]
+                            },
+                            "accommodation": {
+                              "type": "object",
+                              "nullable": true,
+                              "additionalProperties": false,
+                              "required": [
+                                "name",
+                                "address",
+                                "representative",
+                                "phone",
+                                "email",
+                                "managingUnit"
+                              ],
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "address": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "representative": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "phone": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "email": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "managingUnit": {
+                                  "type": "string",
+                                  "nullable": true
+                                }
+                              }
+                            },
+                            "fetchedAt": {
+                              "type": "string",
+                              "format": "date-time",
+                              "nullable": true
+                            },
+                            "error": {
+                              "type": "object",
+                              "nullable": true,
+                              "additionalProperties": false,
+                              "required": [
+                                "code",
+                                "message"
+                              ],
+                              "properties": {
+                                "code": {
+                                  "type": "string"
+                                },
+                                "message": {
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "username": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "configured": {
                           "type": "boolean"
                         },
@@ -18257,6 +18518,8 @@
                       "type": "object",
                       "additionalProperties": false,
                       "required": [
+                        "providerProfile",
+                        "username",
                         "configured",
                         "status",
                         "maskedUsername",
@@ -18267,6 +18530,91 @@
                         "lastErrorMessage"
                       ],
                       "properties": {
+                        "providerProfile": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "state",
+                            "accommodation",
+                            "fetchedAt",
+                            "error"
+                          ],
+                          "properties": {
+                            "state": {
+                              "type": "string",
+                              "enum": [
+                                "NOT_LOADED",
+                                "READY",
+                                "FAILED"
+                              ]
+                            },
+                            "accommodation": {
+                              "type": "object",
+                              "nullable": true,
+                              "additionalProperties": false,
+                              "required": [
+                                "name",
+                                "address",
+                                "representative",
+                                "phone",
+                                "email",
+                                "managingUnit"
+                              ],
+                              "properties": {
+                                "name": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "address": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "representative": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "phone": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "email": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "managingUnit": {
+                                  "type": "string",
+                                  "nullable": true
+                                }
+                              }
+                            },
+                            "fetchedAt": {
+                              "type": "string",
+                              "format": "date-time",
+                              "nullable": true
+                            },
+                            "error": {
+                              "type": "object",
+                              "nullable": true,
+                              "additionalProperties": false,
+                              "required": [
+                                "code",
+                                "message"
+                              ],
+                              "properties": {
+                                "code": {
+                                  "type": "string"
+                                },
+                                "message": {
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "username": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "configured": {
                           "type": "boolean"
                         },
@@ -18336,6 +18684,352 @@
           }
         ],
         "summary": "Manually authenticate saved credentials; refresh near expiry, otherwise re-login",
+        "tags": [
+          "hotel-kbtt"
+        ]
+      }
+    },
+    "/hotels/{hotelId}/kbtt/reconciliation": {
+      "get": {
+        "operationId": "KbttController_getReconciliation",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "force",
+            "required": false,
+            "in": "query",
+            "description": "Refresh BOTH provider groups; concurrent calls share the same read",
+            "schema": {
+              "enum": [
+                "true",
+                "false"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "localOnly",
+            "required": false,
+            "in": "query",
+            "description": "Immediate local guest preview; never contacts BCA",
+            "schema": {
+              "enum": [
+                "true",
+                "false"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "error": {
+                      "type": "object",
+                      "nullable": true,
+                      "additionalProperties": true,
+                      "example": null
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Thành công"
+                    },
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "items",
+                        "checkedAt",
+                        "range",
+                        "sources"
+                      ],
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "occupantId",
+                              "stayId",
+                              "roomId",
+                              "roomNumber",
+                              "groupCode",
+                              "identityNumber",
+                              "nationality",
+                              "checkedInAt",
+                              "plannedCheckOutAt",
+                              "reason",
+                              "bcaRecordId",
+                              "declarationStatus",
+                              "providerMessage",
+                              "id",
+                              "source",
+                              "kind",
+                              "fullName",
+                              "documentType",
+                              "status",
+                              "canRetry"
+                            ],
+                            "properties": {
+                              "occupantId": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "stayId": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "roomId": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "roomNumber": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "groupCode": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "identityNumber": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "nationality": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "checkedInAt": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "plannedCheckOutAt": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "reason": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "bcaRecordId": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "declarationStatus": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "providerMessage": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "id": {
+                                "type": "string"
+                              },
+                              "source": {
+                                "type": "string",
+                                "enum": [
+                                  "VIETSAGE",
+                                  "BCA_ONLY"
+                                ]
+                              },
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "VIETNAMESE",
+                                  "FOREIGN"
+                                ],
+                                "nullable": true
+                              },
+                              "fullName": {
+                                "type": "string"
+                              },
+                              "documentType": {
+                                "type": "number",
+                                "nullable": true
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "MATCHED",
+                                  "NOT_FOUND",
+                                  "REVIEW"
+                                ],
+                                "nullable": true
+                              },
+                              "canRetry": {
+                                "type": "boolean"
+                              }
+                            }
+                          }
+                        },
+                        "checkedAt": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "range": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "dateFrom",
+                            "dateTo"
+                          ],
+                          "properties": {
+                            "dateFrom": {
+                              "type": "string",
+                              "format": "date"
+                            },
+                            "dateTo": {
+                              "type": "string",
+                              "format": "date"
+                            }
+                          }
+                        },
+                        "sources": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "VIETNAMESE",
+                            "FOREIGN"
+                          ],
+                          "properties": {
+                            "VIETNAMESE": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "state",
+                                "checkedAt",
+                                "error"
+                              ],
+                              "properties": {
+                                "state": {
+                                  "type": "string",
+                                  "enum": [
+                                    "PENDING",
+                                    "COMPLETE",
+                                    "FAILED",
+                                    "NOT_CONNECTED",
+                                    "NEEDS_LOGIN",
+                                    "INCOMPLETE"
+                                  ]
+                                },
+                                "checkedAt": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "error": {
+                                  "type": "object",
+                                  "nullable": true,
+                                  "additionalProperties": false,
+                                  "required": [
+                                    "code",
+                                    "message"
+                                  ],
+                                  "properties": {
+                                    "code": {
+                                      "type": "string"
+                                    },
+                                    "message": {
+                                      "type": "string"
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            "FOREIGN": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "state",
+                                "checkedAt",
+                                "error"
+                              ],
+                              "properties": {
+                                "state": {
+                                  "type": "string",
+                                  "enum": [
+                                    "PENDING",
+                                    "COMPLETE",
+                                    "FAILED",
+                                    "NOT_CONNECTED",
+                                    "NEEDS_LOGIN",
+                                    "INCOMPLETE"
+                                  ]
+                                },
+                                "checkedAt": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "error": {
+                                  "type": "object",
+                                  "nullable": true,
+                                  "additionalProperties": false,
+                                  "required": [
+                                    "code",
+                                    "message"
+                                  ],
+                                  "properties": {
+                                    "code": {
+                                      "type": "string"
+                                    },
+                                    "message": {
+                                      "type": "string"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Hotel scope or business permission denied"
+          },
+          "422": {
+            "description": "KBTT_AUTH_FAILED; sanitized provider authentication failure"
+          },
+          "503": {
+            "description": "KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Read-only reconciliation of all in-house guests against BOTH Vietnamese and foreign BCA sources; never authenticates or imports guests",
         "tags": [
           "hotel-kbtt"
         ]
@@ -18422,7 +19116,6 @@
             "schema": {
               "enum": [
                 "UNSENT",
-                "QUEUED",
                 "SUBMITTED",
                 "LOCAL_ERROR",
                 "REJECTED",
@@ -18430,6 +19123,15 @@
                 "UNKNOWN",
                 "CANCELLED"
               ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "stayIds",
+            "required": false,
+            "in": "query",
+            "description": "Comma-separated current-page stay IDs; at most 20 IDs, each at most 128 characters",
+            "schema": {
               "type": "string"
             }
           },
@@ -18631,7 +19333,7 @@
             "bearer": []
           }
         ],
-        "summary": "Queue validated declaration for background BCA delivery",
+        "summary": "Start immediate background BCA delivery for a validated declaration",
         "tags": [
           "hotel-kbtt"
         ]

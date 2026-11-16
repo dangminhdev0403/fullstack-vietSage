@@ -14,7 +14,7 @@ import {
   formatKbttDraftForProvider,
   getKbttListState,
   getKbttDeclarationDisplayStatus,
-  isKbttDeclarationQueued,
+  getKbttSubmissionIssue,
   getRowPartitionTab,
   KBTT_FORBIDDEN_KEYS,
   kbttAutoSubmitConfigSchema,
@@ -29,6 +29,7 @@ import {
   kbttDeclarationRecordSchema,
   kbttDeclarationStatusSchema,
   kbttDerivedStatusSchema,
+  kbttPaginationQuerySchema,
   kbttErrorCode,
   kbttErrorMessage,
   kbttOccupantDeclarationDetailSchema,
@@ -37,6 +38,55 @@ import {
   saveKbttDraftPayloadSchema,
 } from "./types/kbtt-contract.ts";
 import { buildWorkspaceNavigation } from "../workspace/config/workspace-registry.ts";
+
+test("in-house BCA scope accepts twenty stays and rejects empty, oversized and unbounded scopes", () => {
+  const ids = Array.from({ length: 20 }, (_, index) => `stay-${index}`);
+  assert.equal(kbttPaginationQuerySchema.parse({ stayIds: ids.join(",") }).stayIds, ids.join(","));
+  assert.equal(kbttPaginationQuerySchema.safeParse({}).success, true);
+  for (const stayIds of ["", "stay-1,", ",stay-1", "x".repeat(129), [...ids, "extra"].join(",")]) {
+    assert.equal(kbttPaginationQuerySchema.safeParse({ stayIds }).success, false);
+  }
+});
+
+test("scoped BCA query loads every page and refuses changing totals, duplicates and partial reads", async () => {
+  const source = readFileSync(new URL("./resources/kbtt-resource.ts", import.meta.url), "utf8");
+  const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
+  let pages = [];
+  const calls = [];
+  const repository = { listDeclarations: async (_hotel, query, signal) => {
+    calls.push({ query, signal });
+    const page = pages[query.page - 1];
+    if (page instanceof Error) throw page;
+    return page;
+  } };
+  const module = { exports: {} };
+  new Function("require", "module", "exports", compiled)((name) => {
+    if (name.includes("query-resource")) return { createResource: () => (config) => config, defineQuery: (config) => config, defineMutation: (config) => config };
+    if (name.includes("kbtt-repository")) return { kbttRepository: repository };
+    throw new Error(`Unexpected import ${name}`);
+  }, module, module.exports);
+  const query = module.exports.kbttResource.queries.inHouseDeclarations.queryFn;
+  const signal = new AbortController().signal;
+  const run = () => query({ scope: { hotelId: "hotel-1" }, input: { stayIds: "stay-1,stay-2" }, signal });
+  const first = Object.assign([{ occupantId: "a" }], { total: 2, totalPages: 2, delivery: { state: "PAUSED" } });
+  pages = [first, Object.assign([{ occupantId: "b" }], { total: 2 })];
+  const result = await run();
+  assert.deepEqual(result.map((row) => row.occupantId), ["a", "b"]);
+  assert.equal(result.delivery.state, "PAUSED");
+  assert.deepEqual(calls.map(({ query }) => query), [
+    { stayIds: "stay-1,stay-2", page: 1, limit: 100 },
+    { stayIds: "stay-1,stay-2", page: 2, limit: 100 },
+  ]);
+  assert.ok(calls.every((call) => call.signal === signal));
+  pages = [first, Object.assign([{ occupantId: "a" }], { total: 2 })];
+  await assert.rejects(run, /Chưa tải đủ/);
+  pages = [first, Object.assign([{ occupantId: "b" }], { total: 3 })];
+  await assert.rejects(run, /vừa thay đổi/);
+  pages = [first, Object.assign([], { total: 2 })];
+  await assert.rejects(run, /Chưa tải đủ/);
+  pages = [first, new Error("unavailable")];
+  await assert.rejects(run, /unavailable/);
+});
 
 test("KBTT validates write-only credentials, strips secret fields, preserves password whitespace, sanitizes errors, and scopes owner navigation", () => {
   const credentials = kbttCredentialsSchema.parse({
@@ -522,7 +572,8 @@ test("KBTT UI exposes one edit-to-submit action and no local status workflow", (
     pageSource,
     /Chỉnh sửa hàng loạt|Bấm để chỉnh sửa chi tiết/,
   );
-  assert.match(pageSource, /Xếp hàng gửi BCA/);
+  assert.match(pageSource, /Gửi BCA/);
+  assert.doesNotMatch(pageSource, /Xếp hàng|xếp hàng|value="QUEUED"/);
   assert.match(pageSource, /Hồ sơ của lần lưu trú này đã gửi BCA/);
   assert.match(pageSource, /[" >]Xem(?: chi tiết)?[" <]/);
   assert.match(pageSource, /handleSubmitAll/);
@@ -701,7 +752,7 @@ test("KBTT BFF submit route delegates timeout to backend/provider via timeoutMs:
   );
 });
 
-test("KBTT declarations page Upload tất cả executes concurrent Promise.allSettled and aggregates results", () => {
+test("KBTT declarations page sends concurrently and retains inline failures without a summary popup", () => {
   const pageSrc = readFileSync(
     new URL("./components/kbtt-declarations-page.tsx", import.meta.url),
     "utf8",
@@ -726,11 +777,11 @@ test("KBTT declarations page Upload tất cả executes concurrent Promise.allSe
     "handleSubmitAll must not sequentially await row submit in a for...of loop",
   );
 
-  // Must preserve error formatting and final summary modal
+  // Preserve rejected-row evidence without interrupting the operator.
   assert.match(
     handleSubmitAllBlock,
-    /status === "fulfilled"/,
-    "Must count fulfilled items",
+    /status === "rejected"/,
+    "Must retain each rejected row",
   );
   assert.match(
     handleSubmitAllBlock,
@@ -774,7 +825,7 @@ test("KBTT declarations table provides Sửa button to open DeclarationModal for
   );
 });
 
-test("KBTT background delivery contract retains bounded issues and queued declarations remain locked", () => {
+test("KBTT background delivery retains bounded issues and legacy unsent records require explicit review", () => {
   const issue = { id: "op-1", kind: "CHECKOUT", status: "UNKNOWN", roomNumber: "101",
     fullName: "Nguyễn Văn An", message: "Cần đối soát trước khi gửi tiếp.", updatedAt: "2026-11-05T08:00:00.000Z" };
   const delivery = { mode: "BACKGROUND", state: "RUNNING", lifecycleEnabled: false,
@@ -783,11 +834,12 @@ test("KBTT background delivery contract retains bounded issues and queued declar
   assert.equal(kbttDeliverySchema.safeParse({ ...delivery, reviewCount: -1 }).success, false);
   assert.equal(kbttDeliverySchema.safeParse({ ...delivery, recentIssues: Array(21).fill(issue) }).success, false);
   assert.equal(kbttDeliverySchema.safeParse({ ...delivery, state: "SUCCESS" }).success, false);
-  const queued = { status: "READY", providerCode: "LOCAL_QUEUED" };
-  assert.equal(isKbttDeclarationQueued(queued), true);
-  assert.equal(canSelectKbttDeclaration({ derivedStatus: "READY", declaration: queued }), false);
-  assert.equal(canSelectKbttDeclaration({ derivedStatus: "READY", declaration: { ...queued, providerCode: null } }), true);
-  assert.equal(isKbttDeclarationQueued({ ...queued, status: "SUBMITTED" }), false);
+  const legacyUnsent = { status: "READY", providerCode: "LOCAL_QUEUED" };
+  assert.equal(getKbttDeclarationDisplayStatus({ derivedStatus: "READY", declaration: legacyUnsent }), "LOCAL_ERROR");
+  assert.equal(canSelectKbttDeclaration({ derivedStatus: "READY", declaration: legacyUnsent }), true);
+  for (const status of ["SENDING", "SUBMITTED", "UNKNOWN", "CANCELLED"]) {
+    assert.equal(canSelectKbttDeclaration({ derivedStatus: status, declaration: { ...legacyUnsent, status } }), false);
+  }
 });
 
 test("KBTT declarations page monitors local delivery and never drives automatic BCA writes", () => {
@@ -940,12 +992,12 @@ test("T08B — KBTT daily movements contract, BFF route, query-resource, and sec
 test("local validation failures are distinct from provider rejection and uncertain delivery", () => {
   const row = { derivedStatus: "FAILED", declaration: { status: "FAILED", providerCode: "LOCAL_VALIDATION" } };
   assert.equal(getKbttDeclarationDisplayStatus(row), "LOCAL_ERROR");
-  for (const providerCode of ["LOCAL_STATE_CHANGED","CONNECTION_SCOPE_CHANGED","DELIVERY_BUSY","RECONCILIATION_REQUIRED","LOCAL_PREPARATION","LOCAL_STAY_ENDED","DELIVERY_PAUSED"]) {
+  for (const providerCode of ["LOCAL_STATE_CHANGED","CONNECTION_SCOPE_CHANGED","DELIVERY_BUSY","RECONCILIATION_REQUIRED","LOCAL_PREPARATION","LOCAL_STAY_ENDED","DELIVERY_PAUSED","KBTT_NOT_CONFIGURED","KBTT_AUTH_FAILED","KBTT_PROVIDER_UNAVAILABLE"]) {
     assert.equal(getKbttDeclarationDisplayStatus({ ...row, declaration: { ...row.declaration, providerCode } }), "LOCAL_ERROR");
   }
   assert.equal(getKbttDeclarationDisplayStatus({ ...row, declaration: { ...row.declaration, providerCode: "400" } }), "REJECTED");
   assert.equal(getKbttDeclarationDisplayStatus({ ...row, declaration: { ...row.declaration, status: "UNKNOWN" } }), "UNKNOWN");
-  assert.equal(getKbttDeclarationDisplayStatus({ ...row, declaration: { ...row.declaration, status: "READY", providerCode: "LOCAL_QUEUED" } }), "QUEUED");
+  assert.equal(getKbttDeclarationDisplayStatus({ ...row, declaration: { ...row.declaration, status: "READY", providerCode: "LOCAL_QUEUED" } }), "LOCAL_ERROR");
   assert.equal(getKbttDeclarationDisplayStatus({ derivedStatus: "DRAFT", declaration: null }), "UNSENT");
 });
 
@@ -972,4 +1024,63 @@ test("draft payload keeps only the selected citizenship fields while retaining u
   assert.equal(foreign.unexpectedField, "invalid");
   assert.equal(domestic.unexpectedField, "invalid");
   assert.equal(mixed.diaChi, "Synthetic address");
+});
+
+
+test("BCA submit distinguishes immediate dispatch from failed, uncertain, and legacy unsent results", () => {
+  for (const status of ["SENDING", "SUBMITTED"]) {
+    assert.equal(getKbttSubmissionIssue({ status, providerMessage: null }), null);
+  }
+  for (const status of ["DRAFT", "READY", "FAILED", "UNKNOWN", "CANCELLED"]) {
+    assert.equal(typeof getKbttSubmissionIssue({ status, providerMessage: null }), "string");
+  }
+  assert.equal(getKbttSubmissionIssue({ status: "FAILED", providerMessage: "Luồng gửi BCA đang tạm dừng." }), "Luồng gửi BCA đang tạm dừng.");
+  assert.match(getKbttSubmissionIssue({ status: "UNKNOWN", providerMessage: null }), /đối soát/);
+  assert.equal(getKbttSubmissionIssue({ status: "FAILED", providerMessage: "password=secret" }), kbttErrorMessage(null));
+});
+
+test("BCA submission handlers keep feedback in place without confirmation or notification popups", () => {
+  const source = readFileSync(new URL("./components/kbtt-declarations-page.tsx", import.meta.url), "utf8");
+  const listHandlers = source.slice(source.indexOf("  const handleSubmitAll ="), source.indexOf("  const handleViewError ="));
+  const modalHandler = source.slice(source.indexOf("  const handleSubmit = async"), source.indexOf("  const isBusy ="));
+  assert.ok(listHandlers.length > 0 && modalHandler.length > 0);
+  const parsed = ts.createSourceFile("kbtt-declarations-page.tsx", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  assert.deepEqual(parsed.parseDiagnostics, [], "Silent submit handlers must preserve valid TSX");
+  for (const handler of [listHandlers, modalHandler]) {
+    assert.doesNotMatch(handler, /showConfirmDialog|showSuccessAlert|showErrorAlert|showWarningAlert/);
+    assert.match(handler, /getKbttSubmissionIssue/);
+  }
+  assert.match(listHandlers, /setSubmissionIssues/);
+  assert.match(modalHandler, /setSubmissionError/);
+  assert.match(source, /role="alert"[\s\S]*?submissionError/);
+});
+
+test("KBTT connection accepts a safe profile, preserves profile failures and defaults legacy responses", () => {
+  const base = {
+    configured: true, status: "CONNECTED", maskedUsername: "o***r", csltId: "123",
+    lastCheckedAt: null, lastConnectedAt: null, lastErrorCode: null, lastErrorMessage: null,
+  };
+  assert.deepEqual(kbttConnectionSchema.parse(base).providerProfile, {
+    state: "NOT_LOADED", accommodation: null, fetchedAt: null, error: null,
+  });
+  const accommodation = {
+    name: "Cơ sở mẫu", address: "Địa chỉ mẫu", representative: null,
+    phone: null, email: null, managingUnit: "Đơn vị mẫu", accessToken: "must-not-return",
+  };
+  const result = kbttConnectionSchema.parse({ ...base, providerProfile: {
+    state: "READY", accommodation, fetchedAt: "2026-11-16T01:00:00.000Z", error: null,
+    refreshToken: "must-not-return",
+  } });
+  assert.equal(result.providerProfile.accommodation.name, "Cơ sở mẫu");
+  assert.equal("accessToken" in result.providerProfile.accommodation, false);
+  assert.equal("refreshToken" in result.providerProfile, false);
+  const error = { code: "KBTT_PROVIDER_UNAVAILABLE", message: "Không đọc được thông tin cơ sở." };
+  const failed = kbttConnectionSchema.parse({ ...base, providerProfile: {
+    state: "FAILED", accommodation: null, fetchedAt: null, error,
+  } });
+  assert.equal(failed.status, "CONNECTED");
+  assert.deepEqual(failed.providerProfile.error, error);
+  assert.equal(kbttConnectionSchema.safeParse({ ...base, providerProfile: {
+    ...result.providerProfile, accommodation: { ...accommodation, name: 123 },
+  } }).success, false);
 });

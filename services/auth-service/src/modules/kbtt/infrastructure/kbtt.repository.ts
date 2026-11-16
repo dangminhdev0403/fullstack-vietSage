@@ -139,16 +139,6 @@ export class KbttRepository {
     }
   }
 
-  findQueuedInitialDeclarations(take = 100) {
-    return this.prisma.kbttGuestDeclaration.findMany({
-      where: { status: "READY", providerCode: "LOCAL_QUEUED",
-        hotel: { kbttConnection: { status: "CONNECTED", autoSubmitEnabled: true } } },
-      select: { hotelId: true, occupantId: true },
-      orderBy: [{ updatedAt: "asc" }, { id: "asc" }],
-      take,
-    });
-  }
-
   async getDeliverySnapshot(hotelId: string, allowedRoomId: string | null) {
     const [summary] = await this.prisma.$queryRaw<Array<{
       pendingCount: number; sendingCount: number; reviewCount: number; lastSucceededAt: Date | null;
@@ -191,14 +181,16 @@ export class KbttRepository {
         AND c.status = 'SUCCEEDED' AND p.kind = 'EXTEND' AND p.status = 'REJECTED'
         AND c."createdAt" >= p."createdAt" AND c."desiredDepartureAt" >= p."desiredDepartureAt")
     ), issues AS (
-      SELECT id, 'INITIAL'::text AS kind, status::text, "providerCode", "roomNumber", "fullName", "updatedAt"
+      SELECT id, 'INITIAL'::text AS kind,
+        CASE WHEN status = 'READY' AND "providerCode" = 'LOCAL_QUEUED' THEN 'FAILED' ELSE status::text END AS status,
+        "providerCode", "roomNumber", "fullName", "updatedAt"
       FROM latest_declarations WHERE status IN ('FAILED', 'UNKNOWN')
+        OR (status = 'READY' AND "providerCode" = 'LOCAL_QUEUED')
       UNION ALL
       SELECT id, kind::text, status::text, "providerCode", "roomNumber", "fullName", "updatedAt"
       FROM current_operations WHERE status IN ('REJECTED', 'UNKNOWN', 'BLOCKED')
     ) SELECT
-      ((SELECT count(*) FROM latest_declarations WHERE status = 'READY' AND "providerCode" = 'LOCAL_QUEUED') +
-       (SELECT count(*) FROM current_operations WHERE status = 'PENDING'))::int AS "pendingCount",
+      (SELECT count(*) FROM current_operations WHERE status = 'PENDING')::int AS "pendingCount",
       ((SELECT count(*) FROM latest_declarations WHERE status = 'SENDING') +
        (SELECT count(*) FROM current_operations WHERE status = 'SENDING'))::int AS "sendingCount",
       (SELECT count(*)::int FROM issues) AS "reviewCount",
@@ -218,9 +210,10 @@ export class KbttRepository {
     });
   }
 
-  async markInterruptedDeclarationsUnknown() {
+  async markInterruptedDeclarationsUnknown(activeDeclarationIds: string[] = []) {
     await this.prisma.kbttGuestDeclaration.updateMany({
-      where: { status: "SENDING", updatedAt: { lt: new Date(Date.now() - 5 * 60_000) } },
+      where: { status: "SENDING", updatedAt: { lt: new Date(Date.now() - 5 * 60_000) },
+        ...(activeDeclarationIds.length ? { id: { notIn: activeDeclarationIds } } : {}) },
       data: { status: "UNKNOWN", version: { increment: 1 }, providerCode: "INTERRUPTED_DELIVERY",
         providerMessage: "Lần gửi bị gián đoạn; cần đối soát trước khi gửi tiếp." },
     });
@@ -316,7 +309,7 @@ export class KbttRepository {
             status: { in: ["ACTIVE", "CHECKED_IN", "CHECKOUT_PENDING"] },
             checkedOutAt: null,
           },
-          kbttGuestDeclarations: { some: { status: "SUBMITTED" } },
+          kbttGuestDeclarations: { some: { status: { in: ["SUBMITTED", "SENDING", "UNKNOWN"] } } },
         },
         select: {
           stay: { select: { room: { select: { roomNumber: true } } } },
@@ -786,6 +779,60 @@ export class KbttRepository {
         },
       });
     } catch {
+      throw kbttUnavailable();
+    }
+  }
+
+  async saveCanonicalDraft(params: {
+    hotelId: string; stayId: string; occupantId: string; expectedOccupantUpdatedAt?: Date;
+    existing: { id: string; version: number } | null; declarationKind: CitizenshipKind;
+    draftPayloadJson: Prisma.InputJsonValue;
+    profile: { fullName?: string; phone?: string | null; identityNumber?: string; gender?: string; dateOfBirth?: string; nationality?: string; residencePlace?: string | null; citizenshipKind: CitizenshipKind };
+  }): Promise<KbttGuestDeclaration> {
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const stays = await tx.$queryRaw<Array<{ id: string }>>`
+          SELECT id FROM "GuestStay" WHERE id = ${params.stayId} AND "hotelId" = ${params.hotelId} FOR UPDATE
+        `;
+        if (!stays.length) throw new NotFoundException("Không tìm thấy lượt lưu trú trong khách sạn này.");
+        const occupant = await tx.guestStayOccupant.findFirst({
+          where: { id: params.occupantId, hotelId: params.hotelId, stayId: params.stayId },
+        });
+        if (!occupant || (params.expectedOccupantUpdatedAt && occupant.updatedAt.getTime() !== params.expectedOccupantUpdatedAt.getTime())) {
+          throw new ConflictException({ code: 'DECLARATION_CONFLICT', message: 'Thông tin khách đã thay đổi. Vui lòng làm mới trước khi lưu.' });
+        }
+        const declarationData = { declarationKind: params.declarationKind, draftPayloadJson: params.draftPayloadJson,
+          status: 'DRAFT' as const, providerCode: null, providerMessage: null, providerResponseJson: Prisma.JsonNull, submittedAt: null };
+        let declaration: KbttGuestDeclaration;
+        if (params.existing) {
+          const changed = await tx.kbttGuestDeclaration.updateMany({
+            where: { id: params.existing.id, hotelId: params.hotelId, stayId: params.stayId, occupantId: params.occupantId,
+              version: params.existing.version, status: { in: ['DRAFT', 'READY', 'FAILED'] } },
+            data: { ...declarationData, version: { increment: 1 } },
+          });
+          if (changed.count !== 1) throw new ConflictException({ code: 'DECLARATION_CONFLICT', message: 'Hồ sơ đã thay đổi hoặc đang gửi. Vui lòng làm mới trước khi lưu.' });
+          declaration = (await tx.kbttGuestDeclaration.findFirst({ where: { id: params.existing.id, hotelId: params.hotelId } }))!;
+        } else {
+          declaration = await tx.kbttGuestDeclaration.create({ data: { ...declarationData,
+            hotelId: params.hotelId, stayId: params.stayId, occupantId: params.occupantId, revision: 1, version: 1 } });
+        }
+        const changedProfile = await tx.guestStayOccupant.updateMany({
+          where: { id: params.occupantId, hotelId: params.hotelId, stayId: params.stayId, updatedAt: occupant.updatedAt },
+          data: params.profile,
+        });
+        if (changedProfile.count !== 1) throw new ConflictException({ code: 'DECLARATION_CONFLICT', message: 'Thông tin khách đã thay đổi. Vui lòng làm mới trước khi lưu.' });
+        if (occupant.isPrimary) {
+          const p = params.profile;
+          await tx.guestStay.updateMany({ where: { id: params.stayId, hotelId: params.hotelId }, data: {
+            guestDisplayName: p.fullName, guestPhone: p.phone, guestIdentityNumber: p.identityNumber,
+            guestGender: p.gender, guestDateOfBirth: p.dateOfBirth, guestNationality: p.nationality, guestResidencePlace: p.residencePlace,
+          } });
+        }
+        return declaration;
+      });
+    } catch (error: any) {
+      if (error instanceof ConflictException || error instanceof NotFoundException) throw error;
+      if (error?.code === 'P2002') throw new ConflictException({ code: 'DECLARATION_CONFLICT', message: 'Hồ sơ khai báo đã tồn tại. Vui lòng làm mới trước khi lưu.' });
       throw kbttUnavailable();
     }
   }

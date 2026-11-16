@@ -135,7 +135,7 @@ No document number may contain spaces or special characters.
 
 - The provider accepts arrays, but errors refer to a 1-based item position.
 - Prefer one guest per HTTP request. A batch UI may sequence those requests.
-- The provider documents no idempotency key and no declaration lookup endpoint.
+- The supplied official PDF documents no idempotency key or declaration lookup endpoint. The separate web-discovered Postman requests below are not an official reconciliation guarantee.
 - A definitive business rejection may be retried after correction.
 - A timeout/reset after transmission has an ambiguous outcome. Record `UNKNOWN`; do not retry automatically.
 - Persist an immutable payload fingerprint/snapshot and sanitized provider result for audit. Never persist/log tokens or credential values with it.
@@ -203,7 +203,7 @@ This section describes local VietSage behavior. It adds no provider endpoint or 
 
 | Confirmed local action | Vietnamese guest | Foreign guest |
 | --- | --- | --- |
-| Check-in with valid declaration | API 5, background queue | API 4, background queue |
+| Check-in with valid declaration | API 5, immediate background call | API 4, immediate background call |
 | Extend to a later day; acknowledged day is today or later | API 12 GH, at most 30 days from actual arrival | API 13 GH, within independently confirmed residence validity |
 | Acknowledged day is before today + confirm a later departure day | API 5 new declaration, actual arrival preserved | API 4 new declaration, actual arrival and residence validity preserved |
 | Change checkout hour within the acknowledged day | No provider call | No provider call |
@@ -221,13 +221,14 @@ The matrix describes implemented routing and capability limits. It does not asse
 ### Background delivery and the KBTT tab
 
 - Room operations complete locally; provider delivery runs after the PMS transaction. The browser is not the submission worker.
-- Explicit declaration submissions enqueue a durable `READY` / `LOCAL_QUEUED` record. A queued response confirms local acceptance only; the minute worker records the eventual BCA outcome under the existing live/kill controls.
+- Explicit declaration submissions validate and claim `SENDING`, then immediately call BCA in a detached backend task. The request returns without waiting for provider authentication or transmission. Check-in starts the same path after commit and remains independent of BCA latency or failure. There is no initial-declaration queue or minute-based dispatcher; the existing live/kill controls still apply.
+- Declaration records preserve the immutable transmission snapshot and eventual outcome. Local start is not provider acceptance. Ambiguous or interrupted sends require reconciliation rather than automatic replay. Historical `LOCAL_QUEUED` records remain review items and are not automatically dispatched. The KBTT screen shows saved results without interrupting receptionist check-in with BCA popups.
 - Opening or refreshing the KBTT tab only reads stored evidence. The declarations GET includes a hotel/room-scoped `delivery` summary and bounded recent issues, including guests who already checked out. No new BCA lookup API is introduced.
 - The tab distinguishes paused delivery, queued/sending work, confirmed results, and issues requiring review. Missing or failed reads must not display a healthy/successful state. A stored `CONNECTED` status alone does not prove a current provider session or that every lifecycle update succeeded.
 
 ### Lookup and the 30-minute observation
 
-- The supplied GET APIs return catalogs only. Neither this contract nor the implementation adds a provider declaration-lookup API.
+- The supplied official PDF GET APIs return catalogs only. The separate web-discovered GET adapter below prepares read operations; it does not automatically reconcile or alter declaration state.
 - VietSage declaration-list GETs read local evidence; they do not verify BCA's current declaration state.
 - A user observed records disappearing from a list on the BCA website after about 30 minutes. The supplied PDF does not define that list's lifecycle or a 30-minute declaration TTL. Disappearance is not evidence of deletion, checkout, failure, or permission to declare again.
 
@@ -240,3 +241,44 @@ This contract does **not** authorize automatic submission. VietSage implementati
 - durable submission states and duplicate prevention;
 - PII/image retention;
 - demo fixtures and production cutover approval.
+
+
+## Web-discovered GET adapter (2026-11-16)
+
+Source: local `BCA_C06_API.postman_collection.json` plus actual GET responses in ignored `BCA_GET_with_examples.postman_collection.json` (16 GET endpoints, 19 examples). Capture used one explicitly authorized token POST, then GET calls only; token response and credentials were not exported. Source integration uses sanitized tracked fixtures, never private captures as a test dependency. No additional provider calls are needed to run these tests.
+Implementation: `services/auth-service/src/modules/kbtt/infrastructure/kbtt-provider-read.client.ts`, registered inside `KbttModule`. The six catalog GETs already exist and were left unchanged.
+
+| Capability | GET path |
+| --- | --- |
+| Vietnamese resident list | /client-service/kbtt-vn/get-all-by-cslt |
+| Foreign resident list | /client-service/kbtt/get-all-by-cslt |
+| Vietnamese resident detail | /client-service/kbtt-vn/{kbttId} |
+| Foreign resident detail | /client-service/kbtt/{kbttId} |
+| Vietnamese document lookup | /client-service/kbtt-vn/tra-cuu-nvn?soGiayTo=... |
+| Foreign passport lookup | /client-service/kbtt/tra-cuu-nnn?soHoChieu=... |
+| Vietnamese declaration history | /client-service/kbtt-vn/ls-khai-bao |
+| Foreign declaration history | /client-service/kbtt/ls-khai-bao |
+| Current accommodation | /client-service/cslt/of-user |
+| Current provider user | /user-service/user/get-user-info |
+
+Resident lists accept zero-based `page`, bounded `size`, `search`, and `soPhong`. Authentication requires an explicitly supplied existing access token; this client never calls login/refresh/revoke. GET paths are fixed, IDs are validated and encoded, and redirects are not followed. There is no new receptionist UI, application HTTP route, persistence, automatic reconciliation, or retry of writes. Future application callers must enforce hotel/connection authorization before supplying a token or returning provider data.
+
+Response boundary: `domain/schemas/kbtt-provider-read.schema.ts` defines query/envelope types; `domain/schemas/kbtt-provider-data.schema.ts` defines observed endpoint data with inferred TypeScript types. The GET client applies endpoint-specific Zod validation after checking HTTP/business failures. Unknown object fields are preserved; invalid known fields remain an explicit `INVALID_RESPONSE` with the original HTTP status, provider code/message/body and validation cause. No coercion, fake empty page, or error-to-null fallback is applied. Dates remain provider strings, including empty values. Raw bodies/envelopes may contain private guest/account data and must not be logged or returned through future public application routes.
+
+| Response | Current coverage |
+| --- | --- |
+| VN / foreign detail | Separate observed schemas and kind-specific return types |
+| VN / foreign declaration history | Typed page and separate history row schemas (not assumed identical to detail) |
+| Vietnamese identity lookup | Observed object or explicit null |
+| Accommodation / current provider user | Observed fields and nested objects; secret field names are not published as application DTOs |
+| Active VN / foreign list | Page content/totalElements validated; item type unknown because both observed lists were empty |
+| Foreign passport lookup | Data remains unknown; both observed responses were null, non-null shape is not invented |
+| Fields observed only null / arrays observed empty | Unresolved values/items remain unknown until populated samples exist |
+
+Still needed: populated active-list responses for both kinds, a non-null foreign lookup, populated child/menu/permission arrays and null-only fields, plus real provider error examples (HTTP failure/business rejection). Synthetic negative tests cover error preservation but are not proof of all provider error variants. Mocked tests do not call BCA and do not automatically reconcile or change any stored declaration.
+
+### History date filters (VN and foreign)
+
+Both history GETs now accept an optional third argument on `listDeclarationHistory(kind, accessToken, { dateFrom, dateTo })`. Supply both as real ISO calendar dates `YYYY-MM-DD`; omit both to preserve the existing unfiltered call. The client validates the pair/order and sends `typeDate=3`, `dateFrom=YYYY-MM-DD 00:00:00`, `dateTo=YYYY-MM-DD 23:59:59`. Bounds are inclusive whole local days, aligned with Asia/Ho_Chi_Minh; there is no host-timezone or UTC conversion. No frontend-only epoch `date` array is required by this adapter.
+
+Evidence: the current BCA VN history tab URL was inspected through native accessibility. DevTools interaction/capture was unavailable. Public source `https://tbltkbtt.bocongan.gov.vn/js/Manager.c31b1c9f.js`, VN module 54094 and foreign module 47799, both initialize `typeDate:3` and apply `startOf("day").format("YYYY-MM-DD HH:mm:ss")` / `endOf("day").format("YYYY-MM-DD HH:mm:ss")` before the corresponding history GET. API paths were cross-checked against the public app bundle. The semantic names of other `typeDate` values are not established; the adapter exposes only the observed history setting. This change was verified with mocked GET transport, without an additional authenticated BCA call or token POST.

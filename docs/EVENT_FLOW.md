@@ -157,6 +157,26 @@ GuestOS access follows the actual stay lifecycle, not the scheduled checkout tim
 - Device limits and room summaries both count distinct, unexpired `ACTIVE` and `IDLE` device
   identities so enforcement and staff/owner UI cannot disagree.
 
+## Check-in and immediate BCA delivery
+
+```txt
+Check-in transaction commits
+  -> Publish StayCheckedInEvent in-process
+  -> Return successful check-in without waiting for BCA
+  -> KBTT validates each occupant, claims SENDING and calls BCA in the backend
+  -> Persist acceptance, rejection, local failure or uncertain outcome
+```
+
+Initial declarations have no pending work queue or minute-based queue dispatcher. The same
+immediate background path handles an explicit declaration submit. Receptionists receive no BCA
+popup; the KBTT screen reads saved delivery evidence. A successful check-in does not establish
+BCA acceptance. Global delivery controls and the hotel's automatic-delivery switch still apply.
+
+The persisted declaration and delivery lease protect concurrent sends and preserve the outcome;
+they are not a durable retry queue or a provider idempotency guarantee. Interrupted or ambiguous
+transmissions require reconciliation rather than automatic replay. Historical queued records
+remain local records for review and are not automatically dispatched.
+
 ## Future async events
 
 Potential future events:

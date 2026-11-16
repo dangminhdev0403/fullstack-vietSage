@@ -3877,6 +3877,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/hotels/{hotelId}/kbtt/reconciliation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read-only reconciliation of all in-house guests against BOTH Vietnamese and foreign BCA sources; never authenticates or imports guests */
+        get: operations["KbttController_getReconciliation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/hotels/{hotelId}/kbtt/daily-movements": {
         parameters: {
             query?: never;
@@ -3954,7 +3971,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Queue validated declaration for background BCA delivery */
+        /** Start immediate background BCA delivery for a validated declaration */
         post: operations["KbttController_submit"];
         delete?: never;
         options?: never;
@@ -13877,6 +13894,25 @@ export interface operations {
                         /** @example Thành công */
                         message: string;
                         data: {
+                            providerProfile: {
+                                /** @enum {string} */
+                                state: "NOT_LOADED" | "READY" | "FAILED";
+                                accommodation: {
+                                    name: string | null;
+                                    address: string | null;
+                                    representative: string | null;
+                                    phone: string | null;
+                                    email: string | null;
+                                    managingUnit: string | null;
+                                } | null;
+                                /** Format: date-time */
+                                fetchedAt: string | null;
+                                error: {
+                                    code: string;
+                                    message: string;
+                                } | null;
+                            };
+                            username: string | null;
                             configured: boolean;
                             /** @enum {string} */
                             status: "DISCONNECTED" | "CONNECTED" | "AUTH_FAILED";
@@ -13955,6 +13991,25 @@ export interface operations {
                         /** @example Thành công */
                         message: string;
                         data: {
+                            providerProfile: {
+                                /** @enum {string} */
+                                state: "NOT_LOADED" | "READY" | "FAILED";
+                                accommodation: {
+                                    name: string | null;
+                                    address: string | null;
+                                    representative: string | null;
+                                    phone: string | null;
+                                    email: string | null;
+                                    managingUnit: string | null;
+                                } | null;
+                                /** Format: date-time */
+                                fetchedAt: string | null;
+                                error: {
+                                    code: string;
+                                    message: string;
+                                } | null;
+                            };
+                            username: string | null;
                             configured: boolean;
                             /** @enum {string} */
                             status: "DISCONNECTED" | "CONNECTED" | "AUTH_FAILED";
@@ -14026,6 +14081,25 @@ export interface operations {
                         /** @example Thành công */
                         message: string;
                         data: {
+                            providerProfile: {
+                                /** @enum {string} */
+                                state: "NOT_LOADED" | "READY" | "FAILED";
+                                accommodation: {
+                                    name: string | null;
+                                    address: string | null;
+                                    representative: string | null;
+                                    phone: string | null;
+                                    email: string | null;
+                                    managingUnit: string | null;
+                                } | null;
+                                /** Format: date-time */
+                                fetchedAt: string | null;
+                                error: {
+                                    code: string;
+                                    message: string;
+                                } | null;
+                            };
+                            username: string | null;
                             configured: boolean;
                             /** @enum {string} */
                             status: "DISCONNECTED" | "CONNECTED" | "AUTH_FAILED";
@@ -14097,6 +14171,25 @@ export interface operations {
                         /** @example Thành công */
                         message: string;
                         data: {
+                            providerProfile: {
+                                /** @enum {string} */
+                                state: "NOT_LOADED" | "READY" | "FAILED";
+                                accommodation: {
+                                    name: string | null;
+                                    address: string | null;
+                                    representative: string | null;
+                                    phone: string | null;
+                                    email: string | null;
+                                    managingUnit: string | null;
+                                } | null;
+                                /** Format: date-time */
+                                fetchedAt: string | null;
+                                error: {
+                                    code: string;
+                                    message: string;
+                                } | null;
+                            };
+                            username: string | null;
                             configured: boolean;
                             /** @enum {string} */
                             status: "DISCONNECTED" | "CONNECTED" | "AUTH_FAILED";
@@ -14108,6 +14201,123 @@ export interface operations {
                             lastConnectedAt: string | null;
                             lastErrorCode: string | null;
                             lastErrorMessage: string | null;
+                        };
+                    };
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Hotel scope or business permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_AUTH_FAILED; sanitized provider authentication failure */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    KbttController_getReconciliation: {
+        parameters: {
+            query?: {
+                /** @description Refresh BOTH provider groups; concurrent calls share the same read */
+                force?: "true" | "false";
+                /** @description Immediate local guest preview; never contacts BCA */
+                localOnly?: "true" | "false";
+            };
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example 200 */
+                        status: number;
+                        /** @example null */
+                        error: {
+                            [key: string]: unknown;
+                        } | null;
+                        /** @example Thành công */
+                        message: string;
+                        data: {
+                            items: {
+                                occupantId: string | null;
+                                stayId: string | null;
+                                roomId: string | null;
+                                roomNumber: string | null;
+                                groupCode: string | null;
+                                identityNumber: string | null;
+                                nationality: string | null;
+                                checkedInAt: string | null;
+                                plannedCheckOutAt: string | null;
+                                reason: string | null;
+                                bcaRecordId: string | null;
+                                declarationStatus: string | null;
+                                providerMessage: string | null;
+                                id: string;
+                                /** @enum {string} */
+                                source: "VIETSAGE" | "BCA_ONLY";
+                                /** @enum {string|null} */
+                                kind: "VIETNAMESE" | "FOREIGN" | null;
+                                fullName: string;
+                                documentType: number | null;
+                                /** @enum {string|null} */
+                                status: "MATCHED" | "NOT_FOUND" | "REVIEW" | null;
+                                canRetry: boolean;
+                            }[];
+                            checkedAt: string | null;
+                            range: {
+                                /** Format: date */
+                                dateFrom: string;
+                                /** Format: date */
+                                dateTo: string;
+                            };
+                            sources: {
+                                VIETNAMESE: {
+                                    /** @enum {string} */
+                                    state: "PENDING" | "COMPLETE" | "FAILED" | "NOT_CONNECTED" | "NEEDS_LOGIN" | "INCOMPLETE";
+                                    checkedAt: string | null;
+                                    error: {
+                                        code: string;
+                                        message: string;
+                                    } | null;
+                                };
+                                FOREIGN: {
+                                    /** @enum {string} */
+                                    state: "PENDING" | "COMPLETE" | "FAILED" | "NOT_CONNECTED" | "NEEDS_LOGIN" | "INCOMPLETE";
+                                    checkedAt: string | null;
+                                    error: {
+                                        code: string;
+                                        message: string;
+                                    } | null;
+                                };
+                            };
                         };
                     };
                 };
@@ -14194,7 +14404,9 @@ export interface operations {
             query?: {
                 checkInDate?: string;
                 nationality?: "VNM" | "FOREIGN";
-                status?: "UNSENT" | "QUEUED" | "SUBMITTED" | "LOCAL_ERROR" | "REJECTED" | "SENDING" | "UNKNOWN" | "CANCELLED";
+                status?: "UNSENT" | "SUBMITTED" | "LOCAL_ERROR" | "REJECTED" | "SENDING" | "UNKNOWN" | "CANCELLED";
+                /** @description Comma-separated current-page stay IDs; at most 20 IDs, each at most 128 characters */
+                stayIds?: string;
                 q?: string;
                 limit?: number;
                 page?: number;

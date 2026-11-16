@@ -13,6 +13,10 @@ export function parseSidebarUrl(rawPath: string) {
     const searchParams = parsed.searchParams;
     const tab = searchParams.get("tab")?.trim().toLowerCase();
 
+    if (/^\/(?:owner\/)?hotels\/[^/]+\/front-desk$/.test(pathname) && tab === "kbtt") {
+      searchParams.set("tab", "in-house");
+    }
+
     if (pathname === "/admin/dashboard" && tab === "permissions") {
       return { pathname: "/admin/permissions", searchParams: new URLSearchParams() };
     }
@@ -268,7 +272,7 @@ function getSubNavCandidatesForItem(
         label: "Khách đang lưu trú",
         tabValue: "in-house",
         icon: "person",
-        anyCapabilities: ["hotel.rooms.view"],
+        anyCapabilities: ["hotel.rooms.view", "hotel.kbtt.declarations.view", "hotel.kbtt.declarations.manage"],
       },
       {
         key: "arrivals",
@@ -284,13 +288,7 @@ function getSubNavCandidatesForItem(
         icon: "groups",
         anyCapabilities: ["hotel.reservations.view"],
       },
-      {
-        key: "kbtt",
-        label: "Khai báo tạm trú",
-        tabValue: "kbtt",
-        icon: "verified_user",
-        anyCapabilities: ["hotel.kbtt.declarations.view", "hotel.kbtt.declarations.manage"],
-      },
+
     ];
   }
 

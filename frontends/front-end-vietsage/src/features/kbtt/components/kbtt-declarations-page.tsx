@@ -15,7 +15,6 @@ import {
   showConfirmDialog,
   showErrorAlert,
   showSuccessAlert,
-  showWarningAlert,
 } from "@/libs/swal";
 
 import { useKbttPreferencesStore } from "../store/kbtt-preferences-store";
@@ -27,7 +26,7 @@ import { KbttAutoSubmitSwitch } from "./kbtt-auto-submit-switch";
 import {
   canSelectKbttDeclaration,
   getKbttDeclarationDisplayStatus,
-  isKbttDeclarationQueued,
+  getKbttSubmissionIssue,
   kbttPaginationQuerySchema,
   formatKbttDraftForDisplay,
   formatKbttDraftForProvider,
@@ -270,11 +269,10 @@ function formatNationality(row: KbttDeclarationListItem): string {
   return "Chưa xác định";
 }
 
-function getDeclarationStatus(row: KbttDeclarationListItem) {
+export function getDeclarationStatus(row: KbttDeclarationListItem) {
   const key = getKbttDeclarationDisplayStatus(row);
   const states = {
     UNSENT: { label: "Chưa gửi", dotColor: "bg-slate-400", badgeClass: "border-slate-200 bg-slate-50 text-slate-700" },
-    QUEUED: { label: "Đã xếp hàng", dotColor: "bg-sky-600", badgeClass: "border-sky-200 bg-sky-50 text-sky-900" },
     SUBMITTED: { label: "Đã gửi BCA", dotColor: "bg-emerald-500", badgeClass: "border-emerald-200 bg-emerald-50 text-emerald-800" },
     LOCAL_ERROR: { label: row.declaration?.providerCode === "LOCAL_VALIDATION" ? "Cần sửa dữ liệu" : "Cần kiểm tra", dotColor: "bg-amber-500", badgeClass: "border-amber-200 bg-amber-50 text-amber-900" },
     REJECTED: { label: "Bị từ chối", dotColor: "bg-rose-500", badgeClass: "border-rose-200 bg-rose-50 text-rose-800" },
@@ -491,17 +489,17 @@ function RowActionMenu({
         </button>
       )}
 
-      {/* Xếp hàng gửi BCA */}
+      {/* Gửi BCA */}
       {canEdit && (
         <button
           type="button"
           disabled={disabled}
           onClick={onSubmit}
-          title="Xếp hàng gửi hồ sơ BCA"
+          title="Gửi hồ sơ BCA"
           className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-[#064e3b] px-2.5 py-1 text-sm font-semibold text-white shadow-2xs hover:bg-[#043327] disabled:opacity-40 transition-colors"
         >
           <CloudUploadIcon className="h-3.5 w-3.5 text-emerald-200" />
-          <span>Xếp hàng</span>
+          <span>Gửi BCA</span>
         </button>
       )}
 
@@ -580,7 +578,7 @@ export function KbttDeclarationsPage({
     : connectionQuery.isPending ? "Đang tải trạng thái kết nối BCA. Vui lòng chờ."
       : connectionQuery.isError || !connectionData
         ? "Chưa đọc được trạng thái kết nối BCA. Vui lòng làm mới để kiểm tra lại."
-        : "Khách sạn chưa kết nối thành công với Cổng BCA. Vui lòng kết nối tài khoản trước khi xếp hàng hồ sơ.";
+        : "Khách sạn chưa kết nối thành công với Cổng BCA. Vui lòng kết nối tài khoản trước khi gửi hồ sơ.";
 
   const [activeSection, setActiveSection] = useState<
     "declarations" | "arrivals" | "departures"
@@ -618,6 +616,7 @@ export function KbttDeclarationsPage({
   const [checkInDateFilter, setCheckInDateFilter] = useState<string>("");
 
   const [isSubmittingBatch, setIsSubmittingBatch] = useState(false);
+  const [submissionIssues, setSubmissionIssues] = useState<string[]>([]);
 
   // Modal edit state
   const [selectedOccupant, setSelectedOccupant] =
@@ -976,68 +975,46 @@ export function KbttDeclarationsPage({
   }, [devModalEdits, devUpdateOccupantsMutation, handleRefresh]);
 
   const handleSubmitAll = useCallback(async () => {
-    if (!canManage || !isListReady || isSubmittingBatch || !isConnected) return;
+    if (!canManage || !isListReady || isSubmittingBatch || submitMutation.isPending || !isConnected) return;
     const rows = selectableRows;
     if (rows.length === 0) return;
-    const confirmation = await showConfirmDialog({
-      title: "Xếp hàng gửi BCA",
-      text: `Xếp hàng khai báo cho ${rows.length} khách trong danh sách đang hiển thị?`,
-      confirmText: "Xếp hàng", cancelText: "Hủy bỏ", reverseButtons: false,
-    });
-    if (!confirmation.isConfirmed) return;
+    setSubmissionIssues([]);
     setIsSubmittingBatch(true);
-    const results = await Promise.allSettled(rows.map(async (row) => {
-      await saveInlineRow(row);
-      const record = await submitMutation.mutateAsync({ occupantId: row.occupantId });
-      if (!isKbttDeclarationQueued(record)) {
-        throw new Error("Phản hồi chưa xác nhận đã xếp hàng. Vui lòng làm mới để kiểm tra.");
-      }
-    }));
-    const queuedCount = results.filter((result) => result.status === "fulfilled").length;
-    const errors = results.flatMap((result, index) => result.status === "rejected"
-      ? [`Phòng ${rows[index].roomNumber ?? "—"} · ${rows[index].fullName}: ${errorText(result.reason)}`] : []);
-    setIsSubmittingBatch(false);
-    handleRefresh();
-    if (errors.length > 0) {
-      await showWarningAlert("Xếp hàng chưa hoàn tất", `${queuedCount} hồ sơ đã xếp hàng.\n${errors.join("\n")}`);
-    } else {
-      await showSuccessAlert("Đã xếp hàng", `${queuedCount} hồ sơ đang chờ gửi BCA.`);
+    try {
+      const results = await Promise.allSettled(rows.map(async (row) => {
+        await saveInlineRow(row);
+        const record = await submitMutation.mutateAsync({ occupantId: row.occupantId });
+        const issue = getKbttSubmissionIssue(record);
+        if (issue) throw new Error(issue);
+      }));
+      setSubmissionIssues(results.flatMap((result, index) => result.status === "rejected"
+        ? [`Phòng ${rows[index].roomNumber ?? "—"} · ${rows[index].fullName}: ${errorText(result.reason)}`] : []));
+    } finally {
+      setIsSubmittingBatch(false);
+      handleRefresh();
     }
   }, [canManage, isConnected, selectableRows, saveInlineRow, submitMutation, handleRefresh, isListReady, isSubmittingBatch]);
 
   const handleSubmitSingle = useCallback(
     async (row: KbttDeclarationListItem) => {
-      if (!canManage || !isListReady || submitMutation.isPending || !canSelectKbttDeclaration(row)) return;
+      if (!canManage || !isListReady || isSubmittingBatch || submitMutation.isPending || !canSelectKbttDeclaration(row)) return;
+      setSubmissionIssues([]);
       if (connectionIssue) {
-        await showWarningAlert("Chưa thể xếp hàng", connectionIssue);
+        setSubmissionIssues([connectionIssue]);
         return;
       }
-      const confirmResult = await showConfirmDialog({
-        title: "Xếp hàng gửi BCA",
-        text: `Xếp hàng khai báo cho khách ${row.fullName} (Phòng ${row.roomNumber ?? "—"})?`,
-        confirmText: "Xếp hàng",
-        cancelText: "Hủy bỏ",
-        reverseButtons: false,
-      });
-      if (!confirmResult.isConfirmed) return;
-
       try {
         await saveInlineRow(row);
         const record = await submitMutation.mutateAsync({ occupantId: row.occupantId });
-        if (!isKbttDeclarationQueued(record)) {
-          throw new Error("Phản hồi chưa xác nhận đã xếp hàng. Vui lòng làm mới để kiểm tra.");
-        }
-        handleRefresh();
-        await showSuccessAlert(
-          "Đã xếp hàng",
-          `Hồ sơ của khách ${row.fullName} đang chờ gửi BCA.`,
-        );
+        const issue = getKbttSubmissionIssue(record);
+        if (issue) throw new Error(issue);
       } catch (err) {
+        setSubmissionIssues([`${row.fullName}: ${errorText(err)}`]);
+      } finally {
         handleRefresh();
-        await showErrorAlert("Chưa thể xếp hàng", errorText(err));
       }
     },
-    [canManage, connectionIssue, saveInlineRow, submitMutation, handleRefresh, isListReady],
+    [canManage, connectionIssue, saveInlineRow, submitMutation, handleRefresh, isListReady, isSubmittingBatch],
   );
 
   const handleViewError = useCallback(async (row: KbttDeclarationListItem) => {
@@ -1160,7 +1137,6 @@ export function KbttDeclarationsPage({
             <option value="LOCAL_ERROR">Cần kiểm tra</option>
             <option value="REJECTED">Bị từ chối</option>
             <option value="SENDING">Đang gửi</option>
-            <option value="QUEUED">Đã xếp hàng</option>
             <option value="UNKNOWN">Cần đối soát</option>
             <option value="CANCELLED">Đã hủy</option>
           </select>
@@ -1216,17 +1192,22 @@ export function KbttDeclarationsPage({
       {connectionQuery.isError && (
         <p role="alert" className="text-base text-amber-900">{connectionIssue}</p>
       )}
+      {submissionIssues.length > 0 && (
+        <ul role="alert" className="space-y-1 text-base text-amber-900">
+          {submissionIssues.map((issue, index) => <li key={index} className="break-words">{issue}</li>)}
+        </ul>
+      )}
       {canManage && unsubmittedCount > 0 && (
         <div className="flex justify-end">
           <button
             type="button"
             onClick={() => void handleSubmitAll()}
-            disabled={!isConnected || !isListReady || isSubmittingBatch}
+            disabled={!isConnected || !isListReady || isSubmittingBatch || submitMutation.isPending}
             title={connectionIssue ?? undefined}
             className="inline-flex min-h-11 items-center gap-2 whitespace-nowrap rounded-xl bg-emerald-900 px-4 py-2 text-base font-semibold text-white hover:bg-emerald-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800 disabled:opacity-40"
           >
             <CloudUploadIcon className="h-4 w-4" />
-            {isSubmittingBatch ? "Đang xếp hàng…" : `Xếp hàng gửi BCA (${unsubmittedCount})`}
+            {isSubmittingBatch ? "Đang gửi…" : `Gửi BCA (${unsubmittedCount})`}
           </button>
         </div>
       )}
@@ -1526,13 +1507,14 @@ export function KbttDeclarationsPage({
   );
 }
 
-function DeclarationModal({
+export function DeclarationModal({
   hotelId,
   occupantId,
   occupantSummary,
   canManage,
   connectionIssue,
   isDevMode: _isDevMode = false,
+  retryFailedOnly = false,
   onClose,
   onUpdated,
 }: {
@@ -1542,6 +1524,7 @@ function DeclarationModal({
   canManage: boolean;
   connectionIssue: string | null;
   isDevMode?: boolean;
+  retryFailedOnly?: boolean;
   onClose: () => void;
   onUpdated: () => void;
 }) {
@@ -1756,6 +1739,7 @@ function DeclarationModal({
     declaration: detailQuery.data?.declaration ?? occupantSummary.declaration,
   });
   const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
 
   const handleSaveDraft = async () => {
     if (!canManage) return;
@@ -1784,7 +1768,8 @@ function DeclarationModal({
       onUpdated();
       onClose();
     } catch (error) {
-      await showErrorAlert("Không thể lưu thông tin hồ sơ", errorText(error));
+      if (retryFailedOnly) setSubmissionError(errorText(error));
+      else await showErrorAlert("Không thể lưu thông tin hồ sơ", errorText(error));
     } finally {
       setIsSavingDraft(false);
     }
@@ -1792,28 +1777,17 @@ function DeclarationModal({
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!canManage) return;
-    if (isReadOnly) return;
+    if (retryFailedOnly && detailQuery.data?.declaration?.status !== "FAILED") return;
+    if (!canManage || isReadOnly || saveMutation.isPending || submitMutation.isPending || isSavingDraft) return;
+    setSubmissionError(null);
     if (connectionIssue) {
-      await showWarningAlert("Chưa thể xếp hàng", connectionIssue);
+      setSubmissionError(connectionIssue);
       return;
     }
     if (!citizenshipKind) {
-      await showErrorAlert(
-        "Chưa xác định quốc tịch",
-        "Giấy tờ chưa đủ dữ liệu để tự phân loại. Vui lòng chọn loại quốc tịch.",
-      );
+      setSubmissionError("Giấy tờ chưa đủ dữ liệu để tự phân loại. Vui lòng chọn loại quốc tịch.");
       return;
     }
-
-    const confirmResult = await showConfirmDialog({
-      title: "Xếp hàng gửi BCA",
-      text: `Lưu và xếp hàng hồ sơ của khách "${formData.hoTen || formData.hoVaTen || "khách lưu trú"}"?`,
-      confirmText: "Lưu & Xếp hàng",
-      cancelText: "Hủy bỏ",
-      reverseButtons: false,
-    });
-    if (!confirmResult.isConfirmed) return;
 
     try {
       await saveMutation.mutateAsync({
@@ -1824,32 +1798,17 @@ function DeclarationModal({
           allowSubmittedEdit: true,
         },
       });
-    } catch (saveError) {
-      await showErrorAlert("Dữ liệu khai báo chưa hợp lệ", errorText(saveError));
-      return;
-    }
-
-    try {
       const record = await submitMutation.mutateAsync({ occupantId });
-      if (!isKbttDeclarationQueued(record)) {
-        throw new Error("Phản hồi chưa xác nhận đã xếp hàng. Vui lòng làm mới để kiểm tra.");
+      const issue = getKbttSubmissionIssue(record);
+      if (issue) {
+        setSubmissionError(issue);
+        onUpdated();
+        return;
       }
-      await showSuccessAlert(
-        "Đã xếp hàng",
-        "Hồ sơ đang chờ gửi BCA.",
-      );
       onUpdated();
       onClose();
-    } catch (submitError) {
-      const isValidation =
-        submitError &&
-        typeof submitError === "object" &&
-        "status" in submitError &&
-        (submitError as { status: unknown }).status === 400;
-      const title = isValidation
-        ? "Dữ liệu chưa đủ điều kiện gửi"
-        : "Chưa thể xếp hàng";
-      await showErrorAlert(title, errorText(submitError));
+    } catch (error) {
+      setSubmissionError(errorText(error));
       onUpdated();
     }
   };
@@ -1859,17 +1818,17 @@ function DeclarationModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs"
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-decl-title"
     >
-      <div className="relative my-8 w-full max-w-3xl rounded-3xl bg-white p-6 shadow-2xl sm:p-8 space-y-6">
+      <div className="relative flex max-h-[92vh] w-full max-w-5xl xl:max-w-6xl flex-col rounded-2xl bg-white shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className="flex items-start justify-between border-b border-slate-100 pb-4">
+        <div className="flex items-start justify-between border-b border-slate-100 px-6 py-5 sm:px-8 shrink-0">
           <div>
             <div className="flex items-center gap-2">
-              <span className="rounded-lg bg-emerald-50 px-2.5 py-1 text-sm font-bold text-emerald-800">
+              <span className="rounded-lg bg-emerald-50 px-2.5 py-1 text-sm font-bold text-emerald-800 whitespace-nowrap">
                 {occupantSummary.roomNumber
                   ? `Phòng ${occupantSummary.roomNumber}`
                   : "Chưa xếp phòng"}
@@ -1877,7 +1836,7 @@ function DeclarationModal({
             </div>
             <h2
               id="modal-decl-title"
-              className="mt-2 text-2xl font-bold text-slate-900"
+              className="mt-1.5 text-2xl font-bold text-slate-900 text-balance"
             >
               Hồ sơ khai báo: {occupantSummary.fullName}
             </h2>
@@ -1907,7 +1866,7 @@ function DeclarationModal({
         {/* Loading state */}
         {detailQuery.isPending && (
           <div
-            className="flex flex-col items-center justify-center gap-3 py-16 text-slate-500"
+            className="flex flex-1 flex-col items-center justify-center gap-3 p-8 py-16 text-slate-500"
             role="status"
           >
             <svg
@@ -1937,746 +1896,735 @@ function DeclarationModal({
 
         {/* Error state */}
         {detailQuery.isError && (
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-900">
-            <p className="font-semibold">{errorText(detailQuery.error)}</p>
-            <button
-              type="button"
-              onClick={() => detailQuery.refetch()}
-              className="mt-3 inline-flex min-h-11 items-center rounded-xl bg-red-600 px-4 py-2 text-base font-semibold text-white hover:bg-red-700"
-            >
-              Tải lại
-            </button>
+          <div className="flex-1 overflow-y-auto p-6 sm:p-8">
+            <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-900">
+              <p className="font-semibold">{errorText(detailQuery.error)}</p>
+              <button
+                type="button"
+                onClick={() => detailQuery.refetch()}
+                className="mt-3 inline-flex min-h-11 items-center rounded-xl bg-red-600 px-4 py-2 text-base font-semibold text-white hover:bg-red-700"
+              >
+                Tải lại
+              </button>
+            </div>
           </div>
         )}
 
         {/* Form Body */}
         {!detailQuery.isPending && !detailQuery.isError && (
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {detailQuery.data?.declaration &&
-              ["DRAFT", "FAILED"].includes(detailQuery.data.declaration.status) &&
-              detailQuery.data.declaration.providerMessage && (
-                <div className="rounded-2xl border border-red-200/90 bg-red-50/50 p-4 shadow-2xs space-y-2.5">
-                  <div className="flex items-center gap-2 font-bold text-red-900 text-sm sm:text-base">
-                    <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-200 text-red-800 text-xs font-black">
-                      !
-                    </span>
-                    <span>{detailQuery.data.declaration.providerCode === "LOCAL_VALIDATION"
-                      ? "Cần sửa dữ liệu trước khi gửi" : "Hồ sơ có lỗi cần kiểm tra"}</span>
+          <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
+            <div className="flex-1 overflow-y-auto px-6 py-5 sm:px-8 space-y-5">
+              {submissionError && (
+                <p role="alert" className="break-words text-base text-amber-900">{submissionError}</p>
+              )}
+              {detailQuery.data?.declaration &&
+                ["DRAFT", "FAILED"].includes(detailQuery.data.declaration.status) &&
+                detailQuery.data.declaration.providerMessage && (
+                  <div className="rounded-2xl border border-red-200/90 bg-red-50/50 p-4 shadow-2xs space-y-2.5">
+                    <div className="flex items-center gap-2 font-bold text-red-900 text-sm sm:text-base">
+                      <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-200 text-red-800 text-xs font-black">
+                        !
+                      </span>
+                      <span>{detailQuery.data.declaration.providerCode === "LOCAL_VALIDATION"
+                        ? "Cần sửa dữ liệu trước khi gửi" : "Hồ sơ có lỗi cần kiểm tra"}</span>
+                    </div>
+                    <div
+                      dangerouslySetInnerHTML={{
+                        __html: formatAlertErrorMessage(
+                          detailQuery.data.declaration.providerMessage,
+                        ),
+                      }}
+                    />
                   </div>
-                  <div
-                    dangerouslySetInnerHTML={{
-                      __html: formatAlertErrorMessage(
-                        detailQuery.data.declaration.providerMessage,
-                      ),
+                )}
+
+              {citizenshipKind && !manualClassification ? (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3.5 sm:px-5 sm:py-3">
+                  <div>
+                    <p className="text-sm font-semibold text-emerald-900">
+                      Đã tự xác định từ dữ liệu check-in
+                    </p>
+                    <p className="mt-0.5 text-sm text-emerald-800">
+                      {citizenshipKind === "VIETNAMESE"
+                        ? "Báo cáo lưu trú công dân Việt Nam"
+                        : "Báo cáo tạm trú người nước ngoài"}
+                    </p>
+                  </div>
+                  {canManage && !isReadOnly ? (
+                    <button
+                      type="button"
+                      onClick={() => setManualClassification(true)}
+                      className="min-h-10 rounded-xl border border-emerald-300 bg-white px-3.5 py-1.5 text-sm font-semibold text-emerald-900 hover:bg-emerald-100"
+                    >
+                      Phân loại sai? Chọn lại
+                    </button>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                  <label
+                    htmlFor="citizenship-kind-select"
+                    className="block text-sm font-semibold text-amber-900 mb-1"
+                  >
+                    Giấy tờ chưa đủ dữ liệu — chọn loại quốc tịch
+                  </label>
+                  <select
+                    id="citizenship-kind-select"
+                    value={citizenshipKind ?? ""}
+                    disabled={!canManage || isReadOnly}
+                    onChange={(e) => {
+                      setCitizenshipOverride(e.target.value as CitizenshipKind);
+                      setFormEdits({});
                     }}
-                  />
+                    className={selectClass}
+                  >
+                    <option value="">-- Chọn thủ công --</option>
+                    <option value="VIETNAMESE">
+                      Báo cáo lưu trú công dân Việt Nam
+                    </option>
+                    <option value="FOREIGN">
+                      Báo cáo tạm trú người nước ngoài
+                    </option>
+                  </select>
                 </div>
               )}
 
-            {citizenshipKind && !manualClassification ? (
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-                <div>
-                  <p className="text-sm font-semibold text-emerald-900">
-                    Đã tự xác định từ dữ liệu check-in
-                  </p>
-                  <p className="mt-1 text-sm text-emerald-800">
-                    {citizenshipKind === "VIETNAMESE"
-                      ? "Báo cáo lưu trú công dân Việt Nam"
-                      : "Báo cáo tạm trú người nước ngoài"}
-                  </p>
-                </div>
-                {canManage && !isReadOnly ? (
-                  <button
-                    type="button"
-                    onClick={() => setManualClassification(true)}
-                    className="min-h-11 rounded-xl border border-emerald-300 bg-white px-4 py-2 text-sm font-semibold text-emerald-900 hover:bg-emerald-100"
-                  >
-                    Phân loại sai? Chọn lại
-                  </button>
-                ) : null}
-              </div>
-            ) : (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-                <label
-                  htmlFor="citizenship-kind-select"
-                  className="block text-sm font-semibold text-amber-900 mb-1"
-                >
-                  Giấy tờ chưa đủ dữ liệu — chọn loại quốc tịch
-                </label>
-                <select
-                  id="citizenship-kind-select"
-                  value={citizenshipKind ?? ""}
-                  disabled={!canManage || isReadOnly}
-                  onChange={(e) => {
-                    setCitizenshipOverride(e.target.value as CitizenshipKind);
-                    setFormEdits({});
-                  }}
-                  className={selectClass}
-                >
-                  <option value="">-- Chọn thủ công --</option>
-                  <option value="VIETNAMESE">
-                    Báo cáo lưu trú công dân Việt Nam
-                  </option>
-                  <option value="FOREIGN">
-                    Báo cáo tạm trú người nước ngoài
-                  </option>
-                </select>
-              </div>
-            )}
+              {/* Vietnamese Form */}
+              {citizenshipKind === "VIETNAMESE" ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <div>
+                      <label
+                        htmlFor="hoTen"
+                        className="block text-sm font-semibold text-slate-700 mb-1"
+                      >
+                        Họ và tên <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        id="hoTen"
+                        type="text"
+                        required
+                        value={String(formData.hoTen ?? "")}
+                        disabled={!canManage || isReadOnly}
+                        onChange={(e) => updateField("hoTen", e.target.value)}
+                        className={inputClass}
+                        placeholder="NGUYEN VAN A"
+                      />
+                    </div>
 
-            {/* Vietnamese Form */}
-            {citizenshipKind === "VIETNAMESE" ? (
-              <div className="space-y-4">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <label
-                      htmlFor="hoTen"
-                      className="block text-sm font-semibold text-slate-700 mb-1"
-                    >
-                      Họ và tên <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      id="hoTen"
-                      type="text"
-                      required
-                      value={String(formData.hoTen ?? "")}
-                      disabled={!canManage || isReadOnly}
-                      onChange={(e) => updateField("hoTen", e.target.value)}
-                      className={inputClass}
-                      placeholder="NGUYEN VAN A"
-                    />
-                  </div>
+                    <div>
+                      <label
+                        htmlFor="gioiTinh"
+                        className="block text-sm font-semibold text-slate-700 mb-1"
+                      >
+                        Giới tính <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        id="gioiTinh"
+                        value={String(formData.gioiTinh ?? "M")}
+                        disabled={!canManage || isReadOnly}
+                        onChange={(e) => updateField("gioiTinh", e.target.value)}
+                        className={selectClass}
+                      >
+                        <option value="M">Nam</option>
+                        <option value="F">Nữ</option>
+                      </select>
+                    </div>
 
-                  <div>
-                    <label
-                      htmlFor="gioiTinh"
-                      className="block text-sm font-semibold text-slate-700 mb-1"
-                    >
-                      Giới tính <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      id="gioiTinh"
-                      value={String(formData.gioiTinh ?? "M")}
-                      disabled={!canManage || isReadOnly}
-                      onChange={(e) => updateField("gioiTinh", e.target.value)}
-                      className={selectClass}
-                    >
-                      <option value="M">Nam</option>
-                      <option value="F">Nữ</option>
-                    </select>
-                  </div>
-                </div>
+                    <div>
+                      <label
+                        htmlFor="ngayThangNamSinhStr"
+                        className="block text-sm font-semibold text-slate-700 mb-1"
+                      >
+                        Ngày sinh (ngày/tháng/năm){" "}
+                        <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        id="ngayThangNamSinhStr"
+                        type="text"
+                        required
+                        placeholder="15/01/1990"
+                        value={String(formData.ngayThangNamSinhStr ?? "")}
+                        disabled={!canManage || isReadOnly}
+                        onChange={(e) =>
+                          updateField("ngayThangNamSinhStr", e.target.value)
+                        }
+                        className={inputClass}
+                      />
+                    </div>
 
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <label
-                      htmlFor="ngayThangNamSinhStr"
-                      className="block text-sm font-semibold text-slate-700 mb-1"
-                    >
-                      Ngày sinh (ngày/tháng/năm){" "}
-                      <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      id="ngayThangNamSinhStr"
-                      type="text"
-                      required
-                      placeholder="15/01/1990"
-                      value={String(formData.ngayThangNamSinhStr ?? "")}
-                      disabled={!canManage || isReadOnly}
-                      onChange={(e) =>
-                        updateField("ngayThangNamSinhStr", e.target.value)
-                      }
-                      className={inputClass}
-                    />
-                  </div>
+                    <div>
+                      <label
+                        htmlFor="soDienThoai"
+                        className="block text-sm font-semibold text-slate-700 mb-1"
+                      >
+                        Số điện thoại
+                      </label>
+                      <input
+                        id="soDienThoai"
+                        type="tel"
+                        value={String(formData.soDienThoai ?? "")}
+                        disabled={!canManage || isReadOnly}
+                        onChange={(e) =>
+                          updateField("soDienThoai", e.target.value || null)
+                        }
+                        className={inputClass}
+                        placeholder="0912345678"
+                      />
+                    </div>
 
-                  <div>
-                    <label
-                      htmlFor="soDienThoai"
-                      className="block text-sm font-semibold text-slate-700 mb-1"
-                    >
-                      Số điện thoại
-                    </label>
-                    <input
-                      id="soDienThoai"
-                      type="tel"
-                      value={String(formData.soDienThoai ?? "")}
-                      disabled={!canManage || isReadOnly}
-                      onChange={(e) =>
-                        updateField("soDienThoai", e.target.value || null)
-                      }
-                      className={inputClass}
-                      placeholder="0912345678"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <label
-                      htmlFor="loaiGiayTo"
-                      className="block text-sm font-semibold text-slate-700 mb-1"
-                    >
-                      Loại giấy tờ <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      id="loaiGiayTo"
-                      required
-                      value={
-                        formData.loaiGiayTo === undefined
-                          ? ""
-                          : String(formData.loaiGiayTo)
-                      }
-                      disabled={!canManage || isReadOnly}
-                      onChange={(e) =>
-                        updateField(
-                          "loaiGiayTo",
-                          e.target.value ? Number(e.target.value) : undefined,
-                        )
-                      }
-                      className={selectClass}
-                    >
-                      <option value="">Chọn loại giấy tờ</option>
-                      {(documentTypesQuery.data ?? []).map((item) => (
-                        <option key={item.id} value={item.code}>
-                          {item.nameVi}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="soGiayTo"
-                      className="block text-sm font-semibold text-slate-700 mb-1"
-                    >
-                      Số giấy tờ <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      id="soGiayTo"
-                      type="text"
-                      required
-                      value={String(formData.soGiayTo ?? "")}
-                      disabled={!canManage || isReadOnly}
-                      onChange={(e) =>
-                        updateField(
-                          "soGiayTo",
-                          e.target.value.replace(/[^A-Za-z0-9]/g, ""),
-                        )
-                      }
-                      className={inputClass}
-                      placeholder="Không chứa dấu cách hoặc ký tự đặc biệt"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <label
-                      htmlFor="lyDoCuTru"
-                      className="block text-sm font-semibold text-slate-700 mb-1"
-                    >
-                      Lý do cư trú{" "}
-                      <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      id="lyDoCuTru"
-                      required
-                      value={
-                        formData.lyDoCuTru === undefined
-                          ? ""
-                          : String(formData.lyDoCuTru)
-                      }
-                      disabled={!canManage || isReadOnly}
-                      onChange={(e) =>
-                        updateField(
-                          "lyDoCuTru",
-                          e.target.value ? Number(e.target.value) : undefined,
-                        )
-                      }
-                      className={selectClass}
-                    >
-                      <option value="">Chọn lý do cư trú</option>
-                      {(stayReasonsQuery.data ?? []).map((item) => (
-                        <option key={item.id} value={item.code}>
-                          {item.nameVi}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="lyDoChiTiet"
-                      className="block text-sm font-semibold text-slate-700 mb-1"
-                    >
-                      Lý do chi tiết (bắt buộc khi chọn lý do khác)
-                    </label>
-                    <input
-                      id="lyDoChiTiet"
-                      type="text"
-                      value={String(formData.lyDoChiTiet ?? "")}
-                      disabled={!canManage || isReadOnly}
-                      onChange={(e) =>
-                        updateField("lyDoChiTiet", e.target.value || null)
-                      }
-                      className={inputClass}
-                      placeholder="Nêu rõ mục đích cư trú"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-3">
-                  <div>
-                    <label
-                      htmlFor="soPhong"
-                      className="block text-sm font-semibold text-slate-700 mb-1"
-                    >
-                      Số phòng <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      id="soPhong"
-                      type="text"
-                      required
-                      value={String(formData.soPhong ?? "")}
-                      disabled={!canManage || isReadOnly}
-                      onChange={(e) => updateField("soPhong", e.target.value)}
-                      className={inputClass}
-                      placeholder="101"
-                    />
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="ngayDenCsltStr"
-                      className="block text-sm font-semibold text-slate-700 mb-1"
-                    >
-                      Ngày đến <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      id="ngayDenCsltStr"
-                      type="text"
-                      required
-                      placeholder="HH:mm:ss DD/MM/YYYY"
-                      value={String(formData.ngayDenCsltStr ?? "")}
-                      disabled={!canManage || isReadOnly}
-                      onChange={(e) =>
-                        updateField("ngayDenCsltStr", e.target.value)
-                      }
-                      className={inputClass}
-                    />
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="ngayDiDuKienStr"
-                      className="block text-sm font-semibold text-slate-700 mb-1"
-                    >
-                      Ngày đi dự kiến <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      id="ngayDiDuKienStr"
-                      type="text"
-                      required
-                      placeholder="HH:mm:ss DD/MM/YYYY"
-                      value={String(formData.ngayDiDuKienStr ?? "")}
-                      disabled={!canManage || isReadOnly}
-                      onChange={(e) =>
-                        updateField("ngayDiDuKienStr", e.target.value)
-                      }
-                      className={inputClass}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-3">
-                  <div>
-                    <label
-                      htmlFor="maTT"
-                      className="block text-sm font-semibold text-slate-700 mb-1"
-                    >
-                      Tỉnh / Thành phố
-                    </label>
-                    <select
-                      id="maTT"
-                      value={String(formData.maTT ?? "")}
-                      disabled={!canManage || isReadOnly}
-                      onChange={(e) => {
-                        updateField("maTT", e.target.value || null);
-                        updateField("maPX", null);
-                      }}
-                      className={selectClass}
-                    >
-                      <option value="">
-                        {provincesQuery.isPending
-                          ? "Đang tải danh sách Tỉnh/TP..."
-                          : "Chọn tỉnh/thành phố"}
-                      </option>
-                      {Boolean(formData.maTT) &&
-                        !(provincesQuery.data ?? []).some(
-                          (item) => item.code === String(formData.maTT),
-                        ) && (
-                          <option value={String(formData.maTT)}>
-                            {String(formData.maTT)}
+                    <div>
+                      <label
+                        htmlFor="loaiGiayTo"
+                        className="block text-sm font-semibold text-slate-700 mb-1"
+                      >
+                        Loại giấy tờ <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        id="loaiGiayTo"
+                        required
+                        value={
+                          formData.loaiGiayTo === undefined
+                            ? ""
+                            : String(formData.loaiGiayTo)
+                        }
+                        disabled={!canManage || isReadOnly}
+                        onChange={(e) =>
+                          updateField(
+                            "loaiGiayTo",
+                            e.target.value ? Number(e.target.value) : undefined,
+                          )
+                        }
+                        className={selectClass}
+                      >
+                        <option value="">Chọn loại giấy tờ</option>
+                        {(documentTypesQuery.data ?? []).map((item) => (
+                          <option key={item.id} value={item.code}>
+                            {item.nameVi}
                           </option>
-                        )}
-                      {(provincesQuery.data ?? []).map((item) => (
-                        <option key={item.id} value={item.code}>
-                          {item.code} - {item.nameVi}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                        ))}
+                      </select>
+                    </div>
 
-                  <div>
-                    <label
-                      htmlFor="maPX"
-                      className="block text-sm font-semibold text-slate-700 mb-1"
-                    >
-                      Phường / Xã
-                    </label>
-                    <select
-                      id="maPX"
-                      value={String(formData.maPX ?? "")}
-                      disabled={
-                        !canManage || isReadOnly || !provinceCode
-                      }
-                      onChange={(e) =>
-                        updateField("maPX", e.target.value || null)
-                      }
-                      className={selectClass}
-                    >
-                      <option value="">
-                        {!provinceCode
-                          ? "Vui lòng chọn Tỉnh/TP trước"
-                          : wardsQuery.isPending
-                            ? "Đang tải danh sách phường/xã..."
-                            : "Chọn phường/xã"}
-                      </option>
-                      {Boolean(formData.maPX) &&
-                        !(wardsQuery.data ?? []).some(
-                          (item) => item.code === String(formData.maPX),
-                        ) && (
-                          <option value={String(formData.maPX)}>
-                            {String(formData.maPX)}
+                    <div>
+                      <label
+                        htmlFor="soGiayTo"
+                        className="block text-sm font-semibold text-slate-700 mb-1"
+                      >
+                        Số giấy tờ <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        id="soGiayTo"
+                        type="text"
+                        required
+                        value={String(formData.soGiayTo ?? "")}
+                        disabled={!canManage || isReadOnly}
+                        onChange={(e) =>
+                          updateField(
+                            "soGiayTo",
+                            e.target.value.replace(/[^A-Za-z0-9]/g, ""),
+                          )
+                        }
+                        className={inputClass}
+                        placeholder="Không chứa ký tự đặc biệt"
+                      />
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="lyDoCuTru"
+                        className="block text-sm font-semibold text-slate-700 mb-1"
+                      >
+                        Lý do cư trú{" "}
+                        <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        id="lyDoCuTru"
+                        required
+                        value={
+                          formData.lyDoCuTru === undefined
+                            ? ""
+                            : String(formData.lyDoCuTru)
+                        }
+                        disabled={!canManage || isReadOnly}
+                        onChange={(e) =>
+                          updateField(
+                            "lyDoCuTru",
+                            e.target.value ? Number(e.target.value) : undefined,
+                          )
+                        }
+                        className={selectClass}
+                      >
+                        <option value="">Chọn lý do cư trú</option>
+                        {(stayReasonsQuery.data ?? []).map((item) => (
+                          <option key={item.id} value={item.code}>
+                            {item.nameVi}
                           </option>
-                        )}
-                      {(wardsQuery.data ?? []).map((item) => (
-                        <option key={item.id} value={item.code}>
-                          {item.code} - {item.nameVi}
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="lyDoChiTiet"
+                        className="block text-sm font-semibold text-slate-700 mb-1"
+                      >
+                        Lý do chi tiết
+                      </label>
+                      <input
+                        id="lyDoChiTiet"
+                        type="text"
+                        value={String(formData.lyDoChiTiet ?? "")}
+                        disabled={!canManage || isReadOnly}
+                        onChange={(e) =>
+                          updateField("lyDoChiTiet", e.target.value || null)
+                        }
+                        className={inputClass}
+                        placeholder="Nêu rõ mục đích cư trú"
+                      />
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="soPhong"
+                        className="block text-sm font-semibold text-slate-700 mb-1"
+                      >
+                        Số phòng <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        id="soPhong"
+                        type="text"
+                        required
+                        value={String(formData.soPhong ?? "")}
+                        disabled={!canManage || isReadOnly}
+                        onChange={(e) => updateField("soPhong", e.target.value)}
+                        className={inputClass}
+                        placeholder="101"
+                      />
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="ngayDenCsltStr"
+                        className="block text-sm font-semibold text-slate-700 mb-1"
+                      >
+                        Ngày đến <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        id="ngayDenCsltStr"
+                        type="text"
+                        required
+                        placeholder="HH:mm:ss DD/MM/YYYY"
+                        value={String(formData.ngayDenCsltStr ?? "")}
+                        disabled={!canManage || isReadOnly}
+                        onChange={(e) =>
+                          updateField("ngayDenCsltStr", e.target.value)
+                        }
+                        className={inputClass}
+                      />
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="ngayDiDuKienStr"
+                        className="block text-sm font-semibold text-slate-700 mb-1"
+                      >
+                        Ngày đi dự kiến <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        id="ngayDiDuKienStr"
+                        type="text"
+                        required
+                        placeholder="HH:mm:ss DD/MM/YYYY"
+                        value={String(formData.ngayDiDuKienStr ?? "")}
+                        disabled={!canManage || isReadOnly}
+                        onChange={(e) =>
+                          updateField("ngayDiDuKienStr", e.target.value)
+                        }
+                        className={inputClass}
+                      />
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="noiCuTru"
+                        className="block text-sm font-semibold text-slate-700 mb-1"
+                      >
+                        Nơi cư trú
+                      </label>
+                      <select
+                        id="noiCuTru"
+                        value={
+                          formData.noiCuTru === undefined ||
+                          formData.noiCuTru === null
+                            ? ""
+                            : String(formData.noiCuTru)
+                        }
+                        disabled={!canManage || isReadOnly}
+                        onChange={(e) =>
+                          updateField(
+                            "noiCuTru",
+                            e.target.value ? Number(e.target.value) : null,
+                          )
+                        }
+                        className={selectClass}
+                      >
+                        <option value="">Chọn nơi cư trú</option>
+                        {(residencePlacesQuery.data ?? []).map((item) => (
+                          <option key={item.id} value={item.code}>
+                            {item.nameVi}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="maTT"
+                        className="block text-sm font-semibold text-slate-700 mb-1"
+                      >
+                        Tỉnh / Thành phố
+                      </label>
+                      <select
+                        id="maTT"
+                        value={String(formData.maTT ?? "")}
+                        disabled={!canManage || isReadOnly}
+                        onChange={(e) => {
+                          updateField("maTT", e.target.value || null);
+                          updateField("maPX", null);
+                        }}
+                        className={selectClass}
+                      >
+                        <option value="">
+                          {provincesQuery.isPending
+                            ? "Đang tải Tỉnh/TP..."
+                            : "Chọn tỉnh/thành phố"}
                         </option>
-                      ))}
-                    </select>
-                  </div>
+                        {Boolean(formData.maTT) &&
+                          !(provincesQuery.data ?? []).some(
+                            (item) => item.code === String(formData.maTT),
+                          ) && (
+                            <option value={String(formData.maTT)}>
+                              {String(formData.maTT)}
+                            </option>
+                          )}
+                        {(provincesQuery.data ?? []).map((item) => (
+                          <option key={item.id} value={item.code}>
+                            {item.code} - {item.nameVi}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
-                  <div>
-                    <label
-                      htmlFor="noiCuTru"
-                      className="block text-sm font-semibold text-slate-700 mb-1"
-                    >
-                      Nơi cư trú
-                    </label>
-                    <select
-                      id="noiCuTru"
-                      value={
-                        formData.noiCuTru === undefined ||
-                        formData.noiCuTru === null
-                          ? ""
-                          : String(formData.noiCuTru)
-                      }
-                      disabled={!canManage || isReadOnly}
-                      onChange={(e) =>
-                        updateField(
-                          "noiCuTru",
-                          e.target.value ? Number(e.target.value) : null,
-                        )
-                      }
-                      className={selectClass}
-                    >
-                      <option value="">Chọn nơi cư trú</option>
-                      {(residencePlacesQuery.data ?? []).map((item) => (
-                        <option key={item.id} value={item.code}>
-                          {item.nameVi}
+                    <div>
+                      <label
+                        htmlFor="maPX"
+                        className="block text-sm font-semibold text-slate-700 mb-1"
+                      >
+                        Phường / Xã
+                      </label>
+                      <select
+                        id="maPX"
+                        value={String(formData.maPX ?? "")}
+                        disabled={
+                          !canManage || isReadOnly || !provinceCode
+                        }
+                        onChange={(e) =>
+                          updateField("maPX", e.target.value || null)
+                        }
+                        className={selectClass}
+                      >
+                        <option value="">
+                          {!provinceCode
+                            ? "Chọn Tỉnh/TP trước"
+                            : wardsQuery.isPending
+                              ? "Đang tải phường/xã..."
+                              : "Chọn phường/xã"}
                         </option>
-                      ))}
-                    </select>
+                        {Boolean(formData.maPX) &&
+                          !(wardsQuery.data ?? []).some(
+                            (item) => item.code === String(formData.maPX),
+                          ) && (
+                            <option value={String(formData.maPX)}>
+                              {String(formData.maPX)}
+                            </option>
+                          )}
+                        {(wardsQuery.data ?? []).map((item) => (
+                          <option key={item.id} value={item.code}>
+                            {item.code} - {item.nameVi}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="sm:col-span-2 lg:col-span-2">
+                      <label
+                        htmlFor="diaChi"
+                        className="block text-sm font-semibold text-slate-700 mb-1"
+                      >
+                        Địa chỉ chi tiết
+                      </label>
+                      <input
+                        id="diaChi"
+                        type="text"
+                        value={String(formData.diaChi ?? "")}
+                        disabled={!canManage || isReadOnly}
+                        onChange={(e) =>
+                          updateField("diaChi", e.target.value || null)
+                        }
+                        className={inputClass}
+                        placeholder="Số nhà, đường phố..."
+                      />
+                    </div>
+
+                    <div className="col-span-full">
+                      <label
+                        htmlFor="ghiChu"
+                        className="block text-sm font-semibold text-slate-700 mb-1"
+                      >
+                        Ghi chú
+                      </label>
+                      <textarea
+                        id="ghiChu"
+                        rows={2}
+                        value={String(formData.ghiChu ?? "")}
+                        disabled={!canManage || isReadOnly}
+                        onChange={(e) =>
+                          updateField("ghiChu", e.target.value || null)
+                        }
+                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-base text-slate-900 outline-none transition-all focus:border-[#064e3b] focus:ring-2 focus:ring-[#064e3b]/15"
+                        placeholder="Ghi chú thêm về khách lưu trú"
+                      />
+                    </div>
                   </div>
                 </div>
+              ) : citizenshipKind === "FOREIGN" ? (
+                /* Foreign Form */
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <div>
+                      <label
+                        htmlFor="f-hoTen"
+                        className="block text-sm font-semibold text-slate-700 mb-1"
+                      >
+                        Họ và tên <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        id="f-hoTen"
+                        type="text"
+                        required
+                        value={String(formData.hoTen ?? "")}
+                        disabled={!canManage || isReadOnly}
+                        onChange={(e) => updateField("hoTen", e.target.value)}
+                        className={inputClass}
+                        placeholder="JOHN DOE"
+                      />
+                    </div>
 
-                <div>
-                  <label
-                    htmlFor="diaChi"
-                    className="block text-sm font-semibold text-slate-700 mb-1"
-                  >
-                    Địa chỉ chi tiết
-                  </label>
-                  <input
-                    id="diaChi"
-                    type="text"
-                    value={String(formData.diaChi ?? "")}
-                    disabled={!canManage || isReadOnly}
-                    onChange={(e) =>
-                      updateField("diaChi", e.target.value || null)
-                    }
-                    className={inputClass}
-                    placeholder="Số nhà, đường phố..."
-                  />
-                </div>
+                    <div>
+                      <label
+                        htmlFor="quocTich"
+                        className="block text-sm font-semibold text-slate-700 mb-1"
+                      >
+                        Quốc tịch <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        id="quocTich"
+                        required
+                        value={String(formData.quocTich ?? "")}
+                        disabled={!canManage || isReadOnly}
+                        onChange={(e) => updateField("quocTich", e.target.value)}
+                        className={selectClass}
+                      >
+                        <option value="">Chọn quốc tịch</option>
+                        {(nationalitiesQuery.data ?? []).map((item) => (
+                          <option key={item.id} value={item.code}>
+                            {item.nameVi}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
-                <div>
-                  <label
-                    htmlFor="ghiChu"
-                    className="block text-sm font-semibold text-slate-700 mb-1"
-                  >
-                    Ghi chú
-                  </label>
-                  <textarea
-                    id="ghiChu"
-                    rows={2}
-                    value={String(formData.ghiChu ?? "")}
-                    disabled={!canManage || isReadOnly}
-                    onChange={(e) =>
-                      updateField("ghiChu", e.target.value || null)
-                    }
-                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900 outline-none transition-all focus:border-[#064e3b] focus:ring-2 focus:ring-[#064e3b]/15"
-                    placeholder="Ghi chú thêm về khách lưu trú"
-                  />
-                </div>
-              </div>
-            ) : citizenshipKind === "FOREIGN" ? (
-              /* Foreign Form */
-              <div className="space-y-4">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <label
-                      htmlFor="f-hoTen"
-                      className="block text-sm font-semibold text-slate-700 mb-1"
-                    >
-                      Họ và tên <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      id="f-hoTen"
-                      type="text"
-                      required
-                      value={String(formData.hoTen ?? "")}
-                      disabled={!canManage || isReadOnly}
-                      onChange={(e) => updateField("hoTen", e.target.value)}
-                      className={inputClass}
-                      placeholder="JOHN DOE"
-                    />
-                  </div>
+                    <div>
+                      <label
+                        htmlFor="soHoChieu"
+                        className="block text-sm font-semibold text-slate-700 mb-1"
+                      >
+                        Số hộ chiếu <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        id="soHoChieu"
+                        type="text"
+                        required
+                        value={String(formData.soHoChieu ?? "")}
+                        disabled={!canManage || isReadOnly}
+                        onChange={(e) =>
+                          updateField(
+                            "soHoChieu",
+                            e.target.value.replace(/[^A-Za-z0-9]/g, ""),
+                          )
+                        }
+                        className={inputClass}
+                        placeholder="A12345678"
+                      />
+                    </div>
 
-                  <div>
-                    <label
-                      htmlFor="quocTich"
-                      className="block text-sm font-semibold text-slate-700 mb-1"
-                    >
-                      Quốc tịch <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      id="quocTich"
-                      required
-                      value={String(formData.quocTich ?? "")}
-                      disabled={!canManage || isReadOnly}
-                      onChange={(e) => updateField("quocTich", e.target.value)}
-                      className={selectClass}
-                    >
-                      <option value="">Chọn quốc tịch</option>
-                      {(nationalitiesQuery.data ?? []).map((item) => (
-                        <option key={item.id} value={item.code}>
-                          {item.nameVi}
+                    <div>
+                      <label
+                        htmlFor="f-gioiTinh"
+                        className="block text-sm font-semibold text-slate-700 mb-1"
+                      >
+                        Giới tính <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        id="f-gioiTinh"
+                        value={String(formData.gioiTinh ?? "M")}
+                        disabled={!canManage || isReadOnly}
+                        onChange={(e) => updateField("gioiTinh", e.target.value)}
+                        className={selectClass}
+                      >
+                        <option value="M">Nam</option>
+                        <option value="F">Nữ</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="loaiNgayThangNamSinh"
+                        className="block text-sm font-semibold text-slate-700 mb-1"
+                      >
+                        Loại ngày sinh <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        id="loaiNgayThangNamSinh"
+                        value={String(formData.loaiNgayThangNamSinh ?? "D")}
+                        disabled={!canManage || isReadOnly}
+                        onChange={(e) =>
+                          updateField("loaiNgayThangNamSinh", e.target.value)
+                        }
+                        className={selectClass}
+                      >
+                        <option value="D">Đầy đủ ngày/tháng/năm</option>
+                        <option value="Y">
+                          Chỉ có năm sinh (01/01/YYYY)
                         </option>
-                      ))}
-                    </select>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="f-ngayThangNamSinhStr"
+                        className="block text-sm font-semibold text-slate-700 mb-1"
+                      >
+                        Ngày sinh (ngày/tháng/năm){" "}
+                        <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        id="f-ngayThangNamSinhStr"
+                        type="text"
+                        required
+                        placeholder={
+                          formData.loaiNgayThangNamSinh === "Y"
+                            ? "01/01/1985"
+                            : "20/06/1985"
+                        }
+                        value={String(formData.ngayThangNamSinhStr ?? "")}
+                        disabled={!canManage || isReadOnly}
+                        onChange={(e) =>
+                          updateField("ngayThangNamSinhStr", e.target.value)
+                        }
+                        className={inputClass}
+                      />
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="f-soPhong"
+                        className="block text-sm font-semibold text-slate-700 mb-1"
+                      >
+                        Số phòng <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        id="f-soPhong"
+                        type="text"
+                        required
+                        value={String(formData.soPhong ?? "")}
+                        disabled={!canManage || isReadOnly}
+                        onChange={(e) => updateField("soPhong", e.target.value)}
+                        className={inputClass}
+                        placeholder="201"
+                      />
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="thoiHanTamTruStr"
+                        className="block text-sm font-semibold text-slate-700 mb-1"
+                      >
+                        Thời hạn tạm trú <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        id="thoiHanTamTruStr"
+                        type="text"
+                        required
+                        placeholder="HH:mm:ss DD/MM/YYYY"
+                        value={String(formData.thoiHanTamTruStr ?? "")}
+                        disabled={!canManage || isReadOnly}
+                        onChange={(e) =>
+                          updateField("thoiHanTamTruStr", e.target.value)
+                        }
+                        className={inputClass}
+                      />
+                    </div>
+
+                    <div className="sm:col-span-1 lg:col-span-2">
+                      <label
+                        htmlFor="f-ngayDenCsltStr"
+                        className="block text-sm font-semibold text-slate-700 mb-1"
+                      >
+                        Ngày đến <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        id="f-ngayDenCsltStr"
+                        type="text"
+                        required
+                        placeholder="HH:mm:ss DD/MM/YYYY"
+                        value={String(formData.ngayDenCsltStr ?? "")}
+                        disabled={!canManage || isReadOnly}
+                        onChange={(e) =>
+                          updateField("ngayDenCsltStr", e.target.value)
+                        }
+                        className={inputClass}
+                      />
+                    </div>
+
+                    <div className="sm:col-span-1 lg:col-span-2">
+                      <label
+                        htmlFor="f-ngayDiDuKienStr"
+                        className="block text-sm font-semibold text-slate-700 mb-1"
+                      >
+                        Ngày đi dự kiến <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        id="f-ngayDiDuKienStr"
+                        type="text"
+                        required
+                        placeholder="HH:mm:ss DD/MM/YYYY"
+                        value={String(formData.ngayDiDuKienStr ?? "")}
+                        disabled={!canManage || isReadOnly}
+                        onChange={(e) =>
+                          updateField("ngayDiDuKienStr", e.target.value)
+                        }
+                        className={inputClass}
+                      />
+                    </div>
                   </div>
                 </div>
+              ) : null}
+            </div>
 
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <label
-                      htmlFor="soHoChieu"
-                      className="block text-sm font-semibold text-slate-700 mb-1"
-                    >
-                      Số hộ chiếu <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      id="soHoChieu"
-                      type="text"
-                      required
-                      value={String(formData.soHoChieu ?? "")}
-                      disabled={!canManage || isReadOnly}
-                      onChange={(e) =>
-                        updateField(
-                          "soHoChieu",
-                          e.target.value.replace(/[^A-Za-z0-9]/g, ""),
-                        )
-                      }
-                      className={inputClass}
-                      placeholder="A12345678"
-                    />
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="f-gioiTinh"
-                      className="block text-sm font-semibold text-slate-700 mb-1"
-                    >
-                      Giới tính <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      id="f-gioiTinh"
-                      value={String(formData.gioiTinh ?? "M")}
-                      disabled={!canManage || isReadOnly}
-                      onChange={(e) => updateField("gioiTinh", e.target.value)}
-                      className={selectClass}
-                    >
-                      <option value="M">Nam</option>
-                      <option value="F">Nữ</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <label
-                      htmlFor="loaiNgayThangNamSinh"
-                      className="block text-sm font-semibold text-slate-700 mb-1"
-                    >
-                      Loại ngày sinh <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      id="loaiNgayThangNamSinh"
-                      value={String(formData.loaiNgayThangNamSinh ?? "D")}
-                      disabled={!canManage || isReadOnly}
-                      onChange={(e) =>
-                        updateField("loaiNgayThangNamSinh", e.target.value)
-                      }
-                      className={selectClass}
-                    >
-                      <option value="D">Đầy đủ ngày/tháng/năm</option>
-                      <option value="Y">
-                        Chỉ có năm sinh (01/01/YYYY)
-                      </option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="f-ngayThangNamSinhStr"
-                      className="block text-sm font-semibold text-slate-700 mb-1"
-                    >
-                      Ngày sinh (ngày/tháng/năm){" "}
-                      <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      id="f-ngayThangNamSinhStr"
-                      type="text"
-                      required
-                      placeholder={
-                        formData.loaiNgayThangNamSinh === "Y"
-                          ? "01/01/1985"
-                          : "20/06/1985"
-                      }
-                      value={String(formData.ngayThangNamSinhStr ?? "")}
-                      disabled={!canManage || isReadOnly}
-                      onChange={(e) =>
-                        updateField("ngayThangNamSinhStr", e.target.value)
-                      }
-                      className={inputClass}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <label
-                      htmlFor="f-soPhong"
-                      className="block text-sm font-semibold text-slate-700 mb-1"
-                    >
-                      Số phòng <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      id="f-soPhong"
-                      type="text"
-                      required
-                      value={String(formData.soPhong ?? "")}
-                      disabled={!canManage || isReadOnly}
-                      onChange={(e) => updateField("soPhong", e.target.value)}
-                      className={inputClass}
-                      placeholder="201"
-                    />
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="thoiHanTamTruStr"
-                      className="block text-sm font-semibold text-slate-700 mb-1"
-                    >
-                      Thời hạn tạm trú <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      id="thoiHanTamTruStr"
-                      type="text"
-                      required
-                      placeholder="HH:mm:ss DD/MM/YYYY"
-                      value={String(formData.thoiHanTamTruStr ?? "")}
-                      disabled={!canManage || isReadOnly}
-                      onChange={(e) =>
-                        updateField("thoiHanTamTruStr", e.target.value)
-                      }
-                      className={inputClass}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <label
-                      htmlFor="f-ngayDenCsltStr"
-                      className="block text-sm font-semibold text-slate-700 mb-1"
-                    >
-                      Ngày đến <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      id="f-ngayDenCsltStr"
-                      type="text"
-                      required
-                      placeholder="HH:mm:ss DD/MM/YYYY"
-                      value={String(formData.ngayDenCsltStr ?? "")}
-                      disabled={!canManage || isReadOnly}
-                      onChange={(e) =>
-                        updateField("ngayDenCsltStr", e.target.value)
-                      }
-                      className={inputClass}
-                    />
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="f-ngayDiDuKienStr"
-                      className="block text-sm font-semibold text-slate-700 mb-1"
-                    >
-                      Ngày đi dự kiến <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      id="f-ngayDiDuKienStr"
-                      type="text"
-                      required
-                      placeholder="HH:mm:ss DD/MM/YYYY"
-                      value={String(formData.ngayDiDuKienStr ?? "")}
-                      disabled={!canManage || isReadOnly}
-                      onChange={(e) =>
-                        updateField("ngayDiDuKienStr", e.target.value)
-                      }
-                      className={inputClass}
-                    />
-                  </div>
-                </div>
-              </div>
-            ) : null}
-
-            {/* Footer Buttons */}
-            <div className="flex flex-col-reverse gap-3 pt-4 border-t border-slate-100 sm:flex-row sm:items-center sm:justify-between">
+            {/* Pinned Footer */}
+            <div className="flex flex-col-reverse gap-3 border-t border-slate-100 bg-slate-50/60 px-6 py-4 sm:px-8 sm:flex-row sm:items-center sm:justify-between shrink-0">
               <button
                 type="button"
                 onClick={onClose}
@@ -2697,22 +2645,20 @@ function DeclarationModal({
                   </button>
                 )}
 
-                {canManage && !isReadOnly ? (
+                {canManage && !isReadOnly && (!retryFailedOnly || detailQuery.data?.declaration?.status === "FAILED") ? (
                   <button
                     type="submit"
                     disabled={isBusy}
                     className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#064e3b] px-6 py-3 text-base font-bold text-white shadow-md transition-all hover:bg-[#043327] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#064e3b] disabled:opacity-50"
                   >
-                    {submitMutation.isPending ? "Đang xếp hàng…" : "Lưu & Xếp hàng"}
+                    {submitMutation.isPending ? "Đang gửi…" : "Lưu & Gửi BCA"}
                   </button>
                 ) : isActuallySubmitted ? (
-                  <span className="inline-flex min-h-12 items-center rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-base font-semibold text-emerald-800">
+                  <span className="inline-flex min-h-12 items-center rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-base font-semibold text-emerald-800 whitespace-nowrap">
                     Hồ sơ của lần lưu trú này đã gửi BCA
                   </span>
-                ) : isKbttDeclarationQueued(detailQuery.data?.declaration) ? (
-                  <span role="status" className="text-base text-sky-900">Đã xếp hàng · Chờ gửi BCA</span>
                 ) : isReadOnly && detailQuery.isSuccess ? (
-                  <span role="status" className="text-base text-amber-900">
+                  <span role="status" className="text-base text-amber-900 text-pretty">
                     Hồ sơ đang gửi, cần đối soát hoặc đã hủy. Chỉ xem; không sửa hay gửi lại.
                   </span>
                 ) : null}

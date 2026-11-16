@@ -9,9 +9,10 @@ process.env.JWT_REFRESH_SECRET =
 process.env.JWT_ACCESS_TTL = process.env.JWT_ACCESS_TTL || "15m";
 process.env.JWT_REFRESH_TTL = process.env.JWT_REFRESH_TTL || "30d";
 
-import { ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
+import { ConflictException, ForbiddenException, Logger, NotFoundException } from "@nestjs/common";
 import { Prisma, RoomStatus } from "@prisma/client";
 import { RequestRealtimeEmitter } from "../../../request-realtime.emitter";
+import { StayCheckInEventBus, type StayCheckInEventPublisher } from "../../../shared/events";
 import { ReservationsService } from "../application/reservations.service";
 
 function createRepository(overrides: Record<string, jest.Mock> = {}) {
@@ -181,7 +182,7 @@ function createRepository(overrides: Record<string, jest.Mock> = {}) {
   };
 }
 
-function createService(repository = createRepository()) {
+function createService(repository = createRepository(), publisher?: StayCheckInEventPublisher) {
   const accessService = {
     assertHotelAccess: jest.fn().mockResolvedValue({
       id: "hotel-1",
@@ -205,6 +206,7 @@ function createService(repository = createRepository()) {
       repository as never,
       codesService as never,
       accessService as never,
+      publisher,
     ),
     repository,
   };
@@ -1345,6 +1347,86 @@ describe("ReservationsService front-desk lifecycle", () => {
         service.getReservation("actor-1", "active-role", "hotel-1", "res-nonexistent"),
       ).rejects.toThrow(NotFoundException);
     });
+  });
+});
+
+describe("reservation check-in background BCA boundary", () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it("publishes only after commit and returns while the BCA listener is still pending", async () => {
+    let commit!: (value: unknown) => void;
+    let repositoryStarted!: () => void;
+    let finishBca!: () => void;
+    const commitResult = new Promise((resolve) => { commit = resolve; });
+    const started = new Promise<void>((resolve) => { repositoryStarted = resolve; });
+    const bcaResult = new Promise<void>((resolve) => { finishBca = resolve; });
+    const listener = jest.fn(() => bcaResult);
+    const bus = new StayCheckInEventBus();
+    bus.subscribe(listener);
+    const repository = createRepository({
+      checkInReservation: jest.fn(() => { repositoryStarted(); return commitResult; }),
+    });
+    const { service } = createService(repository, bus);
+
+    const checkIn = service.checkIn("actor-1", "active-role", "hotel-1", "reservation-1");
+    await started;
+    expect(listener).not.toHaveBeenCalled();
+    commit({
+      idempotent: false,
+      reservation: { id: "reservation-1", status: "CHECKED_IN" },
+      stay: { id: "stay-1", status: "ACTIVE" },
+      folio: { id: "folio-1", status: "OPEN" },
+    });
+    try {
+      await expect(checkIn).resolves.toMatchObject({ stay: { id: "stay-1", status: "ACTIVE" } });
+      expect(listener).toHaveBeenCalledWith({ hotelId: "hotel-1", stayId: "stay-1", actorUserId: "actor-1" });
+    } finally {
+      finishBca();
+    }
+  });
+
+  it("does not start BCA for a failed check-in transaction", async () => {
+    const listener = jest.fn();
+    const bus = new StayCheckInEventBus();
+    bus.subscribe(listener);
+    const conflict = new ConflictException("ROOM_NOT_AVAILABLE");
+    const { service } = createService(createRepository({
+      checkInReservation: jest.fn().mockRejectedValue(conflict),
+    }), bus);
+
+    await expect(service.checkIn("actor-1", "active-role", "hotel-1", "reservation-1"))
+      .rejects.toBe(conflict);
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it("does not publish another BCA call for an idempotent check-in replay", async () => {
+    const listener = jest.fn();
+    const bus = new StayCheckInEventBus();
+    bus.subscribe(listener);
+    const { service } = createService(createRepository({
+      checkInReservation: jest.fn().mockResolvedValue({
+        idempotent: true,
+        reservation: { id: "reservation-1", status: "CHECKED_IN" },
+        stay: { id: "stay-1", status: "ACTIVE" },
+        folio: { id: "folio-1", status: "OPEN" },
+      }),
+    }), bus);
+
+    await expect(service.checkIn("actor-1", "active-role", "hotel-1", "reservation-1"))
+      .resolves.toMatchObject({ idempotent: true, accessCode: null });
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it("keeps check-in successful when the detached BCA listener fails", async () => {
+    const warn = jest.spyOn(Logger.prototype, "warn").mockImplementation(() => {});
+    const bus = new StayCheckInEventBus();
+    bus.subscribe(async () => { throw new Error("provider unavailable"); });
+    const { service } = createService(createRepository(), bus);
+
+    await expect(service.checkIn("actor-1", "active-role", "hotel-1", "reservation-1"))
+      .resolves.toMatchObject({ stay: { id: "stay-1", status: "ACTIVE" } });
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("provider unavailable"));
   });
 });
 

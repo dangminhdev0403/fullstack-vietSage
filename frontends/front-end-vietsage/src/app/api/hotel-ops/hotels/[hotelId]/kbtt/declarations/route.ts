@@ -37,12 +37,13 @@ export async function GET(request: Request, context: RouteContext) {
   if (!queryResult.success) {
     return validationErrorResponse("Tham số phân trang không hợp lệ.");
   }
-  const { page, limit, q, status, nationality, checkInDate } = queryResult.data;
+  const { page, limit, q, status, nationality, checkInDate, stayIds } = queryResult.data;
   const backendQuery = new URLSearchParams({ page: String(page), limit: String(limit) });
   if (q) backendQuery.set("q", q);
   if (status) backendQuery.set("status", status);
   if (nationality) backendQuery.set("nationality", nationality);
   if (checkInDate) backendQuery.set("checkInDate", checkInDate);
+  if (stayIds) backendQuery.set("stayIds", stayIds);
 
   try {
     const result = await executeHotelOpsBackendRequest("list kbtt declarations", async (accessToken) => {

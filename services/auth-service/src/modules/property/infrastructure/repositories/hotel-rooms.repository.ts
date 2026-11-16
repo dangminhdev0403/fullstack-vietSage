@@ -3048,14 +3048,17 @@ export class HotelRoomsRepository {
 
   async findActiveStayOccupantsByHotel(
     hotelId: string,
-    options?: { cursor?: string; take?: number },
+    options?: { cursor?: string; take?: number; stayIds?: string[]; roomIds?: string[] },
   ) {
     const take = options?.take ? Math.min(Math.max(options.take, 1), 500) : undefined;
     return this.prisma.guestStayOccupant.findMany({
       where: {
         hotelId,
+        ...(options?.stayIds ? { stayId: { in: options.stayIds } } : {}),
         stay: {
           hotelId,
+          checkedOutAt: null,
+          ...(options?.roomIds ? { roomId: { in: options.roomIds } } : {}),
           status: {
             in: [
               GuestStayStatus.ACTIVE,
@@ -3075,6 +3078,7 @@ export class HotelRoomsRepository {
             hotelId: true,
             roomId: true,
             reservationCode: true,
+            reservation: { select: { groupCode: true } },
             status: true,
             plannedCheckInAt: true,
             plannedCheckOutAt: true,

@@ -23,7 +23,7 @@ import { HttpError } from "@/core/http/http-error";
 import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
 import { loadServerWorkspaceContext } from "@/libs/server-workspace-context";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
-import { KbttDeclarationsPage } from "@/features/kbtt/components/kbtt-declarations-page";
+import { InHouseReconciliation } from "@/features/kbtt/components/in-house-reconciliation";
 import { FrontDeskInHouseTable } from "./front-desk-in-house-table";
 import { FrontDeskArrivalsTable } from "./front-desk-arrivals-table";
 import { FrontDeskGroupsTable } from "./front-desk-groups-table";
@@ -140,26 +140,26 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
     ["hotel.kbtt.declarations.view", "hotel.kbtt.declarations.manage"].includes(p),
   );
   const canManageKbttDeclarations = context.permissions.includes("hotel.kbtt.declarations.manage");
-  const canConfigureKbtt = context.permissions.some((p) =>
-    ["hotel.kbtt.view", "hotel.kbtt.manage"].includes(p),
-  );
   const canViewInHouse = context.permissions.includes("hotel.rooms.view");
   if (!canUseHotelId(context, hotelId) || (!canViewArrivals && !canViewInHouse && !canViewKbtt)) {
     notFound();
   }
 
   const rawTab = first(query.tab);
+  if (rawTab === "kbtt") {
+    redirect(frontDeskHref(hotelId, { tab: "in-house", q: first(query.q), page: positivePage(first(query.page)) }, baseRoutePrefix));
+  }
   const requestedTab: FrontDeskTab =
     rawTab === "kbtt"
-      ? "kbtt"
+      ? "in-house"
       : rawTab === "groups"
         ? "groups"
         : rawTab === "arrivals"
           ? "arrivals"
           : "in-house";
   const tab: FrontDeskTab =
-    requestedTab === "kbtt" && canViewKbtt
-      ? "kbtt"
+    requestedTab === "in-house" && canViewKbtt && !canViewInHouse
+      ? "in-house"
       : requestedTab === "groups" && canViewArrivals
         ? "groups"
         : requestedTab === "in-house" && canViewInHouse
@@ -170,7 +170,7 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
               ? "in-house"
               : canViewArrivals
                 ? "arrivals"
-                : "kbtt";
+                : "in-house";
   const rawRange = first(query.range);
   const range: ArrivalRange =
     rawRange === "tomorrow" || rawRange === "week" ? rawRange : "today";
@@ -216,7 +216,7 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
           accessToken,
         }),
       );
-    } else if (tab === "in-house") {
+    } else if (tab === "in-house" && canViewInHouse && !canViewKbtt) {
       inHousePage = await authorizedApi("load in-house guests", (accessToken) =>
         hotelOpsService.listRooms(hotelId, {
           query: {
@@ -311,7 +311,7 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
           className="inline-flex flex-wrap gap-1.5 rounded-2xl border border-slate-200 bg-slate-100/80 p-1 shadow-2xs md:hidden"
           aria-label="Nghiệp vụ lễ tân"
         >
-          {canViewInHouse ? (
+          {canViewInHouse || canViewKbtt ? (
             <Link
               aria-current={tab === "in-house" ? "page" : undefined}
               className={`inline-flex min-h-10 items-center gap-2 rounded-xl px-4 text-sm font-bold transition-all ${
@@ -368,20 +368,6 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
               ) : null}
             </Link>
           ) : null}
-          {canViewKbtt ? (
-            <Link
-              aria-current={tab === "kbtt" ? "page" : undefined}
-              className={`inline-flex min-h-10 items-center gap-2 rounded-xl px-4 text-sm font-bold transition-all ${
-                tab === "kbtt"
-                  ? "border border-slate-200 bg-white text-blue-700 shadow-xs"
-                  : "text-slate-600 hover:bg-white/60 hover:text-slate-900"
-              }`}
-              href={frontDeskHref(hotelId, { tab: "kbtt" }, baseRoutePrefix)}
-            >
-              <VsIcon name="verified_user" className="h-4 w-4" />
-              <span>Khai báo tạm trú</span>
-            </Link>
-          ) : null}
         </nav>
 
         {tab === "arrivals" || tab === "groups" ? (
@@ -422,11 +408,14 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
         ) : null}
       </div>
 
-      {tab === "kbtt" ? (
-        <KbttDeclarationsPage
+      {tab === "in-house" && canViewKbtt ? (
+        <InHouseReconciliation
+          key={hotelId + ":" + q}
           hotelId={hotelId}
           canManage={canManageKbttDeclarations}
-          canConfigure={canConfigureKbtt}
+          canViewRooms={canViewInHouse}
+          baseRoutePrefix={baseRoutePrefix}
+          initialQuery={q}
         />
       ) : (
         <>
@@ -638,6 +627,9 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
             canCheckOutStay={canCheckOutStay}
             canCheckInStay={canCheckInStay}
             canViewRequests={canViewRequests}
+            canViewKbtt={canViewKbtt}
+            canManageKbtt={canManageKbttDeclarations}
+            canConfigureKbtt={context.permissions.includes("hotel.kbtt.manage")}
           />
         ) : (
           /* Empty State for In-House */
