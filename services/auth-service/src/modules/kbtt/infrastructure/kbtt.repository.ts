@@ -141,7 +141,7 @@ export class KbttRepository {
 
   async getDeliverySnapshot(hotelId: string, allowedRoomId: string | null) {
     const [summary] = await this.prisma.$queryRaw<Array<{
-      pendingCount: number; sendingCount: number; reviewCount: number; lastSucceededAt: Date | null;
+      pendingCount: number; reviewCount: number; lastSucceededAt: Date | null;
       recentIssues: Array<{ id: string; kind: "INITIAL" | "EXTEND" | "CHECKOUT" | "RECOVER";
         status: "FAILED" | "REJECTED" | "UNKNOWN" | "BLOCKED"; providerCode: string | null;
         roomNumber: string; fullName: string; updatedAt: string }>;
@@ -168,14 +168,14 @@ export class KbttRepository {
       SELECT DISTINCT ON (p."occupantId", p.kind) p.* FROM scoped_operations p
       JOIN latest_declarations d ON d.id = p."declarationId"
       ORDER BY p."occupantId", p.kind,
-        CASE WHEN p.status IN ('UNKNOWN', 'SENDING') THEN 0 ELSE 1 END,
+        CASE WHEN p.status IN ('UNKNOWN') THEN 0 ELSE 1 END,
         p."createdAt" DESC, p.id DESC
     ), current_operations AS (
       SELECT p.* FROM latest_operations p WHERE p.status <> 'SUPERSEDED'
       AND NOT EXISTS (SELECT 1 FROM latest_operations c WHERE c."occupantId" = p."occupantId"
         AND c."declarationId" = p."declarationId" AND c.kind = 'CHECKOUT'
         AND c.status = 'SUCCEEDED' AND p.kind <> 'CHECKOUT'
-        AND p.status NOT IN ('UNKNOWN', 'SENDING'))
+        AND p.status NOT IN ('UNKNOWN'))
       AND NOT EXISTS (SELECT 1 FROM latest_operations c WHERE c."occupantId" = p."occupantId"
         AND c."declarationId" = p."declarationId" AND c.kind = 'RECOVER'
         AND c.status = 'SUCCEEDED' AND p.kind = 'EXTEND' AND p.status = 'REJECTED'
@@ -191,8 +191,6 @@ export class KbttRepository {
       FROM current_operations WHERE status IN ('REJECTED', 'UNKNOWN', 'BLOCKED')
     ) SELECT
       (SELECT count(*) FROM current_operations WHERE status = 'PENDING')::int AS "pendingCount",
-      ((SELECT count(*) FROM latest_declarations WHERE status = 'SENDING') +
-       (SELECT count(*) FROM current_operations WHERE status = 'SENDING'))::int AS "sendingCount",
       (SELECT count(*)::int FROM issues) AS "reviewCount",
       (SELECT max(success.at) FROM (
         SELECT "submittedAt" AS at FROM scoped_declarations WHERE status = 'SUBMITTED'
@@ -207,15 +205,6 @@ export class KbttRepository {
   findDeclarationForDispatch(hotelId: string, id: string) {
     return this.prisma.kbttGuestDeclaration.findFirst({
       where: { id, hotelId }, include: { stay: true },
-    });
-  }
-
-  async markInterruptedDeclarationsUnknown(activeDeclarationIds: string[] = []) {
-    await this.prisma.kbttGuestDeclaration.updateMany({
-      where: { status: "SENDING", updatedAt: { lt: new Date(Date.now() - 5 * 60_000) },
-        ...(activeDeclarationIds.length ? { id: { notIn: activeDeclarationIds } } : {}) },
-      data: { status: "UNKNOWN", version: { increment: 1 }, providerCode: "INTERRUPTED_DELIVERY",
-        providerMessage: "Lần gửi bị gián đoạn; cần đối soát trước khi gửi tiếp." },
     });
   }
 
@@ -309,7 +298,7 @@ export class KbttRepository {
             status: { in: ["ACTIVE", "CHECKED_IN", "CHECKOUT_PENDING"] },
             checkedOutAt: null,
           },
-          kbttGuestDeclarations: { some: { status: { in: ["SUBMITTED", "SENDING", "UNKNOWN"] } } },
+          kbttGuestDeclarations: { some: { status: { in: ["SUBMITTED", "UNKNOWN"] } } },
         },
         select: {
           stay: { select: { room: { select: { roomNumber: true } } } },

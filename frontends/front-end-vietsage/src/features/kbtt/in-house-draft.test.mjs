@@ -26,7 +26,7 @@ test("inline save merges edits without losing provider-specific fields or mutati
 });
 
 test("readonly, matched and uncertain states refuse inline writes", () => {
-  for (const declarationStatus of ["SENDING", "UNKNOWN", "SUBMITTED", "CANCELLED"]) {
+  for (const declarationStatus of ["UNKNOWN", "SUBMITTED", "CANCELLED"]) {
     assert.throws(() => buildInlineDraft({ ...row, declarationStatus }, { hoTen: "Khách Khác" }));
   }
   for (const override of [{ source: "BCA_ONLY" }, { status: "MATCHED" }, { occupantId: null }, { kind: null }, { draftPayload: null }]) {

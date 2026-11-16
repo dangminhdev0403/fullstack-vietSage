@@ -14487,7 +14487,7 @@ export interface operations {
             query?: {
                 checkInDate?: string;
                 nationality?: "VNM" | "FOREIGN";
-                status?: "UNSENT" | "SUBMITTED" | "LOCAL_ERROR" | "REJECTED" | "SENDING" | "UNKNOWN" | "CANCELLED";
+                status?: "UNSENT" | "SUBMITTED" | "LOCAL_ERROR" | "REJECTED" | "UNKNOWN" | "CANCELLED";
                 /** @description Comma-separated current-page stay IDs; at most 20 IDs, each at most 128 characters */
                 stayIds?: string;
                 q?: string;

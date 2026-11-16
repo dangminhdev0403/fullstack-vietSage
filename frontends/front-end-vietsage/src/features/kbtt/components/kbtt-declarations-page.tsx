@@ -276,7 +276,6 @@ export function getDeclarationStatus(row: KbttDeclarationListItem) {
     SUBMITTED: { label: "Đã gửi BCA", dotColor: "bg-emerald-500", badgeClass: "border-emerald-200 bg-emerald-50 text-emerald-800" },
     LOCAL_ERROR: { label: row.declaration?.providerCode === "LOCAL_VALIDATION" ? "Cần sửa dữ liệu" : "Cần kiểm tra", dotColor: "bg-amber-500", badgeClass: "border-amber-200 bg-amber-50 text-amber-900" },
     REJECTED: { label: "Bị từ chối", dotColor: "bg-rose-500", badgeClass: "border-rose-200 bg-rose-50 text-rose-800" },
-    SENDING: { label: "Đang gửi", dotColor: "bg-amber-500", badgeClass: "border-amber-200 bg-amber-50 text-amber-900" },
     UNKNOWN: { label: "Cần đối soát", dotColor: "bg-amber-500", badgeClass: "border-amber-200 bg-amber-50 text-amber-900" },
     CANCELLED: { label: "Đã hủy", dotColor: "bg-amber-500", badgeClass: "border-amber-200 bg-amber-50 text-amber-900" },
   };
@@ -1136,7 +1135,6 @@ export function KbttDeclarationsPage({
             <option value="SUBMITTED">Đã gửi BCA</option>
             <option value="LOCAL_ERROR">Cần kiểm tra</option>
             <option value="REJECTED">Bị từ chối</option>
-            <option value="SENDING">Đang gửi</option>
             <option value="UNKNOWN">Cần đối soát</option>
             <option value="CANCELLED">Đã hủy</option>
           </select>

@@ -53,7 +53,6 @@ export function getBcaSummaryInfo(rows: KbttDeclarationListItem[]): BcaSummaryIn
   const reviewCount = rows.filter((row) =>
     ["FAILED", "UNKNOWN"].includes(row.declaration?.status ?? row.derivedStatus),
   ).length;
-  const sendingCount = rows.filter((row) => row.declaration?.status === "SENDING").length;
 
   if (reviewCount > 0) {
     return {
@@ -61,15 +60,6 @@ export function getBcaSummaryInfo(rows: KbttDeclarationListItem[]): BcaSummaryIn
       dotColor: "bg-rose-500",
       badgeClass: "border-rose-200 bg-rose-50 text-rose-800",
       key: "REVIEW",
-    };
-  }
-
-  if (sendingCount > 0) {
-    return {
-      label: `Đang gửi (${sendingCount})`,
-      dotColor: "bg-blue-500 animate-pulse",
-      badgeClass: "border-blue-200 bg-blue-50 text-blue-800",
-      key: "SENDING",
     };
   }
 

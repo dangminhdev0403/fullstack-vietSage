@@ -47,7 +47,7 @@ export class KbttStaySyncService {
       try {
         await this.dispatch(operation, resolveSession);
       } catch {
-        // A durable SENDING record is recovered as UNKNOWN, never automatically resent.
+        // An unresolved durable operation is never automatically resent.
         this.logger.warn(`Could not finish BCA lifecycle operation ${operation.id}.`);
       }
     }
@@ -74,7 +74,7 @@ export class KbttStaySyncService {
     const skipped: Array<{ occupantId: string; reason: string }> = [];
     for (const occupant of stay.occupants) {
       const declaration = occupant.kbttGuestDeclarations.find((d) => d.status === "SUBMITTED") ??
-        occupant.kbttGuestDeclarations.find((d) => d.status === "SENDING" || d.status === "UNKNOWN");
+        occupant.kbttGuestDeclarations.find((d) => d.status === "UNKNOWN");
       const guest = declaration && (submittedGuest(declaration.submittedPayloadJson) ??
         (declaration.status !== "SUBMITTED" ? submittedGuest(declaration.draftPayloadJson) : null));
       const identity = declaration && guest && providerIdentity(declaration.declarationKind, guest);
@@ -155,14 +155,14 @@ export class KbttStaySyncService {
       }
       for (const row of history) {
         if (row.id === declarationId) continue;
-        if (row.status === "UNKNOWN" || row.status === "SENDING" ||
+        if (row.status === "UNKNOWN" ||
             !(await this.repository.closedOperation(row.id))) {
           return localRejection("RECONCILIATION_REQUIRED", "Hồ sơ lưu trú trước chưa được xác nhận kết thúc trên BCA.");
         }
       }
       const declaration = await this.repository.initialDeclaration(declarationId, hotelId);
       const current = declaration?.stay;
-      if (!current || declaration?.status !== "SENDING" || declaration.submittedCsltId !== csltId ||
+      if (!current || declaration?.status !== "UNKNOWN" || declaration.submittedCsltId !== csltId ||
           current.checkedOutAt || !ACTIVE_STAYS.has(current.status) ||
           providerDay(guest.ngayDiDuKienStr) !== providerDay(composeKbttDraft(kind, (declaration.draftPayloadJson ?? {}) as Record<string, unknown>, { fullName: "", stay: current }).ngayDiDuKienStr)) {
         return localRejection("LOCAL_STATE_CHANGED", "Lượt lưu trú đã thay đổi; cần cập nhật hồ sơ trước khi gửi.");
@@ -205,7 +205,7 @@ export class KbttStaySyncService {
       }
       const history = await this.history(operation.csltId, operation.declarationKind, guest);
       const uncertain = await this.repository.uncertainOperations(operation.csltId, identity.key, operation.id);
-      if (!history || uncertain.length || history.some((d) => d.status === "UNKNOWN" || d.status === "SENDING")) {
+      if (!history || uncertain.length || history.some((d) => d.status === "UNKNOWN")) {
         await this.hold(operation, "RECONCILIATION_REQUIRED", "Có lần gửi chưa rõ kết quả; cần đối soát trước khi cập nhật.");
         return;
       }

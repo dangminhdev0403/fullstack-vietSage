@@ -14,6 +14,7 @@ import {
   invalidateHotelRealtimeQueries,
   invalidateHotelRequestRealtimeQueries,
 } from "../utils/invalidate-hotel-realtime-queries";
+import { isOperationalResetActive } from "@/features/request-realtime/operational-reset-silence";
 import { getQueryClient } from "@/app/_components/react-query-provider";
 
 function useSafeQueryClient() {
@@ -347,6 +348,10 @@ export function HotelOpsRealtimeNotifier({ hotelId }: Readonly<{ hotelId: string
         if (raw?.hotelId && raw.hotelId !== hotelId) return;
 
         void invalidateHotelRealtimeQueries(targetQueryClient, hotelId);
+
+        if (isOperationalResetActive(hotelId)) {
+          return;
+        }
 
         const keysToCheck = [raw?.roomNumber, raw?.roomId].filter((k): k is string => Boolean(k && String(k).trim()));
         const primaryKey = keysToCheck[0] ?? "default";

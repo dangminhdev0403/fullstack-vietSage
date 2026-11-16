@@ -220,10 +220,6 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     @Optional() private readonly providerRead?: KbttProviderReadClient,
   ) {}
 
-  async reconcileInterruptedInitialDeclarations() {
-    await this.repository.markInterruptedDeclarationsUnknown([...this.initialDeliveries.keys()]);
-  }
-
   async processStayLifecycleEvents() {
     if (process.env.KBTT_AUTO_SUBMIT_KILL_SWITCH === "true") return;
     await this.staySync?.run((hotelId, connection) => this.getOrRefreshSession(hotelId, connection));
@@ -245,7 +241,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     try {
       const current = await this.repository.findDeclarationForDispatch(hotelId, declarationId);
       const guest = Array.isArray(payload) ? payload[0] : null;
-      if (!current || current.status !== "SENDING" || current.submittedCsltId !== csltId || current.stay.checkedOutAt ||
+      if (!current || current.status !== "UNKNOWN" || current.submittedCsltId !== csltId || current.stay.checkedOutAt ||
           !["ACTIVE", "CHECKED_IN", "CHECKOUT_PENDING"].includes(current.stay.status) ||
           !guest || typeof guest !== "object" ||
           !("ngayDiDuKienStr" in guest) ||
@@ -270,7 +266,6 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
   }
 
   async onModuleInit() {
-    await this.reconcileInterruptedInitialDeclarations();
     this.stayCheckInEventBus?.subscribe((event) => {
       void this.triggerCheckInBcaPush(event.hotelId, event.stayId).catch(() => {
         this.logger.error("Could not prepare background BCA check-in delivery.");
@@ -613,7 +608,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
         const status = declaration?.status;
         const displayStatus = status === "READY" && declaration?.providerCode === "LOCAL_QUEUED" ? "LOCAL_ERROR"
           : status === "FAILED" ? localFailureCodes.has(declaration?.providerCode ?? "") ? "LOCAL_ERROR" : "REJECTED"
-            : status === "SUBMITTED" || status === "SENDING" || status === "UNKNOWN" || status === "CANCELLED" ? status : "UNSENT";
+            : status === "SUBMITTED" || status === "UNKNOWN" || status === "CANCELLED" ? status : "UNSENT";
         if (displayStatus !== pagination.status) return false;
       }
       return true;
@@ -661,7 +656,6 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
         : connection.status === "CONNECTED" && connection.autoSubmitEnabled && live ? "RUNNING" as const : "PAUSED" as const,
       lifecycleEnabled: process.env.KBTT_STAY_LIFECYCLE_ENABLED === "true",
       pendingCount: snapshot.pendingCount,
-      sendingCount: snapshot.sendingCount,
       reviewCount: snapshot.reviewCount,
       lastSucceededAt: snapshot.lastSucceededAt?.toISOString() ?? null,
       recentIssues: snapshot.recentIssues.map((issue) => ({
@@ -982,7 +976,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     occupant: NonNullable<Awaited<ReturnType<KbttRepository["findOccupant"]>>>,
   ) {
     const latest = await this.repository.findLatestDeclaration(hotelId, occupantId);
-    if (latest?.status === "SENDING") return this.viewDeclaration(latest, occupant);
+    if (latest?.status === "UNKNOWN" && this.initialDeliveries.has(latest.id)) return this.viewDeclaration(latest, occupant);
     const { preparedDeclaration, declarationKind, payload } =
       await this.prepareInitialDeclaration(hotelId, occupantId, occupant);
     const fingerprint = createHash("sha256").update(JSON.stringify(payload)).digest("hex");
@@ -998,19 +992,19 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       });
       return this.viewDeclaration(failed, occupant);
     }
-    const sending = await this.repository.updateDeclaration({
+    const claimed = await this.repository.updateDeclaration({
       id: preparedDeclaration.id, hotelId, expectedVersion: preparedDeclaration.version,
-      data: { status: "SENDING", providerCode: null, providerMessage: null,
+      data: { status: "UNKNOWN", providerCode: null, providerMessage: null,
         providerResponseJson: Prisma.JsonNull, submittedAt: null,
         submittedPayloadJson: payload, submittedPayloadFingerprint: fingerprint,
         submittedCsltId: connection.csltId },
     });
     const delivery = this.serialize(`delivery:${connection.csltId}`, () =>
-      this.deliverInitialDeclaration(hotelId, sending, declarationKind, payload, fingerprint))
+      this.deliverInitialDeclaration(hotelId, claimed, declarationKind, payload, fingerprint))
       .catch(async () => {
         try {
           const current = await this.repository.findLatestDeclaration(hotelId, occupantId);
-          if (current?.id === sending.id && current.status === "SENDING") {
+          if (current?.id === claimed.id && current.version === claimed.version && current.status === "UNKNOWN") {
             await this.repository.updateDeclaration({
               id: current.id, hotelId, expectedVersion: current.version,
               data: { status: "UNKNOWN", providerCode: "INTERRUPTED_DELIVERY",
@@ -1018,13 +1012,13 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
             });
           }
         } catch {
-          // The persisted SENDING record remains fenced; stale-send reconciliation marks it UNKNOWN.
+          // The persisted UNKNOWN record already fences an unresolved delivery.
           this.logger.error("Could not persist BCA delivery result; the in-flight record requires reconciliation.");
         }
       })
-      .finally(() => this.initialDeliveries.delete(sending.id));
-    this.initialDeliveries.set(sending.id, delivery);
-    return this.viewDeclaration(sending, occupant);
+      .finally(() => this.initialDeliveries.delete(claimed.id));
+    this.initialDeliveries.set(claimed.id, delivery);
+    return this.viewDeclaration(claimed, occupant);
   }
 
   private async deliverInitialDeclaration(
@@ -1052,10 +1046,6 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       });
       return;
     }
-    declaration = await this.repository.updateDeclaration({
-      id: declaration.id, hotelId, expectedVersion: declaration.version,
-      data: { status: "SENDING" },
-    });
     const outcome = await this.sendInitialDeclaration(
       hotelId, declaration.id, kind, payload, session.AccessToken, session.CsltId,
     );
@@ -1152,7 +1142,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     decl: KbttGuestDeclaration,
     occupant: NonNullable<Awaited<ReturnType<KbttRepository['findOccupant']>>> | ActiveStayOccupantRow,
   ): Record<string, unknown> {
-    if (['SUBMITTED', 'SENDING', 'UNKNOWN'].includes(decl.status) && Array.isArray(decl.submittedPayloadJson)) {
+    if (['SUBMITTED', 'UNKNOWN'].includes(decl.status) && Array.isArray(decl.submittedPayloadJson)) {
       const snapshot = decl.submittedPayloadJson[0];
       if (snapshot && typeof snapshot === 'object' && !Array.isArray(snapshot)) return { ...snapshot };
     }
@@ -1846,36 +1836,36 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
             leaseFenced = true;
             break;
           }
-          let sendingDeclaration: KbttGuestDeclaration;
+          let claimedDeclaration: KbttGuestDeclaration;
           try {
-            sendingDeclaration = await this.repository.updateDeclaration({
+            claimedDeclaration = await this.repository.updateDeclaration({
               id: item.declaration.id, hotelId, expectedVersion: item.declaration.version,
-              data: { status: "SENDING", submittedPayloadJson: item.payload as Prisma.InputJsonValue,
+              data: { status: "UNKNOWN", submittedPayloadJson: item.payload as Prisma.InputJsonValue,
                 submittedPayloadFingerprint: item.fingerprint, submittedCsltId: session!.CsltId },
             });
           } catch {
             continue; // Another writer owns the current declaration version.
           }
           const outcome = await this.sendInitialDeclaration(
-            hotelId, sendingDeclaration.id, sendingDeclaration.declarationKind,
+            hotelId, claimedDeclaration.id, claimedDeclaration.declarationKind,
             item.payload, session!.AccessToken, session!.CsltId, !isManualDelayed,
           );
           if (outcome.outcome === "SUCCESS") {
-            await this.persistDeclarationSubmitted(hotelId, sendingDeclaration,
+            await this.persistDeclarationSubmitted(hotelId, claimedDeclaration,
               item.payload, item.fingerprint, outcome);
             directSuccessCount++;
           } else if (outcome.outcome === "BUSINESS_REJECTION" && outcome.code === "DELIVERY_PAUSED") {
             await this.repository.updateDeclaration({
-              id: sendingDeclaration.id, hotelId, expectedVersion: sendingDeclaration.version,
+              id: claimedDeclaration.id, hotelId, expectedVersion: claimedDeclaration.version,
               data: { status: "FAILED", providerCode: "DELIVERY_PAUSED", providerMessage: "Luồng gửi BCA đang tạm dừng." },
             });
             deliveryPaused = true;
             break;
           } else if (outcome.outcome === "BUSINESS_REJECTION") {
-            await this.persistDeclarationFailed(hotelId, sendingDeclaration, item.fingerprint, outcome);
+            await this.persistDeclarationFailed(hotelId, claimedDeclaration, item.fingerprint, outcome);
             bcaRejectionCount++;
           } else {
-            await this.persistDeclarationUnknown(hotelId, sendingDeclaration, item.fingerprint,
+            await this.persistDeclarationUnknown(hotelId, claimedDeclaration, item.fingerprint,
               outcome.message || "Lần gửi chưa rõ kết quả; cần đối soát.");
             transientExhaustedCount++;
           }
@@ -2257,7 +2247,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
         try {
           if (occupant.stay.checkedOutAt ||
               !["ACTIVE", "CHECKED_IN", "CHECKOUT_PENDING"].includes(occupant.stay.status) ||
-              (existingDecl && (["SUBMITTED", "SENDING", "UNKNOWN", "CANCELLED", "FAILED"].includes(existingDecl.status) ||
+              (existingDecl && (["SUBMITTED", "UNKNOWN", "CANCELLED", "FAILED"].includes(existingDecl.status) ||
                 existingDecl.providerCode === "LOCAL_QUEUED"))) {
             continue;
           }
@@ -2331,7 +2321,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
         } catch {
           try {
             const current = await this.repository.findLatestDeclaration(hotelId, occupant.id);
-            if (current && !["SENDING", "SUBMITTED", "UNKNOWN", "CANCELLED"].includes(current.status)) {
+            if (current && !["UNKNOWN", "SUBMITTED", "CANCELLED"].includes(current.status)) {
               await this.repository.updateDeclaration({
                 id: current.id, hotelId, expectedVersion: current.version,
                 data: { status: "FAILED", providerCode: "LOCAL_PREPARATION",

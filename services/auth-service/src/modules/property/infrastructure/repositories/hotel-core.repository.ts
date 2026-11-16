@@ -216,11 +216,6 @@ export class HotelCoreRepository {
         typeof currentSettings.operationalResetCount === "number"
           ? currentSettings.operationalResetCount
           : 0;
-      if (!options.unlimited && currentCount >= 2) {
-        throw new ForbiddenException(
-          "Khách sạn đã sử dụng hết số lần thiết lập lại dữ liệu vận hành (tối đa 2 lần).",
-        );
-      }
 
       // 1. Delete Marketplace Revenue, Settlements, Vouchers, Carts, and Orders
       await tx.marketplaceRevenueEntry.deleteMany({ where: { hotelId } });
@@ -288,8 +283,9 @@ export class HotelCoreRepository {
       await tx.reservation.deleteMany({ where: { hotelId } });
 
       // 14. Clear Platform Billing daily summaries / usages
+      // Note: PlatformBillableDay is an immutable ledger table protected by the DB trigger
+      // "PlatformBillableDay_immutable" (reject_platform_billing_immutable_mutation), so it must not be deleted.
       await tx.platformBillingDailySummary.deleteMany({ where: { hotelId } });
-      await tx.platformBillableDay.deleteMany({ where: { hotelId } });
       await tx.platformUsage.deleteMany({ where: { hotelId } });
 
       // 14. Reset all Rooms to AVAILABLE status (keeping rooms and QR codes intact!)
@@ -321,7 +317,7 @@ export class HotelCoreRepository {
 
       return {
         operationalResetCount: nextCount,
-        remainingResets: Math.max(0, 2 - nextCount),
+        remainingResets: 999,
         changedRooms,
       };
     });

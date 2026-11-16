@@ -33,9 +33,6 @@ test("owner operational reset contract: backend and frontend integration", () =>
   );
   const clientContent = fs.readFileSync(clientPath, "utf-8");
   assert.match(clientContent, /handleOperationalReset/);
-  assert.match(clientContent, /operationalResetCount/);
-  assert.match(clientContent, /MAX_RESETS = 2/);
-  assert.match(clientContent, /remainingResets > 0/);
   assert.match(clientContent, /Khởi động lại dữ liệu vận hành/);
   assert.match(clientContent, /reverseButtons: false/);
 
@@ -54,7 +51,7 @@ test("owner operational reset contract: backend and frontend integration", () =>
   );
   const serviceContent = fs.readFileSync(servicePath, "utf-8");
   assert.match(serviceContent, /resetOperationalData/);
-  assert.match(serviceContent, /unlimited: actor\.isSuperAdmin/);
+  assert.match(serviceContent, /unlimited: true/);
   assert.match(serviceContent, /tenantIds: actor\.isSuperAdmin/);
 
   const repositoryPath = path.join(
@@ -64,7 +61,6 @@ test("owner operational reset contract: backend and frontend integration", () =>
   const repositoryContent = fs.readFileSync(repositoryPath, "utf-8");
   assert.match(repositoryContent, /resetHotelOperationalData/);
   assert.match(repositoryContent, /FOR UPDATE/);
-  assert.match(repositoryContent, /!options\.unlimited && currentCount >= 2/);
   assert.match(repositoryContent, /RoomStatus\.AVAILABLE/);
   assert.match(repositoryContent, /marketplaceRevenueEntry\.deleteMany/);
   assert.match(repositoryContent, /serviceVoucher\.deleteMany/);
@@ -85,7 +81,6 @@ test("owner operational reset contract: backend and frontend integration", () =>
   );
   const roomsClientContent = fs.readFileSync(roomsClientPath, "utf-8");
   assert.match(roomsClientContent, /handleOperationalReset/);
-  assert.match(roomsClientContent, /Khởi động lại vận hành/);
-  assert.match(roomsClientContent, /SwalVietSage/);
-  assert.match(roomsClientContent, /reverseButtons: false/);
+  assert.match(roomsClientContent, /Khởi động lại dữ liệu vận hành/);
+  assert.match(roomsClientContent, /showConfirmDialog/);
 });

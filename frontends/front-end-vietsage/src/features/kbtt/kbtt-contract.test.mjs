@@ -443,11 +443,13 @@ test("KBTT status contracts stay aligned and locked API states reject writes", (
   )(backendRequire("zod").z, backendRequire("@nestjs/common").ConflictException);
 
   assert.deepEqual(kbttDeclarationStatusSchema.options, [
-    "DRAFT", "READY", "SENDING", "SUBMITTED", "FAILED", "UNKNOWN", "CANCELLED",
+    "DRAFT", "READY", "SUBMITTED", "FAILED", "UNKNOWN", "CANCELLED",
   ]);
+  assert.equal(kbttDeclarationStatusSchema.safeParse("SENDING").success, false);
+  assert.equal(kbttPaginationQuerySchema.safeParse({ status: "SENDING" }).success, false);
   assert.deepEqual(kbttDeclarationStatusSchema.options, backend.kbttDeclarationStatusSchema.options);
   assert.deepEqual(kbttDerivedStatusSchema.options, backend.kbttDerivedStatusSchema.options);
-  for (const status of ["SENDING", "UNKNOWN", "CANCELLED"]) {
+  for (const status of ["UNKNOWN", "CANCELLED"]) {
     assert.throws(() => backend.assertKbttDeclarationMutable(status), (error) => {
       assert.equal(error.getStatus(), 409);
       assert.equal(error.getResponse().code, "KBTT_DECLARATION_LOCKED");
@@ -829,7 +831,7 @@ test("KBTT background delivery retains bounded issues and legacy unsent records 
   const issue = { id: "op-1", kind: "CHECKOUT", status: "UNKNOWN", roomNumber: "101",
     fullName: "Nguyễn Văn An", message: "Cần đối soát trước khi gửi tiếp.", updatedAt: "2026-11-05T08:00:00.000Z" };
   const delivery = { mode: "BACKGROUND", state: "RUNNING", lifecycleEnabled: false,
-    pendingCount: 1, sendingCount: 0, reviewCount: 1, lastSucceededAt: null, recentIssues: [issue] };
+    pendingCount: 1, reviewCount: 1, lastSucceededAt: null, recentIssues: [issue] };
   assert.deepEqual(kbttDeliverySchema.parse(delivery), delivery);
   assert.equal(kbttDeliverySchema.safeParse({ ...delivery, reviewCount: -1 }).success, false);
   assert.equal(kbttDeliverySchema.safeParse({ ...delivery, recentIssues: Array(21).fill(issue) }).success, false);
@@ -837,7 +839,7 @@ test("KBTT background delivery retains bounded issues and legacy unsent records 
   const legacyUnsent = { status: "READY", providerCode: "LOCAL_QUEUED" };
   assert.equal(getKbttDeclarationDisplayStatus({ derivedStatus: "READY", declaration: legacyUnsent }), "LOCAL_ERROR");
   assert.equal(canSelectKbttDeclaration({ derivedStatus: "READY", declaration: legacyUnsent }), true);
-  for (const status of ["SENDING", "SUBMITTED", "UNKNOWN", "CANCELLED"]) {
+  for (const status of ["SUBMITTED", "UNKNOWN", "CANCELLED"]) {
     assert.equal(canSelectKbttDeclaration({ derivedStatus: status, declaration: { ...legacyUnsent, status } }), false);
   }
 });
@@ -1028,7 +1030,7 @@ test("draft payload keeps only the selected citizenship fields while retaining u
 
 
 test("BCA submit distinguishes immediate dispatch from failed, uncertain, and legacy unsent results", () => {
-  for (const status of ["SENDING", "SUBMITTED"]) {
+  for (const status of ["SUBMITTED"]) {
     assert.equal(getKbttSubmissionIssue({ status, providerMessage: null }), null);
   }
   for (const status of ["DRAFT", "READY", "FAILED", "UNKNOWN", "CANCELLED"]) {

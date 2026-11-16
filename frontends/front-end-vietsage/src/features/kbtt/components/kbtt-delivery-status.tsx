@@ -54,7 +54,6 @@ export function KbttDeliveryStatus({
       </div>
       <dl className="flex flex-wrap gap-x-6 gap-y-2 text-base text-slate-700">
         <div className="flex gap-2"><dt>Chờ gửi</dt><dd className="font-semibold tabular-nums">{delivery.pendingCount}</dd></div>
-        <div className="flex gap-2"><dt>Đang gửi</dt><dd className="font-semibold tabular-nums">{delivery.sendingCount}</dd></div>
         <div className="flex gap-2"><dt>Cần xử lý</dt><dd className="font-semibold tabular-nums">{delivery.reviewCount}</dd></div>
       </dl>
       {!delivery.lifecycleEnabled && (

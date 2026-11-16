@@ -13,7 +13,6 @@ describe("KbttAutoSubmitSchedulerService", () => {
     delete process.env.KBTT_AUTO_SUBMIT_LIVE_ENABLED;
 
     kbttService = {
-      reconcileInterruptedInitialDeclarations: jest.fn().mockResolvedValue(undefined),
       processStayLifecycleEvents: jest.fn().mockResolvedValue(undefined),
       executeAutoSubmitForHotel: jest.fn().mockResolvedValue({ id: "run-1" }),
       getAutoSubmitConfig: jest.fn(),
@@ -50,7 +49,6 @@ describe("KbttAutoSubmitSchedulerService", () => {
 
     await scheduler.handleCron();
 
-    expect(kbttService.reconcileInterruptedInitialDeclarations).toHaveBeenCalledTimes(1);
     expect(repository.findDueHotelsForAutoSubmit).not.toHaveBeenCalled();
     expect(kbttService.processStayLifecycleEvents).not.toHaveBeenCalled();
     expect(kbttService.executeAutoSubmitForHotel).not.toHaveBeenCalled();

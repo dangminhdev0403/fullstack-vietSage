@@ -13,6 +13,7 @@ import {
   invalidateHotelRealtimeQueries,
   invalidateHotelRequestRealtimeQueries,
 } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
+import { isOperationalResetActive } from "@/features/request-realtime/operational-reset-silence";
 
 type AudioWindow = Window &
   typeof globalThis & {
@@ -329,6 +330,10 @@ function OwnerHotelRequestRealtimeNotifier({ hotelId }: { hotelId: string }) {
         if (raw?.hotelId && raw.hotelId !== hotelId) return;
 
         void invalidateHotelRealtimeQueries(queryClient, hotelId);
+
+        if (isOperationalResetActive(hotelId)) {
+          return;
+        }
 
         const statusLabels: Record<string, string> = {
           AVAILABLE: "TRỐNG (sẵn sàng đón khách)",

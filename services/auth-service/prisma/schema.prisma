@@ -126,7 +126,6 @@ enum CitizenshipKind {
 enum KbttDeclarationStatus {
   DRAFT
   READY
-  SENDING
   SUBMITTED
   FAILED
   UNKNOWN
@@ -1836,7 +1835,6 @@ enum KbttStayOperationKind {
 
 enum KbttStayOperationStatus {
   PENDING
-  SENDING
   SUCCEEDED
   REJECTED
   UNKNOWN

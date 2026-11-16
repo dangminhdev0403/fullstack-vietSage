@@ -77,7 +77,7 @@ describe("BCA read-only reconciliation", () => {
     expect(reconcileGuests([vn], [remote()], new Set(), "123")[0].status).toBeNull();
   });
 
-  it.each(["SUBMITTED", "SENDING", "UNKNOWN", "CANCELLED"])("never enables retry merely because %s is absent remotely", (declarationStatus) => {
+  it.each(["SUBMITTED", "UNKNOWN", "CANCELLED"])("never enables retry merely because %s is absent remotely", (declarationStatus) => {
     expect(reconcileGuests([local({ declarationStatus })], [], all(), "123")[0].canRetry).toBe(false);
   });
 

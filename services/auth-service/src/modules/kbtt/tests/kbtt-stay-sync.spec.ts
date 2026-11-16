@@ -33,7 +33,7 @@ describe("BCA automatic work selection", () => {
   });
 
   it("monitors initial delivery locally without counting retired queued records as pending work", async () => {
-    const snapshot = { pendingCount: 0, sendingCount: 0, reviewCount: 1, lastSucceededAt: null,
+    const snapshot = { pendingCount: 0, reviewCount: 1, lastSucceededAt: null,
       recentIssues: [{ id: "legacy-1", kind: "INITIAL", status: "FAILED", providerCode: "LOCAL_QUEUED",
         roomNumber: "201", fullName: "Nguyen Van An", updatedAt: "2026-11-16T00:00:00Z" }] };
     const queryRaw = jest.fn().mockResolvedValue([snapshot]);
@@ -53,45 +53,35 @@ describe("BCA automatic work selection", () => {
     expect(queryRaw).toHaveBeenCalledTimes(1);
   });
 
-  it("marks only stale orphaned sends unknown while preserving active detached delivery", async () => {
-    const now = new Date("2026-11-16T00:00:00Z");
-    jest.useFakeTimers().setSystemTime(now);
-    try {
-      const rows: Array<{ id: string; status: string; updatedAt: Date; version: number; providerCode: string | null }> = [
-        { id: "active-1", status: "SENDING", updatedAt: new Date(now.getTime() - 10 * 60_000), version: 2, providerCode: null },
-        { id: "orphan-1", status: "SENDING", updatedAt: new Date(now.getTime() - 10 * 60_000), version: 2, providerCode: null },
-        { id: "recent-1", status: "SENDING", updatedAt: new Date(now.getTime() - 60_000), version: 2, providerCode: null },
-        { id: "confirmed-1", status: "SUBMITTED", updatedAt: new Date(now.getTime() - 10 * 60_000), version: 2, providerCode: "200" },
-      ];
-      const updateMany = jest.fn(async ({ where, data }: {
-        where: { status: string; updatedAt: { lt: Date }; id?: { notIn: string[] } };
-        data: { status: string; providerCode: string; version: { increment: number } };
-      }) => {
-        const candidates = rows.filter((row) => row.status === where.status && row.updatedAt < where.updatedAt.lt &&
-          !where.id?.notIn.includes(row.id));
-        for (const row of candidates) {
-          row.status = data.status;
-          row.providerCode = data.providerCode;
-          row.version += data.version.increment;
-        }
-        return { count: candidates.length };
-      });
-      const repository = new KbttRepository({ kbttGuestDeclaration: { updateMany } } as never);
-
-      await repository.markInterruptedDeclarationsUnknown(["active-1"]);
-
-      expect(rows.map(({ id, status, version }) => ({ id, status, version }))).toEqual([
-        { id: "active-1", status: "SENDING", version: 2 },
-        { id: "orphan-1", status: "UNKNOWN", version: 3 },
-        { id: "recent-1", status: "SENDING", version: 2 },
-        { id: "confirmed-1", status: "SUBMITTED", version: 2 },
-      ]);
-      expect(rows[1].providerCode).toBe("INTERRUPTED_DELIVERY");
-      expect(updateMany).toHaveBeenCalledTimes(1);
-    } finally {
-      jest.useRealTimers();
-    }
+  it("finalizes an owned unresolved operation and clears its claim even for an ambiguous outcome", async () => {
+    const updateMany = jest.fn().mockResolvedValue({ count: 1 });
+    const tx = { kbttStayOperation: { updateMany } };
+    const repository = new KbttStayRepository({ $transaction: async (work: (value: typeof tx) => unknown) => work(tx) } as never);
+    await expect(repository.finish("operation-1", "owned-token", { status: "UNKNOWN" })).resolves.toBe(true);
+    expect(updateMany).toHaveBeenCalledWith({
+      where: { id: "operation-1", status: "UNKNOWN", claimToken: "owned-token" },
+      data: { status: "UNKNOWN", claimToken: null },
+    });
   });
+
+  it("rejects completion by a stale owner", async () => {
+    const tx = { kbttStayOperation: { updateMany: jest.fn().mockResolvedValue({ count: 0 }), createMany: jest.fn() } };
+    const repository = new KbttStayRepository({ $transaction: async (work: (value: typeof tx) => unknown) => work(tx) } as never);
+    await expect(repository.finish("operation-1", "stale-token", { status: "SUCCEEDED" })).resolves.toBe(false);
+    expect(tx.kbttStayOperation.createMany).not.toHaveBeenCalled();
+  });
+
+  it("expires only stale active operation claims without turning unresolved outcomes into runnable work", async () => {
+    const updateMany = jest.fn().mockResolvedValue({ count: 1 });
+    const repository = new KbttStayRepository({ kbttStayOperation: { updateMany } } as never);
+    await repository.recoverInterrupted();
+    expect(updateMany).toHaveBeenCalledWith({
+      where: { status: "UNKNOWN", claimToken: { not: null }, attemptedAt: { lt: expect.any(Date) } },
+      data: { status: "UNKNOWN", claimToken: null, providerCode: "INTERRUPTED_DELIVERY",
+        providerMessage: expect.any(String) },
+    });
+  });
+
 });
 
 describe("BCA stay synchronization helpers", () => {
@@ -288,7 +278,7 @@ describe("BCA stay lifecycle delivery", () => {
 
   it("materializes a blocked operation when the initial declaration is still sending", async () => {
     const f = fixture();
-    f.declaration.status = "SENDING";
+    f.declaration.status = "UNKNOWN";
     f.declaration.submittedPayloadJson = null;
     f.declaration.draftPayloadJson = { ...originalGuest };
     f.repository.pendingEvents.mockResolvedValue([{
@@ -785,7 +775,7 @@ describe("BCA stay lifecycle delivery", () => {
       ["2026-11-04T17:00:00Z", "BUSINESS_REJECTION"],
     ])("checks the initial queued date against %s", async (departure, outcome) => {
       const f = create();
-      f.declaration.status = "SENDING";
+      f.declaration.status = "UNKNOWN";
       f.stay.plannedCheckOutAt = new Date(departure);
       f.repository.initialDeclaration.mockResolvedValue({ ...f.declaration, stay: f.stay });
       const result = await f.service.sendInitial(f.stay.hotelId, kind,

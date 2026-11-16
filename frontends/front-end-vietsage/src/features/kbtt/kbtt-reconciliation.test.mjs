@@ -29,7 +29,7 @@ test("requires both country results and preserves partial failures without defau
 test("only confirmed absent local stays with safe send states can be submitted", () => {
   assert.equal(canRetryReconciledGuest(row), true);
   for (const status of ["MATCHED", "REVIEW", null]) assert.equal(canRetryReconciledGuest({ ...row, status }), false);
-  for (const declarationStatus of ["SENDING", "UNKNOWN", "SUBMITTED"]) assert.equal(canRetryReconciledGuest({ ...row, declarationStatus }), false);
+  for (const declarationStatus of ["UNKNOWN", "SUBMITTED"]) assert.equal(canRetryReconciledGuest({ ...row, declarationStatus }), false);
   for (const declarationStatus of ["FAILED", "READY", "DRAFT", null]) assert.equal(canRetryReconciledGuest({ ...row, declarationStatus }), true);
   assert.equal(canRetryReconciledGuest({ ...row, source: "BCA_ONLY", occupantId: null }), false);
   assert.equal(canRetryReconciledGuest({ ...row, canRetry: false }), false);
@@ -71,8 +71,8 @@ test("one hotel-scoped resource request refreshes both countries, independently 
 
 test("in-house view exposes only two BCA labels and blocks retries when either country is incomplete", () => {
   const source = readFileSync(new URL("./components/in-house-reconciliation.tsx", import.meta.url), "utf8");
-  assert.match(source, /MATCHED: \{ label: "Đã có"/);
-  assert.match(source, /NOT_FOUND: \{ label: "Chưa có"/);
+  assert.match(source, /MATCHED: \{ label: "Đã có(?: BCA)?"/);
+  assert.match(source, /NOT_FOUND: \{ label: "Chưa có(?: BCA)?"/);
   assert.doesNotMatch(source, /REVIEW: \{ label:/);
   assert.match(source, /query\.data\.sources\.VIETNAMESE\.state === "COMPLETE" && query\.data\.sources\.FOREIGN\.state === "COMPLETE"/);
   assert.match(source, /row\.checkedOutAt \? "Đã trả phòng" : "Đang ở"/);

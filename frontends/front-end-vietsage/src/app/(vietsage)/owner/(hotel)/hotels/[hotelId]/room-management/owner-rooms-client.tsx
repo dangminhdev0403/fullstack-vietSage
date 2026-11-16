@@ -8,6 +8,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   SwalVietSage,
@@ -16,6 +17,7 @@ import {
   showSuccessAlert,
   showWarningAlert,
 } from "@/libs/swal";
+import { setOperationalResetActive } from "@/features/request-realtime/operational-reset-silence";
 import { z } from "zod";
 
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
@@ -1090,6 +1092,9 @@ export function OwnerRoomsClient({
 
     try {
       setIsResetting(true);
+      setOperationalResetActive(hotelId, true);
+      toast.dismiss();
+
       void SwalVietSage.fire({
         title: "Đang khởi động lại dữ liệu...",
         text: "Hệ thống đang xóa dữ liệu vận hành và đưa trạng thái phòng về TRỐNG.",
@@ -1109,6 +1114,7 @@ export function OwnerRoomsClient({
       });
 
       await refreshRooms();
+      toast.dismiss();
 
       await showSuccessAlert(
         "Khởi động lại thành công",
@@ -1117,12 +1123,15 @@ export function OwnerRoomsClient({
 
       await refreshRooms();
     } catch (error) {
+      toast.dismiss();
       await showErrorAlert(
         "Không thể khởi động lại",
         getBusinessErrorMessage(error, "Vui lòng thử lại."),
       );
     } finally {
       setIsResetting(false);
+      setOperationalResetActive(hotelId, false);
+      toast.dismiss();
     }
   }
 

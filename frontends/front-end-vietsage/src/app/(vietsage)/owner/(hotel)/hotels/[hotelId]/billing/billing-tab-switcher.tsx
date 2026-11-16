@@ -151,7 +151,7 @@ export function BillingTabSwitcher({
         </section>
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200/80 bg-slate-100/80 p-1.5 dark:border-slate-800 dark:bg-slate-900/80 w-fit md:hidden">
+      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200/80 bg-slate-100/80 p-1.5 dark:border-slate-800 dark:bg-slate-900/80 w-fit">
         <button
           type="button"
           onClick={() => handleSelectTab("folios")}

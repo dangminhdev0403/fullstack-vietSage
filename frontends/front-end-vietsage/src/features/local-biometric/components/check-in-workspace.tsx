@@ -22,6 +22,7 @@ import type {
 import { CccdCheckInPanel, type CccdCheckInCapture } from "./cccd-check-in-panel";
 import { MobileCccdScan } from "./mobile-cccd-scan";
 import { DesktopDocumentOcrUpload } from "./desktop-document-ocr-upload";
+import { DeviceConnectionModal } from "./device-connection-modal";
 
 export { toIsoDate } from "../utils/check-in-validation";
 
@@ -288,6 +289,8 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
   const [intakeMethod, setIntakeMethod] = useState<
     "upload" | "mobile" | "scanner"
   >(isScannerEnabled ? "scanner" : "mobile");
+  const [deviceSetupOpen, setDeviceSetupOpen] = useState(false);
+  const [deviceSetupTab, setDeviceSetupTab] = useState<"scanner" | "mobile">("scanner");
   const headingRef = useRef<HTMLHeadingElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -1088,6 +1091,22 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                     </svg>
                     <span>Chọn file</span>
                   </button>
+
+                  <div className="h-4 w-[1px] bg-slate-200 mx-1 hidden sm:block" />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeviceSetupTab(intakeMethod === "mobile" ? "mobile" : "scanner");
+                      setDeviceSetupOpen(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition cursor-pointer shadow-2xs"
+                    title="Thiết lập kết nối máy quét hoặc điện thoại"
+                  >
+                    <svg className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                    </svg>
+                    <span className="whitespace-nowrap">Thiết lập thiết bị</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -1100,6 +1119,10 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                   onCapture={handleCapture}
                   activeGuestLabel={`Phòng ${room.roomNumber} — Khách ${activeGuestIndex + 1}`}
                   autoRequestScanKey={activeGuestIndex}
+                  onOpenDeviceSetup={() => {
+                    setDeviceSetupTab("scanner");
+                    setDeviceSetupOpen(true);
+                  }}
                 />
               </div> : null}
 
@@ -1113,6 +1136,10 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
                     onCapture={handleCapture}
                     targetContext={`${room.id}:${activeGuestIndex}`}
                     targetLabel={`Phòng ${room.roomNumber} — Khách ${activeGuestIndex + 1}`}
+                    onOpenSetup={() => {
+                      setDeviceSetupTab("mobile");
+                      setDeviceSetupOpen(true);
+                    }}
                   />
                 </section>
               </div>
@@ -1726,6 +1753,15 @@ export function CheckInWorkspace(props: CheckInWorkspaceProps) {
           </div>
         </footer>
       </div>
+
+      {deviceSetupOpen ? (
+        <DeviceConnectionModal
+          isOpen={deviceSetupOpen}
+          onClose={() => setDeviceSetupOpen(false)}
+          hotelId={hotelId}
+          defaultTab={deviceSetupTab}
+        />
+      ) : null}
     </div>
   );
 }

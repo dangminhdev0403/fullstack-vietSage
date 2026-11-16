@@ -145,7 +145,7 @@ export class HotelsController {
   @RequirePermission(["hotel.profile.manage", "platform.hotels.manage"])
   @SuccessMessage("Thiết lập lại dữ liệu vận hành thành công")
   @ApiDescript(
-    "Thiết lập lại dữ liệu vận hành khách sạn (xóa hóa đơn, lượt truy cập, doanh thu về 0, phòng về trống; tối đa 2 lần)",
+    "Thiết lập lại dữ liệu vận hành khách sạn (xóa hóa đơn, lượt truy cập, doanh thu về 0, phòng về trống; không giới hạn số lần)",
   )
   @ApiParam({ name: "hotelId", type: String })
   @Post(":hotelId/operational-reset")

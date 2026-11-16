@@ -116,7 +116,7 @@ describe("hotel operational reset safety", () => {
 
     await expect(h.repository.resetHotelOperationalData("hotel-1")).resolves.toEqual({
       operationalResetCount: 2,
-      remainingResets: 0,
+      remainingResets: 999,
     });
     expect(h.changedRooms).toHaveBeenCalledWith({
       where: { hotelId: "hotel-1", status: { not: RoomStatus.AVAILABLE } },
@@ -135,7 +135,7 @@ describe("hotel operational reset safety", () => {
     h.readRooms.mockRejectedValue(new Error("read unavailable"));
     const emit = jest.spyOn(RequestRealtimeEmitter, "emitRoomStatusUpdated");
     await expect(h.repository.resetHotelOperationalData("hotel-1")).resolves.toEqual({
-      operationalResetCount: 2, remainingResets: 0,
+      operationalResetCount: 2, remainingResets: 999,
     });
     expect(h.committed).toHaveBeenCalledTimes(1);
     expect(emit).not.toHaveBeenCalled();
@@ -156,7 +156,7 @@ describe("hotel operational reset safety", () => {
       .mockImplementationOnce(() => { throw new Error("emit unavailable"); })
       .mockImplementation(() => undefined);
     await expect(h.repository.resetHotelOperationalData("hotel-1")).resolves.toEqual({
-      operationalResetCount: 2, remainingResets: 0,
+      operationalResetCount: 2, remainingResets: 999,
     });
     expect(emit).toHaveBeenCalledTimes(2);
     expect(emit).toHaveBeenLastCalledWith({
@@ -165,13 +165,14 @@ describe("hotel operational reset safety", () => {
     });
   });
 
-  it("rejects exhausted quota before any destructive work", async () => {
+  it("allows operational reset without quota limit", async () => {
     const h = harness(2);
-    await expect(h.repository.resetHotelOperationalData("hotel-1")).rejects.toBeInstanceOf(
-      ForbiddenException,
-    );
-    expect(h.deletes).not.toHaveBeenCalled();
-    expect(h.update).not.toHaveBeenCalled();
+    await expect(h.repository.resetHotelOperationalData("hotel-1")).resolves.toEqual({
+      operationalResetCount: 3,
+      remainingResets: 999,
+    });
+    expect(h.deletes).toHaveBeenCalled();
+    expect(h.update).toHaveBeenCalled();
   });
 
   it.each([
@@ -205,16 +206,16 @@ describe("hotel operational reset safety", () => {
     expect(h.settings()).toEqual({});
   });
 
-  it("serializes two resets competing for the final allowance", async () => {
+  it("serializes concurrent resets safely without quota restriction", async () => {
     const h = harness(1);
     const results = await Promise.allSettled([
       h.repository.resetHotelOperationalData("hotel-1"),
       h.repository.resetHotelOperationalData("hotel-1"),
     ]);
-    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
-    expect(results.filter((r) => r.status === "rejected")).toHaveLength(1);
-    expect(h.settings().operationalResetCount).toBe(2);
-    expect(h.update).toHaveBeenCalledTimes(1);
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(2);
+    expect(results.filter((r) => r.status === "rejected")).toHaveLength(0);
+    expect(h.settings().operationalResetCount).toBe(3);
+    expect(h.update).toHaveBeenCalledTimes(2);
   });
 
   it("preserves a concurrent reset increment when profile settings are replaced", async () => {
@@ -237,7 +238,7 @@ describe("hotel operational reset safety", () => {
     expect(h.update).not.toHaveBeenCalled();
     await expect(h.repository.resetHotelOperationalData("hotel-1")).resolves.toEqual({
       operationalResetCount: 2,
-      remainingResets: 0,
+      remainingResets: 999,
     });
   });
 
@@ -258,7 +259,7 @@ describe("hotel operational reset safety", () => {
     const h = harness(2);
     await expect(
       h.repository.resetHotelOperationalData("hotel-1", { unlimited: true }),
-    ).resolves.toEqual({ operationalResetCount: 3, remainingResets: 0 });
+    ).resolves.toEqual({ operationalResetCount: 3, remainingResets: 999 });
     expect(h.settings().color).toBe("blue");
   });
 
@@ -278,7 +279,7 @@ describe("hotel operational reset safety", () => {
     const repository = {
       resetHotelOperationalData: jest
         .fn()
-        .mockResolvedValue({ operationalResetCount: 3, remainingResets: 0 }),
+        .mockResolvedValue({ operationalResetCount: 3, remainingResets: 999 }),
     };
     const access = {
       loadActorContext: jest.fn().mockResolvedValue({
@@ -298,11 +299,11 @@ describe("hotel operational reset safety", () => {
     return { service, repository, access };
   }
 
-  it("passes tenant scope and restricted quota policy to the transaction", async () => {
+  it("passes tenant scope to the transaction", async () => {
     const h = serviceHarness();
     await h.service.resetOperationalData("actor", "role", "hotel-1");
     expect(h.repository.resetHotelOperationalData).toHaveBeenCalledWith("hotel-1", {
-      unlimited: false,
+      unlimited: true,
       tenantIds: ["tenant-1"],
     });
   });

@@ -2,7 +2,9 @@
 
 import { type FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { SwalVietSage } from "@/libs/swal";
+import { setOperationalResetActive } from "@/features/request-realtime/operational-reset-silence";
 
 import { HttpError } from "@/core/http/http-error";
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
@@ -62,9 +64,6 @@ export function OwnerHotelDetailClient({ hotel }: OwnerHotelDetailClientProps) {
   });
   const [isResetting, setIsResetting] = useState(false);
 
-  const MAX_RESETS = 2;
-  const remainingResets = Math.max(0, MAX_RESETS - operationalResetCount);
-
   function handleReset() {
     setForm({
       name: hotel.name,
@@ -73,8 +72,6 @@ export function OwnerHotelDetailClient({ hotel }: OwnerHotelDetailClientProps) {
   }
 
   async function handleOperationalReset() {
-    if (remainingResets <= 0) return;
-
     const confirmed = await SwalVietSage.fire({
       icon: "warning",
       title: "Khởi động lại dữ liệu vận hành?",
@@ -91,7 +88,7 @@ export function OwnerHotelDetailClient({ hotel }: OwnerHotelDetailClientProps) {
             <li class="text-emerald-800 font-semibold"><strong>Bảo toàn nguyên vẹn danh mục phòng và mã QR Code</strong>.</li>
           </ul>
           <p class="mt-3 font-semibold text-amber-800 bg-amber-50 p-2 rounded-lg border border-amber-200">
-            ⚠️ Lưu ý: Khách sạn còn <strong>${remainingResets}</strong>/2 lượt thực hiện. Thao tác này không thể hoàn tác!
+            ⚠️ Lưu ý: Thao tác này sẽ làm mới toàn bộ dữ liệu kiểm thử về trạng thái sạch ban đầu và không thể hoàn tác!
           </p>
         </div>
       `,
@@ -105,6 +102,9 @@ export function OwnerHotelDetailClient({ hotel }: OwnerHotelDetailClientProps) {
 
     try {
       setIsResetting(true);
+      setOperationalResetActive(hotel.id, true);
+      toast.dismiss();
+
       void SwalVietSage.fire({
         title: "Đang khởi động lại dữ liệu...",
         text: "Hệ thống đang xóa dữ liệu vận hành và đưa trạng thái phòng về TRỐNG.",
@@ -126,6 +126,8 @@ export function OwnerHotelDetailClient({ hotel }: OwnerHotelDetailClientProps) {
       const nextCount = res.data.operationalResetCount;
       setOperationalResetCount(nextCount);
 
+      toast.dismiss();
+
       await SwalVietSage.fire({
         icon: "success",
         title: "Khởi động lại thành công",
@@ -136,6 +138,7 @@ export function OwnerHotelDetailClient({ hotel }: OwnerHotelDetailClientProps) {
 
       router.refresh();
     } catch (error) {
+      toast.dismiss();
       await SwalVietSage.fire({
         icon: "error",
         title: "Không thể khởi động lại",
@@ -150,6 +153,8 @@ export function OwnerHotelDetailClient({ hotel }: OwnerHotelDetailClientProps) {
       });
     } finally {
       setIsResetting(false);
+      setOperationalResetActive(hotel.id, false);
+      toast.dismiss();
     }
   }
 
@@ -292,43 +297,39 @@ export function OwnerHotelDetailClient({ hotel }: OwnerHotelDetailClientProps) {
         <LocationFields value={location} onChange={setLocation} hideMapPreview />
       </div>
 
-      {/* Operational Reset Card (Khởi động lại) - Only visible if remainingResets > 0 */}
-      {remainingResets > 0 ? (
-        <div className="rounded-2xl border border-amber-300/80 bg-gradient-to-br from-amber-50/80 to-orange-50/60 p-5 sm:p-7 shadow-sm space-y-5">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between border-b border-amber-200/80 pb-4">
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-lg sm:text-xl font-bold text-amber-950 flex items-center gap-2">
-                  <span>⚡</span> Khởi động lại dữ liệu vận hành
-                </h2>
-                <span className="inline-flex items-center rounded-full bg-amber-200/80 px-2.5 py-0.5 text-xs font-bold text-amber-900 border border-amber-300 whitespace-nowrap">
-                  Còn {remainingResets}/2 lượt
-                </span>
-              </div>
-              <p className="mt-1 text-sm text-amber-900/80 text-pretty">
-                Làm mới toàn bộ dữ liệu kiểm thử về trạng thái sạch ban đầu để chuẩn bị đón khách hoặc nghiệm thu hệ thống.
-              </p>
+      {/* Operational Reset Card (Khởi động lại dữ liệu vận hành) */}
+      <div className="rounded-2xl border border-amber-300/80 bg-gradient-to-br from-amber-50/80 to-orange-50/60 p-5 sm:p-7 shadow-sm space-y-5">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between border-b border-amber-200/80 pb-4">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-lg sm:text-xl font-bold text-amber-950 flex items-center gap-2">
+                <span>⚡</span> Khởi động lại dữ liệu vận hành
+              </h2>
             </div>
-
-            <button
-              type="button"
-              disabled={isResetting || isSaving}
-              onClick={handleOperationalReset}
-              className="shrink-0 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-amber-600 px-5 text-sm font-bold text-white shadow-sm transition-all hover:bg-amber-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 whitespace-nowrap"
-            >
-              {isResetting ? (
-                <>
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                  <span>Đang xử lý...</span>
-                </>
-              ) : (
-                <>
-                  <span>🔄</span>
-                  <span>Khởi động lại ({remainingResets} lượt còn lại)</span>
-                </>
-              )}
-            </button>
+            <p className="mt-1 text-sm text-amber-900/80 text-pretty">
+              Làm mới toàn bộ dữ liệu kiểm thử về trạng thái sạch ban đầu để chuẩn bị đón khách hoặc nghiệm thu hệ thống.
+            </p>
           </div>
+
+          <button
+            type="button"
+            disabled={isResetting || isSaving}
+            onClick={handleOperationalReset}
+            className="shrink-0 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-amber-600 px-5 text-sm font-bold text-white shadow-sm transition-all hover:bg-amber-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 whitespace-nowrap"
+          >
+            {isResetting ? (
+              <>
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                <span>Đang xử lý...</span>
+              </>
+            ) : (
+              <>
+                <span>🔄</span>
+                <span>Khởi động lại</span>
+              </>
+            )}
+          </button>
+        </div>
 
           <div className="grid gap-3 sm:grid-cols-2 text-xs sm:text-sm text-amber-950/80">
             <div className="flex items-start gap-2.5 rounded-xl bg-white/70 p-3 border border-amber-200/60">
@@ -382,7 +383,6 @@ export function OwnerHotelDetailClient({ hotel }: OwnerHotelDetailClientProps) {
             </div>
           </div>
         </div>
-      ) : null}
 
       {/* Submit Action Bar */}
       <div className="flex justify-end pt-2">

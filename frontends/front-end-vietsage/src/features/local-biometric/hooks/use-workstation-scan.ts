@@ -44,12 +44,13 @@ export function useWorkstationScan(hotelId: string) {
 
   useEffect(() => {
     const initialCheck = setTimeout(() => void checkStatus(), 0);
-    timerRef.current = setInterval(checkStatus, 30_000);
+    const interval = state.phase === "offline" || pairCode ? 3_000 : 30_000;
+    timerRef.current = setInterval(checkStatus, interval);
     return () => {
       clearTimeout(initialCheck);
       clearTimers();
     };
-  }, [checkStatus, clearTimers]);
+  }, [checkStatus, clearTimers, state.phase, pairCode]);
 
   const requestScan = useCallback(async () => {
     try {

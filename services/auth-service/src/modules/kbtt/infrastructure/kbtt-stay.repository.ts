@@ -130,7 +130,7 @@ export class KbttStayRepository {
       if (lease.count !== 1) return false;
       const result = await tx.kbttStayOperation.updateMany({
         where: { id: operation.id, status: { in: ["PENDING", "BLOCKED"] }, attemptedAt: null },
-        data: { status: "SENDING", claimToken: token, attemptedAt: now,
+        data: { status: "UNKNOWN", claimToken: token, attemptedAt: now,
           payloadJson: payload, payloadFingerprint: fingerprint, providerCode: null, providerMessage: null },
       });
       return result.count === 1;
@@ -140,7 +140,7 @@ export class KbttStayRepository {
   async finish(id: string, token: string, result: Prisma.KbttStayOperationUpdateManyMutationInput, recovery?: Prisma.KbttStayOperationCreateManyInput) {
     return this.prisma.$transaction(async (tx) => {
       const updated = await tx.kbttStayOperation.updateMany({
-        where: { id, status: "SENDING", claimToken: token }, data: result,
+        where: { id, status: "UNKNOWN", claimToken: token }, data: { ...result, claimToken: null },
       });
       if (updated.count !== 1) return false;
       if (recovery) await tx.kbttStayOperation.createMany({ data: [recovery], skipDuplicates: true });
@@ -151,9 +151,10 @@ export class KbttStayRepository {
   async recoverInterrupted() {
     const cutoff = new Date(Date.now() - 5 * 60_000);
     await this.prisma.kbttStayOperation.updateMany({
-      where: { status: "SENDING", updatedAt: { lt: cutoff } },
+      where: { status: "UNKNOWN", claimToken: { not: null }, attemptedAt: { lt: cutoff } },
       data: {
         status: "UNKNOWN",
+        claimToken: null,
         providerCode: "INTERRUPTED_DELIVERY",
         providerMessage: "Lần gửi bị gián đoạn; cần đối soát trước khi thực hiện tiếp.",
       },
@@ -165,7 +166,7 @@ export class KbttStayRepository {
       where: {
         csltId,
         identityKey,
-        status: { in: ["SENDING", "UNKNOWN"] },
+        status: "UNKNOWN",
         ...(excludeId ? { id: { not: excludeId } } : {}),
       },
       take: 1,
@@ -193,18 +194,18 @@ export class KbttStayRepository {
       ) snapshots
       CROSS JOIN LATERAL (
         SELECT COALESCE(snapshots.submitted_guest,
-          CASE WHEN d."status" IN ('SENDING', 'UNKNOWN') THEN snapshots.draft_guest END
+          CASE WHEN d."status" = 'UNKNOWN' THEN snapshots.draft_guest END
         ) AS guest
       ) snapshot
       WHERE d."declarationKind" = ${kind}::"CitizenshipKind"
-        AND d."status" IN ('SUBMITTED', 'SENDING', 'UNKNOWN')
+        AND d."status" IN ('SUBMITTED', 'UNKNOWN')
         AND (d."submittedCsltId" = ${csltId} OR
           (d."submittedCsltId" IS NULL AND EXISTS (
             SELECT 1 FROM "KbttHotelConnection" c
             WHERE c."hotelId" = d."hotelId" AND c."csltId" = ${csltId}
           )))
         AND (upper(btrim(snapshot.guest ->> ${field})) = ${number.trim().toUpperCase()}
-          OR (d."status" IN ('SENDING', 'UNKNOWN') AND (
+          OR (d."status" = 'UNKNOWN' AND (
             jsonb_typeof(snapshot.guest -> ${field}) IS DISTINCT FROM 'string'
             OR btrim(snapshot.guest ->> ${field}) = ''
             OR snapshot.guest -> ${qualifier} IS NULL

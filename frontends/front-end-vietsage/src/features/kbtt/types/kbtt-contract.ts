@@ -73,7 +73,6 @@ export type CitizenshipKind = z.infer<typeof citizenshipKindSchema>;
 export const kbttDeclarationStatusSchema = z.enum([
   "DRAFT",
   "READY",
-  "SENDING",
   "SUBMITTED",
   "FAILED",
   "UNKNOWN",
@@ -95,7 +94,7 @@ export const kbttPaginationQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(50),
   q: z.string().trim().max(200).optional(),
-  status: z.enum(["UNSENT", "SUBMITTED", "LOCAL_ERROR", "REJECTED", "SENDING", "UNKNOWN", "CANCELLED"]).optional(),
+  status: z.enum(["UNSENT", "SUBMITTED", "LOCAL_ERROR", "REJECTED", "UNKNOWN", "CANCELLED"]).optional(),
   nationality: z.enum(["VNM", "FOREIGN"]).optional(),
   checkInDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 });
@@ -154,7 +153,7 @@ export function getKbttDeclarationDisplayStatus(
   const status = declaration?.status ?? row.derivedStatus;
   if (status === "READY" && declaration?.providerCode === "LOCAL_QUEUED") return "LOCAL_ERROR";
   if (status === "FAILED") return KBTT_LOCAL_FAILURE_CODES.has(declaration?.providerCode ?? "") ? "LOCAL_ERROR" : "REJECTED";
-  if (status === "SUBMITTED" || status === "SENDING" || status === "UNKNOWN" || status === "CANCELLED") return status;
+  if (status === "SUBMITTED" || status === "UNKNOWN" || status === "CANCELLED") return status;
   return "UNSENT";
 }
 
@@ -163,7 +162,6 @@ export const kbttDeliverySchema = z.object({
   state: z.enum(["RUNNING", "PAUSED", "NOT_CONFIGURED"]),
   lifecycleEnabled: z.boolean(),
   pendingCount: z.number().int().nonnegative(),
-  sendingCount: z.number().int().nonnegative(),
   reviewCount: z.number().int().nonnegative(),
   lastSucceededAt: z.string().nullable(),
   recentIssues: z.array(z.object({
@@ -455,7 +453,7 @@ export function canSelectKbttDeclaration(
 export function getKbttSubmissionIssue(
   declaration: Pick<KbttDeclarationSummary, "status" | "providerMessage">,
 ): string | null {
-  if (declaration.status === "SENDING" || declaration.status === "SUBMITTED") return null;
+  if (declaration.status === "SUBMITTED") return null;
   if (declaration.providerMessage) return sanitizeErrorMessage(declaration.providerMessage);
   if (declaration.status === "UNKNOWN") return "Chưa xác định kết quả gửi BCA. Cần đối soát trước khi gửi lại.";
   if (declaration.status === "FAILED") return "Chưa gửi được hồ sơ BCA. Vui lòng kiểm tra lý do trong hồ sơ.";

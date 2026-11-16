@@ -1,6 +1,6 @@
 import { saveKbttDraftPayloadSchema, type KbttReconciliationRow, type SaveKbttDraftPayload } from "./types/kbtt-contract";
 
-const lockedStatuses = ["SENDING", "UNKNOWN", "SUBMITTED", "CANCELLED"];
+const lockedStatuses = ["UNKNOWN", "SUBMITTED", "CANCELLED"];
 function validDate(value: unknown, datetime: boolean): boolean {
   if (typeof value !== "string") return false;
   const match = value.match(datetime ? /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/ : /^(\d{4})-(\d{2})-(\d{2})$/);

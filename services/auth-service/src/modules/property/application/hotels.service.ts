@@ -235,7 +235,7 @@ export class HotelsService {
     }
 
     const result = await this.hotelCoreRepository.resetHotelOperationalData(hotelId, {
-      unlimited: actor.isSuperAdmin,
+      unlimited: true,
       tenantIds: actor.isSuperAdmin ? undefined : Array.from(actor.tenantIds),
     });
 
@@ -255,10 +255,8 @@ export class HotelsService {
     return {
       hotelId,
       operationalResetCount: result.operationalResetCount,
-      remainingResets: actor.isSuperAdmin ? 999 : result.remainingResets,
-      message: actor.isSuperAdmin
-        ? "Thiết lập lại dữ liệu vận hành thành công (Đặc quyền Quản trị viên cấp cao)."
-        : `Thiết lập lại dữ liệu vận hành thành công. Bạn còn ${result.remainingResets} lượt.`,
+      remainingResets: 999,
+      message: "Thiết lập lại dữ liệu vận hành thành công.",
     };
   }
 

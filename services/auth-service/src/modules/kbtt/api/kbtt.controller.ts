@@ -253,7 +253,7 @@ export class KbttController {
   @ApiQuery({ name: "limit", required: false, type: Number, minimum: 1, maximum: 100 })
   @ApiQuery({ name: "q", required: false, type: String, maxLength: 200 })
   @ApiQuery({ name: "stayIds", required: false, type: String, description: "Comma-separated current-page stay IDs; at most 20 IDs, each at most 128 characters" })
-  @ApiQuery({ name: "status", required: false, enum: ["UNSENT", "SUBMITTED", "LOCAL_ERROR", "REJECTED", "SENDING", "UNKNOWN", "CANCELLED"] })
+  @ApiQuery({ name: "status", required: false, enum: ["UNSENT", "SUBMITTED", "LOCAL_ERROR", "REJECTED", "UNKNOWN", "CANCELLED"] })
   @ApiQuery({ name: "nationality", required: false, enum: ["VNM", "FOREIGN"] })
   @ApiQuery({ name: "checkInDate", required: false, type: String, format: "date" })
   listDeclarations(

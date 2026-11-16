@@ -26,32 +26,36 @@ export function KbttAutoSubmitSwitch({ hotelId, canManage, isConnected }: {
   }
 
   return (
-    <div className="space-y-2">
-      <div className="flex min-h-11 flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <span id={labelId} className="text-base font-semibold text-slate-900">Tự động gửi BCA</span>
-        <button
-          type="button"
-          role="switch"
-          aria-labelledby={labelId}
-          aria-checked={isEnabled}
-          aria-busy={updating || enabled.isPending}
-          disabled={!canManage || updating || unavailable}
-          onClick={() => void toggle()}
-          className="inline-flex min-h-11 items-center gap-3 whitespace-nowrap rounded-xl px-2 text-base font-semibold text-slate-700 hover:bg-slate-50 active:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+    <div className="inline-flex items-center gap-2">
+      <button
+        type="button"
+        role="switch"
+        aria-labelledby={labelId}
+        aria-checked={isEnabled}
+        aria-busy={updating || enabled.isPending}
+        disabled={!canManage || updating || unavailable}
+        onClick={() => void toggle()}
+        className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 shadow-2xs transition-all hover:bg-slate-50 hover:border-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#003B2A]/30 disabled:cursor-not-allowed disabled:opacity-60 whitespace-nowrap"
+      >
+        <span id={labelId} className="font-bold text-slate-800">Tự động gửi BCA</span>
+        <span
+          aria-hidden="true"
+          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out ${
+            isEnabled ? "bg-[#003B2A]" : "bg-slate-300"
+          }`}
         >
-          <span aria-hidden="true" className={isEnabled ? "relative h-6 w-11 rounded-full bg-emerald-800" : "relative h-6 w-11 rounded-full bg-slate-400"}>
-            <span className={isEnabled ? "absolute left-1 top-1 h-4 w-4 translate-x-5 rounded-full bg-white" : "absolute left-1 top-1 h-4 w-4 rounded-full bg-white"} />
-          </span>
-          <span aria-live="polite">{updating ? "Đang lưu…" : enabled.isPending ? "Đang tải…" : enabled.isError ? "Chưa xác định" : isEnabled ? "Đang bật" : "Đang tắt"}</span>
-        </button>
-      </div>
+          <span
+            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition duration-200 ease-in-out mt-0.5 ml-0.5 ${
+              isEnabled ? "translate-x-4" : "translate-x-0"
+            }`}
+          />
+        </span>
+        <span className="text-xs text-slate-500 font-medium" aria-live="polite">
+          {updating ? "Đang lưu…" : enabled.isPending ? "Đang tải…" : enabled.isError ? "Chưa rõ" : isEnabled ? "Bật" : "Tắt"}
+        </span>
+      </button>
       {enabled.isError ? (
-        <div role="alert" className="flex flex-wrap items-center gap-2 text-base text-amber-900">
-          <span>Không tải được trạng thái tự động gửi BCA.</span>
-          <button type="button" disabled={enabled.isFetching} onClick={() => void enabled.refetch()} className="min-h-11 rounded-lg px-2 font-semibold underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800 disabled:opacity-60">Thử lại</button>
-        </div>
-      ) : canManage && enabled.isSuccess && !isEnabled && !isConnected ? (
-        <p className="text-pretty text-base text-amber-900">Cần kết nối BCA để bật tự động gửi.</p>
+        <span role="alert" className="text-xs text-rose-700">Lỗi tải tự động gửi</span>
       ) : null}
     </div>
   );

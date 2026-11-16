@@ -10,6 +10,7 @@ import {
 } from "@/features/local-biometric/components/cccd-check-in-panel";
 import { MobileCccdScan } from "@/features/local-biometric/components/mobile-cccd-scan";
 import { DesktopDocumentOcrUpload } from "@/features/local-biometric/components/desktop-document-ocr-upload";
+import { DeviceConnectionModal } from "@/features/local-biometric/components/device-connection-modal";
 import {
   formatVnDateInput,
   toDisplayVnDate,
@@ -345,6 +346,8 @@ function GroupCheckInForm({
     if (isScannerEnabled) return "scanner";
     return "upload";
   });
+  const [deviceSetupOpen, setDeviceSetupOpen] = useState(false);
+  const [deviceSetupTab, setDeviceSetupTab] = useState<"scanner" | "mobile">("scanner");
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [submitProgress, setSubmitProgress] = useState<{ current: number; total: number } | null>(null);
 
@@ -1863,6 +1866,20 @@ function GroupCheckInForm({
                   <VsIcon name="upload_file" className="text-sm" />
                   <span>Chọn file ảnh</span>
                 </button>
+
+                <div className="h-4 w-[1px] bg-slate-200 mx-1 hidden sm:block" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeviceSetupTab(intakeMethod === "mobile" ? "mobile" : "scanner");
+                    setDeviceSetupOpen(true);
+                  }}
+                  className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition cursor-pointer min-h-[36px] shadow-2xs"
+                  title="Thiết lập kết nối máy quét hoặc điện thoại"
+                >
+                  <VsIcon name="settings_input_component" className="text-sm text-blue-600" />
+                  <span className="whitespace-nowrap">Thiết lập thiết bị</span>
+                </button>
               </div>
             </div>
 
@@ -1874,6 +1891,10 @@ function GroupCheckInForm({
                   onCapture={handleCapture}
                   activeGuestLabel={`Phòng ${activeRoom.roomNumber} · ${activeGuestLabel}`}
                   autoRequestScanKey={activeRoom.activeGuestIndex}
+                  onOpenDeviceSetup={() => {
+                    setDeviceSetupTab("scanner");
+                    setDeviceSetupOpen(true);
+                  }}
                 />
               )}
               {intakeMethod === "mobile" && (
@@ -1883,6 +1904,10 @@ function GroupCheckInForm({
                   targetContext={`room_${activeRoom.roomId}`}
                   targetLabel={`Phòng ${activeRoom.roomNumber}`}
                   showSetupLink={false}
+                  onOpenSetup={() => {
+                    setDeviceSetupTab("mobile");
+                    setDeviceSetupOpen(true);
+                  }}
                 />
               )}
               {intakeMethod === "upload" && (
@@ -2437,6 +2462,15 @@ function GroupCheckInForm({
           </div>
         </div>
       )}
+
+      {deviceSetupOpen ? (
+        <DeviceConnectionModal
+          isOpen={deviceSetupOpen}
+          onClose={() => setDeviceSetupOpen(false)}
+          hotelId={hotelId}
+          defaultTab={deviceSetupTab}
+        />
+      ) : null}
     </div>
   );
 }

@@ -67,9 +67,9 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
 
   if (loading) {
     return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-12 text-right shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <div className="inline-flex h-12 w-12 animate-spin items-center justify-center rounded-full border-4 border-emerald-500 border-t-transparent text-emerald-500"></div>
-        <p className="mt-4 text-base font-semibold text-slate-600 dark:text-slate-400">
+      <div className="flex flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div className="inline-flex h-12 w-12 animate-spin items-center justify-center rounded-full border-4 border-emerald-500 border-t-transparent text-emerald-500" />
+        <p className="mt-4 text-base font-semibold text-slate-600 dark:text-slate-400 text-pretty">
           Đang đối soát dữ liệu phí VietSage SaaS &amp; Bảo vệ doanh thu...
         </p>
       </div>
@@ -78,14 +78,17 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
 
   if (error) {
     return (
-      <div className="rounded-2xl border border-red-200 bg-red-50/80 p-8 text-right dark:border-red-900/50 dark:bg-red-950/30">
-        <p className="text-sm font-bold text-red-800 dark:text-red-200">
+      <div className="flex flex-col items-center justify-center rounded-2xl border border-red-200 bg-red-50/80 p-8 text-center dark:border-red-900/50 dark:bg-red-950/30">
+        <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300">
+          <VsIcon name="error" className="text-2xl" />
+        </div>
+        <p className="mt-3 text-sm font-bold text-red-800 dark:text-red-200 text-balance">
           {error}
         </p>
         <button
           type="button"
           onClick={() => void refetch()}
-          className="mt-4 inline-flex items-center justify-center rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-red-700"
+          className="mt-4 inline-flex items-center justify-center rounded-xl bg-red-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-red-700 whitespace-nowrap cursor-pointer"
         >
           Thử lại
         </button>
@@ -96,14 +99,14 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
   if (!data?.hasContract) {
     return (
       <div className="rounded-2xl border-2 border-dashed border-amber-300 bg-amber-50/60 p-10 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
-        <div className="flex flex-col items-center text-right">
+        <div className="flex flex-col items-center text-center">
           <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-600">
             <VsIcon name="info" className="text-3xl" />
           </div>
-          <h3 className="mt-4 text-xl font-bold">
+          <h3 className="mt-4 text-xl font-bold text-balance">
             Khách sạn chưa kích hoạt hợp đồng VietSage SaaS
           </h3>
-          <p className="mt-2 max-w-md text-sm leading-relaxed text-amber-700 dark:text-amber-400">
+          <p className="mt-2 max-w-md text-sm leading-relaxed text-amber-700 dark:text-amber-400 text-pretty">
             Vui lòng liên hệ Đội ngũ Quản trị viên VietSage Platform để chốt hợp
             đồng và kích hoạt tính năng bảo vệ doanh thu tự động.
           </p>
@@ -382,27 +385,27 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] text-left text-base">
               <colgroup>
-                <col className="w-[28%]" />
-                <col className="w-[18%]" />
-                <col className="w-[18%]" />
+                <col className="w-[30%]" />
+                <col className="w-[15%]" />
+                <col className="w-[15%]" />
                 <col className="w-[20%]" />
-                <col className="w-[16%]" />
+                <col className="w-[20%]" />
               </colgroup>
               <thead className="border-b border-slate-200/80 bg-slate-50/90 text-sm sm:text-sm font-extrabold uppercase tracking-wider text-slate-600 dark:border-slate-800 dark:bg-slate-800/80 dark:text-slate-300">
                 <tr>
-                  <th scope="col" className="px-5 py-4">
+                  <th scope="col" className="px-5 py-4 whitespace-nowrap">
                     Phòng
                   </th>
-                  <th scope="col" className="px-5 py-4 text-right">
+                  <th scope="col" className="px-5 py-4 text-center whitespace-nowrap">
                     Lượt lưu trú
                   </th>
-                  <th scope="col" className="px-5 py-4 text-right">
+                  <th scope="col" className="px-5 py-4 text-center whitespace-nowrap">
                     Lượt tính phí
                   </th>
-                  <th scope="col" className="px-5 py-4 text-right">
+                  <th scope="col" className="px-5 py-4 text-right whitespace-nowrap">
                     Phí VietSage SaaS
                   </th>
-                  <th scope="col" className="px-5 py-4 text-right">
+                  <th scope="col" className="px-5 py-4 text-center whitespace-nowrap">
                     Trạng thái
                   </th>
                 </tr>
@@ -427,10 +430,10 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
                           Phòng {item.roomNumber}
                         </span>
                       </td>
-                      <td className="px-5 py-4 text-right text-base sm:text-lg font-bold tabular-nums text-slate-900 dark:text-white">
+                      <td className="px-5 py-4 text-center text-base sm:text-lg font-bold tabular-nums text-slate-900 dark:text-white">
                         {item.usageCount}
                       </td>
-                      <td className="px-5 py-4 text-right text-base sm:text-lg font-bold tabular-nums text-slate-900 dark:text-white">
+                      <td className="px-5 py-4 text-center text-base sm:text-lg font-bold tabular-nums text-slate-900 dark:text-white">
                         {item.billableDaysCount}
                       </td>
                       <td className="px-5 py-4 text-right text-base sm:text-lg font-extrabold tabular-nums text-slate-900 dark:text-white">
@@ -441,25 +444,27 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
                           {item.currency || "VND"}
                         </span>
                       </td>
-                      <td className="px-5 py-4 text-right">
-                        {carriedOver ? (
-                          <span
-                            className="inline-flex items-center gap-1.5 rounded-full border border-cyan-200/80 bg-cyan-50 px-3.5 py-1 text-sm sm:text-sm font-bold text-cyan-800 dark:border-cyan-900/60 dark:bg-cyan-950/60 dark:text-cyan-300"
-                            title="Khách nhận phòng từ tháng trước và tiếp tục lưu trú trong tháng này"
-                          >
-                            <span className="h-2 w-2 rounded-full bg-cyan-600" />
-                            Dữ liệu phí lịch sử
-                          </span>
-                        ) : isBillable ? (
-                          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/80 bg-emerald-50 px-3.5 py-1 text-sm sm:text-sm font-bold text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300">
-                            <span className="h-2 w-2 rounded-full bg-emerald-600" />
-                            Có phát sinh phí
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center rounded-full bg-slate-100 px-3.5 py-1 text-sm sm:text-sm font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-400">
-                            Chưa phát sinh
-                          </span>
-                        )}
+                      <td className="px-5 py-4 text-center">
+                        <div className="flex items-center justify-center">
+                          {carriedOver ? (
+                            <span
+                              className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-cyan-200/80 bg-cyan-50 px-3.5 py-1 text-sm sm:text-sm font-bold text-cyan-800 dark:border-cyan-900/60 dark:bg-cyan-950/60 dark:text-cyan-300"
+                              title="Khách nhận phòng từ tháng trước và tiếp tục lưu trú trong tháng này"
+                            >
+                              <span className="h-2 w-2 rounded-full bg-cyan-600" />
+                              Dữ liệu phí lịch sử
+                            </span>
+                          ) : isBillable ? (
+                            <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-emerald-200/80 bg-emerald-50 px-3.5 py-1 text-sm sm:text-sm font-bold text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300">
+                              <span className="h-2 w-2 rounded-full bg-emerald-600" />
+                              Có phát sinh phí
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center whitespace-nowrap rounded-full bg-slate-100 px-3.5 py-1 text-sm sm:text-sm font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                              Chưa phát sinh
+                            </span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -471,10 +476,10 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
                     <td className="px-5 py-4 text-sm sm:text-sm font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-300">
                       Tổng tháng {month}
                     </td>
-                    <td className="px-5 py-4 text-right text-base sm:text-lg tabular-nums">
+                    <td className="px-5 py-4 text-center text-base sm:text-lg tabular-nums">
                       {data.usageCount ?? 0}
                     </td>
-                    <td className="px-5 py-4 text-right text-base sm:text-lg tabular-nums">
+                    <td className="px-5 py-4 text-center text-base sm:text-lg tabular-nums">
                       {data.billableDaysCount ?? 0}
                     </td>
                     <td className="px-5 py-4 text-right text-base sm:text-lg tabular-nums">
@@ -483,7 +488,7 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
                         VND
                       </span>
                     </td>
-                    <td className="px-5 py-4 text-right" />
+                    <td className="px-5 py-4 text-center" />
                   </tr>
                 </tfoot>
               )}
@@ -491,7 +496,7 @@ export function OwnerSaasBillingClient({ hotelId }: { hotelId: string }) {
           </div>
 
           {filteredRoomRows.length === 0 && (
-            <div className="p-10 text-right text-sm font-medium text-slate-500">
+            <div className="p-10 text-center text-sm font-medium text-slate-500">
               {roomRows.length === 0
                 ? "Chưa có phòng nào phát sinh lượt lưu trú hoặc phí trong tháng này."
                 : `Không tìm thấy phòng phù hợp với từ khóa “${roomQuery}”`}

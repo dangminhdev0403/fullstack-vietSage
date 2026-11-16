@@ -60,7 +60,7 @@ export const kbttPaginationQuerySchema = z.object({
   q: z.string().trim().max(200).optional(),
   stayIds: z.preprocess((value) => typeof value === "string" ? value.split(",") : value,
     z.array(z.string().trim().min(1).max(128)).min(1).max(20)).optional(),
-  status: z.enum(["UNSENT", "SUBMITTED", "LOCAL_ERROR", "REJECTED", "SENDING", "UNKNOWN", "CANCELLED"]).optional(),
+  status: z.enum(["UNSENT", "SUBMITTED", "LOCAL_ERROR", "REJECTED", "UNKNOWN", "CANCELLED"]).optional(),
   nationality: z.enum(["VNM", "FOREIGN"]).optional(),
   checkInDate: z.string().refine(isValidCalendarDate, "Ngày nhận phòng không hợp lệ.").optional(),
 });
@@ -156,7 +156,6 @@ export type CitizenshipKind = z.infer<typeof citizenshipKindSchema>;
 export const kbttDeclarationStatusSchema = z.enum([
   "DRAFT",
   "READY",
-  "SENDING",
   "SUBMITTED",
   "FAILED",
   "UNKNOWN",
@@ -165,15 +164,13 @@ export const kbttDeclarationStatusSchema = z.enum([
 export type KbttDeclarationStatus = z.infer<typeof kbttDeclarationStatusSchema>;
 
 export function assertKbttDeclarationMutable(status: KbttDeclarationStatus | undefined) {
-  if (status && ["SENDING", "UNKNOWN", "CANCELLED"].includes(status)) {
+  if (status && ["UNKNOWN", "CANCELLED"].includes(status)) {
     throw new ConflictException({
       code: "KBTT_DECLARATION_LOCKED",
       message:
         status === "UNKNOWN"
           ? "Chưa xác định kết quả gửi BCA. Cần đối soát trước khi sửa hoặc gửi lại hồ sơ."
-          : status === "SENDING"
-            ? "Hồ sơ đang gửi BCA. Vui lòng chờ kết quả trước khi thao tác tiếp."
-            : "Hồ sơ đã hủy; không thể sửa hoặc gửi lại.",
+          : "Hồ sơ đã hủy; không thể sửa hoặc gửi lại.",
     });
   }
 }
@@ -182,7 +179,6 @@ export const kbttDerivedStatusSchema = z.enum([
   "MISSING_PROFILE",
   "DRAFT",
   "READY",
-  "SENDING",
   "SUBMITTED",
   "FAILED",
   "UNKNOWN",

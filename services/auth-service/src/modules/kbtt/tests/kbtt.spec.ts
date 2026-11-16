@@ -113,11 +113,10 @@ function fixture(providerRead?: KbttProviderReadClient) {
     findOccupantsByStay: jest.fn(async (hotelId: string, stayId: string) =>
       [...occupants.values()].filter((occupant) => occupant.hotelId === hotelId && occupant.stayId === stayId)),
     getDeliverySnapshot: jest.fn(async (_hotelId: string, _allowedRoomId: string | null): Promise<{
-      pendingCount: number; sendingCount: number; reviewCount: number;
+      pendingCount: number; reviewCount: number;
       lastSucceededAt: Date | null; recentIssues: any[];
     }> => ({
       pendingCount: 0,
-      sendingCount: 0,
       reviewCount: 0,
       lastSucceededAt: null,
       recentIssues: [],
@@ -151,19 +150,6 @@ function fixture(providerRead?: KbttProviderReadClient) {
         },
       };
     }),
-    markInterruptedDeclarationsUnknown: jest.fn(async (activeDeclarationIds: string[] = []) => {
-      for (const declaration of declarations.values()) {
-        if (declaration.status === "SENDING" && !activeDeclarationIds.includes(declaration.id) &&
-            declaration.updatedAt < new Date(Date.now() - 5 * 60_000)) {
-          Object.assign(declaration, {
-            status: "UNKNOWN",
-            version: declaration.version + 1,
-            providerCode: "INTERRUPTED_DELIVERY",
-            providerMessage: "Lần gửi bị gián đoạn; cần đối soát trước khi gửi tiếp.",
-          });
-        }
-      }
-    }),
     findActiveSubmittedOccupantByIdentity: jest.fn<Promise<any>, any[]>(async () => null),
     prepareStaySubmissionBatch: jest.fn(async (params: any) => {
       const actualIds = [...occupants.values()]
@@ -186,7 +172,7 @@ function fixture(providerRead?: KbttProviderReadClient) {
         }
         const updated = {
           ...existing,
-          status: "SENDING",
+          status: "UNKNOWN",
           submittedPayloadJson: item.submittedPayloadJson,
           submittedPayloadFingerprint: item.submittedPayloadFingerprint,
           version: existing.version + 1,
@@ -201,7 +187,7 @@ function fixture(providerRead?: KbttProviderReadClient) {
         if (
           !existing ||
           existing.version !== item.expectedVersion ||
-          existing.status !== "SENDING"
+          existing.status !== "UNKNOWN"
         ) {
           throw new ConflictException("CAS conflict");
         }
@@ -716,7 +702,7 @@ describe("KBTT secure manual authentication", () => {
     await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
     expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
     const retry = await f.service.submit("owner", "owner-role", "hotel-1", primaryOccupant.id);
-    expect(retry.status).toBe("SENDING");
+    expect(retry.status).toBe("UNKNOWN");
     await finishInitialDeliveries(f);
     expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
     expect(f.declarations.get(result.id)?.status).toBe("SUBMITTED");
@@ -1048,7 +1034,7 @@ describe("KBTT edit and submit", () => {
     let complete!: (value: any) => void;
     f.provider.submitDeclaration.mockImplementationOnce(() => new Promise((resolve) => { complete = resolve; }));
     const result = await f.service.submit("user-1", "role-1", "hotel-1", "occ-vn");
-    expect(result).toMatchObject({ status: "SENDING", providerCode: null, submittedAt: null });
+    expect(result).toMatchObject({ status: "UNKNOWN", providerCode: null, submittedAt: null });
     await new Promise((resolve) => setImmediate(resolve));
     expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
     const repeated = await f.service.submit("user-1", "role-1", "hotel-1", "occ-vn");
@@ -1122,7 +1108,7 @@ describe("KBTT edit and submit", () => {
     });
 
     const queued = await f.service.submit("user-1", "role-1", "hotel-1", "occ-vn");
-    expect(queued.status).toBe("SENDING");
+    expect(queued.status).toBe("UNKNOWN");
     await finishInitialDeliveries(f);
     const stored = await f.repository.findLatestDeclaration("hotel-1", "occ-vn");
     expect(stored?.status).toBe("FAILED");
@@ -1303,7 +1289,7 @@ describe("KBTT edit and submit", () => {
     });
 
     const queued = await f.service.submit("user-1", "role-1", "hotel-1", "occ-vn");
-    expect(queued.status).toBe("SENDING");
+    expect(queued.status).toBe("UNKNOWN");
     await finishInitialDeliveries(f);
     const stored = await f.repository.findLatestDeclaration("hotel-1", "occ-vn");
     expect(stored?.status).toBe("FAILED");
@@ -1363,7 +1349,7 @@ describe("KBTT edit and submit", () => {
     await f.service.triggerCheckInBcaPush("hotel-1", primaryOccupant.stayId);
     await new Promise((resolve) => setImmediate(resolve));
     expect(f.declarations.size).toBe(2);
-    expect([...f.declarations.values()].every((d) => d.status === "SENDING")).toBe(true);
+    expect([...f.declarations.values()].every((d) => d.status === "UNKNOWN")).toBe(true);
     expect(sendInitial).toHaveBeenCalledTimes(1);
     completeFirst({ outcome: "SUCCESS", code: "200", message: "Thành công" });
     await finishInitialDeliveries(f);
@@ -1406,7 +1392,7 @@ describe("KBTT edit and submit", () => {
     expect(list.items).toHaveLength(1);
     expect(list.items[0].declaration?.providerMessage).toBe("Hồ sơ chưa được gửi BCA. Kiểm tra dữ liệu trước khi gửi.");
     const explicit = await f.service.submit("user-1", "role-1", "hotel-1", primaryOccupant.id);
-    expect(explicit.status).toBe("SENDING");
+    expect(explicit.status).toBe("UNKNOWN");
     await finishInitialDeliveries(f);
     expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
   });
@@ -1431,7 +1417,7 @@ describe("KBTT edit and submit", () => {
     expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
   });
 
-  it("reconciles abandoned SENDING locally while paused without marking an active immediate delivery unknown", async () => {
+  it("preserves unresolved claims while paused without rewriting active delivery versions", async () => {
     const f = fixture();
     f.occupants.set(primaryOccupant.id, primaryOccupant);
     await f.service.connect("user-1", "role-1", "hotel-1", credentials);
@@ -1444,9 +1430,8 @@ describe("KBTT edit and submit", () => {
     active.updatedAt = new Date(Date.now() - 10 * 60_000);
     f.declarations.set("abandoned", { ...active, id: "abandoned", occupantId: "abandoned-guest" });
     process.env.KBTT_AUTO_SUBMIT_KILL_SWITCH = "true";
-    await f.service.reconcileInterruptedInitialDeclarations();
-    expect(f.declarations.get(result.id).status).toBe("SENDING");
-    expect(f.declarations.get("abandoned")).toMatchObject({ status: "UNKNOWN", providerCode: "INTERRUPTED_DELIVERY" });
+    expect(f.declarations.get(result.id).status).toBe("UNKNOWN");
+    expect(f.declarations.get("abandoned")).toMatchObject({ status: "UNKNOWN", version: active.version, providerCode: null });
     complete({ outcome: "SUCCESS", code: "200", message: "Thành công" });
     await finishInitialDeliveries(f);
     expect(f.declarations.get(result.id).status).toBe("SUBMITTED");
@@ -1456,8 +1441,7 @@ describe("KBTT edit and submit", () => {
   it("distinguishes unsent local delivery issues from a provider rejection in passive monitoring", async () => {
     const f = fixture();
     const codes = ["DELIVERY_PAUSED", "KBTT_NOT_CONFIGURED", "KBTT_AUTH_FAILED", "KBTT_PROVIDER_UNAVAILABLE", "LOCAL_QUEUED"];
-    f.repository.getDeliverySnapshot.mockResolvedValueOnce({ pendingCount: 0, sendingCount: 0,
-      reviewCount: codes.length + 1, lastSucceededAt: null,
+    f.repository.getDeliverySnapshot.mockResolvedValueOnce({ pendingCount: 0, reviewCount: codes.length + 1, lastSucceededAt: null,
       recentIssues: [...codes, "400"].map((providerCode) => ({
         id: providerCode, kind: "INITIAL", status: "FAILED", providerCode,
         roomNumber: "101", fullName: "Nguyen Van A", updatedAt: new Date().toISOString(),
@@ -1506,7 +1490,6 @@ describe("KBTT edit and submit", () => {
     const reviewDate = new Date("2026-11-05T03:00:00.000Z");
     f.repository.getDeliverySnapshot.mockResolvedValueOnce({
       pendingCount: 1,
-      sendingCount: 0,
       reviewCount: 25,
       lastSucceededAt: successDate,
       recentIssues: Array.from({ length: 20 }, (_, index) => ({
@@ -1522,7 +1505,7 @@ describe("KBTT edit and submit", () => {
     expect(result.items).toEqual([]);
     expect(f.repository.getDeliverySnapshot).toHaveBeenCalledWith("hotel-1", "room-1");
     expect(result.delivery).toMatchObject({
-      mode: "BACKGROUND", state: "RUNNING", pendingCount: 1, sendingCount: 0, reviewCount: 25,
+      mode: "BACKGROUND", state: "RUNNING", pendingCount: 1, reviewCount: 25,
       lastSucceededAt: successDate.toISOString(),
     });
     expect(result.delivery.recentIssues).toHaveLength(20);
@@ -2571,7 +2554,7 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
       );
     });
 
-    it("moves stale SENDING to UNKNOWN during lifecycle recovery without resending", async () => {
+    it("retains stale unresolved claims without resending or mutating their version", async () => {
       const f = fixture();
       f.occupants.set("occ-vn", primaryOccupant);
       await f.service.connect("owner", "owner-role", "hotel-1", credentials);
@@ -2581,7 +2564,7 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
         hotelId: "hotel-1",
         occupantId: "occ-vn",
         version: 1,
-        status: "SENDING",
+        status: "UNKNOWN",
         declarationKind: "VIETNAMESE",
         draftPayloadJson: {
           hoTen: "Nguyen Van A",
@@ -2601,12 +2584,10 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
 
       await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
       expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
-      expect(f.declarations.get("decl-stale")?.status).toBe("SENDING");
-
-      await f.service.reconcileInterruptedInitialDeclarations();
-      expect(f.repository.markInterruptedDeclarationsUnknown).toHaveBeenCalledTimes(1);
       expect(f.declarations.get("decl-stale")?.status).toBe("UNKNOWN");
-      expect(f.declarations.get("decl-stale")?.providerCode).toBe("INTERRUPTED_DELIVERY");
+
+      expect(f.declarations.get("decl-stale")?.status).toBe("UNKNOWN");
+      expect(f.declarations.get("decl-stale")?.version).toBe(1);
 
       enableAutomaticDelivery(f);
 

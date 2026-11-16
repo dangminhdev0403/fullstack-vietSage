@@ -12605,7 +12605,6 @@ paths:
               - SUBMITTED
               - LOCAL_ERROR
               - REJECTED
-              - SENDING
               - UNKNOWN
               - CANCELLED
             type: string

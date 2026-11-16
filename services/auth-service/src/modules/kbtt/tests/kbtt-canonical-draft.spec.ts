@@ -45,7 +45,7 @@ describe('canonical BCA draft transaction', () => {
     expect(f.state().summary.guestDisplayName).toBe('Nguyen Van A');
   });
 
-  it.each(['SENDING', 'SUBMITTED', 'UNKNOWN'])('fences %s before any profile write', async (status) => {
+  it.each(['SUBMITTED', 'UNKNOWN'])('fences %s before any profile write', async (status) => {
     const f = fixture();
     f.state().declaration.status = status;
     await expect(f.repository.saveCanonicalDraft(f.params)).rejects.toBeInstanceOf(ConflictException);

@@ -28,11 +28,6 @@ export class KbttAutoSubmitSchedulerService {
     timeZone: "Asia/Ho_Chi_Minh",
   })
   async handleCron() {
-    try {
-      await this.kbttService.reconcileInterruptedInitialDeclarations();
-    } catch {
-      this.logger.error("Could not reconcile interrupted BCA initial deliveries.");
-    }
     if (process.env.KBTT_AUTO_SUBMIT_KILL_SWITCH === "true") {
       this.logger.warn("KBTT auto-submit kill switch is ACTIVE. Skipping scheduled run.");
       return;
