@@ -987,7 +987,7 @@ describe("KBTT edit and submit", () => {
     occupant.fullName = 'Bui Thanh Hong';
     occupant.gender = 'F';
     const view = await f.service.getDeclaration('user-1', 'role-1', 'hotel-1', occupant.id);
-    expect(view.declaration?.draftPayload).toMatchObject({ hoTen: 'Bui Thanh Hong', gioiTinh: 'F', lyDoCuTru: 20, lyDoChiTiet: 'Cong tac' });
+    expect(view.declaration?.draftPayload).toMatchObject({ hoTen: 'Bui Thanh Hong', gioiTinh: 'F', lyDoCuTru: 1, lyDoChiTiet: 'Cong tac' });
     const longName = Array(50).fill('Nguyen').join(' ').slice(0, 150).trim();
     const saved = await f.service.saveDraft('user-1', 'role-1', 'hotel-1', occupant.id, { citizenshipKind: 'VIETNAMESE', data: { hoTen: longName } });
     expect(occupant.fullName).toBe('Bui Thanh Hong');
@@ -3152,5 +3152,72 @@ describe("BCA connection safe accommodation profile", () => {
     expect(r.get).toHaveBeenCalledTimes(2);
     const disconnected = await f.service.disconnect("owner", "owner-role", "hotel-1");
     expect(disconnected.providerProfile).toMatchObject({ state: "NOT_LOADED", accommodation: null });
+  });
+});
+
+
+describe("front-desk BCA read-session preparation", () => {
+  it("reuses valid authentication for concurrent entries without login, refresh, revoke or delivery", async () => {
+    const f = fixture(); await f.service.connect("user", "role", "hotel-1", credentials);
+    f.provider.login.mockClear(); f.provider.refresh.mockClear(); f.provider.revoke.mockClear();
+    expect(await Promise.all([f.service.ensureReconciliationSession("user", "role", "hotel-1"), f.service.ensureReconciliationSession("user", "role", "hotel-1")])).toEqual([{ ready: true }, { ready: true }]);
+    expect(f.provider.login).not.toHaveBeenCalled(); expect(f.provider.refresh).not.toHaveBeenCalled();
+    expect(f.provider.revoke).not.toHaveBeenCalled(); expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+  });
+  it("restores authentication after process cache loss using encrypted saved credentials", async () => {
+    const f = fixture(); await f.service.connect("user", "role", "hotel-1", credentials);
+    f.service.onModuleDestroy(); f.provider.login.mockClear();
+    expect(await f.service.ensureReconciliationSession("user", "role", "hotel-1")).toEqual({ ready: true });
+    expect(f.provider.login).toHaveBeenCalledWith(credentials);
+    expect(f.service.getCachedReadSession("hotel-1", f.rows.get("hotel-1")!)).not.toBeNull();
+    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+  });
+  it("refreshes rejected or near-expiry tokens and does not revoke existing tokens", async () => {
+    const f = fixture(); await f.service.connect("user", "role", "hotel-1", credentials);
+    const old = f.service.getCachedReadSession("hotel-1", f.rows.get("hotel-1")!)!;
+    f.service.expireRejectedReadSession("hotel-1", old); f.provider.login.mockClear(); f.provider.revoke.mockClear();
+    await f.service.ensureReconciliationSession("user", "role", "hotel-1");
+    expect(f.provider.refresh).toHaveBeenCalledWith(old.RefreshToken);
+    expect(f.provider.login).not.toHaveBeenCalled(); expect(f.provider.revoke).not.toHaveBeenCalled();
+  });
+  it("uses saved login once if refresh fails, and preserves authentication failures", async () => {
+    const f = fixture(); await f.service.connect("user", "role", "hotel-1", credentials);
+    const old = f.service.getCachedReadSession("hotel-1", f.rows.get("hotel-1")!)!;
+    f.service.expireRejectedReadSession("hotel-1", old);
+    f.provider.refresh.mockRejectedValue(kbttAuthFailed()); f.provider.login.mockRejectedValue(kbttAuthFailed());
+    await expect(f.service.ensureReconciliationSession("user", "role", "hotel-1")).rejects.toBeInstanceOf(HttpException);
+    expect(f.rows.get("hotel-1")?.status).toBe("AUTH_FAILED");
+    expect(f.service.getCachedReadSession("hotel-1", f.rows.get("hotel-1")!)).toBeNull();
+    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+  });
+  it("denies hotel access and missing configuration before provider calls", async () => {
+    const f = fixture();
+    await expect(f.service.ensureReconciliationSession("user", "role", "hotel-1")).rejects.toBeInstanceOf(NotFoundException);
+    f.access.assertHotelAccess.mockRejectedValue(new ForbiddenException());
+    await expect(f.service.ensureReconciliationSession("user", "role", "hotel-1")).rejects.toBeInstanceOf(ForbiddenException);
+    expect(f.provider.login).not.toHaveBeenCalled(); expect(f.provider.refresh).not.toHaveBeenCalled();
+  });
+  it("exposes session preparation to declaration operators without connection management permission", () => {
+    expect(Reflect.getMetadata(REQUIRED_PERMISSION_KEY, KbttController.prototype.ensureReconciliationSession)).toEqual(["hotel.kbtt.declarations.view", "hotel.kbtt.declarations.manage"]);
+  });
+});
+
+
+describe("editable declaration date payload", () => {
+  it("saves declaration dates, uses them in the transmitted payload and leaves PMS unchanged", async () => {
+    const f = fixture(); const occupant = structuredClone(primaryOccupant); f.occupants.set(occupant.id, occupant);
+    const edits = { ngayDenCsltStr: "2026-09-13 18:00:00", ngayDiDuKienStr: "2026-09-16 12:00:00", lyDoCuTru: 20, loaiGiayTo: 1 };
+    const saved = await f.service.saveDraft("user", "role", "hotel-1", occupant.id, { citizenshipKind: "VIETNAMESE", data: edits });
+    expect(saved.draftPayload).toMatchObject({ ...edits, lyDoCuTru: 1 });
+    expect(saved.draftPayload).not.toHaveProperty("__kbttDeclarationDates");
+    expect(occupant.stay.checkedInAt.toISOString()).toBe(primaryOccupant.stay.checkedInAt.toISOString());
+    await f.service.connect("user", "role", "hotel-1", credentials); enableAutomaticDelivery(f);
+    await f.service.submit("user", "role", "hotel-1", occupant.id); await finishInitialDeliveries(f);
+    expect(f.provider.submitDeclaration).toHaveBeenCalledWith("VIETNAMESE", [expect.objectContaining({ ...edits, lyDoCuTru: 1 })], expect.any(String));
+  });
+  it("rejects inverted declaration dates before any profile write", async () => {
+    const f = fixture(); const occupant = structuredClone(primaryOccupant); f.occupants.set(occupant.id, occupant);
+    await expect(f.service.saveDraft("user", "role", "hotel-1", occupant.id, { citizenshipKind: "VIETNAMESE", data: { ngayDenCsltStr: "2026-09-16 12:00:00", ngayDiDuKienStr: "2026-09-15 12:00:00" } })).rejects.toBeInstanceOf(BadRequestException);
+    expect(f.declarations.size).toBe(0);
   });
 });

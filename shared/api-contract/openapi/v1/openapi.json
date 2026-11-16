@@ -18689,6 +18689,91 @@
         ]
       }
     },
+    "/hotels/{hotelId}/kbtt/reconciliation/session": {
+      "post": {
+        "operationId": "KbttController_ensureReconciliationSession",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "error": {
+                      "type": "object",
+                      "nullable": true,
+                      "additionalProperties": true,
+                      "example": null
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Thành công"
+                    },
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "ready"
+                      ],
+                      "properties": {
+                        "ready": {
+                          "type": "boolean",
+                          "enum": [
+                            true
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Hotel scope or business permission denied"
+          },
+          "422": {
+            "description": "KBTT_AUTH_FAILED; sanitized provider authentication failure"
+          },
+          "503": {
+            "description": "KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Prepare BCA read session: reuse valid token, refresh near expiry or restore saved connection after restart; never submits guests",
+        "tags": [
+          "hotel-kbtt"
+        ]
+      }
+    },
     "/hotels/{hotelId}/kbtt/reconciliation": {
       "get": {
         "operationId": "KbttController_getReconciliation",
@@ -18775,6 +18860,7 @@
                               "nationality",
                               "checkedInAt",
                               "plannedCheckOutAt",
+                              "checkedOutAt",
                               "reason",
                               "bcaRecordId",
                               "declarationStatus",
@@ -18785,7 +18871,8 @@
                               "fullName",
                               "documentType",
                               "status",
-                              "canRetry"
+                              "canRetry",
+                              "draftPayload"
                             ],
                             "properties": {
                               "occupantId": {
@@ -18821,6 +18908,10 @@
                                 "nullable": true
                               },
                               "plannedCheckOutAt": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "checkedOutAt": {
                                 "type": "string",
                                 "nullable": true
                               },
@@ -18876,6 +18967,11 @@
                               },
                               "canRetry": {
                                 "type": "boolean"
+                              },
+                              "draftPayload": {
+                                "type": "object",
+                                "additionalProperties": true,
+                                "nullable": true
                               }
                             }
                           }

@@ -413,8 +413,7 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
           key={hotelId + ":" + q}
           hotelId={hotelId}
           canManage={canManageKbttDeclarations}
-          canViewRooms={canViewInHouse}
-          baseRoutePrefix={baseRoutePrefix}
+          canConfigureKbtt={context.permissions.includes("hotel.kbtt.manage")}
           initialQuery={q}
         />
       ) : (

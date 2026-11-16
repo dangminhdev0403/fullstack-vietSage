@@ -19,6 +19,7 @@ export interface LocalReconciliationGuest {
   declarationStatus: string | null;
   providerMessage: string | null;
   linkedBcaId: string | null;
+  draftPayload?: Record<string, unknown>;
 }
 
 export interface ProviderReconciliationGuest {
@@ -33,8 +34,10 @@ export interface ProviderReconciliationGuest {
   checkedInAt: string | null;
   plannedCheckOutAt: string | null;
   departed: boolean;
+  checkedOutAt?: string | null;
   roomNumber: string | null;
   isActive: boolean;
+  draftPayload?: Record<string, unknown>;
 }
 
 export interface ReconciliationRow {
@@ -52,12 +55,14 @@ export interface ReconciliationRow {
   nationality: string | null;
   checkedInAt: string | null;
   plannedCheckOutAt: string | null;
+  checkedOutAt: string | null;
   status: "MATCHED" | "NOT_FOUND" | "REVIEW" | null;
   reason: string | null;
   bcaRecordId: string | null;
   declarationStatus: string | null;
   providerMessage: string | null;
   canRetry: boolean;
+  draftPayload: Record<string, unknown> | null;
 }
 
 function normalized(value: string | null): string | null {
@@ -121,8 +126,8 @@ function row(guest: LocalReconciliationGuest): ReconciliationRow {
     stayId: guest.stayId, roomId: guest.roomId, roomNumber: guest.roomNumber, groupCode: guest.groupCode,
     fullName: guest.fullName, identityNumber: guest.identityNumber, documentType: guest.documentType,
     nationality: guest.nationality, checkedInAt: guest.checkedInAt, plannedCheckOutAt: guest.plannedCheckOutAt,
-    status: null, reason: null, bcaRecordId: null,
-    declarationStatus: guest.declarationStatus, providerMessage: guest.providerMessage, canRetry: false,
+    checkedOutAt: null, status: null, reason: null, bcaRecordId: null,
+    declarationStatus: guest.declarationStatus, providerMessage: guest.providerMessage, canRetry: false, draftPayload: guest.draftPayload ?? null,
   };
 }
 
@@ -164,12 +169,9 @@ export function reconcileGuests(
     if (matchKey) byKey.set(matchKey, [...(byKey.get(matchKey) ?? []), guest]);
   }
   const localCounts = new Map<string, number>();
-  const localByIdentity = new Map<string, LocalReconciliationGuest[]>();
   for (const guest of local) {
     const matchKey = localKey(guest);
     if (matchKey) localCounts.set(matchKey, (localCounts.get(matchKey) ?? 0) + 1);
-    const identity = identityKey(guest);
-    if (identity) localByIdentity.set(identity, [...(localByIdentity.get(identity) ?? []), guest]);
   }
   const consumed = new Set<string>();
   const result = local.map((guest) => {
@@ -212,25 +214,21 @@ export function reconcileGuests(
       consumed.add(providerId(candidates[0]));
     } else {
       item.status = "NOT_FOUND";
-      item.canRetry = guest.declarationStatus === "FAILED";
+      item.canRetry = guest.declarationStatus === null || ["DRAFT", "READY", "FAILED"].includes(guest.declarationStatus);
     }
     return item;
   });
 
   for (const guest of remote) {
     const id = providerId(guest);
-    if (!guest.isActive || guest.departed || consumed.has(id) || conflictingIds.has(id)) continue;
-    const hasPossibleLocal = (localByIdentity.get(identityKey(guest)!) ?? []).some((candidate) => {
-      const day = reconciliationArrivalDay(candidate.checkedInAt);
-      return !day || !providerDay(guest) || day === providerDay(guest);
-    });
-    if (hasPossibleLocal || !remoteKey(guest)) continue;
+    if (consumed.has(id) || conflictingIds.has(id)) continue;
+    if (!remoteKey(guest)) continue;
     result.push({
       id: `bca:${guest.kind}:${guest.id}`, source: "BCA_ONLY", kind: guest.kind, occupantId: null,
       stayId: null, roomId: null, roomNumber: guest.roomNumber, groupCode: null, fullName: guest.fullName,
       identityNumber: guest.identityNumber, documentType: guest.documentType, nationality: guest.nationality,
-      checkedInAt: guest.checkedInAt, plannedCheckOutAt: guest.plannedCheckOutAt, status: "MATCHED",
-      reason: null, bcaRecordId: guest.id, declarationStatus: null, providerMessage: null, canRetry: false,
+      checkedInAt: guest.checkedInAt, plannedCheckOutAt: guest.plannedCheckOutAt, checkedOutAt: guest.checkedOutAt ?? null, status: "MATCHED",
+      reason: null, bcaRecordId: guest.id, declarationStatus: null, providerMessage: null, canRetry: false, draftPayload: guest.draftPayload ?? null,
     });
   }
   return result;

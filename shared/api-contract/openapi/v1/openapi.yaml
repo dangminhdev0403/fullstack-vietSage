@@ -12307,6 +12307,57 @@ paths:
       summary: Manually authenticate saved credentials; refresh near expiry, otherwise
         re-login
       tags: *a68
+  /hotels/{hotelId}/kbtt/reconciliation/session:
+    post:
+      operationId: KbttController_ensureReconciliationSession
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 200
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Thành công
+                  data:
+                    type: object
+                    additionalProperties: false
+                    required:
+                      - ready
+                    properties:
+                      ready:
+                        type: boolean
+                        enum:
+                          - true
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+        "401": *a63
+        "403": *a64
+        "422": *a65
+        "503": *a66
+      security: *a67
+      summary: "Prepare BCA read session: reuse valid token, refresh near expiry or
+        restore saved connection after restart; never submits guests"
+      tags: *a68
   /hotels/{hotelId}/kbtt/reconciliation:
     get:
       operationId: KbttController_getReconciliation
@@ -12377,6 +12428,7 @@ paths:
                             - nationality
                             - checkedInAt
                             - plannedCheckOutAt
+                            - checkedOutAt
                             - reason
                             - bcaRecordId
                             - declarationStatus
@@ -12388,6 +12440,7 @@ paths:
                             - documentType
                             - status
                             - canRetry
+                            - draftPayload
                           properties:
                             occupantId: &a69
                               type: string
@@ -12400,6 +12453,7 @@ paths:
                             nationality: *a69
                             checkedInAt: *a69
                             plannedCheckOutAt: *a69
+                            checkedOutAt: *a69
                             reason: *a69
                             bcaRecordId: *a69
                             declarationStatus: *a69
@@ -12431,6 +12485,10 @@ paths:
                               nullable: true
                             canRetry:
                               type: boolean
+                            draftPayload:
+                              type: object
+                              additionalProperties: true
+                              nullable: true
                       checkedAt: *a69
                       range:
                         type: object

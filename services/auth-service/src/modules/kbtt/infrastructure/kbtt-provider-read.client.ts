@@ -47,7 +47,8 @@ export class KbttProviderReadClient {
     const parsed = kbttResidentListQuerySchema.safeParse(query);
     if (!parsed.success) throw new KbttProviderReadError("VALIDATION", "Invalid resident list query");
     return this.get(`${this.prefix(kind)}/get-all-by-cslt`, accessToken, kbttResidentPageSchema, {
-      search: parsed.data.search ?? "", soPhong: parsed.data.soPhong ?? "",
+      ...(parsed.data.search ? { search: parsed.data.search } : {}),
+      ...(parsed.data.soPhong ? { soPhong: parsed.data.soPhong } : {}),
       page: String(parsed.data.page), size: String(parsed.data.size),
     }, signal);
   }
@@ -92,16 +93,16 @@ export class KbttProviderReadClient {
   readAllHistory(
     kind: ResidentKind,
     accessToken: string,
-    query: { dateFrom: string; dateTo: string },
+    query: { dateFrom?: string; dateTo?: string } = {},
     signal?: AbortSignal,
   ): Promise<unknown[]> {
     this.prefix(kind);
     const parsed = kbttHistoryDateQuerySchema.safeParse(query);
-    if (!parsed.success || !parsed.data.dateFrom || !parsed.data.dateTo) {
-      throw new KbttProviderReadError("VALIDATION", "A valid BCA history calendar range is required", {}, parsed.success ? undefined : parsed.error);
+    if (!parsed.success) {
+      throw new KbttProviderReadError("VALIDATION", "Invalid BCA history calendar range", {}, parsed.error);
     }
     return this.readAllPages((page) => this.listDeclarationHistory(kind, accessToken, {
-      dateFrom: parsed.data.dateFrom, dateTo: parsed.data.dateTo, typeDate: 2, page, size: 100,
+      ...(parsed.data.dateFrom ? { dateFrom: parsed.data.dateFrom, dateTo: parsed.data.dateTo, typeDate: 2 as const } : {}), page, size: 100,
     }, signal), signal);
   }
 

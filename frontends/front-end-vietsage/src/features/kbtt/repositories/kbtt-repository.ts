@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
 import {
   kbttReconciliationSchema,
@@ -82,12 +83,28 @@ function catalogPath(kind: KbttCatalogKind, parentCode?: string) {
 }
 
 export const kbttRepository = {
-  async reconciliation(hotelId: string, signal?: AbortSignal, force = false, localOnly = false): Promise<KbttReconciliation> {
+  async ensureReconciliationSession(hotelId: string, signal?: AbortSignal): Promise<void> {
     const payload = await requestInternalApiEnvelope<unknown>(
-      `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/kbtt/reconciliation${localOnly ? "?localOnly=true" : force ? "?force=true" : ""}`,
-      { method: "GET", signal },
+      `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/kbtt/reconciliation/session`,
+      { method: "POST", signal },
     );
-    return kbttReconciliationSchema.parse(payload.data);
+    z.object({ ready: z.literal(true) }).parse(payload.data);
+  },
+  async reconciliation(hotelId: string, signal?: AbortSignal, force = false, localOnly = false): Promise<KbttReconciliation> {
+    if (!localOnly) await kbttRepository.ensureReconciliationSession(hotelId, signal);
+    const read = async () => {
+      const payload = await requestInternalApiEnvelope<unknown>(
+        `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/kbtt/reconciliation${localOnly ? "?localOnly=true" : force ? "?force=true" : ""}`,
+        { method: "GET", signal },
+      );
+      return kbttReconciliationSchema.parse(payload.data);
+    };
+    const result = await read();
+    if (!localOnly && (result.sources.VIETNAMESE.state === "NEEDS_LOGIN" || result.sources.FOREIGN.state === "NEEDS_LOGIN")) {
+      await kbttRepository.ensureReconciliationSession(hotelId, signal);
+      return read();
+    }
+    return result;
   },
   async connection(
     hotelId: string,

@@ -31,8 +31,8 @@ describe("KbttProviderReadClient GET-only boundary", () => {
 
   it("uses all ten exact collection paths exclusively as GET, with caller bearer and no request body", async () => {
     const cases: Array<[() => Promise<unknown>, string]> = [
-      [() => client.listResidents("VIETNAMESE", {}, "token"), "/client-service/kbtt-vn/get-all-by-cslt?search=&soPhong=&page=0&size=50"],
-      [() => client.listResidents("FOREIGN", {}, "token"), "/client-service/kbtt/get-all-by-cslt?search=&soPhong=&page=0&size=50"],
+      [() => client.listResidents("VIETNAMESE", {}, "token"), "/client-service/kbtt-vn/get-all-by-cslt?page=0&size=50"],
+      [() => client.listResidents("FOREIGN", {}, "token"), "/client-service/kbtt/get-all-by-cslt?page=0&size=50"],
       [() => client.getResident("VIETNAMESE", "id 1", "token"), "/client-service/kbtt-vn/id%201"],
       [() => client.getResident("FOREIGN", "id 1", "token"), "/client-service/kbtt/id%201"],
       [() => client.lookupVietnamese("00123", "token"), "/client-service/kbtt-vn/tra-cuu-nvn?soGiayTo=00123"],
@@ -171,6 +171,19 @@ describe("KbttProviderReadClient GET-only boundary", () => {
 
     it.each([
       ["residents", "VIETNAMESE"], ["residents", "FOREIGN"], ["history", "VIETNAMESE"], ["history", "FOREIGN"],
+    ] as const)("reads unfiltered %s pages for %s with pagination parameters only", async (source, kind) => {
+      const first = row(kind, "fixture-old-arrival");
+      const second = row(kind, "fixture-another-arrival");
+      fetchMock.mockResolvedValueOnce(response([first], 2)).mockResolvedValueOnce(response([second], 2));
+      const result = source === "residents" ? await client.readAllResidents(kind, "token") : await client.readAllHistory(kind, "token");
+      expect(result).toEqual([first, second]);
+      expect(fetchMock.mock.calls.map(([url]) => [...url.searchParams.entries()])).toEqual([
+        [["page", "0"], ["size", "100"]], [["page", "1"], ["size", "100"]],
+      ]);
+    });
+
+    it.each([
+      ["residents", "VIETNAMESE"], ["residents", "FOREIGN"], ["history", "VIETNAMESE"], ["history", "FOREIGN"],
     ] as const)("reads every %s page for %s and preserves complete rows", async (source, kind) => {
       const first = [row(kind, "fixture-a"), row(kind, "fixture-b")];
       const second = [{ ...row(kind, "fixture-c"), providerExtension: { retained: true } }];
@@ -227,9 +240,9 @@ describe("KbttProviderReadClient GET-only boundary", () => {
       await expect(client.readAllResidents("FOREIGN", "token")).rejects.toMatchObject({ kind: "INCOMPLETE" });
       expect(fetchMock).toHaveBeenCalledTimes(100);
     });
-    it("rejects invalid source kind and missing history bounds before network access", () => {
+    it("rejects invalid source kind and invalid supplied history bounds before network access", () => {
       expect(() => client.readAllResidents("OTHER" as never, "token")).toThrow(KbttProviderReadError);
-      for (const query of [{}, { dateFrom: "2026-01-01" }, { dateFrom: "2026-02-31", dateTo: "2026-03-01" }]) {
+      for (const query of [{ dateFrom: "2026-01-01" }, { dateFrom: "2026-02-31", dateTo: "2026-03-01" }]) {
         expect(() => client.readAllHistory("VIETNAMESE", "token", query as never)).toThrow(KbttProviderReadError);
       }
       expect(fetchMock).not.toHaveBeenCalled();

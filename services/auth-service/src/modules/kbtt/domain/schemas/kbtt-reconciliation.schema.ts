@@ -15,9 +15,10 @@ export const kbttReconciliationRowSchema = z.object({
   kind: z.enum(["VIETNAMESE", "FOREIGN"]).nullable(), occupantId: z.string().nullable(), stayId: z.string().nullable(),
   roomId: z.string().nullable(), roomNumber: z.string().nullable(), groupCode: z.string().nullable(), fullName: z.string(),
   identityNumber: z.string().nullable(), documentType: z.number().nullable(), nationality: z.string().nullable(),
-  checkedInAt: z.string().nullable(), plannedCheckOutAt: z.string().nullable(),
+  checkedInAt: z.string().nullable(), plannedCheckOutAt: z.string().nullable(), checkedOutAt: z.string().nullable(),
   status: z.enum(["MATCHED", "NOT_FOUND", "REVIEW"]).nullable(), reason: z.string().nullable(), bcaRecordId: z.string().nullable(),
   declarationStatus: z.string().nullable(), providerMessage: z.string().nullable(), canRetry: z.boolean(),
+  draftPayload: z.record(z.string(), z.unknown()).nullable(),
 });
 export const kbttReconciliationResponseSchema = z.object({
   items: z.array(kbttReconciliationRowSchema), checkedAt: z.string().nullable(),
@@ -28,11 +29,12 @@ export type KbttReconciliationResponse = z.infer<typeof kbttReconciliationRespon
 
 const nullableString = { type: "string", nullable: true };
 const rowProperties = {
-  ...Object.fromEntries(["occupantId", "stayId", "roomId", "roomNumber", "groupCode", "identityNumber", "nationality", "checkedInAt", "plannedCheckOutAt", "reason", "bcaRecordId", "declarationStatus", "providerMessage"].map((key) => [key, nullableString])),
+  ...Object.fromEntries(["occupantId", "stayId", "roomId", "roomNumber", "groupCode", "identityNumber", "nationality", "checkedInAt", "plannedCheckOutAt", "checkedOutAt", "reason", "bcaRecordId", "declarationStatus", "providerMessage"].map((key) => [key, nullableString])),
   id: { type: "string" }, source: { type: "string", enum: ["VIETSAGE", "BCA_ONLY"] },
   kind: { type: "string", enum: ["VIETNAMESE", "FOREIGN"], nullable: true },
   fullName: { type: "string" }, documentType: { type: "number", nullable: true },
   status: { type: "string", enum: ["MATCHED", "NOT_FOUND", "REVIEW"], nullable: true }, canRetry: { type: "boolean" },
+  draftPayload: { type: "object", additionalProperties: true, nullable: true },
 };
 const sourceProperties = {
   state: { type: "string", enum: ["PENDING", "COMPLETE", "FAILED", "NOT_CONNECTED", "NEEDS_LOGIN", "INCOMPLETE"] }, checkedAt: nullableString,

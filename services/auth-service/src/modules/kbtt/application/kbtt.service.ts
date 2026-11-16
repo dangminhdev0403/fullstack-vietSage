@@ -58,7 +58,8 @@ import {
   type KbttSubmitOutcome,
 } from "../infrastructure/kbtt-provider.client";
 import { KbttRepository } from "../infrastructure/kbtt.repository";
-import { composeKbttDraft, compactKbttDraft } from "../domain/kbtt-draft-profile";
+import { composeKbttDraft, compactKbttDeclarationDraft, markKbttDeclarationDates } from "../domain/kbtt-draft-profile";
+import { isValidCalendarDateTime } from "../domain/schemas/kbtt.schema";
 import { providerDay } from "../domain/kbtt-stay-sync";
 import { KbttStaySyncService } from "./kbtt-stay-sync.service";
 import {
@@ -248,7 +249,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
           !["ACTIVE", "CHECKED_IN", "CHECKOUT_PENDING"].includes(current.stay.status) ||
           !guest || typeof guest !== "object" ||
           !("ngayDiDuKienStr" in guest) ||
-          providerDay(guest.ngayDiDuKienStr) !== toYmd(current.stay.plannedCheckOutAt, VIETNAM_TIME_ZONE)) {
+          providerDay(guest.ngayDiDuKienStr) !== providerDay(composeKbttDraft(kind, (current.draftPayloadJson ?? {}) as Record<string, unknown>, { fullName: "", stay: current.stay }).ngayDiDuKienStr)) {
         return { outcome: "BUSINESS_REJECTION", code: "LOCAL_STATE_CHANGED",
           message: "Lượt lưu trú đã thay đổi; cần cập nhật hồ sơ trước khi gửi." };
       }
@@ -301,7 +302,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     citizenshipKind: 'VIETNAMESE' | 'FOREIGN', data: Record<string, unknown>,
     occupant: NonNullable<Awaited<ReturnType<KbttRepository['findOccupant']>>> | ActiveStayOccupantRow,
   ): Prisma.InputJsonValue {
-    return compactKbttDraft(citizenshipKind, data, occupant) as Prisma.InputJsonValue;
+    return compactKbttDeclarationDraft(citizenshipKind, data, occupant) as Prisma.InputJsonValue;
   }
 
   async get(userId: string, roleId: string, hotelId: string) {
@@ -835,11 +836,16 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
         : {};
     const draftData = this.withOccupantDefaults(
       citizenshipKind,
-      { ...previousData, ...data },
+      markKbttDeclarationDates({ ...previousData, ...data }, data),
       occupant,
     );
 
     const identityNumber = citizenshipKind === 'VIETNAMESE' ? draftData.soGiayTo : draftData.soHoChieu;
+    const arrival = draftData.ngayDenCsltStr;
+    const departure = draftData.ngayDiDuKienStr;
+    if (typeof arrival !== "string" || typeof departure !== "string" || !isValidCalendarDateTime(arrival) || !isValidCalendarDateTime(departure) || departure < arrival) {
+      throw new BadRequestException({ code: "KBTT_PAYLOAD_INVALID", message: "Ngày nhận/trả không hợp lệ; ngày trả phải từ ngày nhận trở đi." });
+    }
     const profile = {
       citizenshipKind,
       identityNumber: typeof identityNumber === 'string' ? identityNumber : undefined,
@@ -871,9 +877,48 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     return cached.session;
   }
 
+  /** Explicit POST preparation shared by front-desk entry and its connection action. */
+  async ensureReconciliationSession(userId: string, roleId: string, hotelId: string) {
+    await this.access.assertHotelAccess(userId, roleId, hotelId);
+    return this.serialize(hotelId, async () => {
+      const connection = await this.repository.find(hotelId);
+      if (!connection) throw new NotFoundException({ code: "KBTT_NOT_CONFIGURED", message: "Khách sạn chưa cấu hình kết nối BCA." });
+      let session: KbttSession;
+      try {
+        session = await this.getOrRefreshSession(hotelId, connection, false);
+        if (session.Exp * 1000 <= Date.now() + 5_000) throw kbttProviderError("KBTT_PROVIDER_INVALID_RESPONSE");
+      } catch (error) {
+        this.sessions.delete(hotelId);
+        const failure = stableKbttError(error);
+        await this.repository.update(connection, {
+          status: failure.authenticationFailed ? "AUTH_FAILED" : connection.status,
+          lastCheckedAt: new Date(), lastErrorCode: failure.code, lastErrorMessage: failure.message,
+        });
+        if (failure.stable) throw error;
+        throw kbttProviderError("KBTT_PROVIDER_UNAVAILABLE");
+      }
+      const current = await this.repository.find(hotelId);
+      if (!current || current.ciphertext !== connection.ciphertext || current.csltId !== session.CsltId) {
+        if (this.sessions.get(hotelId)?.session === session) this.sessions.delete(hotelId);
+        throw new ConflictException("Kết nối BCA đã thay đổi. Vui lòng thử lại.");
+      }
+      await this.repository.update(current, {
+        ...kbttMetadata(session), status: "CONNECTED", lastCheckedAt: new Date(),
+        lastErrorCode: null, lastErrorMessage: null,
+      });
+      return { ready: true as const };
+    });
+  }
+
+  expireRejectedReadSession(hotelId: string, session: KbttSession) {
+    const cached = this.sessions.get(hotelId);
+    if (cached?.session === session) this.sessions.set(hotelId, { ...cached, session: { ...session, Exp: 0 } });
+  }
+
   private async getOrRefreshSession(
     hotelId: string,
     connection: KbttHotelConnection,
+    revokePrevious = true,
   ): Promise<KbttSession> {
     const cached = this.sessions.get(hotelId);
     let session: KbttSession;
@@ -908,7 +953,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     }
     this.sessions.set(hotelId, { ciphertext: connection.ciphertext, session,
       profile: cached?.ciphertext === connection.ciphertext && cached.session.CsltId === session.CsltId ? cached.profile : undefined });
-    if (cached && cached.session.AccessToken !== session.AccessToken) {
+    if (revokePrevious && cached && cached.session.AccessToken !== session.AccessToken) {
       await this.revoke(cached.session.AccessToken);
     }
     return session;

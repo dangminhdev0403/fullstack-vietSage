@@ -15,10 +15,10 @@ export function useInHouseBca(hotelId: string, stayIds: string[], enabled: boole
   return useQuery({ ...options, enabled: enabled && Boolean(scope), refetchInterval: 10_000 });
 }
 
-export function InHouseBcaControls({ hotelId }: { hotelId: string }) {
+export function InHouseBcaControls({ hotelId, canManage = true }: { hotelId: string; canManage?: boolean }) {
   const resource = useMemo(() => kbttResource.bind({ hotelId }), [hotelId]);
   const connection = useQuery(resource.queries.connection.options());
-  return <KbttAutoSubmitSwitch hotelId={hotelId} canManage={true} isConnected={connection.isSuccess && connection.data.status === "CONNECTED"} />;
+  return <KbttAutoSubmitSwitch hotelId={hotelId} canManage={canManage} isConnected={connection.isSuccess && connection.data.status === "CONNECTED"} />;
 }
 
 export type BcaSummaryInfo = {

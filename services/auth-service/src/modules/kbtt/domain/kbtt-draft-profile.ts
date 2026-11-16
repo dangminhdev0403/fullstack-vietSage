@@ -1,10 +1,33 @@
-import { isValidCalendarDate, normalizeDateStringToIso } from './schemas/kbtt.schema';
+import { isValidCalendarDate, isValidCalendarDateTime, normalizeDateStringToIso } from './schemas/kbtt.schema';
 import { formatLocalDateTime, VIETNAM_TIME_ZONE } from '../../../common/time/vietnam-temporal';
 
 export interface KbttDraftOccupant {
   fullName: string; dateOfBirth?: string | null; gender?: string | null; identityNumber?: string | null; nationality?: string | null;
   roomNumber?: string; checkedInAt?: Date | null; plannedCheckInAt?: Date; plannedCheckOutAt?: Date;
   stay?: { room?: { roomNumber: string }; checkedInAt?: Date | null; plannedCheckInAt?: Date; plannedCheckOutAt?: Date };
+}
+
+const DATE_OVERRIDES = '__kbttDeclarationDates';
+const DECLARATION_DATE_FIELDS = ['ngayDenCsltStr', 'ngayDiDuKienStr'] as const;
+
+/** Internal provenance distinguishes explicit edits from legacy duplicated PMS timestamps. */
+export function markKbttDeclarationDates(data: Record<string, unknown>, edits: Record<string, unknown>): Record<string, unknown> {
+  const raw = data[DATE_OVERRIDES];
+  const dates: Record<string, unknown> = raw && typeof raw === 'object' && !Array.isArray(raw) ? { ...raw } : {};
+  if (DECLARATION_DATE_FIELDS.some((key) => Object.hasOwn(edits, key))) {
+    delete dates.baseDeparture;
+    delete dates.baseArrival;
+  }
+  for (const key of DECLARATION_DATE_FIELDS) if (Object.hasOwn(edits, key)) dates[key] = edits[key];
+  return { ...data, [DATE_OVERRIDES]: dates };
+}
+
+export function compactKbttDeclarationDraft(kind: 'VIETNAMESE' | 'FOREIGN', data: Record<string, unknown>, occupant: KbttDraftOccupant): Record<string, unknown> {
+  const compact = compactKbttDraft(kind, data, occupant);
+  const defaults = composeKbttDraft(kind, {}, occupant);
+  const dates = Object.fromEntries(DECLARATION_DATE_FIELDS.filter((key) => typeof data[key] === 'string' && isValidCalendarDateTime(data[key] as string) && data[key] !== defaults[key]).map((key) => [key, data[key]]));
+  if (Object.keys(dates).length) compact[DATE_OVERRIDES] = { ...dates, baseArrival: defaults.ngayDenCsltStr ?? null, baseDeparture: defaults.ngayDiDuKienStr ?? null };
+  return compact;
 }
 
 function formatVietnamDateTime(date: Date | string): string {
@@ -35,6 +58,17 @@ export function composeKbttDraft(
     if (plannedCheckOutAt) {
       draft.ngayDiDuKienStr = formatVietnamDateTime(plannedCheckOutAt);
     }
+    const dates = data[DATE_OVERRIDES];
+    if (dates && typeof dates === 'object' && !Array.isArray(dates)) {
+      const context = dates as Record<string, unknown>;
+      const unchanged = (!Object.hasOwn(context, 'baseArrival') || context.baseArrival === draft.ngayDenCsltStr) &&
+        (!Object.hasOwn(context, 'baseDeparture') || context.baseDeparture === draft.ngayDiDuKienStr);
+      for (const key of DECLARATION_DATE_FIELDS) {
+        const value = (dates as Record<string, unknown>)[key];
+        if (unchanged && typeof value === 'string' && isValidCalendarDateTime(value)) draft[key] = value;
+      }
+    }
+    delete draft[DATE_OVERRIDES];
     if (!draft.ngayThangNamSinhStr && occupant.dateOfBirth) {
       const birthDate = occupant.dateOfBirth.trim();
       if (/^\d{4}$/.test(birthDate)) {
@@ -68,7 +102,7 @@ export function composeKbttDraft(
           draft.loaiGiayTo = 4;
         }
       }
-      if (!draft.lyDoCuTru) draft.lyDoCuTru = 1;
+      draft.lyDoCuTru = 1;
     } else {
       if (!draft.soHoChieu && identityNumber && /^[A-Za-z0-9]{1,32}$/.test(identityNumber)) {
         draft.soHoChieu = identityNumber;

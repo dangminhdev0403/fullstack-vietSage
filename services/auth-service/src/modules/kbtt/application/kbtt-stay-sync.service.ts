@@ -164,7 +164,7 @@ export class KbttStaySyncService {
       const current = declaration?.stay;
       if (!current || declaration?.status !== "SENDING" || declaration.submittedCsltId !== csltId ||
           current.checkedOutAt || !ACTIVE_STAYS.has(current.status) ||
-          providerDay(guest.ngayDiDuKienStr) !== toYmd(current.plannedCheckOutAt, VIETNAM_TIME_ZONE)) {
+          providerDay(guest.ngayDiDuKienStr) !== providerDay(composeKbttDraft(kind, (declaration.draftPayloadJson ?? {}) as Record<string, unknown>, { fullName: "", stay: current }).ngayDiDuKienStr)) {
         return localRejection("LOCAL_STATE_CHANGED", "Lượt lưu trú đã thay đổi; cần cập nhật hồ sơ trước khi gửi.");
       }
       if (!(await this.repository.renew(connection.csltId, token))) {
@@ -336,3 +336,4 @@ export class KbttStaySyncService {
     }
   }
 }
+import { composeKbttDraft } from "../domain/kbtt-draft-profile";

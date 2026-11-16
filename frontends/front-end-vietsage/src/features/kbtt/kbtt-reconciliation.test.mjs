@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import ts from "typescript";
+import * as zod from "zod";
 import { kbttReconciliationSchema, canRetryReconciledGuest } from "./types/kbtt-contract.ts";
 
 const row = {
@@ -25,10 +26,11 @@ test("requires both country results and preserves partial failures without defau
   assert.equal(kbttReconciliationSchema.safeParse({ ...response, items: null }).success, false);
 });
 
-test("only confirmed failed local sends with missing BCA record can be retried", () => {
+test("only confirmed absent local stays with safe send states can be submitted", () => {
   assert.equal(canRetryReconciledGuest(row), true);
   for (const status of ["MATCHED", "REVIEW", null]) assert.equal(canRetryReconciledGuest({ ...row, status }), false);
-  for (const declarationStatus of ["SENDING", "UNKNOWN", "SUBMITTED", "READY", "DRAFT", null]) assert.equal(canRetryReconciledGuest({ ...row, declarationStatus }), false);
+  for (const declarationStatus of ["SENDING", "UNKNOWN", "SUBMITTED"]) assert.equal(canRetryReconciledGuest({ ...row, declarationStatus }), false);
+  for (const declarationStatus of ["FAILED", "READY", "DRAFT", null]) assert.equal(canRetryReconciledGuest({ ...row, declarationStatus }), true);
   assert.equal(canRetryReconciledGuest({ ...row, source: "BCA_ONLY", occupantId: null }), false);
   assert.equal(canRetryReconciledGuest({ ...row, canRetry: false }), false);
   assert.equal(kbttReconciliationSchema.safeParse({ ...response, items: [{ ...row, source: "BCA_ONLY" }] }).success, false);
@@ -37,7 +39,7 @@ test("only confirmed failed local sends with missing BCA record can be retried",
 
 function loadModule(file, dependencies) {
   const source = readFileSync(new URL(file, import.meta.url), "utf8");
-  const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
+  const compiled = ts.transpileModule(source, { fileName: file, compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText;
   const module = { exports: {} };
   new Function("require", "module", "exports", compiled)((name) => {
     const key = Object.keys(dependencies).find((part) => name.includes(part));
@@ -67,18 +69,31 @@ test("one hotel-scoped resource request refreshes both countries, independently 
   await assert.rejects(query.queryFn({ scope: { hotelId: "hotel-1" }, signal }), /unavailable/);
 });
 
-test("repository uses one GET with force and refuses malformed reconciliation instead of manufacturing empty rows", async () => {
+test("in-house view exposes only two BCA labels and blocks retries when either country is incomplete", () => {
+  const source = readFileSync(new URL("./components/in-house-reconciliation.tsx", import.meta.url), "utf8");
+  assert.match(source, /MATCHED: \{ label: "Đã có"/);
+  assert.match(source, /NOT_FOUND: \{ label: "Chưa có"/);
+  assert.doesNotMatch(source, /REVIEW: \{ label:/);
+  assert.match(source, /query\.data\.sources\.VIETNAMESE\.state === "COMPLETE" && query\.data\.sources\.FOREIGN\.state === "COMPLETE"/);
+  assert.match(source, /row\.checkedOutAt \? "Đã trả phòng" : "Đang ở"/);
+});
+
+test("repository ensures its BCA session before full GET and refuses malformed reconciliation", async () => {
   const calls = []; let payload = { data: response };
   const contract = await import("./types/kbtt-contract.ts");
   const { kbttRepository: repository } = loadModule("./repositories/kbtt-repository.ts", {
-    "internal-api-client": { requestInternalApiEnvelope: async (...args) => { calls.push(args); return payload; } },
+    "internal-api-client": { requestInternalApiEnvelope: async (...args) => { calls.push(args); return args[1].method === "POST" ? { data: { ready: true } } : payload; } },
     "kbtt-contract": contract,
+    "zod": zod,
   });
   const signal = new AbortController().signal;
   assert.equal((await repository.reconciliation("hotel/1", signal, true)).sources.FOREIGN.state, "NEEDS_LOGIN");
-  assert.equal(calls.length, 1);
-  assert.equal(calls[0][0], "/api/hotel-ops/hotels/hotel%2F1/kbtt/reconciliation?force=true");
-  assert.deepEqual(calls[0][1], { method: "GET", signal });
+  assert.equal(calls.length, 4);
+  assert.equal(calls[0][0], "/api/hotel-ops/hotels/hotel%2F1/kbtt/reconciliation/session");
+  assert.deepEqual(calls[0][1], { method: "POST", signal });
+  assert.equal(calls[1][0], "/api/hotel-ops/hotels/hotel%2F1/kbtt/reconciliation?force=true");
+  assert.deepEqual(calls[1][1], { method: "GET", signal });
+  assert.deepEqual(calls.map((call) => call[1].method), ["POST", "GET", "POST", "GET"]);
   payload = { data: { items: [] } };
   await assert.rejects(repository.reconciliation("hotel-1", signal, true));
 });
@@ -116,9 +131,73 @@ test("local-only repository GET bypasses force provider reads and validates its 
   const { kbttRepository: repository } = loadModule("./repositories/kbtt-repository.ts", {
     "internal-api-client": { requestInternalApiEnvelope: async (...args) => { calls.push(args); return { data: pending }; } },
     "kbtt-contract": contract,
+    "zod": zod,
   });
   const result = await repository.reconciliation("hotel-1", undefined, false, true);
   assert.equal(calls[0][0], "/api/hotel-ops/hotels/hotel-1/kbtt/reconciliation?localOnly=true");
   assert.equal(calls[0][1].method, "GET");
+  assert.equal(calls.length, 1);
   assert.equal(result.items[0].status, null);
+});
+
+
+test("failed or malformed session readiness never starts provider reconciliation GET", async () => {
+  const contract = await import("./types/kbtt-contract.ts");
+  for (const result of [new Error("BCA authentication failed"), { data: { ready: false } }, { data: {} }]) {
+    const calls = [];
+    const { kbttRepository: repository } = loadModule("./repositories/kbtt-repository.ts", {
+      "internal-api-client": { requestInternalApiEnvelope: async (...args) => {
+        calls.push(args);
+        if (result instanceof Error) throw result;
+        return result;
+      } },
+      "kbtt-contract": contract,
+      "zod": zod,
+    });
+    await assert.rejects(repository.reconciliation("hotel-1", undefined, true));
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0][1].method, "POST");
+  }
+});
+
+test("session BFF only forwards a validated scoped auth maintenance POST and returns no credentials", async () => {
+  const calls = [];
+  const { POST } = loadModule("../../app/api/hotel-ops/hotels/[hotelId]/kbtt/reconciliation/session/route.ts", {
+    "next/server": { NextResponse: { json: (body, options) => Response.json(body, options) } },
+    "zod": zod,
+    "hotel-ops/_utils": {
+      executeHotelOpsBackendRequest: async (_name, run) => run("local-app-token"),
+      validationErrorResponse: (message) => Response.json({ message }, { status: 400 }),
+      hotelOpsHttpErrorResponse: () => Response.json({}, { status: 502 }),
+      unknownServerErrorResponse: () => Response.json({}, { status: 500 }),
+    },
+    "http-error": { HttpError: class extends Error {} },
+    "http-server": { httpServer: { request: async (...args) => { calls.push(args); return { data: { ready: true, accessToken: "must-not-return" } }; } } },
+  });
+  const response = await POST(new Request("http://localhost"), { params: Promise.resolve({ hotelId: "hotel/1" }) });
+  assert.equal(response.headers.get("Cache-Control"), "no-store");
+  assert.deepEqual((await response.json()).data, { ready: true });
+  assert.equal(calls[0][0], "POST");
+  assert.equal(calls[0][1], "/hotels/hotel%2F1/kbtt/reconciliation/session");
+  assert.equal((await POST(new Request("http://localhost"), { params: Promise.resolve({ hotelId: "" }) })).status, 400);
+  assert.equal(calls.length, 1);
+});
+
+
+test("revoked cached BCA token is repaired once and refetches both country results", async () => {
+  const contract = await import("./types/kbtt-contract.ts");
+  const calls = [];
+  const { kbttRepository: repository } = loadModule("./repositories/kbtt-repository.ts", {
+    "internal-api-client": { requestInternalApiEnvelope: async (...args) => {
+      calls.push(args);
+      if (args[1].method === "POST") return { data: { ready: true } };
+      return { data: calls.length === 2 ? response : { ...response, sources: { VIETNAMESE: complete, FOREIGN: complete } } };
+    } },
+    "kbtt-contract": contract,
+    "zod": zod,
+  });
+  const result = await repository.reconciliation("hotel-1", undefined, true);
+  assert.deepEqual(calls.map((call) => call[1].method), ["POST", "GET", "POST", "GET"]);
+  assert.equal(result.sources.VIETNAMESE.state, "COMPLETE");
+  assert.equal(result.sources.FOREIGN.state, "COMPLETE");
 });

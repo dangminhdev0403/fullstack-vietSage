@@ -1515,6 +1515,8 @@ export function DeclarationModal({
   connectionIssue,
   isDevMode: _isDevMode = false,
   retryFailedOnly = false,
+  sendBlockedReason = null,
+  verifyBeforeSubmit,
   onClose,
   onUpdated,
 }: {
@@ -1525,6 +1527,8 @@ export function DeclarationModal({
   connectionIssue: string | null;
   isDevMode?: boolean;
   retryFailedOnly?: boolean;
+  sendBlockedReason?: string | null;
+  verifyBeforeSubmit?: () => Promise<void>;
   onClose: () => void;
   onUpdated: () => void;
 }) {
@@ -1779,6 +1783,7 @@ export function DeclarationModal({
     event.preventDefault();
     if (retryFailedOnly && detailQuery.data?.declaration?.status !== "FAILED") return;
     if (!canManage || isReadOnly || saveMutation.isPending || submitMutation.isPending || isSavingDraft) return;
+    if (sendBlockedReason) { setSubmissionError(sendBlockedReason); return; }
     setSubmissionError(null);
     if (connectionIssue) {
       setSubmissionError(connectionIssue);
@@ -1798,6 +1803,7 @@ export function DeclarationModal({
           allowSubmittedEdit: true,
         },
       });
+      await verifyBeforeSubmit?.();
       const record = await submitMutation.mutateAsync({ occupantId });
       const issue = getKbttSubmissionIssue(record);
       if (issue) {
@@ -2648,10 +2654,10 @@ export function DeclarationModal({
                 {canManage && !isReadOnly && (!retryFailedOnly || detailQuery.data?.declaration?.status === "FAILED") ? (
                   <button
                     type="submit"
-                    disabled={isBusy}
+                    disabled={isBusy || Boolean(sendBlockedReason)}
                     className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#064e3b] px-6 py-3 text-base font-bold text-white shadow-md transition-all hover:bg-[#043327] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#064e3b] disabled:opacity-50"
                   >
-                    {submitMutation.isPending ? "Đang gửi…" : "Lưu & Gửi BCA"}
+                    {submitMutation.isPending ? "Đang gửi…" : detailQuery.data?.declaration?.status === "FAILED" ? "Gửi lại BCA" : "Gửi BCA"}
                   </button>
                 ) : isActuallySubmitted ? (
                   <span className="inline-flex min-h-12 items-center rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-base font-semibold text-emerald-800 whitespace-nowrap">
@@ -2664,6 +2670,7 @@ export function DeclarationModal({
                 ) : null}
               </div>
             </div>
+            {canManage && !isReadOnly && sendBlockedReason ? <p role="status" className="px-8 pb-4 text-base text-amber-900">{sendBlockedReason}</p> : null}
           </form>
         )}
       </div>

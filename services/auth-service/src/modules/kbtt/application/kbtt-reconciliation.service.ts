@@ -9,6 +9,7 @@ import { composeKbttDraft } from "../domain/kbtt-draft-profile";
 import { reconcileGuests, reconciliationArrivalDay, type LocalReconciliationGuest, type ProviderReconciliationGuest, type ReconciliationKind } from "../domain/kbtt-reconciliation";
 import { type KbttReconciliationResponse, type ReconciliationSource } from "../domain/schemas/kbtt-reconciliation.schema";
 import type { KbttSession } from "../domain/schemas/kbtt.schema";
+import { kbttForeignDraftDataSchema, kbttVietnameseDraftDataSchema } from "../domain/schemas/kbtt.schema";
 import { VIETNAM_TIME_ZONE, toYmd, plainDateAtTime } from "../../../common/time/vietnam-temporal";
 
 type KindRead = { guests: ProviderReconciliationGuest[]; source: ReconciliationSource };
@@ -22,6 +23,8 @@ const providerId = (value: unknown): string | null => typeof value === "number" 
 export class KbttReconciliationService implements OnModuleDestroy {
   private readonly snapshots = new Map<string, { session: KbttSession; expiresAt: number; value: RemoteSnapshot }>();
   private readonly pending = new Map<string, { session: KbttSession; value: Promise<RemoteSnapshot> }>();
+  // Retain only projected views in process memory; login/logout never imports provider guests.
+  private readonly lastKnown = new Map<string, KbttReconciliationResponse>();
   constructor(
     private readonly access: HotelAccessService,
     private readonly repository: KbttRepository,
@@ -30,7 +33,7 @@ export class KbttReconciliationService implements OnModuleDestroy {
     private readonly provider: KbttProviderReadClient,
   ) {}
 
-  onModuleDestroy() { this.snapshots.clear(); this.pending.clear(); }
+  onModuleDestroy() { this.snapshots.clear(); this.pending.clear(); this.lastKnown.clear(); }
 
   async get(userId: string, roleId: string, hotelId: string, force = false, localOnly = false): Promise<KbttReconciliationResponse> {
     await this.access.assertHotelAccess(userId, roleId, hotelId);
@@ -45,6 +48,13 @@ export class KbttReconciliationService implements OnModuleDestroy {
       const nationality = row.nationality?.trim().toUpperCase();
       const kind = declaration?.declarationKind ?? row.citizenshipKind ?? (nationality === "VNM" ? "VIETNAMESE" : null);
       const draft = kind ? composeKbttDraft(kind, object(declaration?.draftPayloadJson) ?? {}, row) : {};
+      const allowed = kind === "FOREIGN" ? kbttForeignDraftDataSchema.shape : kbttVietnameseDraftDataSchema.shape;
+      const draftPayload: Record<string, unknown> = {};
+      for (const [key, schema] of Object.entries(allowed)) {
+        if (!Object.hasOwn(draft, key)) continue;
+        const parsed = schema.safeParse(draft[key]);
+        if (parsed.success && parsed.data !== undefined) draftPayload[key] = parsed.data;
+      }
       const identity = str(kind === "FOREIGN" ? draft.soHoChieu : draft.soGiayTo) ?? row.identityNumber;
       const documentType = typeof draft.loaiGiayTo === "number" ? draft.loaiGiayTo
         : kind === "VIETNAMESE" && /^\d{12}$/.test(identity ?? "") ? 1
@@ -52,26 +62,28 @@ export class KbttReconciliationService implements OnModuleDestroy {
       return { id: row.id, stayId: row.stayId, roomId: row.roomId, roomNumber: row.roomNumber,
         groupCode: row.groupCode ?? null, fullName: row.fullName, identityNumber: identity,
         kind, documentType, nationality: str(draft.quocTich) ?? row.nationality,
-        checkedInAt: row.checkedInAt?.toISOString() ?? null, plannedCheckOutAt: row.plannedCheckOutAt.toISOString(),
-        declarationStatus: declaration?.status ?? null, providerMessage: declaration?.providerMessage ?? null, linkedBcaId: null };
+        checkedInAt: this.providerInstant(draft.ngayDenCsltStr) ?? row.checkedInAt?.toISOString() ?? null,
+        plannedCheckOutAt: this.providerInstant(draft.ngayDiDuKienStr) ?? row.plannedCheckOutAt.toISOString(),
+        declarationStatus: declaration?.status ?? null, providerMessage: declaration?.providerMessage ?? null, linkedBcaId: null, draftPayload };
     });
     const today = toYmd(new Date(), VIETNAM_TIME_ZONE);
     const arrivalDays = local.map((row) => reconciliationArrivalDay(row.checkedInAt)).filter((day): day is string => Boolean(day));
     const range = { dateFrom: arrivalDays.reduce((min, day) => day < min ? day : min, today), dateTo: today };
-    if (localOnly) return {
+    const connection = await this.repository.find(hotelId);
+    const viewKey = JSON.stringify([hotelId, connection?.csltId, connection?.ciphertext, restrictedRooms?.slice().sort() ?? null]);
+    if (localOnly) return this.retainView(viewKey, {
       items: reconcileGuests(local, [], new Set(), ""), checkedAt: null, range,
       sources: { VIETNAMESE: { state: "PENDING", checkedAt: null, error: null }, FOREIGN: { state: "PENDING", checkedAt: null, error: null } },
-    };
-    const connection = await this.repository.find(hotelId);
+    });
     const unavailable = (state: "NOT_CONNECTED" | "NEEDS_LOGIN", message: string): KbttReconciliationResponse => ({
       items: reconcileGuests(local, [], new Set(), connection?.csltId ?? ""), checkedAt: null, range,
       sources: { VIETNAMESE: { state, checkedAt: null, error: { code: "KBTT_RECONCILIATION_" + state, message } },
         FOREIGN: { state, checkedAt: null, error: { code: "KBTT_RECONCILIATION_" + state, message } } },
     });
-    if (!connection || connection.status !== "CONNECTED") return unavailable("NOT_CONNECTED", "Cần kết nối tài khoản BCA để đối soát cả khách Việt Nam và nước ngoài.");
+    if (!connection || connection.status !== "CONNECTED") return this.retainView(viewKey, unavailable("NOT_CONNECTED", "Cần kết nối tài khoản BCA để đối soát cả khách Việt Nam và nước ngoài."));
     const session = this.sessions.getCachedReadSession(hotelId, connection);
-    if (!session) return unavailable("NEEDS_LOGIN", "Phiên BCA chưa sẵn sàng. Kiểm tra kết nối BCA để cập nhật phiên trước khi đối soát.");
-    const snapshot = await this.readBoth(hotelId, session, range, force);
+    if (!session) return this.retainView(viewKey, unavailable("NEEDS_LOGIN", "Phiên BCA chưa sẵn sàng. Kiểm tra kết nối BCA để cập nhật phiên trước khi đối soát."));
+    const snapshot = await this.readBoth(hotelId, session, force);
     const current = await this.repository.find(hotelId);
     if (!current || current.ciphertext !== connection.ciphertext || current.csltId !== connection.csltId ||
         current.status !== "CONNECTED" || this.sessions.getCachedReadSession(hotelId, current) !== session) {
@@ -79,25 +91,55 @@ export class KbttReconciliationService implements OnModuleDestroy {
       return unavailable("NEEDS_LOGIN", "Kết nối BCA đã thay đổi trong lúc đối soát. Vui lòng tải lại.");
     }
     const complete = new Set(KINDS.filter((kind) => snapshot[kind].source.state === "COMPLETE"));
+    if (KINDS.some((kind) => snapshot[kind].source.state === "NEEDS_LOGIN")) this.sessions.expireRejectedReadSession(hotelId, session);
     let items = reconcileGuests(local, [...snapshot.VIETNAMESE.guests, ...snapshot.FOREIGN.guests], complete, connection.csltId);
     // Provider room labels are not an authorization boundary. Restricted users see local scoped guests only.
     if (restrictedRooms !== undefined) items = items.filter((row) => row.source === "VIETSAGE");
     const paused = process.env.KBTT_AUTO_SUBMIT_KILL_SWITCH === "true" || process.env.KBTT_AUTO_SUBMIT_LIVE_ENABLED !== "true";
-    if (paused) items = items.map((row) => ({ ...row, canRetry: false }));
-    return { items, range, checkedAt: complete.size === 2 ? snapshot.VIETNAMESE.source.checkedAt : null,
-      sources: { VIETNAMESE: snapshot.VIETNAMESE.source, FOREIGN: snapshot.FOREIGN.source } };
+    if (paused || complete.size !== 2) items = items.map((row) => ({ ...row, canRetry: false }));
+    return this.retainView(viewKey, { items, range, checkedAt: complete.size === 2 ? snapshot.VIETNAMESE.source.checkedAt : null,
+      sources: { VIETNAMESE: snapshot.VIETNAMESE.source, FOREIGN: snapshot.FOREIGN.source } });
   }
 
-  private async readBoth(hotelId: string, session: KbttSession, range: { dateFrom: string; dateTo: string }, force: boolean): Promise<RemoteSnapshot> {
+  private retainView(key: string, current: KbttReconciliationResponse): KbttReconciliationResponse {
+    const previous = this.lastKnown.get(key);
+    const identity = (row: KbttReconciliationResponse["items"][number]) => JSON.stringify([
+      row.id, row.kind, row.identityNumber, row.documentType, row.nationality, reconciliationArrivalDay(row.checkedInAt),
+    ]);
+    const prior = new Map(previous?.items.map((row) => [identity(row), row]) ?? []);
+    const complete = (kind: ReconciliationKind | null) => kind !== null && current.sources[kind].state === "COMPLETE";
+    const allComplete = KINDS.every((kind) => complete(kind));
+    const items = current.items.map((row) => {
+      const old = !complete(row.kind) ? prior.get(identity(row)) : undefined;
+      return old ? { ...row, status: old.status, bcaRecordId: old.bcaRecordId, reason: old.reason, canRetry: false }
+        : { ...row, canRetry: allComplete && row.canRetry };
+    });
+    const ids = new Set(items.map((row) => row.id));
+    for (const old of previous?.items ?? []) {
+      if (old.source === "BCA_ONLY" && !complete(old.kind) && !ids.has(old.id)) items.push({ ...old, canRetry: false });
+    }
+    const sources = { ...current.sources };
+    for (const kind of KINDS) if (!complete(kind) && previous?.sources[kind].checkedAt) {
+      sources[kind] = { ...sources[kind], checkedAt: previous.sources[kind].checkedAt };
+    }
+    const result = { ...current, items, sources, checkedAt: current.checkedAt ?? previous?.checkedAt ?? null };
+    if (previous || KINDS.some((kind) => complete(kind))) {
+      if (this.lastKnown.size >= 100 && !this.lastKnown.has(key)) this.lastKnown.delete(this.lastKnown.keys().next().value!);
+      this.lastKnown.set(key, result);
+    }
+    return result;
+  }
+
+  private async readBoth(hotelId: string, session: KbttSession, force: boolean): Promise<RemoteSnapshot> {
     const now = Date.now();
     for (const [key, cached] of this.snapshots) if (cached.expiresAt <= now) this.snapshots.delete(key);
-    const key = JSON.stringify([hotelId, session.CsltId, range.dateFrom, range.dateTo]);
+    const key = JSON.stringify([hotelId, session.CsltId]);
     const running = this.pending.get(key);
     if (running?.session === session) return running.value;
     const cached = this.snapshots.get(key);
     if (!force && cached?.session === session && cached.expiresAt > now) return cached.value;
     const signal = AbortSignal.timeout(10_000);
-    const value = Promise.allSettled(KINDS.map((kind) => this.readKind(kind, session, range, signal))).then((results) => {
+    const value = Promise.allSettled(KINDS.map((kind) => this.readKind(kind, session, signal))).then((results) => {
       const reads = results.map((result) => result.status === "fulfilled" ? result.value : { guests: [], source: this.failure(result.reason, session) });
       const snapshot = { VIETNAMESE: reads[0], FOREIGN: reads[1] };
       if (KINDS.every((kind) => snapshot[kind].source.state === "COMPLETE")) {
@@ -110,9 +152,9 @@ export class KbttReconciliationService implements OnModuleDestroy {
     try { return await value; } finally { if (this.pending.get(key)?.value === value) this.pending.delete(key); }
   }
 
-  private async readKind(kind: ReconciliationKind, session: KbttSession, range: { dateFrom: string; dateTo: string }, signal: AbortSignal): Promise<KindRead> {
+  private async readKind(kind: ReconciliationKind, session: KbttSession, signal: AbortSignal): Promise<KindRead> {
     const responses = await Promise.allSettled([
-      this.provider.readAllResidents(kind, session.AccessToken, signal), this.provider.readAllHistory(kind, session.AccessToken, range, signal),
+      this.provider.readAllResidents(kind, session.AccessToken, signal), this.provider.readAllHistory(kind, session.AccessToken, {}, signal),
     ]);
     const guests = new Map<string, ProviderReconciliationGuest>();
     let issue: ReconciliationSource | null = null;
@@ -144,11 +186,18 @@ export class KbttReconciliationService implements OnModuleDestroy {
     const departureText = str(row.ngayDiCslt);
     const departure = this.providerInstant(row.ngayDiCslt);
     if (departureText && !departure) throw new KbttProviderReadError("INCOMPLETE", "Invalid BCA departure timestamp");
-    return { id: str(row.id)!, kind, csltId, fullName: str(row.hoTen)!,
+    const gender = str(row.gioiTinh)?.toUpperCase();
+    const birthDate = str(row.ngayThangNamSinh)?.slice(0, 10);
+    const draftPayload: Record<string, unknown> = {
+      hoTen: str(row.hoTen), ...(gender === "M" || gender === "F" ? { gioiTinh: gender } : {}),
+      ...(birthDate && /^\d{4}-\d{2}-\d{2}$/.test(birthDate) ? { ngayThangNamSinhStr: birthDate } : {}),
+      ...(kind === "VIETNAMESE" ? { soGiayTo: identity, loaiGiayTo: row.loaiGiayTo } : { soHoChieu: identity, quocTich: str(row.quocTich) }),
+    };
+    return { id: str(row.id)!, kind, csltId, fullName: str(row.hoTen)!, draftPayload,
       identityNumber: identity,
       documentType: typeof row.loaiGiayTo === "number" && Number.isSafeInteger(row.loaiGiayTo) ? row.loaiGiayTo : null,
       nationality: str(row.quocTich), arrivalDay: reconciliationArrivalDay(arrival), checkedInAt: arrival,
-      plannedCheckOutAt: this.providerInstant(row.ngayDiDuKien), departed: Boolean(departure),
+      plannedCheckOutAt: this.providerInstant(row.ngayDiDuKien), checkedOutAt: departure, departed: Boolean(departure),
       roomNumber: str(row.soPhong), isActive: active && !departure };
   }
 

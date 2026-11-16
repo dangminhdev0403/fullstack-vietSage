@@ -50,7 +50,7 @@ describe("BCA read-only reconciliation", () => {
 
   it("does not mistake a previous stay for the current arrival", () => {
     const rows = reconcileGuests([local()], [remote({ arrivalDay: "2026-09-12", checkedInAt: "2026-09-12T00:00:00+07:00", departed: true })], all(), "123");
-    expect(rows).toHaveLength(1);
+    expect(rows).toHaveLength(2);
     expect(rows[0].status).toBe("NOT_FOUND");
   });
 
@@ -77,8 +77,13 @@ describe("BCA read-only reconciliation", () => {
     expect(reconcileGuests([vn], [remote()], new Set(), "123")[0].status).toBeNull();
   });
 
-  it.each(["READY", "DRAFT", "SUBMITTED", "SENDING", "UNKNOWN", "CANCELLED", null])("never enables retry merely because %s is absent remotely", (declarationStatus) => {
+  it.each(["SUBMITTED", "SENDING", "UNKNOWN", "CANCELLED"])("never enables retry merely because %s is absent remotely", (declarationStatus) => {
     expect(reconcileGuests([local({ declarationStatus })], [], all(), "123")[0].canRetry).toBe(false);
+  });
+
+  it.each(["READY", "DRAFT", "FAILED", null])("allows validating an absent local %s declaration for sending", (declarationStatus) => {
+    const result = reconcileGuests([local({ declarationStatus })], [], all(), "123");
+    expect(result[0]).toMatchObject({ status: "NOT_FOUND", canRetry: true });
   });
 
   it("never retries a failed declaration whose remote existence was confirmed", () => {
@@ -87,13 +92,14 @@ describe("BCA read-only reconciliation", () => {
 
   it("requires review instead of attaching one BCA record to multiple local guests or stays", () => {
     const rows = reconcileGuests([local(), local({ id: "occupant-b", stayId: "stay-b" })], [remote({ isActive: true })], all(), "123");
-    expect(rows).toHaveLength(2);
-    expect(rows.map((r) => r.status)).toEqual(["REVIEW", "REVIEW"]);
+    expect(rows).toHaveLength(3);
+    expect(rows.filter((r) => r.source === "VIETSAGE").map((r) => r.status)).toEqual(["REVIEW", "REVIEW"]);
+    expect(rows[2]).toMatchObject({ source: "BCA_ONLY", canRetry: false });
   });
 
   it("requires review when several distinct BCA IDs match one local stay", () => {
     const rows = reconcileGuests([local()], [remote({ isActive: true }), remote({ id: "bca-b", isActive: true })], all(), "123");
-    expect(rows).toHaveLength(1);
+    expect(rows).toHaveLength(3);
     expect(rows[0]).toMatchObject({ status: "REVIEW", canRetry: false });
   });
 
@@ -137,16 +143,17 @@ describe("BCA read-only reconciliation", () => {
     expect(rows[0]).toMatchObject({ status: "MATCHED", bcaRecordId: "bca-a" });
   });
 
-  it("renders a provider-only row only for proven active, unassociated evidence", () => {
+  it("renders active and historical provider-only rows without importing guests", () => {
     const rows = reconcileGuests([], [remote({ isActive: true }), remote({ id: "bca-history", identityNumber: "009876543210", isActive: false }),
-      remote({ id: "bca-departed", identityNumber: "008765432109", isActive: true, departed: true })], all(), "123");
-    expect(rows).toHaveLength(1);
+      remote({ id: "bca-departed", identityNumber: "008765432109", isActive: true, departed: true, checkedOutAt: "2026-09-18T12:00:00+07:00" })], all(), "123");
+    expect(rows).toHaveLength(3);
     expect(rows[0]).toMatchObject({ source: "BCA_ONLY", occupantId: null, stayId: null, roomId: null, status: "MATCHED", canRetry: false });
+    expect(rows[2].checkedOutAt).toBe("2026-09-18T12:00:00+07:00");
   });
 
-  it("does not duplicate an uncertain local identity as a provider-only guest", () => {
+  it("keeps unlinked BCA evidence visible when local identity cannot be verified", () => {
     const rows = reconcileGuests([local({ documentType: null })], [remote({ isActive: true })], all(), "123");
-    expect(rows).toHaveLength(1);
+    expect(rows).toHaveLength(2);
     expect(rows[0].status).toBe("REVIEW");
   });
 

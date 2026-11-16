@@ -3877,6 +3877,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/hotels/{hotelId}/kbtt/reconciliation/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Prepare BCA read session: reuse valid token, refresh near expiry or restore saved connection after restart; never submits guests */
+        post: operations["KbttController_ensureReconciliationSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/hotels/{hotelId}/kbtt/reconciliation": {
         parameters: {
             query?: never;
@@ -14235,6 +14252,68 @@ export interface operations {
             };
         };
     };
+    KbttController_ensureReconciliationSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example 200 */
+                        status: number;
+                        /** @example null */
+                        error: {
+                            [key: string]: unknown;
+                        } | null;
+                        /** @example Thành công */
+                        message: string;
+                        data: {
+                            /** @enum {boolean} */
+                            ready: true;
+                        };
+                    };
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Hotel scope or business permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_AUTH_FAILED; sanitized provider authentication failure */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     KbttController_getReconciliation: {
         parameters: {
             query?: {
@@ -14276,6 +14355,7 @@ export interface operations {
                                 nationality: string | null;
                                 checkedInAt: string | null;
                                 plannedCheckOutAt: string | null;
+                                checkedOutAt: string | null;
                                 reason: string | null;
                                 bcaRecordId: string | null;
                                 declarationStatus: string | null;
@@ -14290,6 +14370,9 @@ export interface operations {
                                 /** @enum {string|null} */
                                 status: "MATCHED" | "NOT_FOUND" | "REVIEW" | null;
                                 canRetry: boolean;
+                                draftPayload: {
+                                    [key: string]: unknown;
+                                } | null;
                             }[];
                             checkedAt: string | null;
                             range: {

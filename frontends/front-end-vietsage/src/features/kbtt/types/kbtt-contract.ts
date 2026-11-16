@@ -828,12 +828,13 @@ export const kbttReconciliationRowSchema = z.object({
   kind: citizenshipKindSchema.nullable(), occupantId: z.string().nullable(), stayId: z.string().nullable(), roomId: z.string().nullable(),
   roomNumber: z.string().nullable(), groupCode: z.string().nullable(), fullName: z.string(),
   identityNumber: z.string().nullable(), documentType: z.number().nullable(), nationality: z.string().nullable(),
-  checkedInAt: z.string().nullable(), plannedCheckOutAt: z.string().nullable(),
+  checkedInAt: z.string().nullable(), plannedCheckOutAt: z.string().nullable(), checkedOutAt: z.string().nullable().optional(),
   status: z.enum(["MATCHED", "NOT_FOUND", "REVIEW"]).nullable(), reason: z.string().nullable(), bcaRecordId: z.string().nullable(),
   declarationStatus: z.string().nullable(), providerMessage: z.string().nullable(), canRetry: z.boolean(),
+  draftPayload: z.record(z.string(), z.unknown()).nullable().optional(),
 }).superRefine((row, ctx) => {
   if (row.source === "BCA_ONLY" && (row.occupantId !== null || row.canRetry)) ctx.addIssue({ code: "custom", message: "BCA-only records must remain read-only" });
-  if (row.canRetry && !(row.source === "VIETSAGE" && row.occupantId && row.status === "NOT_FOUND" && row.declarationStatus === "FAILED")) ctx.addIssue({ code: "custom", message: "Unsafe reconciliation retry state" });
+  if (row.canRetry && !(row.source === "VIETSAGE" && row.occupantId && row.status === "NOT_FOUND" && (row.declarationStatus === null || ["DRAFT", "READY", "FAILED"].includes(row.declarationStatus)))) ctx.addIssue({ code: "custom", message: "Unsafe reconciliation retry state" });
 });
 export const kbttReconciliationSchema = z.object({
   items: z.array(kbttReconciliationRowSchema), checkedAt: z.string().nullable(),
@@ -843,5 +844,5 @@ export const kbttReconciliationSchema = z.object({
 export type KbttReconciliationRow = z.infer<typeof kbttReconciliationRowSchema>;
 export type KbttReconciliation = z.infer<typeof kbttReconciliationSchema>;
 export function canRetryReconciledGuest(row: KbttReconciliationRow): boolean {
-  return row.source === "VIETSAGE" && row.occupantId !== null && row.status === "NOT_FOUND" && row.declarationStatus === "FAILED" && row.canRetry;
+  return row.source === "VIETSAGE" && row.occupantId !== null && row.status === "NOT_FOUND" && (row.declarationStatus === null || ["DRAFT", "READY", "FAILED"].includes(row.declarationStatus)) && row.canRetry;
 }

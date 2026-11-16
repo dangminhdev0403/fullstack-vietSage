@@ -15,7 +15,7 @@ function fixture() {
   const access = { assertHotelAccess: jest.fn().mockResolvedValue({}), resolveRoomScope: jest.fn().mockResolvedValue({ mode: "HOTEL_WIDE", allowedRoomId: null }) };
   const repository = { find: jest.fn().mockResolvedValue(connection), findDeclarationsByHotel: jest.fn().mockResolvedValue([]), save: jest.fn(), update: jest.fn(), createDeclaration: jest.fn() };
   const occupants = { getActiveStayOccupants: jest.fn().mockResolvedValue([local]) };
-  const sessions = { getCachedReadSession: jest.fn().mockReturnValue(session), connect: jest.fn(), check: jest.fn() };
+  const sessions = { getCachedReadSession: jest.fn().mockReturnValue(session), expireRejectedReadSession: jest.fn(), connect: jest.fn(), check: jest.fn() };
   const provider = { readAllResidents: jest.fn(async (_kind: string, _token: string): Promise<unknown[]> => []), readAllHistory: jest.fn(async (kind: string, _token: string, _range: unknown): Promise<unknown[]> => kind === "VIETNAMESE" ? [record] : []) };
   const service = new KbttReconciliationService(access as never, repository as never, occupants as never, sessions as never, provider as never);
   return { access, repository, occupants, sessions, provider, service, connection, session, local, record };
@@ -25,11 +25,32 @@ beforeEach(() => { jest.useFakeTimers(); jest.setSystemTime(new Date("2026-11-16
 afterEach(() => { jest.useRealTimers(); process.env = { ...savedEnv }; });
 
 describe("both-country read-only in-house reconciliation", () => {
+  it("retains gender and date of birth from BCA-only history rows for readonly table cells", async () => {
+    const f = fixture(); f.occupants.getActiveStayOccupants.mockResolvedValue([]);
+    f.provider.readAllHistory.mockImplementation(async (kind) => kind === "VIETNAMESE" ? [{ ...f.record, gioiTinh: "M", ngayThangNamSinh: "1990-01-02T00:00:00Z" }] : []);
+    const result = await f.service.get("owner", "role", "hotel-1", true);
+    expect(result.items[0]).toMatchObject({ source: "BCA_ONLY", canRetry: false,
+      draftPayload: { gioiTinh: "M", ngayThangNamSinhStr: "1990-01-02", soGiayTo: f.record.soGiayTo } });
+    expect(result.items[0].occupantId).toBeNull();
+  });
+  it("projects only schema-approved editable draft fields without credentials or provider response metadata", async () => {
+    const f = fixture();
+    f.repository.findDeclarationsByHotel.mockResolvedValue([{
+      occupantId: "occupant-1", status: "DRAFT", declarationKind: "VIETNAMESE",
+      draftPayloadJson: { loaiGiayTo: 1, lyDoCuTru: 1, accessToken: "must-not-leak", internalMetadata: { private: true }, ghiChu: { token: "invalid-value" } },
+    }]);
+    const result = await f.service.get("owner", "role", "hotel-1", false, true);
+    expect(result.items[0].draftPayload).toMatchObject({ hoTen: f.local.fullName, soGiayTo: f.local.identityNumber, loaiGiayTo: 1, lyDoCuTru: 1 });
+    expect(result.items[0].draftPayload).not.toHaveProperty("accessToken");
+    expect(result.items[0].draftPayload).not.toHaveProperty("internalMetadata");
+    expect(result.items[0].draftPayload).not.toHaveProperty("ghiChu");
+    expect(f.provider.readAllHistory).not.toHaveBeenCalled();
+  });
   it("always reads both groups and both active/history sources, even with only VN local guests", async () => {
     const f = fixture(); const result = await f.service.get("owner", "role", "hotel-1", true);
     expect(f.provider.readAllResidents.mock.calls.map((c) => c[0])).toEqual(["VIETNAMESE", "FOREIGN"]);
     expect(f.provider.readAllHistory.mock.calls.map((c) => c[0])).toEqual(["VIETNAMESE", "FOREIGN"]);
-    expect(f.provider.readAllHistory).toHaveBeenCalledWith("FOREIGN", f.session.AccessToken, { dateFrom: "2026-11-16", dateTo: "2026-11-16" }, expect.any(AbortSignal));
+    for (const kind of ["VIETNAMESE", "FOREIGN"]) expect(f.provider.readAllHistory).toHaveBeenCalledWith(kind, f.session.AccessToken, {}, expect.any(AbortSignal));
     expect(result.sources.VIETNAMESE.state).toBe("COMPLETE"); expect(result.sources.FOREIGN.state).toBe("COMPLETE");
     expect(result.items[0]).toMatchObject({ status: "MATCHED", groupCode: "GROUP-1", bcaRecordId: "bca-1" });
     expect(kbttReconciliationResponseSchema.safeParse(result).success).toBe(true);
@@ -70,6 +91,7 @@ describe("both-country read-only in-house reconciliation", () => {
     const result = await f.service.get("owner", "role", "hotel-1", true);
     expect(result.sources.VIETNAMESE.state).toBe("COMPLETE"); expect(result.sources.FOREIGN.state).toBe("NEEDS_LOGIN");
     expect(result.checkedAt).toBeNull(); expect(result.items[0].status).toBeNull();
+    expect(f.sessions.expireRejectedReadSession).toHaveBeenCalledWith("hotel-1", f.session);
   });
   it.each([
     { id: "malformed", hoTen: "Mẫu", csltId: 123 },
@@ -79,12 +101,12 @@ describe("both-country read-only in-house reconciliation", () => {
     const result = await f.service.get("owner", "role", "hotel-1", true);
     expect(result.sources.VIETNAMESE.state).toBe("INCOMPLETE"); expect(result.items[0].status).toBeNull();
   });
-  it("shows only proven BCA-active guests as read-only extra rows, never imports historical departures", async () => {
+  it("shows active and historical BCA guests as read-only rows without imports", async () => {
     const f = fixture(); f.occupants.getActiveStayOccupants.mockResolvedValue([]);
     f.provider.readAllResidents.mockImplementation(async (kind) => kind === "VIETNAMESE" ? [f.record] : []);
     f.provider.readAllHistory.mockImplementation(async (kind) => kind === "VIETNAMESE" ? [{ ...f.record, id: "departed", ngayDiCslt: "2026-11-16T02:00:00+07:00" }] : []);
     const result = await f.service.get("owner", "role", "hotel-1", true);
-    expect(result.items).toHaveLength(1); expect(result.items[0]).toMatchObject({ source: "BCA_ONLY", occupantId: null, stayId: null, canRetry: false });
+    expect(result.items).toHaveLength(2); expect(result.items[0]).toMatchObject({ source: "BCA_ONLY", occupantId: null, stayId: null, canRetry: false });
     expect(f.repository.createDeclaration).not.toHaveBeenCalled();
   });
   it("pushes restricted room scope into DB and never exposes unmatched BCA-only guests", async () => {
@@ -109,6 +131,36 @@ describe("both-country read-only in-house reconciliation", () => {
     expect(result.items).toHaveLength(1); expect(result.items[0].status).toBeNull();
     expect(result.sources.VIETNAMESE.state).toBe("PENDING"); expect(result.sources.FOREIGN.state).toBe("PENDING");
     expect(f.sessions.getCachedReadSession).not.toHaveBeenCalled(); expect(f.provider.readAllResidents).not.toHaveBeenCalled(); expect(f.provider.readAllHistory).not.toHaveBeenCalled();
+  });
+
+  it("retains last confirmed rows on failed reads and session expiry, with all sends blocked", async () => {
+    const f = fixture();
+    f.provider.readAllResidents.mockImplementation(async (kind) => kind === "FOREIGN" ? [{ ...f.record, id: "foreign-old", soHoChieu: "TEST001", quocTich: "GBR" }] : []);
+    const first = await f.service.get("owner", "role", "hotel-1", true);
+    expect(first.items).toHaveLength(2);
+    f.provider.readAllHistory.mockRejectedValue(new KbttProviderReadError("NETWORK", "offline"));
+    f.provider.readAllResidents.mockRejectedValue(new KbttProviderReadError("NETWORK", "offline"));
+    const failed = await f.service.get("owner", "role", "hotel-1", true);
+    expect(failed.sources.VIETNAMESE.state).toBe("FAILED");
+    expect(failed.items).toEqual(first.items.map((row) => ({ ...row, canRetry: false })));
+    expect(failed.checkedAt).toBe(first.checkedAt);
+    f.sessions.getCachedReadSession.mockReturnValue(null);
+    const preview = await f.service.get("owner", "role", "hotel-1", false, true);
+    expect(preview.items).toEqual(failed.items);
+    expect(preview.sources.VIETNAMESE.state).toBe("PENDING");
+    const expired = await f.service.get("owner", "role", "hotel-1", true);
+    expect(expired.sources.FOREIGN.state).toBe("NEEDS_LOGIN");
+    expect(expired.items).toEqual(failed.items);
+    f.repository.find.mockResolvedValue({ ...f.connection, ciphertext: "different-account" });
+    const changed = await f.service.get("owner", "role", "hotel-1", true);
+    expect(changed.items).toHaveLength(1); expect(changed.items[0].status).toBeNull();
+  });
+  it("retains evidence only for the same document and arrival, and updates complete groups independently", async () => {
+    const f = fixture(); await f.service.get("owner", "role", "hotel-1", true);
+    f.occupants.getActiveStayOccupants.mockResolvedValue([{ ...f.local, identityNumber: "000000000002" }]);
+    f.provider.readAllHistory.mockRejectedValue(new KbttProviderReadError("NETWORK", "offline"));
+    const result = await f.service.get("owner", "role", "hotel-1", true);
+    expect(result.items[0].status).toBeNull(); expect(result.items[0].canRetry).toBe(false);
   });
 
 });

@@ -204,6 +204,16 @@ export class KbttController {
     );
   }
 
+  @Post("reconciliation/session")
+  @HttpCode(200)
+  @Header("Cache-Control", "no-store")
+  @RequirePermission(["hotel.kbtt.declarations.view", "hotel.kbtt.declarations.manage"])
+  @ApiOperation({ summary: "Prepare BCA read session: reuse valid token, refresh near expiry or restore saved connection after restart; never submits guests" })
+  @ApiOkResponse({ schema: successEnvelopeSchema({ type: "object", additionalProperties: false, required: ["ready"], properties: { ready: { type: "boolean", enum: [true] } } }, 200, "Thành công") })
+  ensureReconciliationSession(@Req() request: RequestWithRequiredUser, @Param("hotelId") hotelId: string) {
+    return this.service.ensureReconciliationSession(request.user.userId, request.user.roleId, parseWithZod(hotelIdParamSchema, hotelId));
+  }
+
   @Get("reconciliation")
   @Header("Cache-Control", "no-store")
   @RequirePermission(["hotel.kbtt.declarations.view", "hotel.kbtt.declarations.manage"])
