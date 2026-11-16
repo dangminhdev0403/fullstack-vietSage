@@ -298,42 +298,50 @@ export async function recognizeDesktopIdentityDocuments(
     }),
   );
 
-  // Phase 2: send one bounded image at a time to the authenticated VPS BFF.
-  for (const { file, originalIndex } of mrzFiles) {
-    const body = new FormData();
-    body.append("files", file, file.name);
-    let response: Response;
-    try {
-      response = await fetch(
-        `/api/cccd-mobile/hotels/${encodeURIComponent(hotelId)}/ocr`,
-        {
-          method: "POST",
-          body,
-          signal: AbortSignal.timeout(120_000),
-        },
-      );
-    } catch {
-      throw new Error("Không kết nối được máy chủ OpenMRZ");
-    }
+  // Phase 2: send bounded images concurrently (up to 3 parallel requests) to the authenticated VPS BFF.
+  const poolLimit = 3;
+  const queue = [...mrzFiles];
+  const workers = Array.from({ length: Math.min(poolLimit, queue.length) }, async () => {
+    while (queue.length > 0) {
+      const task = queue.shift();
+      if (!task) break;
+      const { file, originalIndex } = task;
+      const body = new FormData();
+      body.append("files", file, file.name);
+      let response: Response;
+      try {
+        response = await fetch(
+          `/api/cccd-mobile/hotels/${encodeURIComponent(hotelId)}/ocr`,
+          {
+            method: "POST",
+            body,
+            signal: AbortSignal.timeout(120_000),
+          },
+        );
+      } catch {
+        throw new Error("Không kết nối được máy chủ OpenMRZ");
+      }
 
-    const payload = (await response.json().catch(() => null)) as {
-      error?: unknown;
-    } | null;
-    if (!response.ok) {
-      throw new Error(
-        typeof payload?.error === "string"
-          ? payload.error
-          : "Nhận diện MRZ không thành công",
-      );
+      const payload = (await response.json().catch(() => null)) as {
+        error?: unknown;
+      } | null;
+      if (!response.ok) {
+        throw new Error(
+          typeof payload?.error === "string"
+            ? payload.error
+            : "Nhận diện MRZ không thành công",
+        );
+      }
+      const item = parseLocalMrzBatch(payload)[0];
+      if (item)
+        results[originalIndex] = {
+          ...item,
+          index: originalIndex + 1,
+          filename: file.name,
+        };
     }
-    const item = parseLocalMrzBatch(payload)[0];
-    if (item)
-      results[originalIndex] = {
-        ...item,
-        index: originalIndex + 1,
-        filename: file.name,
-      };
-  }
+  });
+  await Promise.all(workers);
 
   return results.filter((r): r is IdentityDocumentBatchItem => r !== null);
 }

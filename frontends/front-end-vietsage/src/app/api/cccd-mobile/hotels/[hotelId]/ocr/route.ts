@@ -20,7 +20,7 @@ export async function POST(request: Request, context: Context) {
   if (!contentType.toLowerCase().startsWith("multipart/form-data; boundary=")) {
     return Response.json({ error: "Dữ liệu ảnh không hợp lệ" }, { status: 415, headers: responseHeaders });
   }
-  if ((state.openMrzActiveRequests ?? 0) >= 2) {
+  if ((state.openMrzActiveRequests ?? 0) >= 6) {
     return Response.json({ error: "OpenMRZ đang bận. Vui lòng thử lại." }, { status: 429, headers: responseHeaders });
   }
 

@@ -184,6 +184,11 @@ class OpenMRZEngine:
         elif (MODELS_DIR / "ocrb.traineddata").is_file():
             self.lang = "ocrb"
             os.environ["TESSDATA_PREFIX"] = str(MODELS_DIR)
+        elif (self.tessdata_dir / "ocrb_fast.traineddata").is_file():
+            self.lang = "ocrb_fast"
+        elif (MODELS_DIR / "ocrb_fast.traineddata").is_file():
+            self.lang = "ocrb_fast"
+            os.environ["TESSDATA_PREFIX"] = str(MODELS_DIR)
         else:
             self.lang = "eng"
 
@@ -277,7 +282,7 @@ class OpenMRZEngine:
     def _ocr_single_image(self, image: np.ndarray) -> tuple[dict | None, list[str]]:
         """Thu OCR tren anh voi da vung va da bo loc."""
         regions = self._detect_mrz_candidates(image)
-        custom_config = r"--oem 1 --psm 6"
+        custom_config = r"--oem 1 --psm 6 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<"
 
         for roi in regions:
             if roi.shape[0] < 20 or roi.shape[1] < 100:
@@ -286,18 +291,22 @@ class OpenMRZEngine:
             gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY) if len(roi.shape) == 3 else roi.copy()
             if gray.shape[1] < 1200:
                 scale = 1200.0 / gray.shape[1]
-                gray = cv2.resize(gray, (0, 0), fx=scale, fy=scale, interpolation=cv2.INTER_LANCZOS4)
+                gray = cv2.resize(gray, (0, 0), fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
 
-            # Tao ban CLAHE de triet tieu hoa van chim
+            # Thu nhanh Pass 1: Gray
+            raw_text = pytesseract.image_to_string(gray, lang=self.lang, config=custom_config)
+            lines = self._extract_mrz_lines(raw_text)
+            parsed = parse_mrz(lines)
+            if parsed.get("success"):
+                return parsed, lines
+
+            # Pass 2: Chi tao CLAHE khi pass 1 chua ra ket qua (tiet kiem CPU)
             clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(gray)
-
-            # Thu 2 pass: Gray va CLAHE
-            for im_pass in [gray, clahe]:
-                raw_text = pytesseract.image_to_string(im_pass, lang=self.lang, config=custom_config)
-                lines = self._extract_mrz_lines(raw_text)
-                parsed = parse_mrz(lines)
-                if parsed.get("success"):
-                    return parsed, lines
+            raw_text = pytesseract.image_to_string(clahe, lang=self.lang, config=custom_config)
+            lines = self._extract_mrz_lines(raw_text)
+            parsed = parse_mrz(lines)
+            if parsed.get("success"):
+                return parsed, lines
 
         return None, []
 
@@ -481,9 +490,10 @@ class OpenMRZEngine:
                 cur_img = image if rot_code is None else cv2.rotate(image, rot_code)
                 parsed, lines = self._ocr_single_image(cur_img)
                 if parsed and parsed.get("success"):
-                    if parsed.get("is_valid"):
-                        best_parsed = parsed
-                        best_lines = lines
+                    best_parsed = parsed
+                    best_lines = lines
+                    # Early exit nếu kết quả đã hợp lệ hoặc đã trích xuất được số giấy tờ/MRZ rõ ràng
+                    if parsed.get("is_valid") or parsed.get("document_number") or len(lines) >= 2:
                         break
                     elif best_parsed is None:
                         best_parsed = parsed
