@@ -15,7 +15,8 @@ function fixture() {
   const access = { assertHotelAccess: jest.fn().mockResolvedValue({}), resolveRoomScope: jest.fn().mockResolvedValue({ mode: "HOTEL_WIDE", allowedRoomId: null }) };
   const repository = { find: jest.fn().mockResolvedValue(connection), findDeclarationsByHotel: jest.fn().mockResolvedValue([]), save: jest.fn(), update: jest.fn(), createDeclaration: jest.fn() };
   const occupants = { getActiveStayOccupants: jest.fn().mockResolvedValue([local]) };
-  const sessions = { getCachedReadSession: jest.fn().mockReturnValue(session), expireRejectedReadSession: jest.fn(), connect: jest.fn(), check: jest.fn() };
+  const sessions = { getCachedReadSession: jest.fn().mockReturnValue(session), expireRejectedReadSession: jest.fn(), connect: jest.fn(), check: jest.fn(),
+    onSessionEnded: jest.fn(() => () => {}), recoverReadSession: jest.fn().mockResolvedValue(undefined), disconnectFailedSession: jest.fn().mockResolvedValue(undefined) };
   const provider = { readAllResidents: jest.fn(async (_kind: string, _token: string): Promise<unknown[]> => []), readAllHistory: jest.fn(async (kind: string, _token: string, _range: unknown): Promise<unknown[]> => kind === "VIETNAMESE" ? [record] : []) };
   const service = new KbttReconciliationService(access as never, repository as never, occupants as never, sessions as never, provider as never);
   return { access, repository, occupants, sessions, provider, service, connection, session, local, record };
@@ -25,6 +26,59 @@ beforeEach(() => { jest.useFakeTimers(); jest.setSystemTime(new Date("2026-11-16
 afterEach(() => { jest.useRealTimers(); process.env = { ...savedEnv }; });
 
 describe("both-country read-only in-house reconciliation", () => {
+  it("keeps a delayed recovery read alive while the UI requests disconnected local guests", async () => {
+    const f = fixture(); let retry!: (signal: AbortSignal) => Promise<boolean>;
+    f.sessions.recoverReadSession.mockImplementation(async (_hotel, _session, callback) => {
+      retry = callback;
+      f.repository.find.mockResolvedValue({ ...f.connection, status: "DISCONNECTED", lastErrorCode: "KBTT_RETRY_PENDING" });
+    });
+    f.provider.readAllHistory.mockRejectedValueOnce(new KbttProviderReadError("NETWORK", "offline"));
+    await f.service.get("owner", "role", "hotel-1", true);
+    let finish!: (rows: unknown[]) => void;
+    f.provider.readAllHistory.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+    const recovering = retry(new AbortController().signal);
+    for (let i = 0; i < 8; i++) await Promise.resolve();
+    const local = await f.service.get("owner", "role", "hotel-1", false, true);
+    expect(local.sources.VIETNAMESE.state).toBe("NOT_CONNECTED");
+    finish([f.record]);
+    await expect(recovering).resolves.toBe(true);
+    f.service.onModuleDestroy();
+  });
+  it("drops cached BCA rows and conclusions after logout, including local-only requests", async () => {
+    for (const localOnly of [false, true]) {
+      const f = fixture();
+      f.provider.readAllResidents.mockImplementation(async (kind) => kind === "FOREIGN" ? [{ ...f.record, id: "foreign-old", soHoChieu: "TEST001", quocTich: "GBR" }] : []);
+      await f.service.get("owner", "role", "hotel-1", true);
+      f.provider.readAllHistory.mockClear(); f.provider.readAllResidents.mockClear();
+      f.repository.find.mockResolvedValue({ ...f.connection, status: "DISCONNECTED" });
+      const result = await f.service.get("owner", "role", "hotel-1", true, localOnly);
+      expect(result.sources.VIETNAMESE.state).toBe("NOT_CONNECTED");
+      expect(result.checkedAt).toBeNull(); expect(result.items).toHaveLength(1);
+      expect(result.items[0]).toMatchObject({ status: null, bcaRecordId: null, canRetry: false });
+      expect(f.provider.readAllHistory).not.toHaveBeenCalled(); expect(f.provider.readAllResidents).not.toHaveBeenCalled();
+    }
+  });
+  it("returns local guests as disconnected if logout happens while provider reads are running", async () => {
+    const f = fixture();
+    f.provider.readAllResidents.mockImplementation(async () => { f.repository.find.mockResolvedValue(null); return []; });
+    const result = await f.service.get("owner", "role", "hotel-1", true);
+    expect(result.sources.VIETNAMESE.state).toBe("NOT_CONNECTED");
+    expect(result.checkedAt).toBeNull(); expect(result.items[0]).toMatchObject({ status: null, canRetry: false });
+  });
+  it("bounds reconciliation and releases pending work even if a provider ignores cancellation", async () => {
+    const f = fixture();
+    f.provider.readAllHistory.mockImplementation(() => new Promise(() => {}));
+    const pending = f.service.get("owner", "role", "hotel-1", true);
+    for (let i = 0; i < 12; i++) await Promise.resolve();
+    await jest.advanceTimersByTimeAsync(10_001);
+    const result = await pending;
+    expect(result.sources.VIETNAMESE.state).toBe("NOT_CONNECTED");
+    expect(result.items[0]).toMatchObject({ status: null, canRetry: false });
+    f.provider.readAllHistory.mockResolvedValue([]);
+    const next = await f.service.get("owner", "role", "hotel-1", true);
+    expect(next.sources.VIETNAMESE.state).toBe("COMPLETE");
+    expect(f.provider.readAllHistory).toHaveBeenCalledTimes(4);
+  });
   it("retains gender and date of birth from BCA-only history rows for readonly table cells", async () => {
     const f = fixture(); f.occupants.getActiveStayOccupants.mockResolvedValue([]);
     f.provider.readAllHistory.mockImplementation(async (kind) => kind === "VIETNAMESE" ? [{ ...f.record, gioiTinh: "M", ngayThangNamSinh: "1990-01-02T00:00:00Z" }] : []);
@@ -89,9 +143,9 @@ describe("both-country read-only in-house reconciliation", () => {
     const f = fixture(); f.occupants.getActiveStayOccupants.mockResolvedValue([{ ...f.local, citizenshipKind: "FOREIGN", nationality: "GBR", identityNumber: "TESTP001" }]);
     f.provider.readAllHistory.mockImplementation(async (kind) => { if (kind === "FOREIGN") throw new KbttProviderReadError("HTTP", "expired", { httpStatus: 401, providerCode: "401", providerMessage: "expired" }); return []; });
     const result = await f.service.get("owner", "role", "hotel-1", true);
-    expect(result.sources.VIETNAMESE.state).toBe("COMPLETE"); expect(result.sources.FOREIGN.state).toBe("NEEDS_LOGIN");
+    expect(result.sources.VIETNAMESE.state).toBe("NOT_CONNECTED"); expect(result.sources.FOREIGN.state).toBe("NOT_CONNECTED");
     expect(result.checkedAt).toBeNull(); expect(result.items[0].status).toBeNull();
-    expect(f.sessions.expireRejectedReadSession).toHaveBeenCalledWith("hotel-1", f.session);
+    expect(f.sessions.recoverReadSession).toHaveBeenCalledWith("hotel-1", f.session, expect.any(Function), true);
   });
   it.each([
     { id: "malformed", hoTen: "Mẫu", csltId: 123 },
@@ -99,7 +153,7 @@ describe("both-country read-only in-house reconciliation", () => {
   ])("treats incomplete or wrong-scope records as incomplete, never a negative conclusion", async (record) => {
     const f = fixture(); f.provider.readAllResidents.mockResolvedValueOnce([record]);
     const result = await f.service.get("owner", "role", "hotel-1", true);
-    expect(result.sources.VIETNAMESE.state).toBe("INCOMPLETE"); expect(result.items[0].status).toBeNull();
+    expect(result.sources.VIETNAMESE.state).toBe("NOT_CONNECTED"); expect(result.items[0].status).toBeNull();
   });
   it("shows active and historical BCA guests as read-only rows without imports", async () => {
     const f = fixture(); f.occupants.getActiveStayOccupants.mockResolvedValue([]);
@@ -133,7 +187,7 @@ describe("both-country read-only in-house reconciliation", () => {
     expect(f.sessions.getCachedReadSession).not.toHaveBeenCalled(); expect(f.provider.readAllResidents).not.toHaveBeenCalled(); expect(f.provider.readAllHistory).not.toHaveBeenCalled();
   });
 
-  it("retains last confirmed rows on failed reads and session expiry, with all sends blocked", async () => {
+  it("drops confirmed BCA rows on read failure and keeps only local guests while recovering", async () => {
     const f = fixture();
     f.provider.readAllResidents.mockImplementation(async (kind) => kind === "FOREIGN" ? [{ ...f.record, id: "foreign-old", soHoChieu: "TEST001", quocTich: "GBR" }] : []);
     const first = await f.service.get("owner", "role", "hotel-1", true);
@@ -141,9 +195,10 @@ describe("both-country read-only in-house reconciliation", () => {
     f.provider.readAllHistory.mockRejectedValue(new KbttProviderReadError("NETWORK", "offline"));
     f.provider.readAllResidents.mockRejectedValue(new KbttProviderReadError("NETWORK", "offline"));
     const failed = await f.service.get("owner", "role", "hotel-1", true);
-    expect(failed.sources.VIETNAMESE.state).toBe("FAILED");
-    expect(failed.items).toEqual(first.items.map((row) => ({ ...row, canRetry: false })));
-    expect(failed.checkedAt).toBe(first.checkedAt);
+    expect(failed.sources.VIETNAMESE.state).toBe("NOT_CONNECTED");
+    expect(failed.items).toHaveLength(1);
+    expect(failed.items[0]).toMatchObject({ source: "VIETSAGE", status: null, canRetry: false });
+    expect(failed.checkedAt).toBeNull();
     f.sessions.getCachedReadSession.mockReturnValue(null);
     const preview = await f.service.get("owner", "role", "hotel-1", false, true);
     expect(preview.items).toEqual(failed.items);

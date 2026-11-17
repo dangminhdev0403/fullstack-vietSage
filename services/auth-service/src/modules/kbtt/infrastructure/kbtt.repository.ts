@@ -87,6 +87,13 @@ export class KbttRepository {
     }
   }
 
+  async removeIfCurrent(hotelId: string, ciphertext: string): Promise<boolean> {
+    try {
+      const result = await this.prisma.kbttHotelConnection.deleteMany({ where: { hotelId, ciphertext } });
+      return result.count === 1;
+    } catch { throw kbttUnavailable(); }
+  }
+
   async findDeclarationsByHotel(
     hotelId: string,
     occupantIds?: string[],

@@ -96,6 +96,43 @@ describe("KbttProviderReadClient GET-only boundary", () => {
     await expect(client.getCurrentUser("token")).rejects.toMatchObject({ kind: "NETWORK", cause: timeout });
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
+  it("enforces the transport timeout even when fetch ignores abort", async () => {
+    const deadline = new AbortController();
+    const timeout = jest.spyOn(AbortSignal, "timeout").mockReturnValueOnce(deadline.signal);
+    fetchMock.mockImplementationOnce(() => new Promise<Response>(() => undefined));
+    try {
+      const result = expect(client.getCurrentUser("token")).rejects.toMatchObject({ kind: "NETWORK" });
+      expect(timeout).toHaveBeenCalledWith(60_000);
+      deadline.abort(new DOMException("deadline", "TimeoutError"));
+      await result;
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    } finally { timeout.mockRestore(); }
+  });
+  it("aborts a stalled body without awaiting stalled cancellation or affecting a concurrent read", async () => {
+    const controller = new AbortController();
+    let started!: () => void;
+    const reading = new Promise<void>((resolve) => { started = resolve; });
+    const cancel = jest.fn(() => new Promise<void>(() => undefined));
+    fetchMock.mockResolvedValueOnce(new Response(new ReadableStream<Uint8Array>({
+      pull() { started(); }, cancel,
+    })));
+    const cause = new DOMException("caller cancelled", "AbortError");
+    const result = expect(client.listResidents("FOREIGN", {}, "token", controller.signal))
+      .rejects.toMatchObject({ kind: "NETWORK", cause, details: { httpStatus: 200 } });
+    await reading;
+    const independent = client.getCurrentUser("token");
+    controller.abort(cause);
+    await result;
+    await expect(independent).resolves.toMatchObject({ httpStatus: 200 });
+    expect(cancel).toHaveBeenCalledTimes(1);
+  });
+  it("rejects oversized bodies even when stream cancellation never settles", async () => {
+    fetchMock.mockResolvedValueOnce(new Response(new ReadableStream<Uint8Array>({
+      start(stream) { stream.enqueue(new Uint8Array(5 * 1024 * 1024 + 1)); },
+      cancel() { return new Promise<void>(() => undefined); },
+    })));
+    await expect(client.getCurrentUser("token")).rejects.toMatchObject({ kind: "INVALID_RESPONSE" });
+  });
   it("validates identifiers, token and pagination before any fetch", async () => {
     for (const id of ["", ".", "..", "a/b", "a?x=1"]) expect(() => client.getResident("FOREIGN", id, "token")).toThrow(KbttProviderReadError);
     for (const query of [{ page: -1 }, { size: 101 }, { size: 0 }, { search: "x".repeat(121) }, { unexpected: true }]) expect(() => client.listResidents("FOREIGN", query, "token")).toThrow(KbttProviderReadError);

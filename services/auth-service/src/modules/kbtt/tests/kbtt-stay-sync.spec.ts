@@ -28,7 +28,7 @@ describe("BCA automatic work selection", () => {
       where: expect.objectContaining({ autoSubmitEnabled: true }),
     }));
     expect(operations).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({ hotel: { kbttConnection: { autoSubmitEnabled: true } } }),
+      where: expect.objectContaining({ hotel: { kbttConnection: { autoSubmitEnabled: true, status: "CONNECTED" } } }),
     }));
   });
 
@@ -415,6 +415,17 @@ describe("BCA stay lifecycle delivery", () => {
       undefined,
     );
     expect(f.repository.release).toHaveBeenCalledWith("cslt-1", "lease-token");
+  });
+  it("persists an ambiguous checkout before ending the failed session and never replays it", async () => {
+    const f = fixture(); const ended = jest.fn().mockResolvedValue(undefined);
+    f.repository.runnable.mockResolvedValue([f.operation]);
+    f.provider.changeDeparture.mockResolvedValue({ outcome: "AMBIGUOUS", code: "NETWORK_ERROR", message: "timeout" });
+    await f.service.run(f.resolveSession, ended);
+    expect(f.repository.finish).toHaveBeenCalledWith(f.operation.id, "lease-token", expect.objectContaining({ status: "UNKNOWN" }), undefined);
+    expect(ended).toHaveBeenCalledWith(f.stay.hotelId, expect.objectContaining({ AccessToken: "test-access-token" }));
+    expect(f.repository.finish.mock.invocationCallOrder[0]).toBeLessThan(ended.mock.invocationCallOrder[0]);
+    expect(f.provider.changeDeparture).toHaveBeenCalledTimes(1);
+    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
   });
   function extendingFixture() {
     const f = fixture();

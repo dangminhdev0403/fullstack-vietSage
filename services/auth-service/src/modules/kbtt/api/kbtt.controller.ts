@@ -194,7 +194,7 @@ export class KbttController {
   @RequireActiveRole([CANONICAL_OWNER_ROLE, "SUPER_ADMIN"])
   @Header("Cache-Control", "no-store")
   @RequirePermission("hotel.kbtt.manage")
-  @ApiOperation({ summary: "Best-effort revoke and remove saved credentials and local tokens" })
+  @ApiOperation({ summary: "Clear local tokens and saved credentials immediately; revoke BCA token in background with at most two retries 10 seconds apart" })
   @ApiOkResponse({ schema: connectionSchema })
   disconnect(@Req() request: RequestWithRequiredUser, @Param("hotelId") hotelId: string) {
     return this.service.disconnect(
@@ -208,7 +208,7 @@ export class KbttController {
   @HttpCode(200)
   @Header("Cache-Control", "no-store")
   @RequirePermission(["hotel.kbtt.declarations.view", "hotel.kbtt.declarations.manage"])
-  @ApiOperation({ summary: "Prepare BCA read session: reuse valid token, refresh near expiry or restore saved connection after restart; never submits guests" })
+  @ApiOperation({ summary: "Prepare BCA read session: reuse valid token or refresh near expiry; never logs in using saved passwords or submits guests" })
   @ApiOkResponse({ schema: successEnvelopeSchema({ type: "object", additionalProperties: false, required: ["ready"], properties: { ready: { type: "boolean", enum: [true] } } }, 200, "Thành công") })
   ensureReconciliationSession(@Req() request: RequestWithRequiredUser, @Param("hotelId") hotelId: string) {
     return this.service.ensureReconciliationSession(request.user.userId, request.user.roleId, parseWithZod(hotelIdParamSchema, hotelId));
@@ -217,7 +217,7 @@ export class KbttController {
   @Get("reconciliation")
   @Header("Cache-Control", "no-store")
   @RequirePermission(["hotel.kbtt.declarations.view", "hotel.kbtt.declarations.manage"])
-  @ApiOperation({ summary: "Read-only reconciliation of all in-house guests against BOTH Vietnamese and foreign BCA sources; never authenticates or imports guests" })
+  @ApiOperation({ summary: "Reconcile in-house guests against BOTH BCA sources; provider failures suspend the session, retry reads twice 10 seconds apart, then clear and revoke it; never logs in or imports guests" })
   @ApiQuery({ name: "localOnly", required: false, enum: ["true", "false"], description: "Immediate local guest preview; never contacts BCA" })
   @ApiQuery({ name: "force", required: false, enum: ["true", "false"], description: "Refresh BOTH provider groups; concurrent calls share the same read" })
   @ApiOkResponse({ schema: successEnvelopeSchema(kbttReconciliationOpenApiSchema, 200, "Thành công") })

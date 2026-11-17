@@ -1,7 +1,6 @@
 import { Injectable, OnModuleDestroy } from "@nestjs/common";
 import { Temporal } from "@js-temporal/polyfill";
-import { HotelAccessService } from "../../property/application/hotel-access.service";
-import { HotelStayOccupantsReadService } from "../../property/application/hotel-stay-occupants-read.service";
+import { HotelAccessService, HotelStayOccupantsReadService } from "../../property/property-public";
 import { KbttRepository } from "../infrastructure/kbtt.repository";
 import { KbttProviderReadClient, KbttProviderReadError } from "../infrastructure/kbtt-provider-read.client";
 import { KbttService } from "./kbtt.service";
@@ -22,18 +21,34 @@ const providerId = (value: unknown): string | null => typeof value === "number" 
 @Injectable()
 export class KbttReconciliationService implements OnModuleDestroy {
   private readonly snapshots = new Map<string, { session: KbttSession; expiresAt: number; value: RemoteSnapshot }>();
-  private readonly pending = new Map<string, { session: KbttSession; value: Promise<RemoteSnapshot> }>();
+  private readonly pending = new Map<string, { session: KbttSession; controller: AbortController; value: Promise<RemoteSnapshot> }>();
   // Retain only projected views in process memory; login/logout never imports provider guests.
   private readonly lastKnown = new Map<string, KbttReconciliationResponse>();
+  private readonly unsubscribe: () => void;
   constructor(
     private readonly access: HotelAccessService,
     private readonly repository: KbttRepository,
     private readonly occupants: HotelStayOccupantsReadService,
     private readonly sessions: KbttService,
     private readonly provider: KbttProviderReadClient,
-  ) {}
+  ) {
+    this.unsubscribe = this.sessions.onSessionEnded((hotelId) => this.clearHotelViews(hotelId));
+  }
 
-  onModuleDestroy() { this.snapshots.clear(); this.pending.clear(); this.lastKnown.clear(); }
+  onModuleDestroy() {
+    this.unsubscribe();
+    for (const running of this.pending.values()) running.controller.abort();
+    this.snapshots.clear(); this.pending.clear(); this.lastKnown.clear();
+  }
+
+  private clearHotelViews(hotelId: string, session?: KbttSession, cancelPending = true) {
+    const prefix = JSON.stringify([hotelId]).slice(0, -1) + ",";
+    if (!session) for (const key of this.lastKnown.keys()) if (key.startsWith(prefix)) this.lastKnown.delete(key);
+    for (const [key, cached] of this.snapshots) if (key.startsWith(prefix) && (!session || cached.session === session)) this.snapshots.delete(key);
+    for (const [key, running] of this.pending) if (cancelPending && key.startsWith(prefix) && (!session || running.session === session)) {
+      running.controller.abort(); this.pending.delete(key);
+    }
+  }
 
   async get(userId: string, roleId: string, hotelId: string, force = false, localOnly = false): Promise<KbttReconciliationResponse> {
     await this.access.assertHotelAccess(userId, roleId, hotelId);
@@ -71,27 +86,44 @@ export class KbttReconciliationService implements OnModuleDestroy {
     const range = { dateFrom: arrivalDays.reduce((min, day) => day < min ? day : min, today), dateTo: today };
     const connection = await this.repository.find(hotelId);
     const viewKey = JSON.stringify([hotelId, connection?.csltId, connection?.ciphertext, restrictedRooms?.slice().sort() ?? null]);
-    if (localOnly) return this.retainView(viewKey, {
-      items: reconcileGuests(local, [], new Set(), ""), checkedAt: null, range,
-      sources: { VIETNAMESE: { state: "PENDING", checkedAt: null, error: null }, FOREIGN: { state: "PENDING", checkedAt: null, error: null } },
-    });
     const unavailable = (state: "NOT_CONNECTED" | "NEEDS_LOGIN", message: string): KbttReconciliationResponse => ({
       items: reconcileGuests(local, [], new Set(), connection?.csltId ?? ""), checkedAt: null, range,
       sources: { VIETNAMESE: { state, checkedAt: null, error: { code: "KBTT_RECONCILIATION_" + state, message } },
         FOREIGN: { state, checkedAt: null, error: { code: "KBTT_RECONCILIATION_" + state, message } } },
     });
-    if (!connection || connection.status !== "CONNECTED") return this.retainView(viewKey, unavailable("NOT_CONNECTED", "Cần kết nối tài khoản BCA để đối soát cả khách Việt Nam và nước ngoài."));
+    if (!connection || connection.status !== "CONNECTED") {
+      this.clearHotelViews(hotelId, undefined, connection?.lastErrorCode !== "KBTT_RETRY_PENDING");
+      return unavailable(connection?.status === "AUTH_FAILED" ? "NEEDS_LOGIN" : "NOT_CONNECTED", "Cần kết nối tài khoản BCA để đối soát cả khách Việt Nam và nước ngoài.");
+    }
+    if (localOnly) return this.retainView(viewKey, {
+      items: reconcileGuests(local, [], new Set(), ""), checkedAt: null, range,
+      sources: { VIETNAMESE: { state: "PENDING", checkedAt: null, error: null }, FOREIGN: { state: "PENDING", checkedAt: null, error: null } },
+    });
     const session = this.sessions.getCachedReadSession(hotelId, connection);
     if (!session) return this.retainView(viewKey, unavailable("NEEDS_LOGIN", "Phiên BCA chưa sẵn sàng. Kiểm tra kết nối BCA để cập nhật phiên trước khi đối soát."));
     const snapshot = await this.readBoth(hotelId, session, force);
+    if (KINDS.some((kind) => snapshot[kind].source.state !== "COMPLETE")) {
+      this.lastKnown.delete(viewKey);
+      await this.sessions.recoverReadSession(hotelId, session, async (signal) => {
+        const next = await this.readBoth(hotelId, session, true, signal);
+        if (KINDS.some((kind) => next[kind].source.state === "NEEDS_LOGIN")) {
+          await this.sessions.disconnectFailedSession(hotelId, session);
+          return false;
+        }
+        return KINDS.every((kind) => next[kind].source.state === "COMPLETE");
+      }, KINDS.some((kind) => snapshot[kind].source.state === "NEEDS_LOGIN"));
+      return unavailable("NOT_CONNECTED", KINDS.some((kind) => snapshot[kind].source.state === "NEEDS_LOGIN")
+        ? "Phiên BCA không còn hợp lệ. Vui lòng đăng nhập lại."
+        : "Mất kết nối BCA. Danh sách VietSage vẫn hoạt động; hệ thống sẽ thử lại sau 10 giây.");
+    }
     const current = await this.repository.find(hotelId);
     if (!current || current.ciphertext !== connection.ciphertext || current.csltId !== connection.csltId ||
         current.status !== "CONNECTED" || this.sessions.getCachedReadSession(hotelId, current) !== session) {
-      for (const [key, cached] of this.snapshots) if (cached.session === session) this.snapshots.delete(key);
-      return unavailable("NEEDS_LOGIN", "Kết nối BCA đã thay đổi trong lúc đối soát. Vui lòng tải lại.");
+      this.lastKnown.delete(viewKey);
+      this.clearHotelViews(hotelId, session);
+      return unavailable(!current || current.status === "DISCONNECTED" ? "NOT_CONNECTED" : "NEEDS_LOGIN", "Kết nối BCA đã thay đổi trong lúc đối soát. Vui lòng tải lại.");
     }
     const complete = new Set(KINDS.filter((kind) => snapshot[kind].source.state === "COMPLETE"));
-    if (KINDS.some((kind) => snapshot[kind].source.state === "NEEDS_LOGIN")) this.sessions.expireRejectedReadSession(hotelId, session);
     let items = reconcileGuests(local, [...snapshot.VIETNAMESE.guests, ...snapshot.FOREIGN.guests], complete, connection.csltId);
     // Provider room labels are not an authorization boundary. Restricted users see local scoped guests only.
     if (restrictedRooms !== undefined) items = items.filter((row) => row.source === "VIETSAGE");
@@ -130,7 +162,7 @@ export class KbttReconciliationService implements OnModuleDestroy {
     return result;
   }
 
-  private async readBoth(hotelId: string, session: KbttSession, force: boolean): Promise<RemoteSnapshot> {
+  private async readBoth(hotelId: string, session: KbttSession, force: boolean, parent?: AbortSignal): Promise<RemoteSnapshot> {
     const now = Date.now();
     for (const [key, cached] of this.snapshots) if (cached.expiresAt <= now) this.snapshots.delete(key);
     const key = JSON.stringify([hotelId, session.CsltId]);
@@ -138,18 +170,32 @@ export class KbttReconciliationService implements OnModuleDestroy {
     if (running?.session === session) return running.value;
     const cached = this.snapshots.get(key);
     if (!force && cached?.session === session && cached.expiresAt > now) return cached.value;
-    const signal = AbortSignal.timeout(10_000);
-    const value = Promise.allSettled(KINDS.map((kind) => this.readKind(kind, session, signal))).then((results) => {
+    const controller = new AbortController();
+    const signal = parent ? AbortSignal.any([parent, controller.signal]) : controller.signal;
+    signal.throwIfAborted();
+    // Leave room for local DB projection within the BFF's 10-second deadline.
+    const timer = setTimeout(() => controller.abort(), parent ? 10_000 : 8_000);
+    timer.unref?.();
+    let onAbort!: () => void;
+    const deadline = new Promise<never>((_, reject) => {
+      onAbort = () => reject(new KbttProviderReadError("NETWORK", "BCA reconciliation cancelled or timed out"));
+      signal.addEventListener("abort", onAbort, { once: true });
+    });
+    // The deadline must settle the service even if a transport ignores AbortSignal.
+    const value = Promise.allSettled(KINDS.map((kind) => Promise.race([this.readKind(kind, session, signal), deadline]))).then((results) => {
       const reads = results.map((result) => result.status === "fulfilled" ? result.value : { guests: [], source: this.failure(result.reason, session) });
       const snapshot = { VIETNAMESE: reads[0], FOREIGN: reads[1] };
-      if (KINDS.every((kind) => snapshot[kind].source.state === "COMPLETE")) {
+      if (!signal.aborted && KINDS.every((kind) => snapshot[kind].source.state === "COMPLETE")) {
         if (this.snapshots.size >= 100) this.snapshots.delete(this.snapshots.keys().next().value!);
         this.snapshots.set(key, { session, expiresAt: Date.now() + 30_000, value: snapshot });
       }
       return snapshot;
     });
-    this.pending.set(key, { session, value });
-    try { return await value; } finally { if (this.pending.get(key)?.value === value) this.pending.delete(key); }
+    this.pending.set(key, { session, controller, value });
+    try { return await value; } finally {
+      clearTimeout(timer); signal.removeEventListener("abort", onAbort);
+      if (this.pending.get(key)?.value === value) this.pending.delete(key);
+    }
   }
 
   private async readKind(kind: ReconciliationKind, session: KbttSession, signal: AbortSignal): Promise<KindRead> {
@@ -213,7 +259,7 @@ export class KbttReconciliationService implements OnModuleDestroy {
 
   private failure(error: unknown, session: KbttSession): ReconciliationSource {
     const known = error instanceof KbttProviderReadError ? error : null;
-    const auth = known?.details.httpStatus === 401 || String(known?.details.providerCode) === "401";
+    const auth = known?.details.httpStatus === 401 || known?.details.httpStatus === 403 || ["401", "403"].includes(String(known?.details.providerCode));
     const state = auth ? "NEEDS_LOGIN" : known?.kind === "INCOMPLETE" || known?.kind === "INVALID_RESPONSE" ? "INCOMPLETE" : "FAILED";
     const redact = (value: string) => value.replaceAll(session.AccessToken, "[REDACTED]").replaceAll(session.RefreshToken, "[REDACTED]")
       .replace(/(?:bearer|basic)\s+\S+/gi, "[REDACTED]").replace(/(?:password|token|secret)\s*[:=]\s*\S+/gi, "[REDACTED]").slice(0, 500);

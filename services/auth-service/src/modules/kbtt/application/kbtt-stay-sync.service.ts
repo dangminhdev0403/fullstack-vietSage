@@ -16,6 +16,7 @@ const eventPayload = z.object({
 }).passthrough();
 const ACTIVE_STAYS = new Set(["ACTIVE", "CHECKED_IN", "CHECKOUT_PENDING"]);
 type SessionResolver = (hotelId: string, connection: KbttHotelConnection) => Promise<KbttSession>;
+type SessionFailure = (hotelId: string, session: KbttSession) => Promise<void>;
 
 @Injectable()
 export class KbttStaySyncService {
@@ -31,7 +32,7 @@ export class KbttStaySyncService {
     return process.env.KBTT_STAY_LIFECYCLE_ENABLED === "true";
   }
 
-  async run(resolveSession: SessionResolver) {
+  async run(resolveSession: SessionResolver, onProviderFailure?: SessionFailure) {
     if (!this.enabled() || process.env.KBTT_AUTO_SUBMIT_LIVE_ENABLED !== "true" ||
         process.env.KBTT_AUTO_SUBMIT_KILL_SWITCH === "true") return;
     await this.repository.recoverInterrupted();
@@ -45,7 +46,7 @@ export class KbttStaySyncService {
     }
     for (const operation of await this.repository.runnable()) {
       try {
-        await this.dispatch(operation, resolveSession);
+        await this.dispatch(operation, resolveSession, onProviderFailure);
       } catch {
         // An unresolved durable operation is never automatically resent.
         this.logger.warn(`Could not finish BCA lifecycle operation ${operation.id}.`);
@@ -137,7 +138,7 @@ export class KbttStaySyncService {
     const connection = await this.declarations.find(hotelId);
     const localRejection = (code: string, message: string): KbttSubmitOutcome =>
       ({ outcome: "BUSINESS_REJECTION", code, message });
-    if (!guest || !identity || !connection) {
+    if (!guest || !identity || !connection || connection.status !== "CONNECTED") {
       return localRejection("LOCAL_VALIDATION", "Chưa đủ dữ liệu xác định hồ sơ khai báo.");
     }
     if (requireEnabled && !connection.autoSubmitEnabled) {
@@ -170,7 +171,8 @@ export class KbttStaySyncService {
       if (!(await this.repository.renew(connection.csltId, token))) {
         return localRejection("DELIVERY_BUSY", "Phiên gửi đã thay đổi; vui lòng thử lại sau.");
       }
-      if (requireEnabled && !(await this.declarations.find(hotelId))?.autoSubmitEnabled) {
+      const latest = await this.declarations.find(hotelId);
+      if (!latest || latest.status !== "CONNECTED" || latest.ciphertext !== connection.ciphertext || requireEnabled && !latest.autoSubmitEnabled) {
         return localRejection("DELIVERY_PAUSED", "Luồng gửi BCA đang tạm dừng.");
       }
       return await this.provider.submitDeclaration(kind, payload, accessToken);
@@ -179,7 +181,7 @@ export class KbttStaySyncService {
     }
   }
 
-  private async dispatch(operation: KbttStayOperation, resolveSession: SessionResolver) {
+  private async dispatch(operation: KbttStayOperation, resolveSession: SessionResolver, onProviderFailure?: SessionFailure) {
     const connection = await this.declarations.find(operation.hotelId);
     if (connection && !connection.autoSubmitEnabled) return;
     if (!connection || connection.status !== "CONNECTED" || connection.csltId !== operation.csltId) {
@@ -302,7 +304,7 @@ export class KbttStaySyncService {
         return;
       }
       const latestConnection = await this.declarations.find(stay.hotelId);
-      if (session.CsltId !== operation.csltId || latestConnection?.csltId !== operation.csltId) {
+      if (session.CsltId !== operation.csltId || latestConnection?.csltId !== operation.csltId || latestConnection.status !== "CONNECTED" || latestConnection.ciphertext !== connection.ciphertext) {
         await this.hold(operation, "CONNECTION_SCOPE_CHANGED", "Kết nối BCA đã thay đổi; cần khôi phục đúng cơ sở của hồ sơ gốc.");
         return;
       }
@@ -331,6 +333,9 @@ export class KbttStaySyncService {
         providerMessage: sanitizedStayResult(outcome.message),
         resolvedAt: status === "UNKNOWN" ? null : new Date(),
       }, undefined);
+      if (onProviderFailure && (outcome.outcome === "AMBIGUOUS" || /^(401|403|HTTP_401|HTTP_403|KBTT_AUTH_FAILED)$/.test(outcome.code))) {
+        await onProviderFailure(stay.hotelId, session);
+      }
     } finally {
       await this.repository.release(operation.csltId, token);
     }

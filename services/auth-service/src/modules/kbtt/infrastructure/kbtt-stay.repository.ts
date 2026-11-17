@@ -59,7 +59,7 @@ export class KbttStayRepository {
   runnable(take = 100) {
     return this.prisma.kbttStayOperation.findMany({
       where: { status: { in: ["PENDING", "BLOCKED"] }, attemptedAt: null,
-        hotel: { kbttConnection: { autoSubmitEnabled: true } } },
+        hotel: { kbttConnection: { autoSubmitEnabled: true, status: "CONNECTED" } } },
       orderBy: [{ updatedAt: "asc" }, { id: "asc" }],
       take,
     });

@@ -35,6 +35,34 @@ function iconGlyph(name: string): ReactNode {
         </>
       );
 
+    case "arrow_upward":
+    case "arrow_up":
+      return (
+        <>
+          <path d="M12 19V5" />
+          <path d="m5 12 7-7 7 7" />
+        </>
+      );
+
+    case "arrow_downward":
+    case "arrow_down":
+      return (
+        <>
+          <path d="M12 5v14" />
+          <path d="m19 12-7 7-7-7" />
+        </>
+      );
+
+    case "unfold_more":
+    case "swap_vert":
+    case "sort":
+      return (
+        <>
+          <path d="m7 15 5 5 5-5" />
+          <path d="m7 9 5-5 5 5" />
+        </>
+      );
+
     case "north_east":
     case "arrow_outward":
       return (

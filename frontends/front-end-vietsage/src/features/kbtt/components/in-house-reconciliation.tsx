@@ -2,21 +2,72 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getCoreRowModel, getFilteredRowModel, useReactTable, type ColumnDef } from "@tanstack/react-table";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { kbttResource } from "../resources/kbtt-resource";
 import { InHouseBcaControls } from "./in-house-bca-status";
-import { InHouseDeclarationCells, declarationColumnLabels } from "./in-house-declaration-cells";
+import { InHouseDeclarationCells } from "./in-house-declaration-cells";
 import { DeclarationModal } from "./kbtt-declarations-page";
 import {
   canRetryReconciledGuest, getKbttSubmissionIssue, sanitizeErrorMessage,
   type KbttDeclarationListItem, type KbttReconciliationRow,
 } from "../types/kbtt-contract";
 
-const buttonClass = "inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-bold text-slate-700 shadow-2xs transition-all hover:bg-slate-50 hover:border-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#003B2A]/30 disabled:opacity-50 whitespace-nowrap";
+const buttonClass = "inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-2xs transition-all hover:bg-slate-50 hover:border-slate-300 focus:outline-none disabled:opacity-50 whitespace-nowrap";
 const states = {
   MATCHED: { label: "Đã có BCA", className: "text-emerald-800" },
   NOT_FOUND: { label: "Chưa có BCA", className: "text-slate-700" },
 } as const;
+const guestColumns: ColumnDef<KbttReconciliationRow>[] = [{ accessorKey: "id" }];
+const emptyRows: KbttReconciliationRow[] = [];
+
+type SortField = "fullName" | "birthDate" | "identityNumber" | "checkedInAt" | "plannedCheckOutAt" | "bcaStatus" | "nationality";
+type SortDirection = "asc" | "desc";
+
+function SortHeader({
+  label,
+  field,
+  sortField,
+  sortDirection,
+  onSort,
+  align = "left",
+}: {
+  label: string;
+  field: SortField;
+  sortField: SortField | null;
+  sortDirection: SortDirection;
+  onSort: (field: SortField) => void;
+  align?: "left" | "right";
+}) {
+  const isSorted = sortField === field;
+  return (
+    <button
+      type="button"
+      onClick={() => onSort(field)}
+      className={`group/sort inline-flex items-center gap-1.5 py-1 px-1.5 -mx-1.5 rounded-lg text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-700 transition-colors hover:bg-slate-200/60 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#003B2A]/40 ${
+        isSorted ? "text-[#003B2A] font-extrabold" : ""
+      } ${align === "right" ? "ml-auto" : ""}`}
+      title={`Sắp xếp theo ${label.toLowerCase()} ${
+        !isSorted
+          ? "(Nhấn để sắp xếp tăng dần)"
+          : sortDirection === "asc"
+            ? "(Đang tăng dần, nhấn để giảm dần)"
+            : "(Đang giảm dần, nhấn để hủy sắp xếp)"
+      }`}
+    >
+      <span className="whitespace-nowrap">{label}</span>
+      <span className="inline-flex items-center justify-center shrink-0">
+        {!isSorted ? (
+          <VsIcon name="unfold_more" className="h-3.5 w-3.5 text-slate-400 group-hover/sort:text-slate-700 transition-colors" />
+        ) : sortDirection === "asc" ? (
+          <VsIcon name="arrow_upward" className="h-3.5 w-3.5 text-[#003B2A] transition-colors" />
+        ) : (
+          <VsIcon name="arrow_downward" className="h-3.5 w-3.5 text-[#003B2A] transition-colors" />
+        )}
+      </span>
+    </button>
+  );
+}
 
 function date(value: string | null) {
   if (!value) return "—";
@@ -96,51 +147,141 @@ export function InHouseReconciliation({ hotelId, canManage, canConfigureKbtt = f
 }) {
   const resource = useMemo(() => kbttResource.bind({ hotelId }), [hotelId]);
   const queryClient = useQueryClient();
+  const connection = useQuery({ ...resource.queries.connection.options(), enabled: Boolean(hotelId),
+    refetchOnMount: "always", staleTime: 0, retry: false,
+    refetchInterval: (query) => query.state.data?.configured && query.state.data.lastErrorCode === "KBTT_RETRY_PENDING" ? 10_000 : false });
+  const connected = connection.isSuccess && !connection.isFetching && connection.data.status === "CONNECTED";
   const [syncHotel, setSyncHotel] = useState<string | null>(null);
   const [completedHotel, setCompletedHotel] = useState<string | null>(null);
   useEffect(() => {
     setSyncHotel(null);
     setCompletedHotel(null);
+    if (!connected) return;
     const timer = setTimeout(() => setSyncHotel(hotelId), 5_000);
     return () => clearTimeout(timer);
-  }, [hotelId]);
+  }, [hotelId, connected]);
   const query = useQuery({
-    ...resource.queries.reconciliation.options(), enabled: Boolean(hotelId) && syncHotel === hotelId, retry: false,
+    ...resource.queries.reconciliation.options(), enabled: connected && Boolean(hotelId) && syncHotel === hotelId, retry: false,
     refetchOnMount: "always", refetchOnWindowFocus: false, refetchOnReconnect: false, staleTime: 0, gcTime: 0,
   });
   useEffect(() => {
+    if (query.data && connection.data?.status === "CONNECTED" && connection.dataUpdatedAt < query.dataUpdatedAt
+      && Object.values(query.data.sources).some((source) => source.state === "NOT_CONNECTED")) void connection.refetch();
+  }, [query.data, query.dataUpdatedAt, connection.data?.status, connection.dataUpdatedAt, connection.refetch]);
+  useEffect(() => {
     if (syncHotel === hotelId && query.isFetchedAfterMount && !query.isFetching) setCompletedHotel(hotelId);
   }, [hotelId, syncHotel, query.isFetchedAfterMount, query.isFetching]);
+  const localFallback = useQuery({
+    ...resource.queries.reconciliationLocal.options(),
+    enabled: Boolean(hotelId) && (!connected || query.isError),
+    retry: false, refetchOnWindowFocus: false,
+  });
   const refresh = useMutation(resource.mutations.refreshReconciliation.options());
   const submit = useMutation(resource.mutations.submit.options());
-  const [kind, setKind] = useState<"VIETNAMESE" | "FOREIGN" | "UNCLASSIFIED">("VIETNAMESE");
+  const [kind, setKind] = useState<"VIETNAMESE" | "FOREIGN">("VIETNAMESE");
   const [search, setSearch] = useState(initialQuery);
+  const [bcaStatus, setBcaStatus] = useState("ALL");
+  const [room, setRoom] = useState("");
+  const [sortField, setSortField] = useState<SortField | null>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<KbttReconciliationRow | null>(null);
   const [issue, setIssue] = useState<string | null>(null);
   const sending = useRef(false);
   const trigger = useRef<HTMLElement | null>(null);
-  const data = completedHotel === hotelId ? query.data : undefined;
-  const pending = syncHotel !== hotelId || query.isFetching || refresh.isPending;
-  const rows = data?.items ?? [];
+  const data = !connected ? localFallback.data : completedHotel === hotelId ? (query.isError ? localFallback.data : query.data) : undefined;
+  const pending = connected
+    ? syncHotel !== hotelId || query.isFetching || (query.isError && localFallback.isLoading) || refresh.isPending
+    : localFallback.isLoading;
+  const rows = data?.items ?? emptyRows;
+  const rooms = useMemo(() => [...new Set(rows.map((row) => row.roomNumber).filter((value): value is string => Boolean(value)))].sort((a, b) => a.localeCompare(b, "vi", { numeric: true })), [rows]);
   const counts = {
     VIETNAMESE: rows.filter((row) => row.kind === "VIETNAMESE").length,
     FOREIGN: rows.filter((row) => row.kind === "FOREIGN").length,
     UNCLASSIFIED: rows.filter((row) => row.kind === null).length,
   };
   const needle = search.trim().toLocaleLowerCase("vi");
-  const filtered = rows.filter((row) => (kind === "UNCLASSIFIED" ? row.kind === null : row.kind === kind)
-    && (!needle || [row.fullName, row.roomNumber, row.groupCode, row.identityNumber].some((value) => value?.toLocaleLowerCase("vi").includes(needle))));
-  const totalPages = Math.max(1, Math.ceil(filtered.length / 20));
+  const globalFilter = useMemo(() => ({ kind, needle, bcaStatus, room }), [kind, needle, bcaStatus, room]);
+  const table = useReactTable({
+    data: rows,
+    columns: guestColumns,
+    getRowId: (row) => row.id,
+    state: { globalFilter },
+    // This view owns pagination via `page`; table resets must not schedule React updates.
+    autoResetPageIndex: false,
+    globalFilterFn: ({ original: row }) =>
+      (kind === "FOREIGN" ? row.kind === "FOREIGN" : row.kind !== "FOREIGN")
+      && (!room || row.roomNumber === room)
+      && (bcaStatus === "ALL" || (bcaStatus === "FAILED" ? row.declarationStatus === "FAILED" : bcaStatus === "UNCHECKED" ? row.status === null : row.status === bcaStatus))
+      && (!needle || [row.fullName, row.roomNumber, row.groupCode, row.identityNumber].some((value) => value?.toLocaleLowerCase("vi").includes(needle))),
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+  });
+  const filtered = table.getFilteredRowModel().rows.map((row) => row.original);
+
+  function toggleSort(field: SortField) {
+    if (sortField !== field) {
+      setSortField(field);
+      setSortDirection("asc");
+    } else if (sortDirection === "asc") {
+      setSortDirection("desc");
+    } else {
+      setSortField(null);
+      setSortDirection("asc");
+    }
+  }
+
+  const sorted = useMemo(() => {
+    if (!sortField) return filtered;
+    const factor = sortDirection === "asc" ? 1 : -1;
+    return [...filtered].sort((a, b) => {
+      switch (sortField) {
+        case "fullName":
+          return factor * (a.fullName || "").localeCompare(b.fullName || "", "vi");
+        case "birthDate": {
+          const valA = a.draftPayload?.ngayThangNamSinhStr || "";
+          const valB = b.draftPayload?.ngayThangNamSinhStr || "";
+          return factor * String(valA).localeCompare(String(valB));
+        }
+        case "identityNumber":
+          return factor * (a.identityNumber || "").localeCompare(b.identityNumber || "", "vi", { numeric: true });
+        case "checkedInAt": {
+          const timeA = a.checkedInAt ? new Date(a.checkedInAt).getTime() : 0;
+          const timeB = b.checkedInAt ? new Date(b.checkedInAt).getTime() : 0;
+          return factor * (timeA - timeB);
+        }
+        case "plannedCheckOutAt": {
+          const timeA = a.plannedCheckOutAt ? new Date(a.plannedCheckOutAt).getTime() : 0;
+          const timeB = b.plannedCheckOutAt ? new Date(b.plannedCheckOutAt).getTime() : 0;
+          return factor * (timeA - timeB);
+        }
+        case "nationality":
+          return factor * (a.nationality || "").localeCompare(b.nationality || "", "vi");
+        case "bcaStatus": {
+          const rank = (row: KbttReconciliationRow) =>
+            row.declarationStatus === "FAILED" ? 3 : row.status === "MATCHED" ? 2 : row.status === "NOT_FOUND" ? 1 : 0;
+          return factor * (rank(a) - rank(b));
+        }
+        default:
+          return 0;
+      }
+    });
+  }, [filtered, sortField, sortDirection]);
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / 20));
   const currentPage = Math.min(page, totalPages);
-  const visible = filtered.slice((currentPage - 1) * 20, currentPage * 20);
+  const visible = sorted.slice((currentPage - 1) * 20, currentPage * 20);
   const selectedCurrent = selected ? rows.find((row) => row.id === selected.id) : null;
-  const ready = query.isSuccess && !query.isError && !refresh.isError && !pending
+  const ready = connected && query.isSuccess && !query.isError && !refresh.isError && !pending
     && query.data.sources.VIETNAMESE.state === "COMPLETE" && query.data.sources.FOREIGN.state === "COMPLETE";
 
   async function refreshBoth() {
     if (pending) return;
     setIssue(null);
+    if (!connected) {
+      await Promise.all([connection.refetch(), localFallback.refetch()]);
+      return;
+    }
     try {
       const result = await refresh.mutateAsync();
       resource.queries.reconciliation.set(queryClient, undefined, result);
@@ -159,6 +300,7 @@ export function InHouseReconciliation({ hotelId, canManage, canConfigureKbtt = f
   function openDetail(row: KbttReconciliationRow, element: HTMLElement) { trigger.current = element; setSelected(row); }
 
   const hasIssues = Boolean(
+    !connected || localFallback.isError ||
     (data && ([ ["VIETNAMESE", "Khách Việt Nam"], ["FOREIGN", "Khách nước ngoài"] ] as const).some(([val]) => data.sources[val].state !== "COMPLETE")) ||
     query.isError ||
     issue
@@ -169,23 +311,23 @@ export function InHouseReconciliation({ hotelId, canManage, canConfigureKbtt = f
       {/* Top Header & Actions Bar */}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between border-b border-slate-100 pb-4">
         <div>
-          <div className="flex items-center gap-2.5">
-            <h2 className="text-xl font-bold text-slate-900 whitespace-nowrap">
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 whitespace-nowrap">
               Danh sách khách đang lưu trú
             </h2>
             {data ? (
-              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-900 whitespace-nowrap">
+              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs sm:text-sm font-bold text-emerald-900 whitespace-nowrap">
                 {counts.VIETNAMESE + counts.FOREIGN + counts.UNCLASSIFIED} khách
               </span>
             ) : null}
           </div>
           {data?.checkedAt ? (
-            <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
-              <VsIcon name="schedule" className="h-3.5 w-3.5 text-slate-400" />
+            <p className="mt-1 flex items-center gap-1.5 text-xs sm:text-sm text-slate-500">
+              <VsIcon name="schedule" className="h-4 w-4 text-slate-400" />
               <span>Đối soát gần nhất: {date(data.checkedAt)}</span>
             </p>
           ) : (
-            <p className="mt-1 text-xs text-slate-400">Chưa hoàn tất đối soát cả hai nhóm khách BCA</p>
+            <p className="mt-1 text-xs sm:text-sm text-slate-400">Chưa hoàn tất đối soát cả hai nhóm khách BCA</p>
           )}
         </div>
 
@@ -194,29 +336,29 @@ export function InHouseReconciliation({ hotelId, canManage, canConfigureKbtt = f
           <button
             type="button"
             className={buttonClass}
-            disabled={pending}
+            disabled={pending || !connected}
             onClick={() => void refreshBoth()}
             title="Kiểm tra trạng thái kết nối tới hệ thống BCA"
           >
-            <VsIcon name="verified" className="h-4 w-4 text-emerald-700" />
+            <VsIcon name="verified" className="h-4.5 w-4.5 text-emerald-700" />
             <span>Kiểm tra kết nối</span>
           </button>
           <button
             type="button"
-            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-emerald-800/20 bg-emerald-50/80 px-3 text-xs font-bold text-emerald-900 shadow-2xs transition-all hover:bg-emerald-100 hover:border-emerald-800/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#003B2A]/30 disabled:opacity-50 whitespace-nowrap"
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-emerald-800/20 bg-emerald-50/90 px-4 text-sm font-bold text-emerald-900 shadow-2xs transition-all hover:bg-emerald-100 hover:border-emerald-800/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#003B2A]/30 disabled:opacity-50 whitespace-nowrap"
             disabled={pending}
             onClick={() => void refreshBoth()}
           >
-            <VsIcon name="refresh" className={`h-4 w-4 text-emerald-800 ${pending ? "animate-spin" : ""}`} />
-            <span>{pending ? "Đang đối soát…" : "Làm mới"}</span>
+            <VsIcon name="refresh" className={`h-4.5 w-4.5 text-emerald-800 ${pending ? "animate-spin" : ""}`} />
+            <span>{pending ? connected ? "Đang đối soát…" : "Đang tải…" : "Làm mới"}</span>
           </button>
         </div>
       </div>
 
-      {/* Sub-bar: Category Tabs & Search Bar */}
+      {/* Sub-bar: Category Tabs & Search Bar with Active Filter Status */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="inline-flex p-1 rounded-xl bg-slate-100/90 border border-slate-200/80" role="tablist" aria-label="Nhóm khách">
-          {([ ["VIETNAMESE", "Khách Việt Nam"], ["FOREIGN", "Khách nước ngoài"], ...(counts.UNCLASSIFIED ? [["UNCLASSIFIED", "Cần phân loại"]] : []) ] as Array<[typeof kind, string]>).map(([value, label]) => {
+        <div className="inline-flex p-1.5 rounded-xl bg-slate-100/90 border border-slate-200/80" role="tablist" aria-label="Nhóm khách">
+          {([ ["VIETNAMESE", "Khách Việt Nam"], ["FOREIGN", "Khách nước ngoài"] ] as const).map(([value, label]) => {
             const isActive = kind === value;
             return (
               <button
@@ -225,45 +367,67 @@ export function InHouseReconciliation({ hotelId, canManage, canConfigureKbtt = f
                 role="tab"
                 aria-selected={isActive}
                 onClick={() => { setKind(value); setPage(1); }}
-                className={`inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-bold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#003B2A]/30 ${
+                className={`inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm sm:text-base font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#003B2A]/30 ${
                   isActive
                     ? "bg-[#003B2A] text-white shadow-xs"
                     : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
                 }`}
               >
                 <span>{label}</span>
-                <span className={`inline-flex items-center justify-center px-1.5 py-0.5 rounded-full text-xs font-bold ${
-                  isActive ? "bg-white/20 text-white" : "bg-slate-200 text-slate-700"
-                }`}>
-                  {data ? counts[value] : "…"}
-                </span>
               </button>
             );
           })}
         </div>
 
-        <div className="relative min-w-[240px] sm:w-80">
-          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-            <VsIcon name="search" className="h-4 w-4" />
-          </div>
-          <input
-            type="text"
-            value={search}
-            onChange={(event) => { setSearch(event.target.value); setPage(1); }}
-            placeholder="Tìm khách, giấy tờ, phòng hoặc đoàn…"
-            className="h-9 w-full rounded-xl border border-slate-200 bg-slate-50/60 pl-9 pr-8 text-xs text-slate-900 placeholder:text-slate-400 transition-colors hover:border-slate-300 focus:bg-white focus:border-[#003B2A] focus:outline-none focus:ring-1 focus:ring-[#003B2A]"
-          />
-          {search ? (
+        <div className="flex flex-wrap items-center gap-2.5">
+          {search || room || bcaStatus !== "ALL" || sortField ? (
             <button
               type="button"
-              onClick={() => { setSearch(""); setPage(1); }}
-              className="absolute inset-y-0 right-0 flex items-center pr-2.5 text-slate-400 hover:text-slate-600 focus:outline-none"
-              aria-label="Xóa tìm kiếm"
+              className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50/80 px-3 text-xs font-semibold text-rose-700 shadow-2xs hover:bg-rose-100 transition-colors"
+              onClick={() => { setSearch(""); setRoom(""); setBcaStatus("ALL"); setSortField(null); setSortDirection("asc"); setPage(1); }}
+              title="Đặt lại toàn bộ bộ lọc tìm kiếm và sắp xếp"
             >
-              <VsIcon name="close" className="h-3.5 w-3.5" />
+              <VsIcon name="filter_alt_off" className="h-3.5 w-3.5" />
+              <span>Xóa bộ lọc</span>
             </button>
           ) : null}
+          {data ? (
+            <span role="status" className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700 whitespace-nowrap">
+              {filtered.length} khách
+            </span>
+          ) : null}
+          <div className="relative min-w-[220px] sm:w-72">
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+              <VsIcon name="search" className="h-4 w-4" />
+            </div>
+            <input
+              type="text"
+              aria-label="Tìm khách, giấy tờ, phòng hoặc đoàn"
+              value={search}
+              onChange={(event) => { setSearch(event.target.value); setPage(1); }}
+              placeholder="Tìm khách, giấy tờ, phòng…"
+              className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50/60 pl-9 pr-8 text-sm text-slate-900 placeholder:text-slate-400 transition-colors hover:border-slate-300 focus:bg-white focus:border-[#003B2A] focus:outline-none focus:ring-1 focus:ring-[#003B2A]"
+            />
+            {search ? (
+              <button
+                type="button"
+                onClick={() => { setSearch(""); setPage(1); }}
+                className="absolute inset-y-0 right-0 flex items-center pr-2.5 text-slate-400 hover:text-slate-600 focus:outline-none"
+                aria-label="Xóa tìm kiếm"
+              >
+                <VsIcon name="close" className="h-4 w-4" />
+              </button>
+            ) : null}
+          </div>
         </div>
+      </div>
+
+      {/* Verification Advisory Notice */}
+      <div className="flex items-center gap-2.5 rounded-xl border border-emerald-900/10 bg-[#FDFBF7] px-4 py-2.5 text-sm text-slate-700 shadow-2xs">
+        <VsIcon name="verified" className="h-4.5 w-4.5 text-[#003B2A] shrink-0" />
+        <p className="font-medium">
+          Vui lòng kiểm tra kỹ thông tin họ tên, ngày sinh, số giấy tờ và thời hạn lưu trú trước khi gửi khai báo lên hệ thống BCA.
+        </p>
       </div>
 
       {/* Structured Status / Alert Banner */}
@@ -271,7 +435,8 @@ export function InHouseReconciliation({ hotelId, canManage, canConfigureKbtt = f
         <div className="flex items-start gap-3 rounded-xl border border-amber-200/80 bg-amber-50/70 p-3.5 text-xs text-amber-900 shadow-2xs">
           <VsIcon name="info" className="h-4.5 w-4.5 text-amber-600 shrink-0 mt-0.5" />
           <div className="min-w-0 flex-1 space-y-1">
-            {data ? (
+            {!connected ? <p>{connection.isError ? "Không xác định được trạng thái kết nối BCA." : connection.isPending || connection.isFetching ? "Đang kiểm tra trạng thái kết nối BCA…" : "Chưa kết nối BCA. Đang hiển thị danh sách khách VietSage."}</p> : null}
+            {data && connected ? (
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-medium">
                 {([ ["VIETNAMESE", "Khách Việt Nam"], ["FOREIGN", "Khách nước ngoài"] ] as const).map(([value, label]) =>
                   data.sources[value].state !== "COMPLETE" ? (
@@ -292,11 +457,16 @@ export function InHouseReconciliation({ hotelId, canManage, canConfigureKbtt = f
                 )}
               </div>
             ) : null}
-            {query.isError ? (
+            {query.isError && connected ? (
               <p className="font-medium text-amber-900">
-                Không tải được dữ liệu đối soát. {data ? "Đang hiển thị kết quả lần trước." : ""}
+                Chưa đối soát được BCA. {sanitizeErrorMessage(query.error instanceof Error ? query.error.message : null)}
+                {data ? " Đang hiển thị dữ liệu VietSage; trạng thái BCA chưa được cập nhật." : ""}
               </p>
             ) : null}
+            {!connected || query.isError || (data && Object.values(data.sources).some((source) => source.state === "NOT_CONNECTED" || source.state === "NEEDS_LOGIN")) ? (
+              <a className="inline-flex min-h-11 items-center font-semibold underline focus-visible:outline focus-visible:outline-2" href={`/owner/hotels/${encodeURIComponent(hotelId)}/settings?tab=integrations`}>Kết nối tài khoản BCA</a>
+            ) : null}
+            {localFallback.isError && (!connected || query.isError) ? <p>Không tải được danh sách khách VietSage. Vui lòng thử lại.</p> : null}
             {issue ? <p className="font-semibold text-rose-800">{issue}</p> : null}
           </div>
         </div>
@@ -312,6 +482,7 @@ export function InHouseReconciliation({ hotelId, canManage, canConfigureKbtt = f
           canManage={canManage && Boolean(selectedCurrent)}
           sendBlockedReason={!ready ? "Cần đối soát đầy đủ BCA trước khi gửi." : !selectedCurrent || !canRetryReconciledGuest(selectedCurrent) ? "Chưa đủ điều kiện gửi: kiểm tra hồ sơ hoặc cấu hình cho phép gửi BCA." : null}
           verifyBeforeSubmit={async () => {
+            if (!connected) throw new Error("Cần kết nối BCA trước khi gửi.");
             const result = await queryClient.fetchQuery({ ...resource.queries.reconciliation.options(), staleTime: 0 });
             const current = result.items.find((row) => row.occupantId === selected.occupantId);
             if (result.sources.VIETNAMESE.state !== "COMPLETE" || result.sources.FOREIGN.state !== "COMPLETE" || !current || !canRetryReconciledGuest(current)) throw new Error("Chưa thể gửi: cần xác nhận hồ sơ chưa có trên BCA và luồng gửi đang được bật.");
@@ -322,10 +493,10 @@ export function InHouseReconciliation({ hotelId, canManage, canConfigureKbtt = f
       ) : null}
 
       {/* Data Table */}
-      {!data && (pending || query.isPending) ? (
+      {!data && pending ? (
         <div role="status" className="py-12 text-center text-xs text-slate-500">
           <VsIcon name="refresh" className="mx-auto mb-2 h-6 w-6 animate-spin text-emerald-800" />
-          <span>Đang tải danh sách khách và đối soát BCA…</span>
+          <span>{connected ? "Đang tải danh sách khách và đối soát BCA…" : "Đang tải danh sách khách…"}</span>
         </div>
       ) : !visible.length ? (
         <div className="rounded-xl border border-dashed border-slate-200 py-12 text-center text-xs text-slate-500">
@@ -333,14 +504,89 @@ export function InHouseReconciliation({ hotelId, canManage, canConfigureKbtt = f
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-slate-200/90 shadow-2xs">
-          <table className="w-full text-left text-sm">
+          <table className="w-full table-fixed text-left text-sm min-w-[1020px]">
             <thead className="border-b border-[#E8E2D5] bg-[#FBF9F5] text-slate-700">
               <tr>
-                {[...declarationColumnLabels, ...(kind === "FOREIGN" ? ["Quốc tịch", "Hạn tạm trú"] : []), "BCA", "Thao tác"].map((label) => (
-                  <th key={label} scope="col" className="px-1.5 py-2.5 font-bold uppercase tracking-wider text-slate-600 whitespace-nowrap text-xs">
-                    {label}
+                <th
+                  scope="col"
+                  className={`px-2.5 py-3 font-bold uppercase tracking-wider text-slate-700 text-xs sm:text-sm ${
+                    kind === "FOREIGN" ? "w-[16%] min-w-[170px]" : "w-[18%] min-w-[180px]"
+                  }`}
+                >
+                  <SortHeader label="Khách" field="fullName" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
+                </th>
+                <th
+                  scope="col"
+                  className={`px-2 py-3 font-bold uppercase tracking-wider text-slate-700 whitespace-nowrap text-xs sm:text-sm ${
+                    kind === "FOREIGN" ? "w-[6%] min-w-[75px]" : "w-[8%] min-w-[80px]"
+                  }`}
+                >
+                  Giới tính
+                </th>
+                <th
+                  scope="col"
+                  className={`px-2 py-3 font-bold uppercase tracking-wider text-slate-700 whitespace-nowrap text-xs sm:text-sm ${
+                    kind === "FOREIGN" ? "w-[10%] min-w-[120px]" : "w-[12%] min-w-[125px]"
+                  }`}
+                >
+                  <SortHeader label="Ngày sinh" field="birthDate" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
+                </th>
+                <th
+                  scope="col"
+                  className={`px-2 py-3 font-bold uppercase tracking-wider text-slate-700 text-xs sm:text-sm ${
+                    kind === "FOREIGN" ? "w-[14%] min-w-[140px]" : "w-[17%] min-w-[160px]"
+                  }`}
+                >
+                  <SortHeader label={kind === "FOREIGN" ? "Hộ chiếu" : "Giấy tờ"} field="identityNumber" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
+                </th>
+                <th
+                  scope="col"
+                  className={`px-2 py-3 font-bold uppercase tracking-wider text-slate-700 whitespace-nowrap text-xs sm:text-sm ${
+                    kind === "FOREIGN" ? "w-[11%] min-w-[125px]" : "w-[13%] min-w-[130px]"
+                  }`}
+                >
+                  <SortHeader label="Nhận phòng" field="checkedInAt" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
+                </th>
+                <th
+                  scope="col"
+                  className={`px-2 py-3 font-bold uppercase tracking-wider text-slate-700 whitespace-nowrap text-xs sm:text-sm ${
+                    kind === "FOREIGN" ? "w-[11%] min-w-[125px]" : "w-[13%] min-w-[130px]"
+                  }`}
+                >
+                  <SortHeader label="Dự kiến trả" field="plannedCheckOutAt" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
+                </th>
+                {kind === "FOREIGN" ? (
+                  <th
+                    scope="col"
+                    className="px-2 py-3 font-bold uppercase tracking-wider text-slate-700 text-xs sm:text-sm w-[9%] min-w-[110px]"
+                  >
+                    <SortHeader label="Quốc tịch" field="nationality" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
                   </th>
-                ))}
+                ) : null}
+                {kind === "FOREIGN" ? (
+                  <th
+                    scope="col"
+                    className="px-2 py-3 font-bold uppercase tracking-wider text-slate-700 whitespace-nowrap text-xs sm:text-sm w-[10%] min-w-[125px]"
+                  >
+                    Hạn tạm trú
+                  </th>
+                ) : null}
+                <th
+                  scope="col"
+                  className={`px-2 py-3 font-bold uppercase tracking-wider text-slate-700 text-xs sm:text-sm ${
+                    kind === "FOREIGN" ? "w-[7%] min-w-[90px]" : "w-[9%] min-w-[100px]"
+                  }`}
+                >
+                  <SortHeader label="BCA" field="bcaStatus" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
+                </th>
+                <th
+                  scope="col"
+                  className={`px-2 py-3 font-bold uppercase tracking-wider text-slate-700 whitespace-nowrap text-xs sm:text-sm text-right ${
+                    kind === "FOREIGN" ? "w-[6%] min-w-[90px]" : "w-[10%] min-w-[100px]"
+                  }`}
+                >
+                  Thao tác
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">

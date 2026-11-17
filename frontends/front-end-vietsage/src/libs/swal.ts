@@ -43,13 +43,13 @@ export const SWAL_HTML_CONTAINER_LEFT_CLASS =
   "text-sm sm:text-base font-normal text-gray-600 !text-left leading-relaxed max-h-[58vh] overflow-y-auto pr-1 focus:outline-none custom-scrollbar w-full max-w-none !m-0 !mt-2.5 !mb-1 text-pretty [text-wrap:pretty]";
 
 export const SWAL_CONFIRM_BTN_CLASS =
-  "inline-flex h-11 min-h-[44px] sm:h-12 sm:min-h-[48px] items-center justify-center gap-2 rounded-xl sm:rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] px-7 sm:px-8 text-sm sm:text-base font-bold text-white shadow-md shadow-emerald-600/25 transition-all duration-150 cursor-pointer mx-1.5 min-w-[120px] select-none";
+  "inline-flex h-11 min-h-[44px] sm:h-12 sm:min-h-[48px] items-center justify-center gap-2 rounded-xl sm:rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] px-7 sm:px-8 text-sm sm:text-base font-bold text-white shadow-md shadow-emerald-600/25 transition-all duration-150 cursor-pointer mx-1.5 min-w-[120px] select-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0";
 
 export const SWAL_DANGER_BTN_CLASS =
-  "inline-flex h-11 min-h-[44px] sm:h-12 sm:min-h-[48px] items-center justify-center gap-2 rounded-xl sm:rounded-2xl bg-[#dc2626] hover:bg-[#b91c1c] active:scale-[0.98] px-7 sm:px-8 text-sm sm:text-base font-bold text-white shadow-md shadow-red-500/25 transition-all duration-150 cursor-pointer mx-1.5 min-w-[120px] select-none";
+  "inline-flex h-11 min-h-[44px] sm:h-12 sm:min-h-[48px] items-center justify-center gap-2 rounded-xl sm:rounded-2xl bg-[#dc2626] hover:bg-[#b91c1c] active:scale-[0.98] px-7 sm:px-8 text-sm sm:text-base font-bold text-white shadow-md shadow-red-500/25 transition-all duration-150 cursor-pointer mx-1.5 min-w-[120px] select-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0";
 
 export const SWAL_CANCEL_BTN_CLASS =
-  "inline-flex h-11 min-h-[44px] sm:h-12 sm:min-h-[48px] items-center justify-center gap-2 rounded-xl sm:rounded-2xl border border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300 active:scale-[0.98] px-6 sm:px-7 text-sm sm:text-base font-bold text-gray-700 hover:text-gray-900 shadow-2xs transition-all duration-150 cursor-pointer mx-1.5 min-w-[100px] select-none";
+  "inline-flex h-11 min-h-[44px] sm:h-12 sm:min-h-[48px] items-center justify-center gap-2 rounded-xl sm:rounded-2xl border border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300 active:scale-[0.98] px-6 sm:px-7 text-sm sm:text-base font-bold text-gray-700 hover:text-gray-900 shadow-2xs transition-all duration-150 cursor-pointer mx-1.5 min-w-[100px] select-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0";
 
 export const SWAL_ACTIONS_CLASS =
   "flex flex-wrap sm:flex-nowrap items-center justify-center gap-3 pt-4 sm:pt-5 shrink-0 border-t border-gray-100 w-full mt-4";
@@ -65,10 +65,26 @@ export const SwalVietSage = Swal.mixin({
   },
   buttonsStyling: false,
   reverseButtons: false,
+  focusConfirm: false,
+  focusCancel: false,
+  focusDeny: false,
   backdrop: "rgba(15, 26, 23, 0.28)",
   willOpen: () => {
     if (typeof document !== "undefined" && document.activeElement instanceof HTMLElement) {
       document.activeElement.blur();
+    }
+  },
+  didOpen: () => {
+    if (typeof document !== "undefined") {
+      const activeEl = document.activeElement as HTMLElement | null;
+      if (
+        activeEl &&
+        (activeEl.classList.contains("swal2-confirm") ||
+          activeEl.classList.contains("swal2-cancel") ||
+          activeEl.tagName === "BUTTON")
+      ) {
+        activeEl.blur();
+      }
     }
   },
 });

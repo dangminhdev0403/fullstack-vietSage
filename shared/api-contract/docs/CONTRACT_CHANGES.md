@@ -1,3 +1,10 @@
+## 2026-11-18 — BCA connection failure and logout lifecycle
+
+- Response shapes, permissions and paths are unchanged. Failed provider reads suspend the hotel connection (`DISCONNECTED`, `lastErrorCode: KBTT_RETRY_PENDING`) and block delivery immediately. Two background read retries wait 10 seconds each; success restores only the same session, while exhaustion or authentication rejection clears tokens, saved credentials and reconciliation caches.
+- Logout completes local cleanup before remote revocation. BCA revoke runs independently with three bounded attempts and 10-second delays; a remote failure cannot keep the local session connected. Logout/new login cancels old recovery work. Revocation is best effort and cannot be guaranteed across a server restart or persistent provider failure.
+- Session preparation never logs in automatically using saved passwords after refresh failure or process restart. Ambiguous declaration/checkout transmissions remain UNKNOWN and are never automatically replayed by read recovery.
+- Connection GET remains local. The in-house client polls it only while recovery is pending; initial reconciliation is bounded below the existing BFF deadline.
+
 ## 2026-11-17 — Both-country in-house BCA reconciliation
 
 Added private GET reconciliation with force/localOnly options, both-country completion/error states, guest-level read-only merged rows and conservative evidence matching. No provider authentication or guest import from this endpoint.

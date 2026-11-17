@@ -139,13 +139,24 @@ export class KbttProviderReadClient {
     throw new KbttProviderReadError("INCOMPLETE", "BCA snapshot reached the maximum page count before completion");
   }
 
-  getAccommodation(accessToken: string) { return this.get("/client-service/cslt/of-user", accessToken, kbttAccommodationSchema); }
+  getAccommodation(accessToken: string, signal?: AbortSignal) { return this.get("/client-service/cslt/of-user", accessToken, kbttAccommodationSchema, undefined, signal); }
   getCurrentUser(accessToken: string) { return this.get("/user-service/user/get-user-info", accessToken, kbttCurrentUserSchema); }
 
   private identifier(value: unknown): string {
     const parsed = kbttProviderRecordIdSchema.safeParse(value);
     if (!parsed.success || parsed.data === "." || parsed.data === "..") throw new KbttProviderReadError("VALIDATION", "Invalid provider identifier");
     return parsed.data;
+  }
+
+  private async untilAborted<T>(operation: () => Promise<T>, signal: AbortSignal): Promise<T> {
+    signal.throwIfAborted();
+    let onAbort: () => void = () => undefined;
+    const aborted = new Promise<never>((_resolve, reject) => {
+      onAbort = () => reject(signal.reason);
+      signal.addEventListener("abort", onAbort, { once: true });
+    });
+    try { return await Promise.race([operation(), aborted]); }
+    finally { signal.removeEventListener("abort", onAbort); }
   }
 
   private async get<T>(path: string, accessToken: string, dataSchema: z.ZodType<T>, query?: Record<string, string>, signal?: AbortSignal): Promise<KbttProviderReadResponse<T>> {
@@ -159,10 +170,10 @@ export class KbttProviderReadClient {
     let response: Response;
     try {
       requestSignal.throwIfAborted();
-      response = await fetch(url, {
+      response = await this.untilAborted(() => fetch(url, {
         method: "GET", headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json", "User-Agent": "Mozilla/5.0" },
         redirect: "error", signal: requestSignal,
-      });
+      }), requestSignal);
     } catch (error) { throw new KbttProviderReadError("NETWORK", "Could not read BCA response", {}, error); }
     const chunks: Uint8Array[] = [];
     let size = 0;
@@ -171,7 +182,7 @@ export class KbttProviderReadClient {
     try {
       for (;;) {
         requestSignal.throwIfAborted();
-        const chunk = await reader.read();
+        const chunk = await this.untilAborted(() => reader.read(), requestSignal);
         requestSignal.throwIfAborted();
         if (chunk.done) break;
         size += chunk.value.byteLength;
@@ -181,7 +192,10 @@ export class KbttProviderReadClient {
     } catch (error) {
       if (error instanceof KbttProviderReadError) throw error;
       throw new KbttProviderReadError("NETWORK", "Could not finish reading BCA response", { httpStatus: response.status }, error);
-    } finally { await reader.cancel().catch(() => undefined); }
+    } finally {
+      // A stalled stream's cancellation must not hold up the bounded read result.
+      void reader.cancel().catch(() => undefined);
+    }
     const rawBody = Buffer.concat(chunks).toString("utf8");
     let body: unknown;
     try { body = JSON.parse(rawBody.replace(/^\uFEFF/, "").trim()); } catch {

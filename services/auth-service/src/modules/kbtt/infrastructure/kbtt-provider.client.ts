@@ -59,8 +59,32 @@ export class KbttProviderClient {
     );
   }
 
-  async revoke(accessToken: string) {
-    await this.request("revoke", "DELETE", undefined, { access_token: accessToken });
+  async revoke(accessToken: string, signal?: AbortSignal): Promise<void> {
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      signal?.throwIfAborted();
+      try {
+        await this.request("revoke", "DELETE", undefined, { access_token: accessToken }, signal);
+        return;
+      } catch (error) {
+        signal?.throwIfAborted();
+        // An HTTP authentication rejection is terminal, not proof of revocation.
+        if (attempt === 3 || (error instanceof HttpException && error.getStatus() === 401))
+          throw error;
+      }
+      await new Promise<void>((resolve, reject) => {
+        const onAbort = () => {
+          clearTimeout(timer);
+          signal?.removeEventListener("abort", onAbort);
+          reject(signal?.reason);
+        };
+        const timer = setTimeout(() => {
+          signal?.removeEventListener("abort", onAbort);
+          resolve();
+        }, 10_000);
+        signal?.addEventListener("abort", onAbort, { once: true });
+        if (signal?.aborted) onAbort();
+      });
+    }
   }
 
   async fetchCatalog(kind: KbttCatalogKind, parentCode?: string): Promise<unknown> {
@@ -329,11 +353,23 @@ export class KbttProviderClient {
     return parsed.data;
   }
 
+  private async untilAborted<T>(operation: () => Promise<T>, signal: AbortSignal): Promise<T> {
+    signal.throwIfAborted();
+    let onAbort!: () => void;
+    const aborted = new Promise<never>((_, reject) => {
+      onAbort = () => reject(signal.reason);
+      signal.addEventListener("abort", onAbort, { once: true });
+    });
+    try { return await Promise.race([operation(), aborted]); }
+    finally { signal.removeEventListener("abort", onAbort); }
+  }
+
   private async request(
     path: string,
     method: string,
     body?: URLSearchParams,
     query?: Record<string, string>,
+    callerSignal?: AbortSignal,
   ): Promise<unknown> {
     const basicAuth =
       path === "token"
@@ -342,9 +378,11 @@ export class KbttProviderClient {
     if (!basicAuth || !this.config.KBTT_BASE_URL) throw kbttUnavailable();
     const url = new URL(`${this.config.KBTT_BASE_URL}/authorization-service/oauth/${path}`);
     if (query) url.search = new URLSearchParams(query).toString();
+    const deadline = AbortSignal.timeout(10_000);
+    const signal = callerSignal ? AbortSignal.any([deadline, callerSignal]) : deadline;
     let response: Response;
     try {
-      response = await fetch(url, {
+      response = await this.untilAborted(() => fetch(url, {
         method,
         headers: {
           Authorization: "Basic " + basicAuth,
@@ -354,11 +392,14 @@ export class KbttProviderClient {
         },
         body,
         redirect: "error",
-        signal: AbortSignal.timeout(60_000),
-      });
+        signal,
+      }), signal);
     } catch {
+      callerSignal?.throwIfAborted();
       throw kbttProviderError("KBTT_PROVIDER_UNAVAILABLE");
     }
+    if (path === "revoke" && response.status === 401)
+      throw new HttpException({ code: "KBTT_AUTH_FAILED", message: KBTT_AUTH_FAILED_MESSAGE }, 401);
     if (!response.ok || !response.body) throw kbttProviderError("KBTT_PROVIDER_UNAVAILABLE");
     try {
       const reader = response.body.getReader();
@@ -366,14 +407,14 @@ export class KbttProviderClient {
       let size = 0;
       try {
         for (;;) {
-          const chunk = await reader.read();
+          const chunk = await this.untilAborted(() => reader.read(), signal);
           if (chunk.done) break;
           size += chunk.value.byteLength;
           if (size > 10 * 1024 * 1024) throw kbttProviderError("KBTT_PROVIDER_INVALID_RESPONSE");
           chunks.push(chunk.value);
         }
       } finally {
-        await reader.cancel();
+        void reader.cancel().catch(() => undefined);
       }
       const envelope: unknown = JSON.parse(Buffer.concat(chunks).toString("utf8"));
       if (
@@ -390,6 +431,7 @@ export class KbttProviderClient {
       }
       return envelope.data;
     } catch (error) {
+      callerSignal?.throwIfAborted();
       if (error instanceof HttpException) throw error;
       throw kbttProviderError("KBTT_PROVIDER_INVALID_RESPONSE");
     }

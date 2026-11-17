@@ -205,6 +205,43 @@ button:disabled,
   cursor: not-allowed;
 }
 
+/* =====================================================================
+   GLOBAL ZERO-NOISE OUTLINE & BORDER RESET
+   Triệt tiêu triệt để mọi browser outline / viền nổi thừa gây nhiễu UI trên button & input
+   ===================================================================== */
+button,
+[role="button"],
+input,
+textarea,
+select,
+a,
+summary {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus,
+button:focus-visible,
+[role="button"]:focus,
+[role="button"]:focus-visible,
+input:focus,
+input:focus-visible,
+textarea:focus,
+textarea:focus-visible,
+select:focus,
+select:focus-visible {
+  outline: none !important;
+  outline-offset: 0 !important;
+}
+
+button,
+[role="button"],
+input,
+textarea,
+select {
+  --tw-ring-offset-width: 0px !important;
+  --tw-ring-offset-shadow: 0 0 #0000 !important;
+}
+
 .vs-display {
   font-family: var(--font-be-vietnam-pro), "Be Vietnam Pro", sans-serif;
   letter-spacing: -0.02em;
@@ -612,10 +649,30 @@ p.text-center {
   background: #f3f3f4 !important;
 }
 
+/* Zero-noise Clean SweetAlert2 Action Buttons */
+.swal2-actions button,
+.swal2-confirm,
+.swal2-cancel,
+.swal2-deny,
+.swal2-close {
+  outline: none !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
+}
+
+.swal2-actions button:focus,
+.swal2-actions button:focus-visible,
+.swal2-confirm:focus,
 .swal2-confirm:focus-visible,
-.swal2-cancel:focus-visible {
-  outline: 2px solid #10b981 !important;
-  outline-offset: 2px !important;
+.swal2-cancel:focus,
+.swal2-cancel:focus-visible,
+.swal2-deny:focus,
+.swal2-deny:focus-visible,
+.swal2-close:focus,
+.swal2-close:focus-visible {
+  outline: none !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
 }
 
 /* =====================================================================
@@ -1633,7 +1690,6 @@ html:has(.vs-mkt-shell)::-webkit-scrollbar {
 
 .vs-mkt-brand {
   border-radius: 1.1rem;
-  outline-offset: 0.35rem;
 }
 
 .vs-mkt-sign-in {
@@ -1841,8 +1897,8 @@ html:has(.vs-mkt-shell)::-webkit-scrollbar {
 .vs-mkt-primary-btn:focus-visible,
 .vs-mkt-secondary-btn:focus-visible,
 .vs-solution-link:focus-visible {
-  outline: 3px solid rgba(184, 135, 47, 0.38);
-  outline-offset: 3px;
+  outline: none !important;
+  outline-offset: 0 !important;
 }
 
 .vs-solutions-menu {

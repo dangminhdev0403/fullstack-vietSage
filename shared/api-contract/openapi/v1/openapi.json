@@ -18473,7 +18473,7 @@
             "bearer": []
           }
         ],
-        "summary": "Best-effort revoke and remove saved credentials and local tokens",
+        "summary": "Clear local tokens and saved credentials immediately; revoke BCA token in background with at most two retries 10 seconds apart",
         "tags": [
           "hotel-kbtt"
         ]
@@ -18768,7 +18768,7 @@
             "bearer": []
           }
         ],
-        "summary": "Prepare BCA read session: reuse valid token, refresh near expiry or restore saved connection after restart; never submits guests",
+        "summary": "Prepare BCA read session: reuse valid token or refresh near expiry; never logs in using saved passwords or submits guests",
         "tags": [
           "hotel-kbtt"
         ]
@@ -19125,7 +19125,7 @@
             "bearer": []
           }
         ],
-        "summary": "Read-only reconciliation of all in-house guests against BOTH Vietnamese and foreign BCA sources; never authenticates or imports guests",
+        "summary": "Reconcile in-house guests against BOTH BCA sources; provider failures suspend the session, retry reads twice 10 seconds apart, then clear and revoke it; never logs in or imports guests",
         "tags": [
           "hotel-kbtt"
         ]

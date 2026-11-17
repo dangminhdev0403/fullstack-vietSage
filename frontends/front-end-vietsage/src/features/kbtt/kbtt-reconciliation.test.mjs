@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import ts from "typescript";
 import * as zod from "zod";
+import { createTable, getCoreRowModel, getFilteredRowModel } from "@tanstack/react-table";
 import { kbttReconciliationSchema, canRetryReconciledGuest } from "./types/kbtt-contract.ts";
 
 const row = {
@@ -49,6 +50,66 @@ function loadModule(file, dependencies) {
   return module.exports;
 }
 
+test("in-house filters do not sustain pagination render updates after fallback data arrives", async () => {
+  const source = readFileSync(new URL("./components/in-house-reconciliation.tsx", import.meta.url), "utf8");
+  // Execute the production table configuration against the real TanStack scheduler.
+  const block = source.slice(source.indexOf("  const globalFilter ="), source.indexOf("  const filtered ="));
+  assert.ok(block.includes("useReactTable"));
+  const compile = (body) => new Function("useMemo", "useReactTable", "rows", "kind", "needle", "bcaStatus", "room",
+    "guestColumns", "getCoreRowModel", "getFilteredRowModel", `${body}\nreturn table;`);
+  let build = compile(block);
+  const columns = [{ accessorKey: "id" }];
+  const rows = [row, { ...row, id: "foreign-1", kind: "FOREIGN", roomNumber: "102" }];
+  let memo;
+  let dependencies;
+  let state;
+  let table;
+  let updates = 0;
+  const useMemo = (factory, next) => {
+    if (!dependencies || next.some((value, index) => value !== dependencies[index])) memo = factory();
+    dependencies = next;
+    return memo;
+  };
+  const useReactTable = (options) => {
+    if (!table) {
+      table = createTable({ ...options, state: {}, onStateChange: () => {}, renderFallbackValue: null });
+      state = table.initialState;
+    }
+    table.setOptions((previous) => ({ ...previous, ...options, state: { ...state, ...options.state },
+      onStateChange: (updater) => { state = typeof updater === "function" ? updater(state) : updater; updates++; },
+    }));
+    return table;
+  };
+  const render = (data, kind = "VIETNAMESE", needle = "", status = "ALL", room = "") =>
+    build(useMemo, useReactTable, data, kind, needle, status, room, columns, getCoreRowModel, getFilteredRowModel)
+      .getFilteredRowModel().rows.map((entry) => entry.original.id);
+  assert.deepEqual(render([]), []);
+  await Promise.resolve();
+  assert.deepEqual(render(rows), [row.id]);
+  for (let i = 0; i < 8; i++) {
+    await Promise.resolve();
+    render(rows);
+  }
+  assert.deepEqual(render(rows, "FOREIGN"), ["foreign-1"]);
+  assert.deepEqual(render(rows, "VIETNAMESE", "101", "FAILED", "101"), [row.id]);
+  assert.deepEqual(render(rows, "VIETNAMESE", "missing"), []);
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(updates, 0, "view-owned pagination must not enqueue table state updates");
+  // Negative control: the previous inline filter + default reset sustains updates.
+  build = compile(block.replace("state: { globalFilter }", "state: { globalFilter: { kind, needle, bcaStatus, room } }")
+    .replace("autoResetPageIndex: false,", ""));
+  table = undefined;
+  render([]);
+  await Promise.resolve();
+  for (let i = 0; i < 8; i++) {
+    render(rows);
+    await Promise.resolve();
+    await Promise.resolve();
+  }
+  assert.ok(updates >= 6, "previous configuration must reproduce repeated scheduler updates");
+});
+
 test("one hotel-scoped resource request refreshes both countries, independently of client-side selection", async () => {
   const calls = [];
   let result = response;
@@ -67,6 +128,44 @@ test("one hotel-scoped resource request refreshes both countries, independently 
   assert.deepEqual(calls[1], ["hotel-1", undefined, true]);
   result = new Error("provider source unavailable");
   await assert.rejects(query.queryFn({ scope: { hotelId: "hotel-1" }, signal }), /unavailable/);
+});
+
+test("logged-out in-house view reads local guests without scheduling BCA reconciliation", () => {
+  for (const status of ["DISCONNECTED", "AUTH_FAILED"]) {
+    const queries = [];
+    const effects = [];
+    const resource = {
+      queries: Object.fromEntries(["connection", "reconciliation", "reconciliationLocal"].map((operation) =>
+        [operation, { options: () => ({ operation }) }])),
+      mutations: { refreshReconciliation: { options: () => ({}) }, submit: { options: () => ({}) } },
+    };
+    const jsx = (type, props) => ({ type: typeof type === "string" ? type : "component", props });
+    const { InHouseReconciliation } = loadModule("./components/in-house-reconciliation.tsx", {
+      "react/jsx-runtime": { jsx, jsxs: jsx },
+      "@tanstack/react-query": {
+        useQueryClient: () => ({}), useMutation: () => ({ isPending: false }),
+        useQuery: (options) => {
+          queries.push(options);
+          return { isSuccess: true, isFetching: false, isError: false, isLoading: false,
+            data: options.operation === "connection" ? { status } : response };
+        },
+      },
+      "@tanstack/react-table": { getCoreRowModel, getFilteredRowModel,
+        useReactTable: () => ({ getFilteredRowModel: () => ({ rows: [{ original: row }] }) }) },
+      "react": { useMemo: (fn) => fn(), useEffect: (fn) => effects.push(fn), useId: () => "id",
+        useState: (initial) => [initial, () => {}], useRef: (current) => ({ current }) },
+      "vs-icon": {}, "kbtt-resource": { kbttResource: { bind: () => resource } },
+      "in-house-bca-status": {}, "in-house-declaration-cells": { declarationColumnLabels: [] },
+      "kbtt-declarations-page": {}, "kbtt-contract": { sanitizeErrorMessage: () => "" },
+    });
+    const view = InHouseReconciliation({ hotelId: "hotel-1", canManage: true });
+    // The mount effect exits before scheduling a timer while logged out.
+    assert.equal(effects[0](), undefined);
+    assert.equal(queries.find((query) => query.operation === "reconciliation").enabled, false);
+    assert.equal(queries.find((query) => query.operation === "reconciliationLocal").enabled, true);
+    assert.match(JSON.stringify(view), /Chưa kết nối BCA/);
+    assert.doesNotMatch(JSON.stringify(view), /Đang đối soát…/);
+  }
 });
 
 test("in-house view exposes only two BCA labels and blocks retries when either country is incomplete", () => {
