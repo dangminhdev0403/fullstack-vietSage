@@ -3,16 +3,43 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { HttpError } from "@/core/http/http-error";
 import { showConfirmDialog, showErrorAlert, showSuccessAlert } from "@/libs/swal";
-import { useKbttConnection } from "../hooks/use-kbtt-connection";
+import { getKbttConnectionStatusInfo, useKbttConnection } from "../hooks/use-kbtt-connection";
 import { useKbttAutoSubmit } from "../hooks/use-kbtt-auto-submit";
-import { useKbttAutoSubmitEnabled } from "../hooks/use-kbtt-auto-submit-enabled";
 import { KbttAutoSubmitSwitch } from "./kbtt-auto-submit-switch";
-import { kbttCredentialsSchema, kbttErrorCode, kbttErrorMessage, type KbttConnection } from "../types/kbtt-contract";
+import {
+  computeNextVietnamDailySlot,
+  KBTT_FIXED_SCHEDULE_SLOTS,
+  KBTT_SCHEDULE_TIMEZONE,
+  kbttCredentialsSchema,
+  kbttErrorCode,
+  kbttErrorMessage,
+  type KbttConnection,
+} from "../types/kbtt-contract";
+
+function connectionErrorText(code: string | null | undefined, fallbackMessage?: string | null): string {
+  if (code === "KBTT_RETRY_PENDING") {
+    return fallbackMessage?.trim() || "Đang thử kết nối lại sau 10 giây.";
+  }
+  if (code === "KBTT_TEMP_DISCONNECTED") {
+    return fallbackMessage?.trim() || "Tạm ngắt kết nối BCA — đang chờ kết nối lại.";
+  }
+  if (code === "KBTT_SESSION_ENDED" || code === "KBTT_AUTH_FAILED") {
+    return fallbackMessage?.trim() || "Cần đăng nhập lại BCA.";
+  }
+  if (code === "KBTT_FACILITY_CONFLICT") {
+    return (
+      fallbackMessage?.trim() ||
+      "Tài khoản cơ sở BCA này đang được liên kết với một khách sạn khác trên hệ thống."
+    );
+  }
+  if (fallbackMessage?.trim()) return fallbackMessage.trim();
+  return kbttErrorMessage(code ?? null);
+}
 
 function errorText(error: unknown): string {
   if (error instanceof HttpError) {
     const code = kbttErrorCode(error.data);
-    if (code) return kbttErrorMessage(code);
+    if (code) return connectionErrorText(code);
     if (error.status === 400) return "Mã khách sạn hoặc dữ liệu kết nối không hợp lệ.";
     if (error.status === 403) return "Bạn không có quyền thực hiện thao tác này.";
     if (error.status === 404) return "Không tìm thấy khách sạn hoặc bạn không có quyền truy cập.";
@@ -21,7 +48,7 @@ function errorText(error: unknown): string {
   return kbttErrorMessage(null);
 }
 
-function formatDateTime(value: string | null): string {
+function formatDateTime(value: string | null | undefined): string {
   if (!value) return "Chưa cập nhật";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "Chưa xác định";
@@ -66,7 +93,10 @@ export function KbttConnectionPage({
     try {
       const result = await operation();
       if (disconnecting ? result.configured || result.status !== "DISCONNECTED" : result.status !== "CONNECTED") {
-        await showErrorAlert("Kết nối chưa thành công", kbttErrorMessage(result.lastErrorCode));
+        await showErrorAlert(
+          "Kết nối chưa thành công",
+          connectionErrorText(result.lastErrorCode, result.lastErrorMessage),
+        );
         return;
       }
       await showSuccessAlert("Khai báo tạm trú", successText);
@@ -118,30 +148,45 @@ export function KbttConnectionPage({
     }
   }
 
-  const isAuthFailed = data?.status === "AUTH_FAILED";
+  const connectionStatus = getKbttConnectionStatusInfo(data);
 
   const statusBadge = connection.isPending || connection.isError || !data ? (
-    <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-100 px-3.5 py-1 text-sm font-bold text-slate-700">
+    <span className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-slate-200 bg-slate-100 px-3.5 py-1 text-sm font-bold text-slate-700">
       <span className="h-2 w-2 rounded-full bg-slate-400" />
       {connection.isPending ? "Đang tải trạng thái" : "Chưa xác định kết nối"}
     </span>
   ) : isConnected ? (
-    <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3.5 py-1 text-sm font-bold text-emerald-700">
+    <span className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-emerald-200 bg-emerald-50 px-3.5 py-1 text-sm font-bold text-emerald-700">
       <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
       Đã kết nối
     </span>
-  ) : isAuthFailed ? (
-    <span className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-3.5 py-1 text-sm font-bold text-red-700">
+  ) : connectionStatus.isRetryPending ? (
+    <span className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-amber-200 bg-amber-50 px-3.5 py-1 text-sm font-bold text-amber-800">
+      <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+      Đang thử kết nối lại sau 10 giây
+    </span>
+  ) : connectionStatus.isTemporaryDisconnect ? (
+    <span className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-amber-200 bg-amber-50 px-3.5 py-1 text-sm font-bold text-amber-800">
+      <span className="h-2 w-2 rounded-full bg-amber-500" />
+      Tạm ngắt kết nối BCA — đang chờ kết nối lại
+    </span>
+  ) : connectionStatus.isFacilityConflict ? (
+    <span className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-red-200 bg-red-50 px-3.5 py-1 text-sm font-bold text-red-700">
       <span className="h-2 w-2 rounded-full bg-red-500" />
-      Cần đăng nhập lại
+      {connectionStatus.badgeLabel}
+    </span>
+  ) : connectionStatus.isLoginRequired ? (
+    <span className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-red-200 bg-red-50 px-3.5 py-1 text-sm font-bold text-red-700">
+      <span className="h-2 w-2 rounded-full bg-red-500" />
+      Cần đăng nhập lại BCA
     </span>
   ) : data?.configured ? (
-    <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-100 px-3.5 py-1 text-sm font-bold text-slate-700">
+    <span className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-slate-200 bg-slate-100 px-3.5 py-1 text-sm font-bold text-slate-700">
       <span className="h-2 w-2 rounded-full bg-slate-400" />
       Đã ngắt kết nối
     </span>
   ) : (
-    <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-100 px-3.5 py-1 text-sm font-bold text-slate-700">
+    <span className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-slate-200 bg-slate-100 px-3.5 py-1 text-sm font-bold text-slate-700">
       <span className="h-2 w-2 rounded-full bg-slate-400" />
       Chưa kết nối
     </span>
@@ -155,11 +200,11 @@ export function KbttConnectionPage({
       </header>
       <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6" aria-busy={connection.isFetching || busy}>
         {connection.isPending ? (
-          <p className="text-base text-slate-600" role="status">Đang tải thông tin kết nối…</p>
+          <p className="text-pretty text-base text-slate-600" role="status">Đang tải thông tin kết nối…</p>
         ) : connection.isError ? (
           <div className="space-y-3" role="alert">
-            <p className="text-base text-red-700">{errorText(connection.error)}</p>
-            <button type="button" disabled={connection.isFetching} onClick={() => void connection.refetch()} className="min-h-11 rounded-lg border border-slate-300 px-4 text-base font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50">Tải lại</button>
+            <p className="text-pretty text-base text-red-700">{errorText(connection.error)}</p>
+            <button type="button" disabled={connection.isFetching} onClick={() => void connection.refetch()} className="min-h-11 whitespace-nowrap rounded-lg border border-slate-300 px-4 text-base font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50">Tải lại</button>
           </div>
         ) : data ? (
           <div className="space-y-5">
@@ -190,13 +235,20 @@ export function KbttConnectionPage({
                       </div>
                     ))}
                   </dl>
-                ) : <p className="text-base text-slate-600">BCA chưa cung cấp thông tin cơ sở.</p>
+                ) : <p className="text-pretty text-base text-slate-600">BCA chưa cung cấp thông tin cơ sở.</p>
               ) : data.providerProfile.state === "FAILED" ? (
                 <p className="text-pretty text-base text-amber-800" role="alert">{data.providerProfile.error?.message ?? "Không tải được thông tin cơ sở."}</p>
               ) : <p className="text-pretty text-base text-slate-600">Kiểm tra kết nối để cập nhật thông tin cơ sở.</p>
             ) : null}
-            {data.lastErrorMessage || data.lastErrorCode ? (
-              <p className="text-pretty text-base text-red-700" role="alert">{data.lastErrorMessage ?? kbttErrorMessage(data.lastErrorCode)}</p>
+            {connectionStatus.isTemporaryDisconnect ? (
+              <p className="text-pretty text-base text-amber-800" role="status">
+                {connectionStatus.message}
+                {data.cooldownUntil ? ` Thời điểm thử lại: ${formatDateTime(data.cooldownUntil)}.` : ""}
+              </p>
+            ) : data.lastErrorMessage || data.lastErrorCode ? (
+              <p className="text-pretty text-base text-red-700" role="alert">
+                {connectionErrorText(data.lastErrorCode, data.lastErrorMessage)}
+              </p>
             ) : null}
             {canManage && isConfigured ? (
               <div className="flex flex-wrap gap-3 border-t border-slate-100 pt-5">
@@ -204,7 +256,7 @@ export function KbttConnectionPage({
                 <button type="button" disabled={disabled} onClick={() => void confirmDisconnect()} className="min-h-11 whitespace-nowrap rounded-lg border border-red-200 px-4 text-base font-semibold text-red-700 hover:bg-red-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 disabled:opacity-50">Ngắt kết nối</button>
               </div>
             ) : null}
-            {!isConnected ? (
+            {!isConnected && !connectionStatus.isTemporaryDisconnect ? (
               canManage ? (
                 <form onSubmit={(event) => void submit(event)} className="max-w-lg space-y-4 border-t border-slate-100 pt-5" aria-labelledby="kbtt-account-title" autoComplete="off">
                   <h2 id="kbtt-account-title" className="text-balance text-lg font-bold">Đăng nhập BCA</h2>
@@ -218,7 +270,7 @@ export function KbttConnectionPage({
                       <label htmlFor="kbtt-password" className="mb-1.5 block text-base font-medium">Mật khẩu</label>
                       <div className="relative">
                         <input id="kbtt-password" name="password" type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} required maxLength={256} autoComplete="new-password" className="min-h-11 w-full rounded-lg border border-slate-300 pl-3 pr-16 text-base focus-visible:outline-2 focus-visible:outline-offset-2 disabled:bg-slate-100" />
-                        <button type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"} className="absolute inset-y-0 right-0 min-h-11 px-3 text-sm font-medium text-slate-600 focus-visible:outline-2 focus-visible:outline-offset-2">{showPassword ? "Ẩn" : "Hiện"}</button>
+                        <button type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"} className="absolute inset-y-0 right-0 min-h-11 whitespace-nowrap px-3 text-sm font-medium text-slate-600 focus-visible:outline-2 focus-visible:outline-offset-2">{showPassword ? "Ẩn" : "Hiện"}</button>
                       </div>
                     </div>
                     <button type="submit" disabled={disabled || isConfigured || !username.trim() || !password} className="min-h-11 whitespace-nowrap rounded-lg bg-[#0f6756] px-5 text-base font-semibold text-white hover:bg-[#0c5245] focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50">{busy ? "Đang kết nối…" : "Đăng nhập"}</button>
@@ -229,7 +281,12 @@ export function KbttConnectionPage({
           </div>
         ) : null}
         {connection.isSuccess && data && isConfigured && canManageAutoSubmit ? (
-          <KbttAutoSubmitSection hotelId={hotelId} canManage={canManage} isConnected={isConnected} />
+          <KbttAutoSubmitSection
+            hotelId={hotelId}
+            canManage={canManage}
+            isConnected={isConnected}
+            connectionNextCatchUpAt={data.nextCatchUpAt ?? null}
+          />
         ) : null}
       </div>
     </section>
@@ -240,17 +297,18 @@ function KbttAutoSubmitSection({
   hotelId,
   canManage,
   isConnected,
+  connectionNextCatchUpAt,
 }: {
   hotelId: string;
   canManage: boolean;
   isConnected: boolean;
+  connectionNextCatchUpAt: string | null;
 }) {
   const {
     autoSubmit,
     updating,
     testing,
     testingTelegram,
-    updateConfig,
     testDryRun,
     testTelegram,
     scheduleAutoSubmit,
@@ -259,14 +317,11 @@ function KbttAutoSubmitSection({
     cancellingSchedule,
   } = useKbttAutoSubmit(hotelId);
   const data = autoSubmit.data;
-
-  const { enabled } = useKbttAutoSubmitEnabled(hotelId);
-  const [time, setTime] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
-  return () => window.clearInterval(timer);
+    return () => window.clearInterval(timer);
   }, []);
 
   async function scheduleRun(mode: "dry-run" | "live") {
@@ -300,8 +355,6 @@ function KbttAutoSubmitSection({
     }
   }
 
-  const isEnabled = enabled.data?.autoSubmitEnabled ?? false;
-  const currentTime = time ?? (data?.autoSubmitTime ?? "04:30");
   const pendingSchedule = data?.pendingSchedule ?? null;
   const activeRun = data?.activeRun ?? null;
   const isRunning = Boolean(activeRun);
@@ -317,20 +370,9 @@ function KbttAutoSubmitSection({
   }, [pendingSchedule, pendingSeconds, autoSubmit]);
 
   const isSaving = updating || testing || autoSubmit.isFetching;
-
-  async function handleSaveConfig() {
-    if (!canManage || isSaving) return;
-    try {
-      await updateConfig({
-        autoSubmitTime: currentTime,
-      });
-      setTime(null);
-      await showSuccessAlert("Lịch nộp tự động", `Đã lưu giờ nộp: ${currentTime} hàng ngày.`);
-    } catch (error) {
-      await autoSubmit.refetch();
-      await showErrorAlert("Không thể lưu cấu hình", errorText(error));
-    }
-  }
+  const nextScheduledSlotAt =
+    data?.nextScheduledSlotAt ?? computeNextVietnamDailySlot(new Date(now)).scheduledAt;
+  const nextCatchUpAt = data?.nextCatchUpAt ?? connectionNextCatchUpAt ?? null;
 
   async function handleTestDryRun() {
     if (!canManage || isSaving) return;
@@ -362,21 +404,34 @@ function KbttAutoSubmitSection({
     <div className="mt-6 space-y-4 border-t border-slate-200 pt-5">
       <KbttAutoSubmitSwitch hotelId={hotelId} canManage={canManage} isConnected={isConnected} />
       {autoSubmit.isError ? <p className="text-pretty text-base text-red-700" role="alert">{errorText(autoSubmit.error)}</p> : null}
+      <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-3">
+        <div className="min-w-0">
+          <dt className="text-sm text-slate-600">Khung giờ gửi tự động cố định</dt>
+          <dd className="mt-1 text-base font-semibold text-slate-900">
+            {KBTT_FIXED_SCHEDULE_SLOTS.join(" và ")} ({KBTT_SCHEDULE_TIMEZONE})
+          </dd>
+        </div>
+        <div className="min-w-0">
+          <dt className="text-sm text-slate-600">Phiên định kỳ tiếp theo</dt>
+          <dd className="mt-1 text-base font-semibold text-slate-900">
+            {formatDateTime(nextScheduledSlotAt)}
+          </dd>
+        </div>
+        <div className="min-w-0">
+          <dt className="text-sm text-slate-600">Gửi bù 10 phút tiếp theo</dt>
+          <dd className="mt-1 text-base font-semibold text-slate-900">
+            {nextCatchUpAt ? formatDateTime(nextCatchUpAt) : "Không có hồ sơ chờ gửi bù"}
+          </dd>
+        </div>
+      </dl>
       {!isConnected ? (
-        <p className="text-pretty text-base text-amber-800">Kết nối BCA để bật gửi tự động.</p>
+        <p className="text-pretty text-base text-amber-800">Kết nối BCA để gửi hồ sơ tự động.</p>
       ) : (
         <>
-          <div className="flex flex-wrap items-end gap-3">
-            <div>
-              <label htmlFor="kbtt-submit-time" className="mb-1.5 block text-sm font-medium text-slate-600">Giờ gửi hằng ngày (Việt Nam)</label>
-              <input id="kbtt-submit-time" type="time" disabled={!canManage || !isEnabled || isSaving} value={currentTime} onChange={(event) => setTime(event.target.value)} className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-base font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 disabled:bg-slate-100 disabled:text-slate-500" />
-            </div>
-            {canManage ? <button type="button" disabled={isSaving || time === null} onClick={() => void handleSaveConfig()} className="min-h-11 whitespace-nowrap rounded-lg bg-[#0f6756] px-4 text-base font-semibold text-white hover:bg-[#0c5245] focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50">{updating ? "Đang lưu…" : "Lưu giờ gửi"}</button> : null}
-          </div>
-          {isRunning ? <p className="text-base text-blue-800" role="status">Đang {activeRun?.dryRun ? "chạy thử" : "gửi BCA và báo cáo Telegram"}…</p> : null}
+          {isRunning ? <p className="text-pretty text-base text-blue-800" role="status">Đang {activeRun?.dryRun ? "chạy thử" : "gửi BCA và báo cáo Telegram"}…</p> : null}
           {pendingSchedule && !isRunning ? (
             <div className="flex flex-wrap items-center gap-3" role="status">
-              <p className="text-base text-teal-800">{pendingSchedule.dryRun ? "Chạy thử" : "Gửi BCA và báo cáo Telegram"} sau {pendingSeconds} giây.</p>
+              <p className="text-pretty text-base text-teal-800">{pendingSchedule.dryRun ? "Chạy thử" : "Gửi BCA và báo cáo Telegram"} sau {pendingSeconds} giây.</p>
               {canManage ? <button type="button" disabled={cancellingSchedule} onClick={() => void cancelScheduledRun()} className="min-h-11 whitespace-nowrap rounded-lg border border-red-200 px-4 text-base font-semibold text-red-700 hover:bg-red-50 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50">{cancellingSchedule ? "Đang hủy…" : "Hủy hẹn"}</button> : null}
             </div>
           ) : null}

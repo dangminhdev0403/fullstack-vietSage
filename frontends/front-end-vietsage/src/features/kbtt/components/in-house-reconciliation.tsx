@@ -142,6 +142,99 @@ function BcaGuestDetailModal({ row, onClose }: {
   );
 }
 
+export function getReconciliationConnectionPollInterval(
+  data:
+    | {
+        configured?: boolean;
+        status?: string;
+        lastErrorCode?: string | null;
+        cooldownUntil?: string | null;
+      }
+    | null
+    | undefined,
+  nowMs: number = Date.now(),
+): number | false {
+  if (!data?.configured || data.status !== "DISCONNECTED") return false;
+  if (data.lastErrorCode === "KBTT_RETRY_PENDING") return 10_000;
+  if (data.lastErrorCode === "KBTT_TEMP_DISCONNECTED") {
+    if (data.cooldownUntil) {
+      const targetMs = Date.parse(data.cooldownUntil);
+      if (Number.isFinite(targetMs)) {
+        const remainingMs = targetMs - nowMs;
+        if (remainingMs > 0) {
+          return Math.min(15_000, Math.max(5_000, remainingMs + 1_000));
+        }
+      }
+    }
+    return 15_000;
+  }
+  return false;
+}
+
+export function getReconciliationConnectionBannerText(
+  data:
+    | {
+        configured?: boolean;
+        status?: string;
+        lastErrorCode?: string | null;
+        lastErrorMessage?: string | null;
+      }
+    | null
+    | undefined,
+): {
+  text: string;
+  isTemporaryDisconnect: boolean;
+  isLoginRequired: boolean;
+} {
+  if (
+    data?.status === "DISCONNECTED" &&
+    data.lastErrorCode === "KBTT_RETRY_PENDING"
+  ) {
+    return {
+      text: "Đang thử kết nối lại sau 10 giây. Đang hiển thị danh sách khách VietSage.",
+      isTemporaryDisconnect: true,
+      isLoginRequired: false,
+    };
+  }
+  if (
+    data?.status === "DISCONNECTED" &&
+    data.lastErrorCode === "KBTT_TEMP_DISCONNECTED"
+  ) {
+    return {
+      text: "Tạm ngắt kết nối BCA — đang chờ kết nối lại. Đang hiển thị danh sách khách VietSage.",
+      isTemporaryDisconnect: true,
+      isLoginRequired: false,
+    };
+  }
+  if (data?.lastErrorCode === "KBTT_FACILITY_CONFLICT") {
+    return {
+      text: `${
+        data.lastErrorMessage?.trim() ||
+        "Tài khoản cơ sở BCA này đang được liên kết với một khách sạn khác trên hệ thống."
+      } Đang hiển thị danh sách khách VietSage.`,
+      isTemporaryDisconnect: false,
+      isLoginRequired: false,
+    };
+  }
+  if (
+    data?.status === "AUTH_FAILED" ||
+    data?.lastErrorCode === "KBTT_AUTH_FAILED" ||
+    (data?.status === "DISCONNECTED" &&
+      data?.lastErrorCode === "KBTT_SESSION_ENDED")
+  ) {
+    return {
+      text: "Cần đăng nhập lại BCA. Đang hiển thị danh sách khách VietSage.",
+      isTemporaryDisconnect: false,
+      isLoginRequired: true,
+    };
+  }
+  return {
+    text: "Chưa kết nối BCA. Đang hiển thị danh sách khách VietSage.",
+    isTemporaryDisconnect: false,
+    isLoginRequired: false,
+  };
+}
+
 export function InHouseReconciliation({ hotelId, canManage, canConfigureKbtt = false, initialQuery = "" }: {
   hotelId: string; canManage: boolean; canConfigureKbtt?: boolean; initialQuery?: string;
 }) {
@@ -149,7 +242,7 @@ export function InHouseReconciliation({ hotelId, canManage, canConfigureKbtt = f
   const queryClient = useQueryClient();
   const connection = useQuery({ ...resource.queries.connection.options(), enabled: Boolean(hotelId),
     refetchOnMount: "always", staleTime: 0, retry: false,
-    refetchInterval: (query) => query.state.data?.configured && query.state.data.lastErrorCode === "KBTT_RETRY_PENDING" ? 10_000 : false });
+    refetchInterval: (query) => getReconciliationConnectionPollInterval(query.state.data) });
   const connected = connection.isSuccess && !connection.isFetching && connection.data.status === "CONNECTED";
   const [syncHotel, setSyncHotel] = useState<string | null>(null);
   const [completedHotel, setCompletedHotel] = useState<string | null>(null);
@@ -335,16 +428,6 @@ export function InHouseReconciliation({ hotelId, canManage, canConfigureKbtt = f
           <InHouseBcaControls hotelId={hotelId} canManage={canConfigureKbtt} />
           <button
             type="button"
-            className={buttonClass}
-            disabled={pending || !connected}
-            onClick={() => void refreshBoth()}
-            title="Kiểm tra trạng thái kết nối tới hệ thống BCA"
-          >
-            <VsIcon name="verified" className="h-4.5 w-4.5 text-emerald-700" />
-            <span>Kiểm tra kết nối</span>
-          </button>
-          <button
-            type="button"
             className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-emerald-800/20 bg-emerald-50/90 px-4 text-sm font-bold text-emerald-900 shadow-2xs transition-all hover:bg-emerald-100 hover:border-emerald-800/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#003B2A]/30 disabled:opacity-50 whitespace-nowrap"
             disabled={pending}
             onClick={() => void refreshBoth()}
@@ -422,20 +505,20 @@ export function InHouseReconciliation({ hotelId, canManage, canConfigureKbtt = f
         </div>
       </div>
 
-      {/* Verification Advisory Notice */}
-      <div className="flex items-center gap-2.5 rounded-xl border border-emerald-900/10 bg-[#FDFBF7] px-4 py-2.5 text-sm text-slate-700 shadow-2xs">
-        <VsIcon name="verified" className="h-4.5 w-4.5 text-[#003B2A] shrink-0" />
-        <p className="font-medium">
-          Vui lòng kiểm tra kỹ thông tin họ tên, ngày sinh, số giấy tờ và thời hạn lưu trú trước khi gửi khai báo lên hệ thống BCA.
-        </p>
-      </div>
-
       {/* Structured Status / Alert Banner */}
       {hasIssues ? (
         <div className="flex items-start gap-3 rounded-xl border border-amber-200/80 bg-amber-50/70 p-3.5 text-xs text-amber-900 shadow-2xs">
           <VsIcon name="info" className="h-4.5 w-4.5 text-amber-600 shrink-0 mt-0.5" />
           <div className="min-w-0 flex-1 space-y-1">
-            {!connected ? <p>{connection.isError ? "Không xác định được trạng thái kết nối BCA." : connection.isPending || connection.isFetching ? "Đang kiểm tra trạng thái kết nối BCA…" : "Chưa kết nối BCA. Đang hiển thị danh sách khách VietSage."}</p> : null}
+            {!connected ? (
+              <p className="text-pretty">
+                {connection.isError
+                  ? "Không xác định được trạng thái kết nối BCA."
+                  : connection.isPending || connection.isFetching
+                    ? "Đang kiểm tra trạng thái kết nối BCA…"
+                    : getReconciliationConnectionBannerText(connection.data).text}
+              </p>
+            ) : null}
             {data && connected ? (
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-medium">
                 {([ ["VIETNAMESE", "Khách Việt Nam"], ["FOREIGN", "Khách nước ngoài"] ] as const).map(([value, label]) =>
@@ -458,16 +541,18 @@ export function InHouseReconciliation({ hotelId, canManage, canConfigureKbtt = f
               </div>
             ) : null}
             {query.isError && connected ? (
-              <p className="font-medium text-amber-900">
+              <p className="font-medium text-amber-900 text-pretty">
                 Chưa đối soát được BCA. {sanitizeErrorMessage(query.error instanceof Error ? query.error.message : null)}
                 {data ? " Đang hiển thị dữ liệu VietSage; trạng thái BCA chưa được cập nhật." : ""}
               </p>
             ) : null}
-            {!connected || query.isError || (data && Object.values(data.sources).some((source) => source.state === "NOT_CONNECTED" || source.state === "NEEDS_LOGIN")) ? (
+            {(!connected && !getReconciliationConnectionBannerText(connection.data).isTemporaryDisconnect) ||
+            query.isError ||
+            (data && Object.values(data.sources).some((source) => source.state === "NOT_CONNECTED" || source.state === "NEEDS_LOGIN")) ? (
               <a className="inline-flex min-h-11 items-center font-semibold underline focus-visible:outline focus-visible:outline-2" href={`/owner/hotels/${encodeURIComponent(hotelId)}/settings?tab=integrations`}>Kết nối tài khoản BCA</a>
             ) : null}
-            {localFallback.isError && (!connected || query.isError) ? <p>Không tải được danh sách khách VietSage. Vui lòng thử lại.</p> : null}
-            {issue ? <p className="font-semibold text-rose-800">{issue}</p> : null}
+            {localFallback.isError && (!connected || query.isError) ? <p className="text-pretty">Không tải được danh sách khách VietSage. Vui lòng thử lại.</p> : null}
+            {issue ? <p className="font-semibold text-rose-800 text-pretty">{issue}</p> : null}
           </div>
         </div>
       ) : null}

@@ -16,7 +16,12 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { KbttHotelConnection } from "@prisma/client";
 import { KbttController } from "../api/kbtt.controller";
-import { KbttService, isBcaDuplicateConflict } from "../application/kbtt.service";
+import {
+  KbttService,
+  computeVietnamNextDailySlot,
+  computeVietnamNextTenMinuteBoundary,
+  isBcaDuplicateConflict,
+} from "../application/kbtt.service";
 import {
   kbttCatalogKindSchema,
   kbttPaginationQuerySchema,
@@ -91,7 +96,23 @@ function fixture(providerRead?: KbttProviderReadClient) {
   const occupants = new Map<string, any>();
   const repository = {
     find: jest.fn(async (hotelId: string) => rows.get(hotelId) ?? null),
+    findConflictingFacilityConnections: jest.fn(
+      async (csltId: string, excludeHotelId?: string) =>
+        [...rows.values()].filter(
+          (r) => r.csltId === csltId.trim() && (!excludeHotelId || r.hotelId !== excludeHotelId),
+        ),
+    ),
     save: jest.fn(async (connection: KbttHotelConnection) => {
+      const conflicts = [...rows.values()].filter(
+        (r) => r.csltId === connection.csltId.trim() && r.hotelId !== connection.hotelId,
+      );
+      if (conflicts.length > 0) {
+        throw new ConflictException({
+          code: "KBTT_FACILITY_CONFLICT",
+          message:
+            "Cơ sở lưu trú BCA này đã được liên kết với một khách sạn khác trên hệ thống. Không thể dùng chung một cơ sở BCA cho nhiều khách sạn.",
+        });
+      }
       const existing = rows.get(connection.hotelId);
       const saved = {
         ...connection,
@@ -501,6 +522,8 @@ function fixture(providerRead?: KbttProviderReadClient) {
 }
 
 beforeEach(() => {
+  (KbttService as any).activeFacilities?.clear?.();
+  (KbttService as any).activeFacilityLocks?.clear?.();
   process.env.KBTT_AUTO_SUBMIT_LIVE_ENABLED = "true";
   process.env.KBTT_AUTO_SUBMIT_KILL_SWITCH = "false";
   process.env.KBTT_BASE_URL = "https://api-kbtt.example.test";
@@ -688,21 +711,31 @@ describe("KBTT secure manual authentication", () => {
     }
   });
 
-  it("shares one hotel switch between owner and front desk without changing schedule or contacting BCA", async () => {
+  it("shares one hotel switch between owner and front desk with fixed 12:00/21:00 schedule without contacting BCA", async () => {
     const f = fixture();
     await f.service.connect("owner", "owner-role", "hotel-1", credentials);
-    await f.service.updateAutoSubmitConfig("owner", "owner-role", "hotel-1", { autoSubmitTime: "04:30" });
+    await expect(
+      f.service.updateAutoSubmitConfig("owner", "owner-role", "hotel-1", {
+        autoSubmitEnabled: true,
+        autoSubmitTime: "04:30" as any,
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
     f.provider.login.mockClear();
     expect(await f.service.updateAutoSubmitEnabled("front-desk", "staff-role", "hotel-1", true))
       .toEqual({ autoSubmitEnabled: true });
     expect(await f.service.getAutoSubmitEnabled("owner", "owner-role", "hotel-1"))
       .toEqual({ autoSubmitEnabled: true });
-    await f.service.updateAutoSubmitConfig("owner", "owner-role", "hotel-1", { autoSubmitTime: "05:00" });
-    expect(f.rows.get("hotel-1")).toMatchObject({ autoSubmitEnabled: true, autoSubmitTime: "05:00" });
+    const cfg = await f.service.getAutoSubmitConfig("owner", "owner-role", "hotel-1");
+    expect(cfg).toMatchObject({
+      autoSubmitEnabled: true,
+      autoSubmitTime: null,
+      scheduleSlots: ["12:00", "21:00"],
+      timezone: "Asia/Ho_Chi_Minh",
+    });
+    expect(cfg.nextScheduledSlotAt).toEqual(expect.any(String));
     await f.service.updateAutoSubmitEnabled("owner", "owner-role", "hotel-1", false);
     expect(await f.service.getAutoSubmitEnabled("front-desk", "staff-role", "hotel-1"))
       .toEqual({ autoSubmitEnabled: false });
-    expect(f.rows.get("hotel-1")?.autoSubmitTime).toBe("05:00");
     expect(await f.service.getAutoSubmitEnabled("owner", "owner-role", "hotel-2"))
       .toEqual({ autoSubmitEnabled: false });
     expect(f.provider.login).not.toHaveBeenCalled();
@@ -762,22 +795,28 @@ describe("KBTT secure manual authentication", () => {
   });
 
   it("stops the remaining guests in an active automatic run when either workspace pauses delivery", async () => {
-    const f = fixture();
-    f.occupants.set(primaryOccupant.id, primaryOccupant);
-    f.occupants.set("occ-second", { ...primaryOccupant, id: "occ-second", fullName: "Tran Van B", identityNumber: "001090012346" });
-    await f.service.connect("owner", "owner-role", "hotel-1", credentials);
-    await f.service.updateAutoSubmitEnabled("owner", "owner-role", "hotel-1", true);
-    f.provider.submitDeclaration.mockImplementationOnce(async () => {
-      await f.service.updateAutoSubmitEnabled("front-desk", "staff-role", "hotel-1", false);
-      return { outcome: "SUCCESS", code: "200", message: "Thành công" };
-    });
-    await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
-    expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
-    expect([...f.declarations.values()].filter((d) => d.status === "READY")).toHaveLength(1);
-    expect(f.repository.finalizeAutoSubmitRun).toHaveBeenCalledWith("run-auto-1", expect.objectContaining({
-      status: "CANCELLED", successCount: 1, failedCount: 0, unknownCount: 0,
-      summaryJson: expect.objectContaining({ reason: "DELIVERY_PAUSED" }),
-    }));
+    jest.useFakeTimers({ doNotFake: ["nextTick", "setImmediate"] }).setSystemTime(new Date("2026-09-14T05:00:00.000Z"));
+    try {
+      const f = fixture();
+      f.occupants.set(primaryOccupant.id, primaryOccupant);
+      f.occupants.set("occ-second", { ...primaryOccupant, id: "occ-second", fullName: "Tran Van B", identityNumber: "001090012346" });
+      await f.service.connect("owner", "owner-role", "hotel-1", credentials);
+      await f.service.updateAutoSubmitEnabled("owner", "owner-role", "hotel-1", true);
+      f.provider.submitDeclaration.mockImplementationOnce(async () => {
+        await f.service.updateAutoSubmitEnabled("front-desk", "staff-role", "hotel-1", false);
+        return { outcome: "SUCCESS", code: "200", message: "Thành công" };
+      });
+      await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
+      expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
+      expect([...f.declarations.values()].filter((d) => d.status === "READY")).toHaveLength(1);
+      expect(f.repository.finalizeAutoSubmitRun).toHaveBeenCalledWith("run-auto-1", expect.objectContaining({
+        status: "CANCELLED", successCount: 1, failedCount: 0, unknownCount: 0,
+        summaryJson: expect.objectContaining({ reason: "DELIVERY_PAUSED" }),
+      }));
+      f.service.onModuleDestroy();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it("skips automatic recovery runs while disabled before authentication or guest dispatch", async () => {
@@ -841,7 +880,7 @@ describe("KBTT secure manual authentication", () => {
     expect(rows.size).toBe(0);
   });
 
-  it("clears the connection when refreshing a manual check fails", async () => {
+  it("pauses the connection temporarily without deleting credentials when refreshing a manual check fails with network error", async () => {
     const { service, provider, rows } = fixture();
     await service.connect("owner", "owner-role", "hotel-1", credentials);
     const old = service.getCachedReadSession("hotel-1", rows.get("hotel-1")!)!;
@@ -854,7 +893,13 @@ describe("KBTT secure manual authentication", () => {
     );
 
     await expect(service.check("owner", "owner-role", "hotel-1")).rejects.toBeDefined();
-    expect(rows.has("hotel-1")).toBe(false);
+    expect(rows.has("hotel-1")).toBe(true);
+    expect(rows.get("hotel-1")).toMatchObject({
+      status: "DISCONNECTED",
+      lastErrorCode: "KBTT_TEMP_DISCONNECTED",
+    });
+    expect(provider.revoke).not.toHaveBeenCalled();
+    service.onModuleDestroy();
   });
 
   it("ends the disconnected run after restart without automatic saved-password login", async () => {
@@ -919,45 +964,52 @@ describe("KBTT secure manual authentication", () => {
   });
 
   it("does not call BCA or Telegram during auto-submit dry run", async () => {
-    const f = fixture();
-    f.occupants.set("occ-vn", primaryOccupant);
-    const telegram = { sendKbttAutoSubmitSummary: jest.fn() };
-    const service = new KbttService(
-      f.access as never,
-      f.repository as never,
-      f.cipher,
-      f.provider as never,
-      f.occupantsReadService as never,
-      telegram as never,
-    );
-    await service.connect("owner", "owner-role", "hotel-1", credentials);
-    f.declarations.set("decl-auto-1", {
-      id: "decl-auto-1",
-      hotelId: "hotel-1",
-      version: 1,
-      declarationKind: "VIETNAMESE",
-      draftPayloadJson: {
-        hoTen: "Nguyen Van A",
-        gioiTinh: "M",
-        ngayThangNamSinhStr: "1990-01-01",
-        ngayDenCsltStr: "2026-09-14 10:00:00",
-        ngayDiDuKienStr: "2026-09-15 12:00:00",
-        soPhong: "101",
-        lyDoCuTru: 1,
-        loaiGiayTo: 1,
-        soGiayTo: "001090012345",
-      },
-      status: "READY",
-    });
+    jest.useFakeTimers({ doNotFake: ["nextTick", "setImmediate"] }).setSystemTime(new Date("2026-09-14T05:00:00.000Z"));
+    try {
+      const f = fixture();
+      f.occupants.set("occ-vn", primaryOccupant);
+      const telegram = { sendKbttAutoSubmitSummary: jest.fn() };
+      const service = new KbttService(
+        f.access as never,
+        f.repository as never,
+        f.cipher,
+        f.provider as never,
+        f.occupantsReadService as never,
+        telegram as never,
+      );
+      await service.connect("owner", "owner-role", "hotel-1", credentials);
+      f.declarations.set("decl-auto-1", {
+        id: "decl-auto-1",
+        hotelId: "hotel-1",
+        occupantId: "occ-vn",
+        version: 1,
+        declarationKind: "VIETNAMESE",
+        draftPayloadJson: {
+          hoTen: "Nguyen Van A",
+          gioiTinh: "M",
+          ngayThangNamSinhStr: "1990-01-01",
+          ngayDenCsltStr: "2026-09-14 10:00:00",
+          ngayDiDuKienStr: "2026-09-15 12:00:00",
+          soPhong: "101",
+          lyDoCuTru: 1,
+          loaiGiayTo: 1,
+          soGiayTo: "001090012345",
+        },
+        status: "READY",
+      });
 
-    await service.executeAutoSubmitForHotel("hotel-1", new Date(), true);
+      await service.executeAutoSubmitForHotel("hotel-1", new Date(), true);
 
-    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
-    expect(telegram.sendKbttAutoSubmitSummary).not.toHaveBeenCalled();
-    expect(f.repository.finalizeAutoSubmitRun).toHaveBeenCalledWith(
-      "run-auto-1",
-      expect.objectContaining({ status: "COMPLETED", successCount: 1 }),
-    );
+      expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+      expect(telegram.sendKbttAutoSubmitSummary).not.toHaveBeenCalled();
+      expect(f.repository.finalizeAutoSubmitRun).toHaveBeenCalledWith(
+        "run-auto-1",
+        expect.objectContaining({ status: "COMPLETED", successCount: 1 }),
+      );
+      service.onModuleDestroy();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });
 
@@ -2355,6 +2407,15 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
   });
 
   describe("bulk auto-submit delivery safety", () => {
+    beforeEach(() => {
+      jest
+        .useFakeTimers({ doNotFake: ["nextTick", "setImmediate"] })
+        .setSystemTime(new Date("2026-09-14T11:00:00.000Z"));
+    });
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
     it("marks the first ambiguous transmission UNKNOWN without retrying it", async () => {
       const f = fixture();
       f.occupants.set("occ-vn", primaryOccupant);
@@ -3019,6 +3080,7 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
     });
 
     it("completed daily batch with backlog creates exactly one persistent +30m continuation; no backlog creates none (test 3)", async () => {
+      jest.setSystemTime(new Date("2026-09-16T04:30:00.000Z"));
       const f = fixture();
       await f.service.connect("owner", "owner-role", "hotel-1", credentials);
 
@@ -3027,6 +3089,15 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
         f.occupants.set(id, {
           ...primaryOccupant,
           id,
+          checkedInAt: new Date("2026-09-16T03:00:00.000Z"),
+          plannedCheckInAt: new Date("2026-09-16T03:00:00.000Z"),
+          plannedCheckOutAt: new Date("2026-09-17T05:00:00.000Z"),
+          stay: {
+            ...primaryOccupant.stay,
+            checkedInAt: new Date("2026-09-16T03:00:00.000Z"),
+            plannedCheckInAt: new Date("2026-09-16T03:00:00.000Z"),
+            plannedCheckOutAt: new Date("2026-09-17T05:00:00.000Z"),
+          },
           fullName: "Nguyen Thi " + String.fromCharCode(65 + (i % 26)),
           identityNumber: `001093${String(i).padStart(6, "0")}`,
         });
@@ -3066,6 +3137,7 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
         true,
       );
       expect(f.repository.createScheduledAutoSubmitRun).not.toHaveBeenCalled();
+      f.service.onModuleDestroy();
     });
 
     it("manual 15s batch is capped at 100 and does not create an automatic 30m continuation even when backlog remains (test 5)", async () => {
@@ -3178,7 +3250,7 @@ describe("BCA delayed recovery and server logout", () => {
   beforeEach(() => jest.useFakeTimers());
   afterEach(() => jest.useRealTimers());
 
-  it("blocks the session immediately, waits 10 seconds between retries and logs out after two failures", async () => {
+  it("blocks the session immediately, waits 10 seconds between retries and enters temporary disconnect cooldown after two failures", async () => {
     const f = fixture(); await f.service.connect("user", "role", "hotel-1", credentials);
     const connection = f.rows.get("hotel-1")!;
     const old = f.service.getCachedReadSession("hotel-1", connection)!;
@@ -3190,9 +3262,13 @@ describe("BCA delayed recovery and server logout", () => {
     await jest.advanceTimersByTimeAsync(1); expect(retry).toHaveBeenCalledTimes(1);
     await jest.advanceTimersByTimeAsync(9_999); expect(retry).toHaveBeenCalledTimes(1);
     await jest.advanceTimersByTimeAsync(1); expect(retry).toHaveBeenCalledTimes(2);
-    expect(f.rows.has("hotel-1")).toBe(false);
-    expect((f.service as any).sessions.has("hotel-1")).toBe(false);
-    expect(f.provider.revoke).toHaveBeenCalledWith(old.AccessToken, expect.any(AbortSignal));
+    expect(f.rows.has("hotel-1")).toBe(true);
+    expect(f.rows.get("hotel-1")).toMatchObject({
+      status: "DISCONNECTED",
+      lastErrorCode: "KBTT_TEMP_DISCONNECTED",
+    });
+    expect((f.service as any).sessions.has("hotel-1")).toBe(true);
+    expect(f.provider.revoke).not.toHaveBeenCalled();
     expect(f.provider.login).toHaveBeenCalledTimes(1);
     f.service.onModuleDestroy();
   });
@@ -3236,13 +3312,20 @@ describe("BCA delayed recovery and server logout", () => {
     f.service.onModuleDestroy();
   });
 
-  it("disconnects rejected authentication immediately and still attempts revoke", async () => {
+  it("marks rejected authentication as AUTH_FAILED immediately without revoking or deleting saved connection", async () => {
     const f = fixture(); await f.service.connect("user", "role", "hotel-1", credentials);
     const old = f.service.getCachedReadSession("hotel-1", f.rows.get("hotel-1")!)!;
     const retry = jest.fn();
     await f.service.recoverReadSession("hotel-1", old, retry, true);
-    expect(f.rows.has("hotel-1")).toBe(false); expect(retry).not.toHaveBeenCalled();
-    expect(f.provider.revoke).toHaveBeenCalledWith(old.AccessToken, expect.any(AbortSignal)); f.service.onModuleDestroy();
+    expect(f.rows.has("hotel-1")).toBe(true);
+    expect(f.rows.get("hotel-1")).toMatchObject({
+      status: "AUTH_FAILED",
+      lastErrorCode: "KBTT_AUTH_FAILED",
+    });
+    expect((f.service as any).sessions.size).toBe(0);
+    expect(retry).not.toHaveBeenCalled();
+    expect(f.provider.revoke).not.toHaveBeenCalled();
+    f.service.onModuleDestroy();
   });
 
   it("clears tokens and attempts revoke even when persisting logout fails", async () => {
@@ -3254,7 +3337,7 @@ describe("BCA delayed recovery and server logout", () => {
     expect(f.provider.revoke).toHaveBeenCalledWith(old.AccessToken, expect.any(AbortSignal)); f.service.onModuleDestroy();
   });
 
-  it("bounds stalled recovery attempts and clears tokens after the second retry deadline", async () => {
+  it("bounds stalled recovery attempts and enters temporary disconnect cooldown after the second retry deadline", async () => {
     const f = fixture(); await f.service.connect("user", "role", "hotel-1", credentials);
     const old = f.service.getCachedReadSession("hotel-1", f.rows.get("hotel-1")!)!;
     const retry = jest.fn(() => new Promise<boolean>(() => {}));
@@ -3262,8 +3345,25 @@ describe("BCA delayed recovery and server logout", () => {
     await jest.advanceTimersByTimeAsync(39_999);
     expect(retry).toHaveBeenCalledTimes(2); expect(f.rows.has("hotel-1")).toBe(true);
     await jest.advanceTimersByTimeAsync(1);
-    expect(f.rows.has("hotel-1")).toBe(false); expect((f.service as any).sessions.size).toBe(0);
+    expect(f.rows.has("hotel-1")).toBe(true);
+    expect(f.rows.get("hotel-1")).toMatchObject({
+      status: "DISCONNECTED",
+      lastErrorCode: "KBTT_TEMP_DISCONNECTED",
+    });
+    expect((f.service as any).sessions.has("hotel-1")).toBe(true);
+    expect(f.provider.revoke).not.toHaveBeenCalled();
     f.service.onModuleDestroy();
+  });
+
+  it("does not advertise an endless pending retry after the server loses its in-memory recovery job", async () => {
+    const f = fixture(); await f.service.connect("user", "role", "hotel-1", credentials);
+    const old = f.service.getCachedReadSession("hotel-1", f.rows.get("hotel-1")!)!;
+    const retry = jest.fn().mockResolvedValue(true);
+    await f.service.recoverReadSession("hotel-1", old, retry);
+    f.service.onModuleDestroy();
+    expect(await f.service.get("user", "role", "hotel-1")).toMatchObject({ status: "DISCONNECTED", lastErrorCode: "KBTT_SESSION_ENDED" });
+    await jest.advanceTimersByTimeAsync(30_000);
+    expect(retry).not.toHaveBeenCalled();
   });
 
   it("does not delete another replica's newer connection when this process only has an old session", async () => {
@@ -3347,13 +3447,17 @@ describe("front-desk BCA read-session preparation", () => {
     expect(f.provider.refresh).toHaveBeenCalledWith(old.RefreshToken);
     expect(f.provider.login).not.toHaveBeenCalled(); expect(f.provider.revoke).not.toHaveBeenCalled();
   });
-  it("logs out if refresh fails without falling back to saved-password login", async () => {
+  it("marks AUTH_FAILED if refresh fails without falling back to saved-password login or deleting saved connection", async () => {
     const f = fixture(); await f.service.connect("user", "role", "hotel-1", credentials);
     const old = f.service.getCachedReadSession("hotel-1", f.rows.get("hotel-1")!)!;
     f.service.expireRejectedReadSession("hotel-1", old);
     f.provider.refresh.mockRejectedValue(kbttAuthFailed()); f.provider.login.mockRejectedValue(kbttAuthFailed());
     await expect(f.service.ensureReconciliationSession("user", "role", "hotel-1")).rejects.toBeInstanceOf(HttpException);
-    expect(f.rows.has("hotel-1")).toBe(false);
+    expect(f.rows.has("hotel-1")).toBe(true);
+    expect(f.rows.get("hotel-1")).toMatchObject({
+      status: "AUTH_FAILED",
+      lastErrorCode: "KBTT_AUTH_FAILED",
+    });
     expect((f.service as any).sessions.size).toBe(0);
     expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
   });
@@ -3386,5 +3490,809 @@ describe("editable declaration date payload", () => {
     const f = fixture(); const occupant = structuredClone(primaryOccupant); f.occupants.set(occupant.id, occupant);
     await expect(f.service.saveDraft("user", "role", "hotel-1", occupant.id, { citizenshipKind: "VIETNAMESE", data: { ngayDenCsltStr: "2026-09-16 12:00:00", ngayDiDuKienStr: "2026-09-15 12:00:00" } })).rejects.toBeInstanceOf(BadRequestException);
     expect(f.declarations.size).toBe(0);
+  });
+});
+
+describe("BCA same-day 12:00/21:00 slots, 10-minute catch-up, and temporary disconnect cooldown", () => {
+  beforeEach(() => {
+    jest
+      .useFakeTimers({ doNotFake: ["nextTick", "setImmediate"] })
+      .setSystemTime(new Date("2026-09-14T05:00:00.000Z")); // 2026-09-14 12:00:00 in Asia/Ho_Chi_Minh
+  });
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it("computes strictly future 10-minute boundaries in Asia/Ho_Chi_Minh (12:07 -> 12:10, 21:03 -> 21:10, 12:10:00 -> 12:20, 23:55 -> null)", () => {
+    expect(computeVietnamNextTenMinuteBoundary(new Date("2026-09-14T05:07:22.000Z"))?.toISOString())
+      .toBe("2026-09-14T05:10:00.000Z"); // 12:07 -> 12:10
+    expect(computeVietnamNextTenMinuteBoundary(new Date("2026-09-14T14:03:00.000Z"))?.toISOString())
+      .toBe("2026-09-14T14:10:00.000Z"); // 21:03 -> 21:10
+    expect(computeVietnamNextTenMinuteBoundary(new Date("2026-09-14T05:10:00.000Z"))?.toISOString())
+      .toBe("2026-09-14T05:20:00.000Z"); // exact 12:10:00 -> 12:20
+    expect(computeVietnamNextTenMinuteBoundary(new Date("2026-09-14T16:55:00.000Z")))
+      .toBeNull(); // 23:55 crosses midnight into 2026-09-15 -> null
+  });
+
+  it("computes next fixed daily slot at 12:00 or 21:00 Vietnam time", () => {
+    expect(computeVietnamNextDailySlot(new Date("2026-09-14T03:00:00.000Z"))).toEqual({
+      slot: "12:00",
+      scheduledFor: new Date("2026-09-14T05:00:00.000Z"),
+    });
+    expect(computeVietnamNextDailySlot(new Date("2026-09-14T05:00:00.000Z"))).toEqual({
+      slot: "21:00",
+      scheduledFor: new Date("2026-09-14T14:00:00.000Z"),
+    });
+    expect(computeVietnamNextDailySlot(new Date("2026-09-14T14:30:00.000Z"))).toEqual({
+      slot: "12:00",
+      scheduledFor: new Date("2026-09-15T05:00:00.000Z"),
+    });
+  });
+
+  it("submits only same-current-day arrivals existing at the slot cutoff and never alters prior-day arrival dates", async () => {
+    const f = fixture();
+    await f.service.connect("owner", "owner-role", "hotel-1", credentials);
+    enableAutomaticDelivery(f);
+
+    const priorDayGuest = {
+      ...primaryOccupant,
+      id: "occ-prior-day",
+      fullName: "Prior Day Guest",
+      identityNumber: "001090888001",
+      checkedInAt: new Date("2026-09-13T08:00:00.000Z"),
+      plannedCheckInAt: new Date("2026-09-13T08:00:00.000Z"),
+      stay: {
+        ...primaryOccupant.stay,
+        checkedInAt: new Date("2026-09-13T08:00:00.000Z"),
+        plannedCheckInAt: new Date("2026-09-13T08:00:00.000Z"),
+      },
+    };
+    const sameDayBeforeCutoff = {
+      ...primaryOccupant,
+      id: "occ-same-day-11am",
+      fullName: "Nguyen Van Som",
+      identityNumber: "001090888002",
+      checkedInAt: new Date("2026-09-14T04:00:00.000Z"), // 11:00 VN
+      plannedCheckInAt: new Date("2026-09-14T04:00:00.000Z"),
+      stay: {
+        ...primaryOccupant.stay,
+        checkedInAt: new Date("2026-09-14T04:00:00.000Z"),
+        plannedCheckInAt: new Date("2026-09-14T04:00:00.000Z"),
+      },
+    };
+    const sameDayAfterCutoff = {
+      ...primaryOccupant,
+      id: "occ-same-day-1202",
+      fullName: "Tran Van Muon",
+      identityNumber: "001090888003",
+      checkedInAt: new Date("2026-09-14T05:02:00.000Z"), // 12:02 VN
+      plannedCheckInAt: new Date("2026-09-14T05:02:00.000Z"),
+      stay: {
+        ...primaryOccupant.stay,
+        checkedInAt: new Date("2026-09-14T05:02:00.000Z"),
+        plannedCheckInAt: new Date("2026-09-14T05:02:00.000Z"),
+      },
+    };
+
+    f.occupants.set(priorDayGuest.id, priorDayGuest);
+    f.occupants.set(sameDayBeforeCutoff.id, sameDayBeforeCutoff);
+    f.occupants.set(sameDayAfterCutoff.id, sameDayAfterCutoff);
+
+    // 12:00 slot sweep (cutoff is 12:00:00 VN = 05:00:00 UTC)
+    await f.service.executeAutoSubmitForHotel(
+      "hotel-1",
+      new Date("2026-09-14T05:00:00.000Z"),
+      false,
+    );
+
+    expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
+    expect(f.provider.submitDeclaration).toHaveBeenCalledWith(
+      "VIETNAMESE",
+      [expect.objectContaining({ hoTen: "Nguyen Van Som", ngayDenCsltStr: "2026-09-14 11:00:00" })],
+      expect.any(String),
+    );
+    expect(priorDayGuest.checkedInAt.toISOString()).toBe("2026-09-13T08:00:00.000Z");
+
+    // 21:00 slot sweep processes only the remaining same-day arrival (12:02 guest) and still skips prior-day guest
+    jest.setSystemTime(new Date("2026-09-14T14:00:00.000Z"));
+    // Refresh session so it stays valid at 21:00 VN
+    f.provider.refresh.mockResolvedValueOnce(
+      session({ Exp: Math.floor(new Date("2026-09-14T14:00:00.000Z").getTime() / 1000) + 300 }),
+    );
+    f.provider.submitDeclaration.mockClear();
+    await f.service.executeAutoSubmitForHotel(
+      "hotel-1",
+      new Date("2026-09-14T14:00:00.000Z"),
+      false,
+    );
+    expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
+    expect(f.provider.submitDeclaration).toHaveBeenCalledWith(
+      "VIETNAMESE",
+      [expect.objectContaining({ hoTen: "Tran Van Muon", ngayDenCsltStr: "2026-09-14 12:02:00" })],
+      expect.any(String),
+    );
+    f.service.onModuleDestroy();
+  });
+
+  it("registers earlier same-day unsent check-ins for the next 10-minute boundary upon late BCA login or enabling auto-send", async () => {
+    jest.setSystemTime(new Date("2026-09-14T05:07:00.000Z")); // 12:07 VN
+    const f = fixture();
+    f.occupants.set(primaryOccupant.id, primaryOccupant);
+
+    // Check-in occurred at 10:00 VN before hotel logged into BCA
+    await f.service.triggerCheckInBcaPush("hotel-1", primaryOccupant.stayId);
+    const initialDecl = await f.repository.findLatestDeclaration("hotel-1", primaryOccupant.id);
+    expect(initialDecl).toMatchObject({ status: "FAILED", providerCode: "KBTT_NOT_CONFIGURED" });
+
+    // Hotel logs in at 12:07 VN (switch remains disabled until enabled)
+    await f.service.connect("owner", "owner-role", "hotel-1", credentials);
+    expect(f.rows.get("hotel-1")?.autoSubmitEnabled).toBe(false);
+    expect(f.repository.createScheduledAutoSubmitRun).not.toHaveBeenCalled();
+
+    // Hotel enables auto-send at 12:07 VN -> schedules catch-up at 12:10 VN (05:10:00.000Z)
+    await f.service.updateAutoSubmitEnabled("owner", "owner-role", "hotel-1", true);
+    expect(f.repository.createScheduledAutoSubmitRun).toHaveBeenCalledWith(
+      "hotel-1",
+      new Date("2026-09-14T05:10:00.000Z"),
+      false,
+      "CATCH_UP_10M",
+      { cutoffAt: "2026-09-14T05:10:00.000Z" },
+    );
+
+    // Advance to 12:10 VN -> executes catch-up and submits same-day record with original 10:00 arrival time
+    await jest.advanceTimersByTimeAsync(3 * 60_000);
+    expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
+    expect(f.provider.submitDeclaration).toHaveBeenCalledWith(
+      "VIETNAMESE",
+      [expect.objectContaining({ ngayDenCsltStr: "2026-09-14 10:00:00" })],
+      expect.any(String),
+    );
+    f.service.onModuleDestroy();
+  });
+
+  it("does not schedule or execute catch-up across midnight and never alters arrival date after midnight", async () => {
+    jest.setSystemTime(new Date("2026-09-14T16:55:00.000Z")); // 23:55 VN on 2026-09-14
+    const f = fixture();
+    f.occupants.set(primaryOccupant.id, primaryOccupant);
+    await f.service.connect("owner", "owner-role", "hotel-1", credentials);
+    await f.service.updateAutoSubmitEnabled("owner", "owner-role", "hotel-1", true);
+
+    // At 23:55 VN, next 10-minute boundary would be 00:00 on 2026-09-15 -> must not schedule
+    expect(f.repository.createScheduledAutoSubmitRun).not.toHaveBeenCalled();
+
+    // After midnight (00:05 VN on 2026-09-15), running auto-submit does not send 2026-09-14 guest
+    jest.setSystemTime(new Date("2026-09-14T17:05:00.000Z"));
+    await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
+    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+    f.service.onModuleDestroy();
+  });
+
+  it("does not retry an invalid guest payload until corrected and schedules next 10m catch-up after correction", async () => {
+    jest.setSystemTime(new Date("2026-09-14T14:03:00.000Z")); // 21:03 VN
+    const f = fixture();
+    const invalidGuest = {
+      ...primaryOccupant,
+      id: "occ-missing-id",
+      identityNumber: null,
+    };
+    f.occupants.set(invalidGuest.id, invalidGuest);
+    await f.service.connect("owner", "owner-role", "hotel-1", credentials);
+    enableAutomaticDelivery(f);
+
+    await f.service.triggerCheckInBcaPush("hotel-1", invalidGuest.stayId);
+    expect(await f.repository.findLatestDeclaration("hotel-1", invalidGuest.id)).toMatchObject({
+      status: "FAILED",
+      providerCode: "LOCAL_VALIDATION",
+    });
+    expect(f.rows.get("hotel-1")?.status).toBe("CONNECTED");
+    expect(f.repository.createScheduledAutoSubmitRun).not.toHaveBeenCalled();
+
+    // Operator corrects the missing identity number at 21:03 VN -> schedules catch-up for 21:10 VN
+    await f.service.saveDraft("owner", "owner-role", "hotel-1", invalidGuest.id, {
+      citizenshipKind: "VIETNAMESE",
+      data: { soGiayTo: "001090123999", loaiGiayTo: 1, lyDoCuTru: 1 },
+    });
+    expect(f.repository.createScheduledAutoSubmitRun).toHaveBeenCalledWith(
+      "hotel-1",
+      new Date("2026-09-14T14:10:00.000Z"),
+      false,
+      "CATCH_UP_10M",
+      { cutoffAt: "2026-09-14T14:10:00.000Z" },
+    );
+    f.service.onModuleDestroy();
+  });
+
+  it("enforces 60s cooldown after transient disconnect, coalesces health probes, resumes same generation and schedules catch-up", async () => {
+    jest.setSystemTime(new Date("2026-09-14T05:01:00.000Z")); // 12:01 VN
+    const client = new KbttProviderReadClient();
+    const getAccommodation = jest.spyOn(client, "getAccommodation").mockResolvedValue({
+      httpStatus: 200,
+      envelope: { code: "200" },
+      data: { id: 1000227, tenCSLT: "Khách sạn mẫu" },
+    });
+    const f = fixture(client);
+    f.occupants.set(primaryOccupant.id, primaryOccupant);
+    await f.service.connect("owner", "owner-role", "hotel-1", credentials);
+    enableAutomaticDelivery(f);
+
+    const activeSession = f.service.getCachedReadSession("hotel-1", f.rows.get("hotel-1")!)!;
+    // Trigger transient disconnect cooldown
+    await f.service.enterTemporaryDisconnectCooldown("hotel-1", activeSession);
+    expect(f.rows.get("hotel-1")).toMatchObject({
+      status: "DISCONNECTED",
+      lastErrorCode: "KBTT_TEMP_DISCONNECTED",
+    });
+
+    // During 60s cooldown, explicit probes are blocked
+    getAccommodation.mockClear();
+    await jest.advanceTimersByTimeAsync(59_999);
+    expect(await f.service.probeTemporarilyDisconnectedSession("hotel-1", true)).toBe(false);
+    expect(getAccommodation).not.toHaveBeenCalled();
+
+    // Advance 1 ms to 60s -> cooldown elapses, concurrent probes coalesce into one call, restore CONNECTED, and schedule 12:10 catch-up
+    jest.setSystemTime(new Date("2026-09-14T05:02:00.000Z"));
+    const [p1, p2] = await Promise.all([
+      f.service.probeTemporarilyDisconnectedSession("hotel-1", false),
+      f.service.probeTemporarilyDisconnectedSession("hotel-1", false),
+    ]);
+    expect(p1).toBe(true);
+    expect(p2).toBe(true);
+    expect(getAccommodation).toHaveBeenCalledTimes(1);
+    expect(f.rows.get("hotel-1")).toMatchObject({
+      status: "CONNECTED",
+      lastErrorCode: null,
+    });
+    expect(f.repository.createScheduledAutoSubmitRun).toHaveBeenCalledWith(
+      "hotel-1",
+      new Date("2026-09-14T05:10:00.000Z"),
+      false,
+      "CATCH_UP_10M",
+      { cutoffAt: "2026-09-14T05:10:00.000Z" },
+    );
+    f.service.onModuleDestroy();
+  });
+
+  it("BCA-01 + KbttService integration: drains 501 and 1205 active guests across pages with PAGE_SIZE=500, including when page 1 is already synchronized", async () => {
+    const prevPageSize = process.env.KBTT_AUTO_SUBMIT_PAGE_SIZE;
+    const prevBatchSize = process.env.KBTT_AUTO_SUBMIT_BATCH_SIZE;
+    process.env.KBTT_AUTO_SUBMIT_PAGE_SIZE = "500";
+    process.env.KBTT_AUTO_SUBMIT_BATCH_SIZE = "1500";
+    try {
+      const f = fixture();
+      await f.service.connect("owner", "owner-role", "hotel-1", credentials);
+      enableAutomaticDelivery(f);
+
+      for (let i = 1; i <= 501; i++) {
+        const id = `occ-${String(i).padStart(4, "0")}`;
+        f.occupants.set(id, {
+          ...primaryOccupant,
+          id,
+          fullName: "Nguyen Van " + String.fromCharCode(65 + (i % 26)),
+          identityNumber: `001090${String(i).padStart(6, "0")}`,
+        });
+        if (i <= 500) {
+          f.declarations.set(`decl-${i}`, {
+            id: `decl-${i}`,
+            hotelId: "hotel-1",
+            stayId: primaryOccupant.stayId,
+            occupantId: id,
+            status: "SUBMITTED",
+            declarationKind: "VIETNAMESE",
+            revision: 1,
+            version: 1,
+          });
+        }
+      }
+
+      // hasEligibleSameDayUnsentWork must scan past the 500 synchronized rows on page 1 and find row 0501
+      await expect(f.service.hasEligibleSameDayUnsentWork("hotel-1", new Date())).resolves.toBe(
+        true,
+      );
+
+      // Sweep at 12:00 VN must reach row 0501 and submit it
+      await f.service.executeAutoSubmitForHotel(
+        "hotel-1",
+        new Date("2026-09-14T05:00:00.000Z"),
+        false,
+      );
+      expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
+      expect(f.provider.submitDeclaration).toHaveBeenCalledWith(
+        "VIETNAMESE",
+        [
+          expect.objectContaining({
+            hoTen: "Nguyen Van " + String.fromCharCode(65 + (501 % 26)),
+            soGiayTo: "001090000501",
+          }),
+        ],
+        expect.any(String),
+      );
+      f.service.onModuleDestroy();
+    } finally {
+      if (prevPageSize === undefined) delete process.env.KBTT_AUTO_SUBMIT_PAGE_SIZE;
+      else process.env.KBTT_AUTO_SUBMIT_PAGE_SIZE = prevPageSize;
+      if (prevBatchSize === undefined) delete process.env.KBTT_AUTO_SUBMIT_BATCH_SIZE;
+      else process.env.KBTT_AUTO_SUBMIT_BATCH_SIZE = prevBatchSize;
+    }
+  });
+
+  it("BCA-02: classifies provider 429 rate-limit as transient safe-unsent failure, respects bounded Retry-After cooldown, and schedules next 10m catch-up", async () => {
+    jest.setSystemTime(new Date("2026-09-14T14:03:00.000Z")); // 21:03 VN
+    const f = fixture();
+    f.occupants.set(primaryOccupant.id, primaryOccupant);
+    await f.service.connect("owner", "owner-role", "hotel-1", credentials);
+    enableAutomaticDelivery(f);
+
+    // 1. Test KbttProviderClient HTTP 429 + Retry-After parsing directly
+    const realClient = new KbttProviderClient();
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 429,
+      headers: { get: (h: string) => (h.toLowerCase() === "retry-after" ? "25" : null) },
+      body: new ReadableStream({
+        start(controller) {
+          controller.enqueue(
+            Buffer.from(JSON.stringify({ code: "429", message: "Too Many Requests" })),
+          );
+          controller.close();
+        },
+      }),
+    } as any);
+    const clientOutcome = await realClient.submitDeclaration(
+      "VIETNAMESE",
+      [{ hoTen: "Test" }],
+      "token-1",
+    );
+    expect(clientOutcome).toMatchObject({
+      outcome: "BUSINESS_REJECTION",
+      code: "429",
+      retryAfterMs: 25_000,
+    });
+
+    // 2. Test immediate check-in receiving 429 at 21:03 VN
+    f.provider.submitDeclaration.mockResolvedValueOnce({
+      outcome: "BUSINESS_REJECTION",
+      code: "429",
+      message: "Too Many Requests",
+      retryAfterMs: 25_000,
+    });
+
+    const pendingRuns: any[] = [];
+    (f.repository.findPendingScheduledAutoSubmitRuns as jest.Mock).mockImplementation(
+      async () => pendingRuns,
+    );
+    f.repository.createScheduledAutoSubmitRun.mockImplementation(
+      async (hotelId: string, scheduledFor: Date, dryRun: boolean, trigger = "CATCH_UP_10M") => {
+        const run = {
+          id: "run-429-catchup",
+          hotelId,
+          scheduledFor,
+          status: "RUNNING",
+          leaseExpiresAt: new Date(scheduledFor.getTime() - 1),
+          dryRun,
+          summaryJson: { trigger, cutoffAt: scheduledFor.toISOString() },
+        };
+        pendingRuns.push(run);
+        return run as any;
+      },
+    );
+
+    await f.service.triggerCheckInBcaPush("hotel-1", primaryOccupant.stayId);
+    await finishInitialDeliveries(f);
+
+    const declAfter429 = await f.repository.findLatestDeclaration("hotel-1", primaryOccupant.id);
+    expect(declAfter429).toMatchObject({
+      status: "FAILED",
+      providerCode: "429",
+    });
+
+    // Unchanged FAILED 429 fingerprint must remain eligible for automatic catch-up!
+    expect(
+      (f.service as any).isDeclarationEligibleForAutoCatchUp(
+        primaryOccupant,
+        declAfter429,
+        "2026-09-14",
+      ),
+    ).toBe(true);
+
+    // Connection enters temporary disconnect cooldown with bounded Retry-After (25s instead of 60s)
+    expect(f.rows.get("hotel-1")).toMatchObject({
+      status: "DISCONNECTED",
+      lastErrorCode: "KBTT_TEMP_DISCONNECTED",
+    });
+    const viewDuringCooldown = await f.service.get("owner", "owner-role", "hotel-1");
+    expect(viewDuringCooldown.cooldownUntil).toBe("2026-09-14T14:03:25.000Z");
+
+    // Advance 25s -> health probe runs, restores CONNECTED, and registers catch-up at 21:10 VN (14:10:00.000Z)
+    jest.setSystemTime(new Date("2026-09-14T14:03:25.000Z"));
+    await f.service.probeTemporarilyDisconnectedSession("hotel-1", false);
+    expect(f.rows.get("hotel-1")?.status).toBe("CONNECTED");
+    expect(f.repository.createScheduledAutoSubmitRun).toHaveBeenCalledWith(
+      "hotel-1",
+      new Date("2026-09-14T14:10:00.000Z"),
+      false,
+      "CATCH_UP_10M",
+      { cutoffAt: "2026-09-14T14:10:00.000Z" },
+    );
+    f.service.onModuleDestroy();
+  });
+
+  it("BCA-03: bases automatic catch-up eligibility strictly on authoritative stay arrival and blocks prior-day stays with edited today draft dates", async () => {
+    jest.setSystemTime(new Date("2026-09-14T05:00:00.000Z")); // 2026-09-14 12:00 VN
+    const f = fixture();
+    await f.service.connect("owner", "owner-role", "hotel-1", credentials);
+    enableAutomaticDelivery(f);
+
+    const priorDayStayOccupant = {
+      ...primaryOccupant,
+      id: "occ-prior-with-edited-draft",
+      checkedInAt: new Date("2026-09-13T07:00:00.000Z"), // 2026-09-13 14:00 VN (prior day)
+      plannedCheckInAt: new Date("2026-09-13T07:00:00.000Z"),
+      stay: {
+        ...primaryOccupant.stay,
+        checkedInAt: new Date("2026-09-13T07:00:00.000Z"),
+        plannedCheckInAt: new Date("2026-09-13T07:00:00.000Z"),
+      },
+    };
+    f.occupants.set(priorDayStayOccupant.id, priorDayStayOccupant);
+
+    // Save a draft where operator manually edited ngayDenCsltStr to today (2026-09-14)
+    await f.service.saveDraft("owner", "owner-role", "hotel-1", priorDayStayOccupant.id, {
+      citizenshipKind: "VIETNAMESE",
+      data: {
+        ngayDenCsltStr: "2026-09-14 10:00:00",
+        ngayDiDuKienStr: "2026-09-15 12:00:00",
+        soGiayTo: "001090777888",
+        loaiGiayTo: 1,
+        lyDoCuTru: 1,
+      },
+    });
+
+    // Must NOT schedule automatic catch-up and must NOT be eligible for auto catch-up
+    expect(f.repository.createScheduledAutoSubmitRun).not.toHaveBeenCalled();
+    const savedDecl = await f.repository.findLatestDeclaration("hotel-1", priorDayStayOccupant.id);
+    expect(
+      (f.service as any).isDeclarationEligibleForAutoCatchUp(
+        priorDayStayOccupant,
+        savedDecl,
+        "2026-09-14",
+      ),
+    ).toBe(false);
+
+    // Listing declarations surfaces PRIOR_DAY_MANUAL with nextCatchUpAt: null
+    const list = await f.service.listDeclarations("owner", "owner-role", "hotel-1");
+    expect(list.items[0].declaration).toMatchObject({
+      eligibilityState: "PRIOR_DAY_MANUAL",
+      nextCatchUpAt: null,
+    });
+
+    // Running automatic 12:00 sweep does not send it
+    await f.service.executeAutoSubmitForHotel(
+      "hotel-1",
+      new Date("2026-09-14T05:00:00.000Z"),
+      false,
+    );
+    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+    f.service.onModuleDestroy();
+  });
+
+  it("BCA-04 + BCA-05: fences stale session/connection generation even with same CsltId, durably schedules catch-up after scheduled transient failure, and reports truthful nextCatchUpAt", async () => {
+    jest.setSystemTime(new Date("2026-09-14T14:03:00.000Z")); // 21:03 VN
+    const f = fixture();
+    f.occupants.set(primaryOccupant.id, primaryOccupant);
+
+    const sessionA = session({ AccessToken: "token-gen-A", CsltId: "1000227" });
+    const sessionB = session({ AccessToken: "token-gen-B", CsltId: "1000227" });
+    f.provider.login.mockResolvedValueOnce(sessionA).mockResolvedValueOnce(sessionB);
+
+    await f.service.connect("owner", "owner-role", "hotel-1", credentials);
+    enableAutomaticDelivery(f);
+
+    // Before any catch-up run is persisted, listDeclarations must NOT fabricate nextCatchUpAt
+    await f.repository.createDeclaration({
+      hotelId: "hotel-1",
+      stayId: primaryOccupant.stayId,
+      occupantId: primaryOccupant.id,
+      declarationKind: "VIETNAMESE",
+      status: "DRAFT",
+      draftPayloadJson: { soGiayTo: "001090012345", loaiGiayTo: 1, lyDoCuTru: 1 },
+    });
+    const listBeforeSchedule = await f.service.listDeclarations("owner", "owner-role", "hotel-1");
+    expect(listBeforeSchedule.items[0].declaration?.eligibilityState).toBe("ELIGIBLE_SAME_DAY");
+    expect(listBeforeSchedule.items[0].declaration?.nextCatchUpAt).toBeNull();
+    expect(listBeforeSchedule.delivery.nextCatchUpAt).toBeNull();
+
+    // Capture generation A, then simulate relogin to generation B (same CsltId, new token & ciphertext) right before dispatch
+    const decl = (await f.repository.findLatestDeclaration("hotel-1", primaryOccupant.id))!;
+    const claimed = await f.repository.updateDeclaration({
+      id: decl.id,
+      hotelId: "hotel-1",
+      expectedVersion: decl.version,
+      data: {
+        status: "UNKNOWN",
+        submittedCsltId: "1000227",
+        submittedPayloadJson: [
+          {
+            hoTen: "Nguyen Van A",
+            soGiayTo: "001090012345",
+            loaiGiayTo: 1,
+            ngayDenCsltStr: "2026-09-14 10:00:00",
+            ngayDiDuKienStr: "2026-09-15 12:00:00",
+          },
+        ],
+      },
+    });
+
+    // Relogin to sessionB (same CsltId = 1000227)
+    await f.service.connect("owner", "owner-role", "hotel-1", {
+      username: "fixture-owner-2",
+      password: "new-password-123",
+    });
+    enableAutomaticDelivery(f);
+
+    // Attempt to send using captured token-gen-A must be blocked by generation fence!
+    const staleOutcome = await (f.service as any).sendInitialDeclaration(
+      "hotel-1",
+      claimed.id,
+      "VIETNAMESE",
+      claimed.submittedPayloadJson,
+      sessionA.AccessToken,
+      "1000227",
+      true,
+    );
+    expect(staleOutcome).toMatchObject({
+      outcome: "BUSINESS_REJECTION",
+      code: "CONNECTION_SCOPE_CHANGED",
+    });
+    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+
+    // Now test scheduled run hitting transient/scope rejection at 21:03 VN -> persists FAILED and durably registers 21:10 catch-up
+    await f.repository.updateDeclaration({
+      id: claimed.id,
+      hotelId: "hotel-1",
+      expectedVersion: claimed.version,
+      data: { status: "DRAFT", providerCode: null },
+    });
+
+    const pendingRuns: any[] = [];
+    (f.repository.findPendingScheduledAutoSubmitRuns as jest.Mock).mockImplementation(
+      async () => pendingRuns,
+    );
+    f.repository.createScheduledAutoSubmitRun.mockImplementation(
+      async (hotelId: string, scheduledFor: Date, dryRun: boolean, trigger = "CATCH_UP_10M") => {
+        const run = {
+          id: "run-catchup-2110",
+          hotelId,
+          scheduledFor,
+          status: "RUNNING",
+          leaseExpiresAt: new Date(scheduledFor.getTime() - 1),
+          dryRun,
+          summaryJson: { trigger, cutoffAt: scheduledFor.toISOString() },
+        };
+        pendingRuns.push(run);
+        return run as any;
+      },
+    );
+
+    f.provider.submitDeclaration.mockResolvedValueOnce({
+      outcome: "BUSINESS_REJECTION",
+      code: "DELIVERY_BUSY",
+      message: "Busy",
+    });
+
+    await f.service.executeAutoSubmitForHotel(
+      "hotel-1",
+      new Date("2026-09-14T14:00:00.000Z"),
+      false,
+    );
+
+    expect(f.repository.createScheduledAutoSubmitRun).toHaveBeenCalledWith(
+      "hotel-1",
+      new Date("2026-09-14T14:10:00.000Z"),
+      false,
+      "CATCH_UP_10M",
+      { cutoffAt: "2026-09-14T14:10:00.000Z" },
+    );
+
+    // Now that a real pending catch-up run exists at 21:10 VN, listDeclarations exposes it truthfully
+    const listAfterSchedule = await f.service.listDeclarations("owner", "owner-role", "hotel-1");
+    expect(listAfterSchedule.items[0].declaration?.nextCatchUpAt).toBe("2026-09-14T14:10:00.000Z");
+    expect(listAfterSchedule.delivery.nextCatchUpAt).toBe("2026-09-14T14:10:00.000Z");
+    f.service.onModuleDestroy();
+  });
+
+  it("BCA-08: enforces exclusive (providerOrigin, CsltId) facility ownership across hotels and tenants, including concurrent connects and legacy conflicts", async () => {
+    const f = fixture();
+    f.access.assertHotelAccess.mockImplementation(async (_u: string, _r: string, hId: string) => ({
+      id: hId,
+    }));
+
+    const sharedSession1 = session({ AccessToken: "tok-h1", CsltId: "1000227" });
+    const sharedSession2 = session({ AccessToken: "tok-h2", CsltId: "1000227" });
+    f.provider.login
+      .mockResolvedValueOnce(sharedSession1)
+      .mockResolvedValueOnce(sharedSession2);
+
+    // Concurrent connect for hotel-1 (tenant A) and hotel-2 (tenant B) with the same BCA facility CsltId
+    const [res1, res2] = await Promise.allSettled([
+      f.service.connect("owner-1", "owner-role", "hotel-1", credentials),
+      f.service.connect("owner-2", "owner-role", "hotel-2", {
+        username: "other-user-same-cslt",
+        password: "pwd",
+      }),
+    ]);
+
+    const fulfilled = [res1, res2].filter((r) => r.status === "fulfilled");
+    const rejected = [res1, res2].filter(
+      (r): r is PromiseRejectedResult => r.status === "rejected",
+    );
+    expect(fulfilled).toHaveLength(1);
+    expect(rejected).toHaveLength(1);
+    expect(rejected[0].reason).toBeInstanceOf(ConflictException);
+    expect(rejected[0].reason.response).toMatchObject({
+      code: "KBTT_FACILITY_CONFLICT",
+    });
+    // Must not leak hotel-1's name or tenant identity in error message
+    expect(JSON.stringify(rejected[0].reason.response)).not.toContain("hotel-1");
+    // Rejected login's token is revoked immediately
+    expect(f.provider.revoke).toHaveBeenCalledWith("tok-h2", expect.any(AbortSignal));
+
+    // Legacy conflict simulation: if DB already has two hotels with the same csltId, both fail closed on check/dispatch/get
+    f.rows.set("hotel-2", {
+      ...f.rows.get("hotel-1")!,
+      hotelId: "hotel-2",
+      ciphertext: "legacy-cipher-h2",
+    });
+    const legacyView = await f.service.get("owner-1", "owner-role", "hotel-1");
+    expect(legacyView).toMatchObject({
+      status: "DISCONNECTED",
+      lastErrorCode: "KBTT_FACILITY_CONFLICT",
+    });
+    await expect(f.service.check("owner-1", "owner-role", "hotel-1")).rejects.toMatchObject({
+      response: expect.objectContaining({ code: "KBTT_FACILITY_CONFLICT" }),
+    });
+    f.service.onModuleDestroy();
+  });
+
+  it("BCA-09: reconciles UNKNOWN-only pending work during health probe and scheduled runs, settling confirmed matches as SUBMITTED, scheduling proven nonacceptance for same-day catch-up, and keeping incomplete reads as UNKNOWN", async () => {
+    jest.setSystemTime(new Date("2026-09-14T14:03:00.000Z")); // 21:03 VN
+    const client = new KbttProviderReadClient();
+    jest.spyOn(client, "getAccommodation").mockResolvedValue({
+      httpStatus: 200,
+      envelope: { code: "200" },
+      data: { id: 1000227, tenCSLT: "Khách sạn mẫu" },
+    });
+    const readResidents = jest.spyOn(client, "readAllResidents").mockResolvedValue([]);
+    const readHistory = jest.spyOn(client, "readAllHistory").mockResolvedValue([]);
+
+    const f = fixture(client);
+    const guestMatched = {
+      ...primaryOccupant,
+      id: "occ-unknown-matched",
+      fullName: "Khach Da Nhan Tren BCA",
+      identityNumber: "001090111222",
+    };
+    const guestNotFound = {
+      ...primaryOccupant,
+      id: "occ-unknown-notfound",
+      fullName: "Khach Chua Nhan Tren BCA",
+      identityNumber: "001090333444",
+    };
+    f.occupants.set(guestMatched.id, guestMatched);
+    f.occupants.set(guestNotFound.id, guestNotFound);
+
+    await f.service.connect("owner", "owner-role", "hotel-1", credentials);
+    enableAutomaticDelivery(f);
+
+    const declMatched = await f.repository.createDeclaration({
+      hotelId: "hotel-1",
+      stayId: guestMatched.stayId,
+      occupantId: guestMatched.id,
+      declarationKind: "VIETNAMESE",
+      status: "UNKNOWN",
+      submittedCsltId: "1000227",
+      submittedPayloadJson: [
+        {
+          hoTen: guestMatched.fullName,
+          soGiayTo: guestMatched.identityNumber,
+          loaiGiayTo: 1,
+          ngayDenCsltStr: "2026-09-14 10:00:00",
+          ngayDiDuKienStr: "2026-09-15 12:00:00",
+        },
+      ],
+      providerCode: "PROVIDER_TIMEOUT",
+      providerMessage: "Timeout",
+    });
+    const declNotFound = await f.repository.createDeclaration({
+      hotelId: "hotel-1",
+      stayId: guestNotFound.stayId,
+      occupantId: guestNotFound.id,
+      declarationKind: "VIETNAMESE",
+      status: "UNKNOWN",
+      submittedCsltId: "1000227",
+      submittedPayloadJson: [
+        {
+          hoTen: guestNotFound.fullName,
+          soGiayTo: guestNotFound.identityNumber,
+          loaiGiayTo: 1,
+          ngayDenCsltStr: "2026-09-14 10:00:00",
+          ngayDiDuKienStr: "2026-09-15 12:00:00",
+        },
+      ],
+      providerCode: "PROVIDER_TIMEOUT",
+      providerMessage: "Timeout",
+    });
+
+    // Enter temporary disconnect when ONLY UNKNOWN declarations exist (no DRAFT/FAILED safe work)
+    const activeSession = f.service.getCachedReadSession("hotel-1", f.rows.get("hotel-1")!)!;
+    await f.service.enterTemporaryDisconnectCooldown("hotel-1", activeSession);
+
+    // Case A: Incomplete/failed read during reconciliation must keep both records as UNKNOWN and never resend
+    readHistory.mockRejectedValueOnce(new KbttProviderReadError("INCOMPLETE", "partial page"));
+    jest.setSystemTime(new Date("2026-09-14T14:04:01.000Z")); // 21:04:01 VN (after 60s cooldown)
+    expect(await f.service.probeTemporarilyDisconnectedSession("hotel-1", false)).toBe(true);
+    expect(f.rows.get("hotel-1")?.status).toBe("CONNECTED");
+    expect((await f.repository.findLatestDeclaration("hotel-1", guestMatched.id))?.status).toBe(
+      "UNKNOWN",
+    );
+    expect((await f.repository.findLatestDeclaration("hotel-1", guestNotFound.id))?.status).toBe(
+      "UNKNOWN",
+    );
+    expect(f.repository.createScheduledAutoSubmitRun).not.toHaveBeenCalled();
+
+    // Case B: Complete read returns guestMatched on BCA and proves guestNotFound is absent
+    readHistory.mockImplementation(async (kind) =>
+      kind === "VIETNAMESE"
+        ? [
+            {
+              id: "bca-rec-901",
+              hoTen: guestMatched.fullName,
+              csltId: 1000227,
+              soGiayTo: guestMatched.identityNumber,
+              loaiGiayTo: 1,
+              quocTich: "VNM",
+              ngayDenCslt: "2026-09-14 10:00:00",
+              ngayDiCslt: "",
+              ngayDiDuKien: "2026-09-15 12:00:00",
+              soPhong: "101",
+            },
+          ]
+        : [],
+    );
+    readResidents.mockResolvedValue([]);
+
+    const recResult = await f.service.reconcilePendingUnknownDeclarationsForHotel(
+      "hotel-1",
+      false,
+      new Date("2026-09-14T14:04:05.000Z"),
+    );
+    expect(recResult).toEqual({
+      settledCount: 1,
+      retryScheduledCount: 1,
+      remainingUnknownCount: 0,
+    });
+
+    // guestMatched is settled as SUBMITTED without another POST
+    const updatedMatched = await f.repository.findLatestDeclaration("hotel-1", guestMatched.id);
+    expect(updatedMatched).toMatchObject({
+      id: declMatched.id,
+      status: "SUBMITTED",
+      providerCode: "200",
+    });
+
+    // guestNotFound is transitioned to FAILED (KBTT_PROVIDER_UNAVAILABLE) and scheduled for 21:10 VN catch-up
+    const updatedNotFound = await f.repository.findLatestDeclaration("hotel-1", guestNotFound.id);
+    expect(updatedNotFound).toMatchObject({
+      id: declNotFound.id,
+      status: "FAILED",
+      providerCode: "KBTT_PROVIDER_UNAVAILABLE",
+    });
+    expect(f.repository.createScheduledAutoSubmitRun).toHaveBeenCalledWith(
+      "hotel-1",
+      new Date("2026-09-14T14:10:00.000Z"),
+      false,
+      "CATCH_UP_10M",
+      { cutoffAt: "2026-09-14T14:10:00.000Z" },
+    );
+    f.service.onModuleDestroy();
   });
 });

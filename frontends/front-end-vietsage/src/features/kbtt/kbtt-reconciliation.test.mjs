@@ -130,8 +130,62 @@ test("one hotel-scoped resource request refreshes both countries, independently 
   await assert.rejects(query.queryFn({ scope: { hotelId: "hotel-1" }, signal }), /unavailable/);
 });
 
-test("logged-out in-house view reads local guests without scheduling BCA reconciliation", () => {
-  for (const status of ["DISCONNECTED", "AUTH_FAILED"]) {
+test("logged-out in-house view reads local guests without scheduling BCA reconciliation and distinguishes temporary disconnect vs login required", () => {
+  const cases = [
+    {
+      connection: { configured: false, status: "DISCONNECTED", lastErrorCode: null },
+      expectedText: /Chưa kết nối BCA/,
+      expectedPoll: false,
+      expectLoginLink: true,
+    },
+    {
+      connection: { configured: true, status: "DISCONNECTED", lastErrorCode: "KBTT_RETRY_PENDING" },
+      expectedText: /Đang thử kết nối lại sau 10 giây/,
+      expectedPoll: 10_000,
+      expectLoginLink: false,
+    },
+    {
+      connection: { configured: true, status: "DISCONNECTED", lastErrorCode: "KBTT_TEMP_DISCONNECTED" },
+      expectedText: /Tạm ngắt kết nối BCA — đang chờ kết nối lại/,
+      expectedPoll: 15_000,
+      expectLoginLink: false,
+    },
+    {
+      connection: {
+        configured: true,
+        status: "DISCONNECTED",
+        lastErrorCode: "KBTT_TEMP_DISCONNECTED",
+        cooldownUntil: new Date(Date.now() + 7_000).toISOString(),
+      },
+      expectedText: /Tạm ngắt kết nối BCA — đang chờ kết nối lại/,
+      expectedPollRange: [5_000, 15_000],
+      expectLoginLink: false,
+    },
+    {
+      connection: {
+        configured: true,
+        status: "DISCONNECTED",
+        lastErrorCode: "KBTT_FACILITY_CONFLICT",
+        lastErrorMessage: "Tài khoản cơ sở BCA này đang được liên kết với một khách sạn khác trên hệ thống.",
+      },
+      expectedText: /liên kết với một khách sạn khác/,
+      expectedPoll: false,
+      expectLoginLink: true,
+    },
+    {
+      connection: { configured: true, status: "DISCONNECTED", lastErrorCode: "KBTT_SESSION_ENDED" },
+      expectedText: /Cần đăng nhập lại BCA/,
+      expectedPoll: false,
+      expectLoginLink: true,
+    },
+    {
+      connection: { configured: true, status: "AUTH_FAILED", lastErrorCode: "KBTT_AUTH_FAILED" },
+      expectedText: /Cần đăng nhập lại BCA/,
+      expectedPoll: false,
+      expectLoginLink: true,
+    },
+  ];
+  for (const { connection: connState, expectedText, expectedPoll, expectedPollRange, expectLoginLink } of cases) {
     const queries = [];
     const effects = [];
     const resource = {
@@ -140,14 +194,17 @@ test("logged-out in-house view reads local guests without scheduling BCA reconci
       mutations: { refreshReconciliation: { options: () => ({}) }, submit: { options: () => ({}) } },
     };
     const jsx = (type, props) => ({ type: typeof type === "string" ? type : "component", props });
-    const { InHouseReconciliation } = loadModule("./components/in-house-reconciliation.tsx", {
+    const {
+      InHouseReconciliation,
+      getReconciliationConnectionPollInterval,
+    } = loadModule("./components/in-house-reconciliation.tsx", {
       "react/jsx-runtime": { jsx, jsxs: jsx },
       "@tanstack/react-query": {
         useQueryClient: () => ({}), useMutation: () => ({ isPending: false }),
         useQuery: (options) => {
           queries.push(options);
           return { isSuccess: true, isFetching: false, isError: false, isLoading: false,
-            data: options.operation === "connection" ? { status } : response };
+            data: options.operation === "connection" ? connState : { ...response, sources: { VIETNAMESE: complete, FOREIGN: complete } } };
         },
       },
       "@tanstack/react-table": { getCoreRowModel, getFilteredRowModel,
@@ -159,12 +216,23 @@ test("logged-out in-house view reads local guests without scheduling BCA reconci
       "kbtt-declarations-page": {}, "kbtt-contract": { sanitizeErrorMessage: () => "" },
     });
     const view = InHouseReconciliation({ hotelId: "hotel-1", canManage: true });
-    // The mount effect exits before scheduling a timer while logged out.
+    // The mount effect exits before scheduling a timer while not connected.
     assert.equal(effects[0](), undefined);
+    const connQuery = queries.find((query) => query.operation === "connection");
+    const actualPoll = connQuery.refetchInterval({ state: { data: connState } });
+    if (expectedPollRange) {
+      assert.equal(typeof actualPoll, "number");
+      assert.ok(actualPoll >= expectedPollRange[0] && actualPoll <= expectedPollRange[1]);
+    } else {
+      assert.equal(actualPoll, expectedPoll);
+      assert.equal(getReconciliationConnectionPollInterval(connState), expectedPoll);
+    }
     assert.equal(queries.find((query) => query.operation === "reconciliation").enabled, false);
     assert.equal(queries.find((query) => query.operation === "reconciliationLocal").enabled, true);
-    assert.match(JSON.stringify(view), /Chưa kết nối BCA/);
-    assert.doesNotMatch(JSON.stringify(view), /Đang đối soát…/);
+    const rendered = JSON.stringify(view);
+    assert.match(rendered, expectedText);
+    assert.doesNotMatch(rendered, /Đang đối soát…/);
+    assert.equal(/Kết nối tài khoản BCA/.test(rendered), expectLoginLink);
   }
 });
 

@@ -27,6 +27,103 @@ export class KbttRepository {
     }
   }
 
+  async findConflictingFacilityConnections(csltId: string, excludeHotelId?: string) {
+    const normalizedCsltId = csltId.trim();
+    if (!normalizedCsltId) return [];
+    try {
+      if (!this.prisma.kbttHotelConnection?.findMany) return [];
+      const rows = await this.prisma.kbttHotelConnection.findMany({
+        where: {
+          csltId: normalizedCsltId,
+          ...(excludeHotelId ? { hotelId: { not: excludeHotelId } } : {}),
+        },
+        select: {
+          hotelId: true,
+          csltId: true,
+          status: true,
+          lastConnectedAt: true,
+        },
+      });
+      return Array.isArray(rows)
+        ? rows.filter(
+            (r) =>
+              r &&
+              r.csltId === normalizedCsltId &&
+              (!excludeHotelId || r.hotelId !== excludeHotelId),
+          )
+        : [];
+    } catch {
+      return [];
+    }
+  }
+
+  async save(connection: KbttHotelConnection, providerOrigin = "") {
+    return this.saveExclusive(connection, providerOrigin);
+  }
+
+  async saveExclusive(connection: KbttHotelConnection, providerOrigin = "") {
+    const normalizedCsltId = connection.csltId.trim();
+    const lockKey = `kbtt-facility:${providerOrigin.trim().toLowerCase()}:${normalizedCsltId}`;
+    const doSave = async (client: any) => {
+      if (client.$queryRaw) {
+        await client.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))::text`;
+      }
+      if (client.kbttHotelConnection?.findMany) {
+        const existingConflicts = await client.kbttHotelConnection.findMany({
+          where: {
+            csltId: normalizedCsltId,
+            hotelId: { not: connection.hotelId },
+          },
+          select: { hotelId: true, csltId: true },
+        });
+        if (
+          Array.isArray(existingConflicts) &&
+          existingConflicts.some(
+            (r) => r && r.csltId === normalizedCsltId && r.hotelId !== connection.hotelId,
+          )
+        ) {
+          throw new ConflictException({
+            code: "KBTT_FACILITY_CONFLICT",
+            message:
+              "Cơ sở lưu trú BCA này đã được liên kết với một khách sạn khác trên hệ thống. Không thể dùng chung một cơ sở BCA cho nhiều khách sạn.",
+          });
+        }
+      }
+      const {
+        autoSubmitEnabled: _enabled,
+        autoSubmitTime: _time,
+        hotel: _hotel,
+        ...connectionData
+      } = connection as any;
+      return await client.kbttHotelConnection.upsert({
+        where: { hotelId: connection.hotelId },
+        create: {
+          ...connectionData,
+          autoSubmitEnabled: connection.autoSubmitEnabled,
+          autoSubmitTime: connection.autoSubmitTime,
+        },
+        update: connectionData,
+      });
+    };
+
+    try {
+      if (typeof this.prisma.$transaction === "function") {
+        return await this.prisma.$transaction(async (tx) => doSave(tx));
+      }
+      return await doSave(this.prisma);
+    } catch (error: any) {
+      if (error instanceof ConflictException) throw error;
+      if (error?.code === "P2002") {
+        throw new ConflictException({
+          code: "KBTT_FACILITY_CONFLICT",
+          message:
+            "Cơ sở lưu trú BCA này đã được liên kết với một khách sạn khác trên hệ thống. Không thể dùng chung một cơ sở BCA cho nhiều khách sạn.",
+        });
+      }
+      throw kbttUnavailable();
+    }
+  }
+
   async findHotelName(hotelId: string): Promise<string | null> {
     try {
       const hotel = await this.prisma.hotel.findUnique({
@@ -36,28 +133,6 @@ export class KbttRepository {
       return hotel?.name ?? null;
     } catch {
       return null;
-    }
-  }
-
-  async save(connection: KbttHotelConnection) {
-    try {
-      const {
-        autoSubmitEnabled: _enabled,
-        autoSubmitTime: _time,
-        hotel: _hotel,
-        ...connectionData
-      } = connection as any;
-      return await this.prisma.kbttHotelConnection.upsert({
-        where: { hotelId: connection.hotelId },
-        create: {
-          ...connectionData,
-          autoSubmitEnabled: connection.autoSubmitEnabled,
-          autoSubmitTime: connection.autoSubmitTime,
-        },
-        update: connectionData,
-      });
-    } catch {
-      throw kbttUnavailable();
     }
   }
 
@@ -506,12 +581,11 @@ export class KbttRepository {
     }
   }
 
-  async findDueHotelsForAutoSubmit(currentHHmm: string) {
+  async findHotelsForDailyAutoSubmitSweep() {
     try {
       return await this.prisma.kbttHotelConnection.findMany({
         where: {
           autoSubmitEnabled: true,
-          autoSubmitTime: { lte: currentHHmm },
           status: "CONNECTED",
         },
         select: {
@@ -528,6 +602,10 @@ export class KbttRepository {
     } catch {
       throw kbttUnavailable();
     }
+  }
+
+  async findDueHotelsForAutoSubmit(_currentHHmm?: string) {
+    return this.findHotelsForDailyAutoSubmitSweep();
   }
 
   async findHotelsWithPendingErrorDeclarations() {
@@ -649,6 +727,7 @@ export class KbttRepository {
     scheduledFor: Date,
     dryRun: boolean,
     trigger = "MANUAL_DELAYED",
+    extraSummary?: Record<string, unknown>,
   ) {
     try {
       return await this.prisma.kbttAutoSubmitRun.create({
@@ -658,12 +737,24 @@ export class KbttRepository {
           status: "RUNNING",
           leaseExpiresAt: new Date(scheduledFor.getTime() - 1),
           dryRun,
-          summaryJson: { trigger },
+          summaryJson: { trigger, ...(extraSummary ?? {}) } as Prisma.InputJsonValue,
         },
       });
     } catch (error: any) {
-      if (error?.code === "P2002")
+      if (error?.code === "P2002") {
+        if (trigger !== "MANUAL_DELAYED") {
+          const existing = await this.prisma.kbttAutoSubmitRun.findUnique({
+            where: {
+              hotelId_scheduledFor: {
+                hotelId,
+                scheduledFor,
+              },
+            },
+          });
+          if (existing) return existing;
+        }
         throw new ConflictException("Đã có một phiên KBTT đang được hẹn.");
+      }
       throw kbttUnavailable();
     }
   }

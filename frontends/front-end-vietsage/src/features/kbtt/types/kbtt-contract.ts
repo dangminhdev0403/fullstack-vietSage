@@ -36,6 +36,8 @@ export const kbttConnectionSchema = z.object({
   lastConnectedAt: z.string().nullable(),
   lastErrorCode: z.string().nullable(),
   lastErrorMessage: z.string().nullable(),
+  cooldownUntil: z.string().nullable().optional(),
+  nextCatchUpAt: z.string().nullable().optional(),
   providerProfile: kbttProviderProfileSchema.default({
     state: "NOT_LOADED", accommodation: null, fetchedAt: null, error: null,
   }),
@@ -100,6 +102,17 @@ export const kbttPaginationQuerySchema = z.object({
 });
 export type KbttPaginationQuery = z.infer<typeof kbttPaginationQuerySchema>;
 
+export const kbttDeclarationEligibilityStateSchema = z.enum([
+  "ELIGIBLE_SAME_DAY",
+  "NEEDS_CORRECTION",
+  "PRIOR_DAY_MANUAL",
+  "RECONCILIATION_REQUIRED",
+  "SUBMITTED",
+]);
+export type KbttDeclarationEligibilityState = z.infer<
+  typeof kbttDeclarationEligibilityStateSchema
+>;
+
 export const kbttDeclarationSummarySchema = z.object({
   id: z.string(),
   revision: z.number(),
@@ -110,6 +123,8 @@ export const kbttDeclarationSummarySchema = z.object({
   submittedAt: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
+  nextCatchUpAt: z.string().nullable().optional(),
+  eligibilityState: kbttDeclarationEligibilityStateSchema.nullable().optional(),
 });
 export type KbttDeclarationSummary = z.infer<
   typeof kbttDeclarationSummarySchema
@@ -144,7 +159,7 @@ export type KbttDeclarationListItem = z.infer<
 >;
 export const kbttDeclarationListSchema = z.array(kbttDeclarationListItemSchema);
 
-const KBTT_LOCAL_FAILURE_CODES = new Set(["LOCAL_VALIDATION","LOCAL_STATE_CHANGED","CONNECTION_SCOPE_CHANGED","DELIVERY_BUSY","RECONCILIATION_REQUIRED","LOCAL_PREPARATION","LOCAL_STAY_ENDED","DELIVERY_PAUSED","KBTT_NOT_CONFIGURED","KBTT_AUTH_FAILED","KBTT_PROVIDER_UNAVAILABLE"]);
+const KBTT_LOCAL_FAILURE_CODES = new Set(["LOCAL_VALIDATION","LOCAL_STATE_CHANGED","CONNECTION_SCOPE_CHANGED","DELIVERY_BUSY","RECONCILIATION_REQUIRED","LOCAL_PREPARATION","LOCAL_STAY_ENDED","DELIVERY_PAUSED","KBTT_NOT_CONFIGURED","KBTT_AUTH_FAILED","KBTT_PROVIDER_UNAVAILABLE","KBTT_TEMP_DISCONNECTED","KBTT_RETRY_PENDING","KBTT_SESSION_ENDED","PRIOR_DAY_MANUAL_REQUIRED"]);
 
 export function getKbttDeclarationDisplayStatus(
   row: Pick<KbttDeclarationListItem, "declaration" | "derivedStatus">,
@@ -164,6 +179,8 @@ export const kbttDeliverySchema = z.object({
   pendingCount: z.number().int().nonnegative(),
   reviewCount: z.number().int().nonnegative(),
   lastSucceededAt: z.string().nullable(),
+  nextScheduledSlotAt: z.string().nullable().optional(),
+  nextCatchUpAt: z.string().nullable().optional(),
   recentIssues: z.array(z.object({
     id: z.string(),
     kind: z.enum(["INITIAL", "EXTEND", "CHECKOUT", "RECOVER"]),
@@ -665,21 +682,23 @@ export function sanitizeProviderDetail(value: unknown): string | null {
   return text;
 }
 
+export const KBTT_FIXED_SCHEDULE_SLOTS = ["12:00", "21:00"] as const;
+export const KBTT_SCHEDULE_TIMEZONE = "Asia/Ho_Chi_Minh" as const;
+
 export const kbttAutoSubmitEnabledSchema = z.object({
   autoSubmitEnabled: z.boolean(),
 }).strict();
 export type KbttAutoSubmitEnabled = z.infer<typeof kbttAutoSubmitEnabledSchema>;
 
 export const kbttAutoSubmitConfigSchema = z.object({
-  autoSubmitEnabled: z.boolean().optional(),
+  autoSubmitEnabled: z.boolean(),
   autoSubmitTime: z
-    .string()
-    .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Giờ nộp tự động phải có định dạng HH:mm (00:00 - 23:59)")
-    .nullable()
+    .null({
+      message:
+        "Khung giờ gửi tự động cố định lúc 12:00 và 21:00 (Asia/Ho_Chi_Minh), không hỗ trợ tự chọn giờ.",
+    })
     .optional(),
-}).refine((value) => value.autoSubmitEnabled !== undefined || value.autoSubmitTime !== undefined, {
-  message: "Vui lòng chọn cấu hình cần cập nhật.",
-});
+}).strict();
 export type KbttAutoSubmitConfig = z.infer<typeof kbttAutoSubmitConfigSchema>;
 
 export const kbttAutoSubmitRunStatusSchema = z.enum([
@@ -708,17 +727,120 @@ export const kbttAutoSubmitRunSummarySchema = z.object({
   telegramSent: z.boolean().optional(),
   errorMessage: z.string().nullable().optional(),
   createdAt: z.string().optional(),
+  trigger: z.string().nullable().optional(),
 });
 export type KbttAutoSubmitRunSummary = z.infer<typeof kbttAutoSubmitRunSummarySchema>;
 
 export const kbttAutoSubmitStateSchema = z.object({
   autoSubmitEnabled: z.boolean(),
   autoSubmitTime: z.string().nullable().optional(),
+  scheduleSlots: z.array(z.string()).default(["12:00", "21:00"]),
+  timezone: z.string().default("Asia/Ho_Chi_Minh"),
+  nextScheduledSlotAt: z.string().nullable().optional(),
+  nextCatchUpAt: z.string().nullable().optional(),
+  lastAutoSubmittedAt: z.string().nullable().optional(),
   activeRun: kbttAutoSubmitRunSummarySchema.nullable().optional(),
   pendingSchedule: kbttAutoSubmitRunSummarySchema.nullable().optional(),
   recentRuns: z.array(kbttAutoSubmitRunSummarySchema).default([]),
 });
 export type KbttAutoSubmitState = z.infer<typeof kbttAutoSubmitStateSchema>;
+
+export function computeNextVietnamDailySlot(now: Date = new Date()): {
+  slot: "12:00" | "21:00";
+  scheduledAt: string;
+  dateStr: string;
+  isTomorrow: boolean;
+} {
+  const vnOffsetMs = 7 * 3600_000;
+  const vnDate = new Date(now.getTime() + vnOffsetMs);
+  const year = vnDate.getUTCFullYear();
+  const month = vnDate.getUTCMonth();
+  const day = vnDate.getUTCDate();
+
+  const slot12Today = new Date(Date.UTC(year, month, day, 12, 0, 0, 0) - vnOffsetMs);
+  const slot21Today = new Date(Date.UTC(year, month, day, 21, 0, 0, 0) - vnOffsetMs);
+  const slot12Tomorrow = new Date(Date.UTC(year, month, day + 1, 12, 0, 0, 0) - vnOffsetMs);
+
+  const formatYmd = (instant: Date) => {
+    const d = new Date(instant.getTime() + vnOffsetMs);
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+  };
+
+  if (now.getTime() < slot12Today.getTime()) {
+    return {
+      slot: "12:00",
+      scheduledAt: slot12Today.toISOString(),
+      dateStr: formatYmd(slot12Today),
+      isTomorrow: false,
+    };
+  }
+  if (now.getTime() < slot21Today.getTime()) {
+    return {
+      slot: "21:00",
+      scheduledAt: slot21Today.toISOString(),
+      dateStr: formatYmd(slot21Today),
+      isTomorrow: false,
+    };
+  }
+  return {
+    slot: "12:00",
+    scheduledAt: slot12Tomorrow.toISOString(),
+    dateStr: formatYmd(slot12Tomorrow),
+    isTomorrow: true,
+  };
+}
+
+export function computeNextVietnamTenMinuteCatchUp(now: Date = new Date()): {
+  scheduledAt: string;
+  timeStr: string;
+  dateStr: string;
+} | null {
+  const vnOffsetMs = 7 * 3600_000;
+  const vnNow = new Date(now.getTime() + vnOffsetMs);
+  const year = vnNow.getUTCFullYear();
+  const month = vnNow.getUTCMonth();
+  const day = vnNow.getUTCDate();
+  const hour = vnNow.getUTCHours();
+  const minute = vnNow.getUTCMinutes();
+
+  const deltaMinutes = 10 - (minute % 10);
+  const currentMinuteFloorUtc = Date.UTC(year, month, day, hour, minute, 0, 0) - vnOffsetMs;
+  const boundary = new Date(currentMinuteFloorUtc + deltaMinutes * 60_000);
+  const vnBoundary = new Date(boundary.getTime() + vnOffsetMs);
+
+  if (
+    vnBoundary.getUTCFullYear() !== year ||
+    vnBoundary.getUTCMonth() !== month ||
+    vnBoundary.getUTCDate() !== day
+  ) {
+    return null;
+  }
+
+  const hh = String(vnBoundary.getUTCHours()).padStart(2, "0");
+  const mm = String(vnBoundary.getUTCMinutes()).padStart(2, "0");
+  const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+
+  return {
+    scheduledAt: boundary.toISOString(),
+    timeStr: `${hh}:${mm}`,
+    dateStr,
+  };
+}
+
+export function getVietnamCalendarDate(value: string | Date | null | undefined): string | null {
+  if (!value) return null;
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    const match = /^(\d{4}-\d{2}-\d{2})(?:[ T]|$)/.exec(trimmed);
+    if (match && !trimmed.endsWith("Z") && !/[+-]\d{2}:?\d{2}$/.test(trimmed)) {
+      return match[1];
+    }
+  }
+  const parsed = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  const vn = new Date(parsed.getTime() + 7 * 3600_000);
+  return `${vn.getUTCFullYear()}-${String(vn.getUTCMonth() + 1).padStart(2, "0")}-${String(vn.getUTCDate()).padStart(2, "0")}`;
+}
 
 export const kbttDevResetSchema = z.object({
   generateNewIdentityNumbers: z.boolean().optional().default(false),

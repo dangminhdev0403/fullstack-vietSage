@@ -12949,7 +12949,8 @@ paths:
         "422": *a65
         "503": *a66
       security: *a67
-      summary: Get KBTT auto-submit schedule configuration and recent runs
+      summary: Get KBTT auto-submit fixed 12:00/21:00 (Asia/Ho_Chi_Minh) schedule
+        configuration and recent runs
       tags: *a68
     put:
       operationId: KbttController_updateAutoSubmitConfig
@@ -12965,18 +12966,18 @@ paths:
           application/json:
             schema:
               type: object
-              anyOf:
-                - required:
-                    - autoSubmitEnabled
-                - required:
-                    - autoSubmitTime
+              additionalProperties: false
+              required:
+                - autoSubmitEnabled
               properties:
                 autoSubmitEnabled:
                   type: boolean
                 autoSubmitTime:
                   type: string
                   nullable: true
-                  pattern: ^([01]\d|2[0-3]):([0-5]\d)$
+                  enum:
+                    - null
+                  description: Retired custom daily time; only null or omitted is accepted.
       responses:
         "200":
           description: ""
@@ -12985,8 +12986,8 @@ paths:
         "422": *a65
         "503": *a66
       security: *a67
-      summary: Update KBTT auto-submit schedule configuration; omitted fields remain
-        unchanged
+      summary: Update KBTT auto-submit enabled switch; custom autoSubmitTime is
+        retired (fixed 12:00 and 21:00 Asia/Ho_Chi_Minh)
       tags: *a68
   /hotels/{hotelId}/kbtt/auto-submit/test:
     post:

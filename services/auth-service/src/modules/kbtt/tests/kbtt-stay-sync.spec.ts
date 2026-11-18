@@ -807,6 +807,29 @@ describe("BCA stay lifecycle delivery", () => {
     expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
   });
 
+  it("BCA-04: rejects sendInitial with CONNECTION_SCOPE_CHANGED when expectedCiphertext does not match current connection ciphertext even if CsltId is unchanged", async () => {
+    const f = fixture();
+    (f.connection as any).ciphertext = "cipher-gen-B";
+    f.declaration.status = "UNKNOWN";
+    f.repository.initialDeclaration.mockResolvedValue({ ...f.declaration, stay: f.stay });
+    const result = await f.service.sendInitial(
+      f.stay.hotelId,
+      "VIETNAMESE",
+      f.declaration.submittedPayloadJson!,
+      "test-access-token",
+      f.declaration.id,
+      "cslt-1",
+      true,
+      "cipher-gen-A",
+    );
+    expect(result).toEqual({
+      outcome: "BUSINESS_REJECTION",
+      code: "CONNECTION_SCOPE_CHANGED",
+      message: expect.any(String),
+    });
+    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+  });
+
 });
 
 

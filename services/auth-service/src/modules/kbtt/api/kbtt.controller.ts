@@ -491,7 +491,7 @@ export class KbttController {
   @Get("auto-submit")
   @RequirePermission("hotel.kbtt.manage")
   @ApiOperation({
-    summary: "Get KBTT auto-submit schedule configuration and recent runs",
+    summary: "Get KBTT auto-submit fixed 12:00/21:00 (Asia/Ho_Chi_Minh) schedule configuration and recent runs",
   })
   getAutoSubmitConfig(@Req() request: RequestWithRequiredUser, @Param("hotelId") hotelId: string) {
     return this.service.getAutoSubmitConfig(
@@ -504,14 +504,20 @@ export class KbttController {
   @Put("auto-submit")
   @RequirePermission("hotel.kbtt.manage")
   @ApiOperation({
-    summary: "Update KBTT auto-submit schedule configuration; omitted fields remain unchanged",
+    summary: "Update KBTT auto-submit enabled switch; custom autoSubmitTime is retired (fixed 12:00 and 21:00 Asia/Ho_Chi_Minh)",
   })
   @ApiBody({ schema: {
     type: "object",
-    anyOf: [{ required: ["autoSubmitEnabled"] }, { required: ["autoSubmitTime"] }],
+    additionalProperties: false,
+    required: ["autoSubmitEnabled"],
     properties: {
       autoSubmitEnabled: { type: "boolean" },
-      autoSubmitTime: { type: "string", nullable: true, pattern: "^([01]\\d|2[0-3]):([0-5]\\d)$" },
+      autoSubmitTime: {
+        type: "string",
+        nullable: true,
+        enum: [null],
+        description: "Retired custom daily time; only null or omitted is accepted.",
+      },
     },
   } })
   updateAutoSubmitConfig(

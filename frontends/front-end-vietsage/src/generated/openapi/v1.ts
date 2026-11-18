@@ -3853,7 +3853,7 @@ export interface paths {
         /** Authenticate and save encrypted hotel credentials only after success */
         put: operations["KbttController_connect"];
         post?: never;
-        /** Best-effort revoke and remove saved credentials and local tokens */
+        /** Clear local tokens and saved credentials immediately; revoke BCA token in background with at most two retries 10 seconds apart */
         delete: operations["KbttController_disconnect"];
         options?: never;
         head?: never;
@@ -3886,7 +3886,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Prepare BCA read session: reuse valid token, refresh near expiry or restore saved connection after restart; never submits guests */
+        /** Prepare BCA read session: reuse valid token or refresh near expiry; never logs in using saved passwords or submits guests */
         post: operations["KbttController_ensureReconciliationSession"];
         delete?: never;
         options?: never;
@@ -3901,7 +3901,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read-only reconciliation of all in-house guests against BOTH Vietnamese and foreign BCA sources; never authenticates or imports guests */
+        /** Reconcile in-house guests against BOTH BCA sources; provider failures suspend the session, retry reads twice 10 seconds apart, then clear and revoke it; never logs in or imports guests */
         get: operations["KbttController_getReconciliation"];
         put?: never;
         post?: never;
@@ -4089,9 +4089,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get KBTT auto-submit schedule configuration and recent runs */
+        /** Get KBTT auto-submit fixed 12:00/21:00 (Asia/Ho_Chi_Minh) schedule configuration and recent runs */
         get: operations["KbttController_getAutoSubmitConfig"];
-        /** Update KBTT auto-submit schedule configuration; omitted fields remain unchanged */
+        /** Update KBTT auto-submit enabled switch; custom autoSubmitTime is retired (fixed 12:00 and 21:00 Asia/Ho_Chi_Minh) */
         put: operations["KbttController_updateAutoSubmitConfig"];
         post?: never;
         delete?: never;
@@ -15061,9 +15061,13 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    autoSubmitEnabled?: boolean;
-                    autoSubmitTime?: string | null;
-                } | unknown | unknown;
+                    autoSubmitEnabled: boolean;
+                    /**
+                     * @description Retired custom daily time; only null or omitted is accepted.
+                     * @enum {string|null}
+                     */
+                    autoSubmitTime?: null;
+                };
             };
         };
         responses: {

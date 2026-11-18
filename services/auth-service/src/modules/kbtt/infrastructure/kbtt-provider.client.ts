@@ -15,8 +15,40 @@ export const KBTT_AUTH_FAILED_MESSAGE =
 
 export type KbttSubmitOutcome =
   | { outcome: "SUCCESS"; code: string; message: string; data?: unknown }
-  | { outcome: "BUSINESS_REJECTION"; code: string; message: string; data?: unknown }
-  | { outcome: "AMBIGUOUS"; code: string; message: string; data?: unknown };
+  | {
+      outcome: "BUSINESS_REJECTION";
+      code: string;
+      message: string;
+      data?: unknown;
+      retryAfterMs?: number;
+    }
+  | {
+      outcome: "AMBIGUOUS";
+      code: string;
+      message: string;
+      data?: unknown;
+      retryAfterMs?: number;
+    };
+
+export function parseBoundedRetryAfterMs(
+  retryAfterHeader: string | null | undefined,
+  nowMs: number = Date.now(),
+  maxMs = 60_000,
+): number | undefined {
+  if (!retryAfterHeader || typeof retryAfterHeader !== "string") return undefined;
+  const trimmed = retryAfterHeader.trim();
+  if (!trimmed) return undefined;
+  if (/^\d+$/.test(trimmed)) {
+    const seconds = Number(trimmed);
+    if (!Number.isFinite(seconds) || seconds <= 0) return undefined;
+    return Math.min(maxMs, Math.max(1_000, seconds * 1_000));
+  }
+  const dateMs = Date.parse(trimmed);
+  if (!Number.isFinite(dateMs)) return undefined;
+  const delta = dateMs - nowMs;
+  if (delta <= 0) return undefined;
+  return Math.min(maxMs, Math.max(1_000, delta));
+}
 
 export function kbttAuthFailed(customMessage?: string) {
   return new HttpException(
@@ -42,6 +74,10 @@ export function kbttProviderError(
 @Injectable()
 export class KbttProviderClient {
   private readonly config = loadKbttConfig();
+
+  getOrigin(): string {
+    return (this.config.KBTT_BASE_URL ?? "").trim().replace(/\/+$/, "").toLowerCase();
+  }
 
   async login(credentials: KbttCredentials) {
     return this.session(
@@ -237,6 +273,16 @@ export class KbttProviderClient {
               "Không tìm thấy đường dẫn API khai báo tạm trú của cơ quan quản lý (HTTP 404 Not Found).",
           };
         }
+        if (response.status === 429) {
+          const retryAfterMs = parseBoundedRetryAfterMs(response.headers?.get?.("retry-after"));
+          return {
+            outcome: "BUSINESS_REJECTION",
+            code: "HTTP_429",
+            message:
+              "Hệ thống BCA đang giới hạn tần suất gửi hồ sơ (HTTP 429 Too Many Requests). Vui lòng thử lại sau.",
+            ...(retryAfterMs !== undefined ? { retryAfterMs } : {}),
+          };
+        }
         return {
           outcome: "AMBIGUOUS",
           code: `HTTP_${response.status}`,
@@ -270,6 +316,17 @@ export class KbttProviderClient {
             message: errorDetail
               ? `Cổng BCA từ chối truy cập: ${errorDetail} (HTTP 403)`
               : "Tài khoản kết nối BCA bị từ chối quyền truy cập hoặc không có quyền gửi hồ sơ (HTTP 403 Forbidden).",
+          };
+        }
+        if (response.status === 429) {
+          const retryAfterMs = parseBoundedRetryAfterMs(response.headers?.get?.("retry-after"));
+          return {
+            outcome: "BUSINESS_REJECTION",
+            code: "HTTP_429",
+            message: errorDetail
+              ? `Hệ thống BCA đang giới hạn tần suất gửi hồ sơ: ${errorDetail} (HTTP 429)`
+              : "Hệ thống BCA đang giới hạn tần suất gửi hồ sơ (HTTP 429 Too Many Requests).",
+            ...(retryAfterMs !== undefined ? { retryAfterMs } : {}),
           };
         }
 
@@ -308,6 +365,17 @@ export class KbttProviderClient {
           code: "200",
           message: messageStr || "Thành công",
           data: responseData,
+        };
+      }
+
+      if (response.status === 429 || codeStr === "429" || codeStr === "HTTP_429" || codeStr === "TOO_MANY_REQUESTS") {
+        const retryAfterMs = parseBoundedRetryAfterMs(response.headers?.get?.("retry-after"));
+        return {
+          outcome: "BUSINESS_REJECTION",
+          code: codeStr === "429" || codeStr === "HTTP_429" || codeStr === "TOO_MANY_REQUESTS" ? codeStr : "429",
+          message: messageStr || "Hệ thống BCA đang giới hạn tần suất gửi hồ sơ. Vui lòng thử lại sau.",
+          data: responseData,
+          ...(retryAfterMs !== undefined ? { retryAfterMs } : {}),
         };
       }
 

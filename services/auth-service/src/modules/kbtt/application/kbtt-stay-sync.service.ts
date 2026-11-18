@@ -16,7 +16,11 @@ const eventPayload = z.object({
 }).passthrough();
 const ACTIVE_STAYS = new Set(["ACTIVE", "CHECKED_IN", "CHECKOUT_PENDING"]);
 type SessionResolver = (hotelId: string, connection: KbttHotelConnection) => Promise<KbttSession>;
-type SessionFailure = (hotelId: string, session: KbttSession) => Promise<void>;
+type SessionFailure = (
+  hotelId: string,
+  session: KbttSession,
+  options?: { authRejected?: boolean },
+) => Promise<void>;
 
 @Injectable()
 export class KbttStaySyncService {
@@ -131,7 +135,7 @@ export class KbttStaySyncService {
 
   async sendInitial(
     hotelId: string, kind: DeclarationKind, payload: unknown[], accessToken: string,
-    declarationId: string, csltId: string, requireEnabled = true,
+    declarationId: string, csltId: string, requireEnabled = true, expectedCiphertext?: string,
   ): Promise<KbttSubmitOutcome> {
     const guest = submittedGuest(payload);
     const identity = guest && providerIdentity(kind, guest);
@@ -144,9 +148,13 @@ export class KbttStaySyncService {
     if (requireEnabled && !connection.autoSubmitEnabled) {
       return localRejection("DELIVERY_PAUSED", "Luồng gửi BCA đang tạm dừng.");
     }
-    if (connection.csltId !== csltId) {
+    if (
+      connection.csltId !== csltId ||
+      (expectedCiphertext !== undefined && connection.ciphertext !== expectedCiphertext)
+    ) {
       return localRejection("CONNECTION_SCOPE_CHANGED", "Kết nối BCA đã thay đổi; cần xác nhận lại cơ sở trước khi gửi.");
     }
+    const baselineCiphertext = expectedCiphertext ?? connection.ciphertext;
     const token = await this.repository.acquire(connection.csltId);
     if (!token) return localRejection("DELIVERY_BUSY", "Đang có hồ sơ được gửi. Vui lòng thử lại sau.");
     try {
@@ -172,7 +180,10 @@ export class KbttStaySyncService {
         return localRejection("DELIVERY_BUSY", "Phiên gửi đã thay đổi; vui lòng thử lại sau.");
       }
       const latest = await this.declarations.find(hotelId);
-      if (!latest || latest.status !== "CONNECTED" || latest.ciphertext !== connection.ciphertext || requireEnabled && !latest.autoSubmitEnabled) {
+      if (!latest || latest.status !== "CONNECTED" || latest.csltId !== csltId || latest.ciphertext !== baselineCiphertext) {
+        return localRejection("CONNECTION_SCOPE_CHANGED", "Kết nối BCA đã thay đổi; cần xác nhận lại cơ sở trước khi gửi.");
+      }
+      if (requireEnabled && !latest.autoSubmitEnabled) {
         return localRejection("DELIVERY_PAUSED", "Luồng gửi BCA đang tạm dừng.");
       }
       return await this.provider.submitDeclaration(kind, payload, accessToken);
@@ -333,8 +344,13 @@ export class KbttStaySyncService {
         providerMessage: sanitizedStayResult(outcome.message),
         resolvedAt: status === "UNKNOWN" ? null : new Date(),
       }, undefined);
-      if (onProviderFailure && (outcome.outcome === "AMBIGUOUS" || /^(401|403|HTTP_401|HTTP_403|KBTT_AUTH_FAILED)$/.test(outcome.code))) {
-        await onProviderFailure(stay.hotelId, session);
+      const authRejected = /^(401|403|HTTP_401|HTTP_403|KBTT_AUTH_FAILED)$/.test(outcome.code);
+      if (onProviderFailure && (outcome.outcome === "AMBIGUOUS" || authRejected)) {
+        if (authRejected) {
+          await onProviderFailure(stay.hotelId, session, { authRejected: true });
+        } else {
+          await onProviderFailure(stay.hotelId, session);
+        }
       }
     } finally {
       await this.repository.release(operation.csltId, token);

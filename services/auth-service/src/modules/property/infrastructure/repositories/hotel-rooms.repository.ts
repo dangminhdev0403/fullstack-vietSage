@@ -3050,7 +3050,11 @@ export class HotelRoomsRepository {
     hotelId: string,
     options?: { cursor?: string; take?: number; stayIds?: string[]; roomIds?: string[] },
   ) {
-    const take = options?.take ? Math.min(Math.max(options.take, 1), 500) : undefined;
+    // Allow up to 501 rows so paged readers can request MAX_PAGE_SIZE (500) + 1 sentinel row for hasMore detection
+    const take =
+      options?.take !== undefined && Number.isFinite(options.take)
+        ? Math.min(Math.max(Math.trunc(options.take), 1), 501)
+        : undefined;
     return this.prisma.guestStayOccupant.findMany({
       where: {
         hotelId,

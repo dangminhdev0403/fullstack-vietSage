@@ -75,6 +75,9 @@ export class HotelStayOccupantsReadService {
     return this.getActiveStayOccupants(hotelId);
   }
 
+  static readonly MAX_PAGE_SIZE = 500;
+  static readonly DEFAULT_PAGE_SIZE = 50;
+
   async getActiveStayOccupantsPaged(
     hotelId: string,
     options?: { cursor?: string; take?: number },
@@ -84,7 +87,10 @@ export class HotelStayOccupantsReadService {
     }
 
     const normalizedHotelId = hotelId.trim();
-    const take = options?.take ? Math.min(Math.max(options.take, 1), 500) : 50;
+    const take =
+      options?.take !== undefined && Number.isFinite(options.take)
+        ? Math.min(Math.max(Math.trunc(options.take), 1), HotelStayOccupantsReadService.MAX_PAGE_SIZE)
+        : HotelStayOccupantsReadService.DEFAULT_PAGE_SIZE;
     const rows = await this.hotelRoomsRepository.findActiveStayOccupantsByHotel(normalizedHotelId, {
       cursor: options?.cursor,
       take: take + 1,

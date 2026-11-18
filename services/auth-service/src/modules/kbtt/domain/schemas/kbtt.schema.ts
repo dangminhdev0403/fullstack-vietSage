@@ -697,20 +697,22 @@ export interface KbttCatalogItemView {
   fetchedAt: string;
 }
 
+export const KBTT_DAILY_SCHEDULE_SLOTS = ["12:00", "21:00"] as const;
+export const KBTT_SCHEDULE_TIMEZONE = "Asia/Ho_Chi_Minh" as const;
+
 export const kbttAutoSubmitEnabledSchema = z.object({
   autoSubmitEnabled: z.boolean(),
 }).strict();
 
 export const kbttAutoSubmitConfigSchema = z.object({
-  autoSubmitEnabled: z.boolean().optional(),
+  autoSubmitEnabled: z.boolean(),
   autoSubmitTime: z
-    .string()
-    .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Giờ nộp tự động phải có định dạng HH:mm (00:00 - 23:59)")
-    .nullable()
+    .null({
+      message:
+        "Khung giờ gửi tự động cố định lúc 12:00 và 21:00 (Asia/Ho_Chi_Minh), không hỗ trợ tự chọn giờ.",
+    })
     .optional(),
-}).refine((value) => value.autoSubmitEnabled !== undefined || value.autoSubmitTime !== undefined, {
-  message: "Vui lòng chọn cấu hình cần cập nhật.",
-});
+}).strict();
 export type KbttAutoSubmitConfig = z.infer<typeof kbttAutoSubmitConfigSchema>;
 
 export const kbttAutoSubmitRunStatusSchema = z.enum([

@@ -805,7 +805,7 @@ model KbttHotelConnection {
   authTag           String   @db.VarChar(32)
   keyVersion        Int      @default(1)
   status            String   @default("CONNECTED") @db.VarChar(20)
-  csltId            String   @db.VarChar(32)
+  csltId            String   @unique @db.VarChar(32)
   lastCheckedAt     DateTime
   lastConnectedAt   DateTime
   lastErrorCode     String?  @db.VarChar(40)

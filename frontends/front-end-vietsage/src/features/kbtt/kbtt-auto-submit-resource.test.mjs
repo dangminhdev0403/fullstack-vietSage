@@ -70,12 +70,12 @@ test("tenant and receptionist share persisted enabled state while hotel caches s
   } finally { tenant.clear(); reception.clear(); }
 });
 
-test("failed BCA toggle retains confirmed cache and time-only updates omit the enabled flag", async () => {
+test("failed BCA toggle retains confirmed cache and updateAutoSubmitConfig rejects retired custom autoSubmitTime", async () => {
   const calls = [];
   const { kbttResource, repository } = setup(async (url, options) => {
     calls.push({ url, options });
     if (url.endsWith("/enabled")) throw new Error("Access denied");
-    return { data: { autoSubmitEnabled: false, autoSubmitTime: "05:00" } };
+    return { data: { autoSubmitEnabled: true, autoSubmitTime: null } };
   });
   const cache = client();
   const a = kbttResource.bind({ hotelId: "a" });
@@ -83,8 +83,11 @@ test("failed BCA toggle retains confirmed cache and time-only updates omit the e
     a.queries.autoSubmitEnabled.set(cache, undefined, { autoSubmitEnabled: false });
     await assert.rejects(cache.getMutationCache().build(cache, a.mutations.updateAutoSubmitEnabled.options()).execute({ autoSubmitEnabled: true }), /Access denied/);
     assert.equal(a.queries.autoSubmitEnabled.get(cache, undefined).autoSubmitEnabled, false);
-    await repository.updateAutoSubmitConfig("a", { autoSubmitTime: "05:00" });
-    assert.deepEqual(calls[1].options.body, { autoSubmitTime: "05:00" });
+    await assert.rejects(repository.updateAutoSubmitConfig("a", { autoSubmitEnabled: true, autoSubmitTime: "05:00" }));
+    await assert.rejects(repository.updateAutoSubmitConfig("a", { autoSubmitTime: "05:00" }));
+    assert.equal(calls.length, 1);
+    await repository.updateAutoSubmitConfig("a", { autoSubmitEnabled: true, autoSubmitTime: null });
+    assert.deepEqual(calls[1].options.body, { autoSubmitEnabled: true, autoSubmitTime: null });
   } finally { cache.clear(); }
 });
 
@@ -156,4 +159,94 @@ test("BCA switch blocks unavailable writes and can still pause a disconnected ho
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(alerts.length, 1);
   assert.equal(render(true, true)["aria-checked"], true);
+});
+
+test("auto-submit state schema and delivery status display nextCatchUpAt only when real pending catch-up work exists", () => {
+  const withCatchUp = contracts.kbttAutoSubmitStateSchema.parse({
+    autoSubmitEnabled: true,
+    autoSubmitTime: null,
+    nextScheduledSlotAt: "2026-11-18T05:00:00.000Z",
+    nextCatchUpAt: "2026-11-18T05:10:00.000Z",
+    recentRuns: [],
+  });
+  assert.equal(withCatchUp.nextCatchUpAt, "2026-11-18T05:10:00.000Z");
+
+  const withoutCatchUp = contracts.kbttAutoSubmitStateSchema.parse({
+    autoSubmitEnabled: true,
+    autoSubmitTime: null,
+    nextScheduledSlotAt: "2026-11-18T05:00:00.000Z",
+    nextCatchUpAt: null,
+    recentRuns: [],
+  });
+  assert.equal(withoutCatchUp.nextCatchUpAt, null);
+
+  const connectionHook = load("./hooks/use-kbtt-connection.ts", {
+    react: { useCallback: (fn) => fn, useEffect: () => {}, useMemo: (fn) => fn(), useRef: () => ({ current: false }) },
+    "@tanstack/react-query": { useQueryClient: () => ({}), useQuery: () => ({}), useMutation: () => ({}) },
+    "../resources/kbtt-resource": { kbttResource: { bind: () => ({}) } },
+  });
+  const { KbttDeliveryStatus } = load("./components/kbtt-delivery-status.tsx", {
+    "../types/kbtt-contract": contracts,
+    "../hooks/use-kbtt-connection": connectionHook,
+  });
+
+  const baseDelivery = {
+    mode: "BACKGROUND",
+    state: "RUNNING",
+    lifecycleEnabled: true,
+    pendingCount: 0,
+    reviewCount: 0,
+    lastSucceededAt: null,
+    nextScheduledSlotAt: "2026-11-18T05:00:00.000Z",
+    nextCatchUpAt: null,
+    recentIssues: [],
+  };
+
+  // When nextCatchUpAt is null on both delivery and connection, no catch-up slot is shown
+  const idleRender = JSON.stringify(
+    KbttDeliveryStatus({
+      delivery: baseDelivery,
+      connection: {
+        configured: true,
+        status: "CONNECTED",
+        username: "demo_tich_hop",
+        maskedUsername: "d***p",
+        csltId: "123",
+        lastCheckedAt: null,
+        lastConnectedAt: null,
+        lastErrorCode: null,
+        lastErrorMessage: null,
+        nextCatchUpAt: null,
+        providerProfile: { state: "NOT_LOADED", accommodation: null, fetchedAt: null, error: null },
+      },
+      isLoading: false,
+      hasError: false,
+    }),
+  );
+  assert.doesNotMatch(idleRender, /Gửi bù 10 phút/);
+
+  // When pending work sets nextCatchUpAt, it is displayed alongside temporary disconnect status
+  const activeCatchUpRender = JSON.stringify(
+    KbttDeliveryStatus({
+      delivery: { ...baseDelivery, pendingCount: 2, nextCatchUpAt: "2026-11-18T05:10:00.000Z" },
+      connection: {
+        configured: true,
+        status: "DISCONNECTED",
+        username: "demo_tich_hop",
+        maskedUsername: "d***p",
+        csltId: "123",
+        lastCheckedAt: null,
+        lastConnectedAt: null,
+        lastErrorCode: "KBTT_TEMP_DISCONNECTED",
+        lastErrorMessage: null,
+        cooldownUntil: "2026-11-18T05:01:00.000Z",
+        nextCatchUpAt: "2026-11-18T05:10:00.000Z",
+        providerProfile: { state: "NOT_LOADED", accommodation: null, fetchedAt: null, error: null },
+      },
+      isLoading: false,
+      hasError: false,
+    }),
+  );
+  assert.match(activeCatchUpRender, /Tạm ngắt kết nối BCA — đang chờ kết nối lại/);
+  assert.match(activeCatchUpRender, /Gửi bù 10 phút/);
 });

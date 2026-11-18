@@ -4,7 +4,12 @@ import { createRequire, stripTypeScriptTypes } from "node:module";
 import test from "node:test";
 import ts from "typescript";
 import {
+  computeNextVietnamDailySlot,
+  computeNextVietnamTenMinuteCatchUp,
+  getVietnamCalendarDate,
   getVietnamTodayDate,
+  KBTT_FIXED_SCHEDULE_SLOTS,
+  KBTT_SCHEDULE_TIMEZONE,
   kbttDailyMovementItemSchema,
   kbttDailyMovementsQuerySchema,
   kbttDailyMovementsResponseSchema,
@@ -616,11 +621,11 @@ test("KBTT auto-submit contract validates schedule config, run summaries, and st
   // Valid config
   const validConfig = kbttAutoSubmitConfigSchema.parse({
     autoSubmitEnabled: true,
-    autoSubmitTime: "04:30",
+    autoSubmitTime: null,
   });
   assert.deepEqual(validConfig, {
     autoSubmitEnabled: true,
-    autoSubmitTime: "04:30",
+    autoSubmitTime: null,
   });
 
   // Disabled config with null time
@@ -662,7 +667,7 @@ test("KBTT auto-submit contract validates schedule config, run summaries, and st
   // State schema with recent runs and pendingSchedule
   const stateWithPending = kbttAutoSubmitStateSchema.parse({
     autoSubmitEnabled: true,
-    autoSubmitTime: "04:30",
+    autoSubmitTime: null,
     pendingSchedule: summary,
     recentRuns: [summary],
   });
@@ -695,7 +700,7 @@ test("KBTT auto-submit contract validates schedule config, run summaries, and st
   const runningSummary = { ...summary, status: "RUNNING" };
   const stateWithRunning = kbttAutoSubmitStateSchema.parse({
     autoSubmitEnabled: true,
-    autoSubmitTime: "04:30",
+    autoSubmitTime: null,
     activeRun: runningSummary,
     recentRuns: [runningSummary],
   });
@@ -994,7 +999,7 @@ test("T08B — KBTT daily movements contract, BFF route, query-resource, and sec
 test("local validation failures are distinct from provider rejection and uncertain delivery", () => {
   const row = { derivedStatus: "FAILED", declaration: { status: "FAILED", providerCode: "LOCAL_VALIDATION" } };
   assert.equal(getKbttDeclarationDisplayStatus(row), "LOCAL_ERROR");
-  for (const providerCode of ["LOCAL_STATE_CHANGED","CONNECTION_SCOPE_CHANGED","DELIVERY_BUSY","RECONCILIATION_REQUIRED","LOCAL_PREPARATION","LOCAL_STAY_ENDED","DELIVERY_PAUSED","KBTT_NOT_CONFIGURED","KBTT_AUTH_FAILED","KBTT_PROVIDER_UNAVAILABLE"]) {
+  for (const providerCode of ["LOCAL_STATE_CHANGED","CONNECTION_SCOPE_CHANGED","DELIVERY_BUSY","RECONCILIATION_REQUIRED","LOCAL_PREPARATION","LOCAL_STAY_ENDED","DELIVERY_PAUSED","KBTT_NOT_CONFIGURED","KBTT_AUTH_FAILED","KBTT_PROVIDER_UNAVAILABLE","KBTT_TEMP_DISCONNECTED","KBTT_RETRY_PENDING","KBTT_SESSION_ENDED","PRIOR_DAY_MANUAL_REQUIRED"]) {
     assert.equal(getKbttDeclarationDisplayStatus({ ...row, declaration: { ...row.declaration, providerCode } }), "LOCAL_ERROR");
   }
   assert.equal(getKbttDeclarationDisplayStatus({ ...row, declaration: { ...row.declaration, providerCode: "400" } }), "REJECTED");
@@ -1085,4 +1090,315 @@ test("KBTT connection accepts a safe profile, preserves profile failures and def
   assert.equal(kbttConnectionSchema.safeParse({ ...base, providerProfile: {
     ...result.providerProfile, accommodation: { ...accommodation, name: 123 },
   } }).success, false);
+});
+
+test("KBTT fixed 12:00/21:00 slots, 10-minute catch-up boundary, retired custom autoSubmitTime, and temporary disconnect states", () => {
+  // Rejects non-null autoSubmitTime (custom time picking is retired)
+  for (const invalidTime of ["04:30", "12:00", "21:00", "24:00", ""]) {
+    assert.equal(
+      kbttAutoSubmitConfigSchema.safeParse({
+        autoSubmitEnabled: true,
+        autoSubmitTime: invalidTime,
+      }).success,
+      false,
+    );
+  }
+  assert.deepEqual(
+    kbttAutoSubmitConfigSchema.parse({ autoSubmitEnabled: true }),
+    { autoSubmitEnabled: true },
+  );
+
+  // Fixed system schedule slots (12:00 and 21:00 Asia/Ho_Chi_Minh)
+  assert.deepEqual(KBTT_FIXED_SCHEDULE_SLOTS, ["12:00", "21:00"]);
+  assert.equal(KBTT_SCHEDULE_TIMEZONE, "Asia/Ho_Chi_Minh");
+
+  // computeNextVietnamDailySlot
+  assert.deepEqual(
+    computeNextVietnamDailySlot(new Date("2026-11-18T03:00:00.000Z")), // 10:00 VN
+    {
+      slot: "12:00",
+      scheduledAt: "2026-11-18T05:00:00.000Z",
+      dateStr: "2026-11-18",
+      isTomorrow: false,
+    },
+  );
+  assert.deepEqual(
+    computeNextVietnamDailySlot(new Date("2026-11-18T06:00:00.000Z")), // 13:00 VN
+    {
+      slot: "21:00",
+      scheduledAt: "2026-11-18T14:00:00.000Z",
+      dateStr: "2026-11-18",
+      isTomorrow: false,
+    },
+  );
+  assert.deepEqual(
+    computeNextVietnamDailySlot(new Date("2026-11-18T15:00:00.000Z")), // 22:00 VN
+    {
+      slot: "12:00",
+      scheduledAt: "2026-11-19T05:00:00.000Z",
+      dateStr: "2026-11-19",
+      isTomorrow: true,
+    },
+  );
+
+  // computeNextVietnamTenMinuteCatchUp (12:07 -> 12:10, 21:03 -> 21:10, 12:10:00 -> 12:20, midnight rollover -> null)
+  assert.deepEqual(
+    computeNextVietnamTenMinuteCatchUp(new Date("2026-11-18T05:07:15.000Z")), // 12:07:15 VN
+    {
+      scheduledAt: "2026-11-18T05:10:00.000Z",
+      timeStr: "12:10",
+      dateStr: "2026-11-18",
+    },
+  );
+  assert.deepEqual(
+    computeNextVietnamTenMinuteCatchUp(new Date("2026-11-18T14:03:00.000Z")), // 21:03:00 VN
+    {
+      scheduledAt: "2026-11-18T14:10:00.000Z",
+      timeStr: "21:10",
+      dateStr: "2026-11-18",
+    },
+  );
+  assert.deepEqual(
+    computeNextVietnamTenMinuteCatchUp(new Date("2026-11-18T05:10:00.000Z")), // 12:10:00 VN -> strictly future 12:20
+    {
+      scheduledAt: "2026-11-18T05:20:00.000Z",
+      timeStr: "12:20",
+      dateStr: "2026-11-18",
+    },
+  );
+  assert.equal(
+    computeNextVietnamTenMinuteCatchUp(new Date("2026-11-18T16:55:00.000Z")), // 23:55:00 VN -> crosses midnight
+    null,
+  );
+  assert.equal(getVietnamCalendarDate("2026-11-18T16:55:00.000Z"), "2026-11-18");
+
+  // Connection page removes custom time picker and distinguishes temporary disconnect vs login required
+  const connectionPageSrc = readFileSync(
+    new URL("./components/kbtt-connection-page.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.doesNotMatch(connectionPageSrc, /type="time"|Lưu giờ gửi/);
+  assert.match(connectionPageSrc, /KBTT_FIXED_SCHEDULE_SLOTS/);
+  assert.match(connectionPageSrc, /nextScheduledSlotAt/);
+  assert.match(connectionPageSrc, /nextCatchUpAt/);
+  assert.match(connectionPageSrc, /Đang thử kết nối lại sau 10 giây/);
+  assert.match(connectionPageSrc, /Tạm ngắt kết nối BCA — đang chờ kết nối lại/);
+  assert.match(connectionPageSrc, /Cần đăng nhập lại BCA/);
+
+  // Per-record status/detail distinctions in kbtt-declarations-page.tsx and in-house-declaration-cells.tsx
+  const declPageSrc = readFileSync(
+    new URL("./components/kbtt-declarations-page.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(declPageSrc, /ELIGIBLE_SAME_DAY/);
+  assert.match(declPageSrc, /Hẹn gửi bù/);
+  assert.match(declPageSrc, /PRIOR_DAY_MANUAL/);
+  assert.match(declPageSrc, /Quá ngày — gửi thủ công/);
+  assert.match(declPageSrc, /KBTT_TEMP_DISCONNECTED/);
+  assert.match(declPageSrc, /Chờ kết nối BCA/);
+  assert.match(declPageSrc, /KBTT_SESSION_ENDED/);
+  assert.match(declPageSrc, /Cần đăng nhập lại BCA/);
+  assert.match(declPageSrc, /NEEDS_CORRECTION/);
+  assert.match(declPageSrc, /RECONCILIATION_REQUIRED/);
+
+  const cellsSrc = readFileSync(
+    new URL("./components/in-house-declaration-cells.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(cellsSrc, /getReconciliationRowStatusBadge/);
+  assert.match(cellsSrc, /PRIOR_DAY_MANUAL/);
+  assert.match(cellsSrc, /KBTT_TEMP_DISCONNECTED/);
+  assert.match(cellsSrc, /KBTT_SESSION_ENDED/);
+  assert.match(cellsSrc, /RECONCILIATION_REQUIRED/);
+});
+
+test("BCA-06: connection recovery polling stays active during temporary disconnect cooldown and stops cleanly on terminal states", () => {
+  const hookSource = readFileSync(
+    new URL("./hooks/use-kbtt-connection.ts", import.meta.url),
+    "utf8",
+  );
+  const compiled = ts.transpileModule(hookSource, {
+    fileName: "use-kbtt-connection.ts",
+    compilerOptions: { module: ts.ModuleKind.CommonJS },
+  }).outputText;
+
+  let queryOptions;
+  let currentConnectionData;
+  const invalidatedOps = [];
+  const effects = [];
+  const refs = [];
+  let refCursor = 0;
+
+  const mockResource = {
+    queries: {
+      connection: { options: () => ({ queryKey: ["connection"] }) },
+      declarations: { invalidateAll: () => invalidatedOps.push("declarations") },
+      inHouseDeclarations: { invalidateAll: () => invalidatedOps.push("inHouseDeclarations") },
+      autoSubmitConfig: { invalidateAll: () => invalidatedOps.push("autoSubmitConfig") },
+    },
+    mutations: {
+      connect: { options: () => ({}) },
+      check: { options: () => ({}) },
+      disconnect: { options: () => ({}) },
+    },
+  };
+
+  const module = { exports: {} };
+  new Function("require", "module", "exports", compiled)(
+    (name) => {
+      if (name === "react") {
+        return {
+          useCallback: (fn) => fn,
+          useMemo: (fn) => fn(),
+          useRef: (initial) => {
+            if (!refs[refCursor]) refs[refCursor] = { current: initial };
+            return refs[refCursor++];
+          },
+          useEffect: (fn) => effects.push(fn),
+        };
+      }
+      if (name === "@tanstack/react-query") {
+        return {
+          useQueryClient: () => ({}),
+          useQuery: (opts) => {
+            queryOptions = opts;
+            return { isSuccess: true, isPending: false, isFetching: false, data: currentConnectionData };
+          },
+          useMutation: () => ({ isPending: false, mutateAsync: async () => ({}), reset: () => {} }),
+        };
+      }
+      if (name.includes("kbtt-resource")) {
+        return { kbttResource: { bind: () => mockResource } };
+      }
+      throw new Error(`Unexpected import ${name}`);
+    },
+    module,
+    module.exports,
+  );
+
+  const {
+    shouldPollKbttConnectionRecovery,
+    getKbttConnectionStatusInfo,
+    useKbttConnection,
+  } = module.exports;
+
+  const nowMs = Date.parse("2026-11-18T05:00:00.000Z");
+
+  // 1. KBTT_RETRY_PENDING -> polls at 10_000ms
+  assert.equal(
+    shouldPollKbttConnectionRecovery(
+      { configured: true, status: "DISCONNECTED", lastErrorCode: "KBTT_RETRY_PENDING" },
+      nowMs,
+    ),
+    10_000,
+  );
+
+  // 2. KBTT_TEMP_DISCONNECTED with future cooldown -> bounded poll [5_000, 15_000]
+  assert.equal(
+    shouldPollKbttConnectionRecovery(
+      {
+        configured: true,
+        status: "DISCONNECTED",
+        lastErrorCode: "KBTT_TEMP_DISCONNECTED",
+        cooldownUntil: "2026-11-18T05:00:08.000Z",
+      },
+      nowMs,
+    ),
+    9_000,
+  );
+  assert.equal(
+    shouldPollKbttConnectionRecovery(
+      {
+        configured: true,
+        status: "DISCONNECTED",
+        lastErrorCode: "KBTT_TEMP_DISCONNECTED",
+        cooldownUntil: "2026-11-18T05:00:55.000Z",
+      },
+      nowMs,
+    ),
+    15_000,
+  );
+  assert.equal(
+    shouldPollKbttConnectionRecovery(
+      {
+        configured: true,
+        status: "DISCONNECTED",
+        lastErrorCode: "KBTT_TEMP_DISCONNECTED",
+        cooldownUntil: null,
+      },
+      nowMs,
+    ),
+    15_000,
+  );
+
+  // 3. Stops polling on terminal states
+  for (const terminal of [
+    { configured: true, status: "CONNECTED", lastErrorCode: null },
+    { configured: true, status: "AUTH_FAILED", lastErrorCode: "KBTT_AUTH_FAILED" },
+    { configured: true, status: "DISCONNECTED", lastErrorCode: "KBTT_SESSION_ENDED" },
+    { configured: true, status: "DISCONNECTED", lastErrorCode: "KBTT_FACILITY_CONFLICT" },
+    { configured: false, status: "DISCONNECTED", lastErrorCode: "KBTT_TEMP_DISCONNECTED" },
+  ]) {
+    assert.equal(shouldPollKbttConnectionRecovery(terminal, nowMs), false);
+  }
+
+  // 4. Status info distinguishes KBTT_FACILITY_CONFLICT, TEMP_DISCONNECTED, RETRY_PENDING, LOGIN_REQUIRED
+  const conflictInfo = getKbttConnectionStatusInfo({
+    configured: true,
+    status: "DISCONNECTED",
+    lastErrorCode: "KBTT_FACILITY_CONFLICT",
+    lastErrorMessage: null,
+  });
+  assert.equal(conflictInfo.state, "FACILITY_CONFLICT");
+  assert.equal(conflictInfo.badgeLabel, "Trùng cơ sở lưu trú BCA");
+  assert.equal(conflictInfo.isFacilityConflict, true);
+  assert.equal(conflictInfo.isTemporaryDisconnect, false);
+  assert.match(conflictInfo.message, /liên kết với một khách sạn khác/);
+
+  // 5. Recovery transition invalidates local queries once without render loop
+  const runRender = (connData) => {
+    currentConnectionData = connData;
+    refCursor = 0;
+    effects.length = 0;
+    useKbttConnection("hotel-1");
+    for (const effect of effects) effect();
+  };
+
+  runRender({
+    configured: true,
+    status: "DISCONNECTED",
+    lastErrorCode: "KBTT_RETRY_PENDING",
+  });
+  assert.equal(queryOptions.refetchIntervalInBackground, false);
+  assert.deepEqual(invalidatedOps, []);
+
+  runRender({
+    configured: true,
+    status: "DISCONNECTED",
+    lastErrorCode: "KBTT_TEMP_DISCONNECTED",
+    cooldownUntil: "2026-11-18T05:01:00.000Z",
+  });
+  assert.deepEqual(invalidatedOps, []);
+
+  // Transition to CONNECTED -> invalidates once
+  runRender({
+    configured: true,
+    status: "CONNECTED",
+    lastErrorCode: null,
+    cooldownUntil: null,
+  });
+  assert.deepEqual(invalidatedOps, [
+    "declarations",
+    "inHouseDeclarations",
+    "autoSubmitConfig",
+  ]);
+
+  // Subsequent renders in CONNECTED do not re-trigger invalidations
+  runRender({
+    configured: true,
+    status: "CONNECTED",
+    lastErrorCode: null,
+    cooldownUntil: null,
+  });
+  assert.equal(invalidatedOps.length, 3);
 });

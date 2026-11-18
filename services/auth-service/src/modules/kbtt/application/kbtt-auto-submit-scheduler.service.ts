@@ -6,14 +6,17 @@ import {
   toYmd,
   VIETNAM_TIME_ZONE,
 } from "../../../common/time/vietnam-temporal";
+import { KBTT_DAILY_SCHEDULE_SLOTS } from "../domain/schemas/kbtt.schema";
 import { KbttService } from "./kbtt.service";
 import { KbttRepository } from "../infrastructure/kbtt.repository";
 
-function scheduledVietnamDate(now: Date, hhmm: string): Date {
+export function scheduledVietnamDate(now: Date, hhmm: string): Date {
   const dateStr = toYmd(now, VIETNAM_TIME_ZONE);
   const timeStr = hhmm.length === 5 ? `${hhmm}:00` : hhmm;
   return plainDateAtTime(dateStr, timeStr, VIETNAM_TIME_ZONE);
 }
+
+const FIXED_DAILY_SLOTS = new Set<string>(KBTT_DAILY_SCHEDULE_SLOTS);
 
 @Injectable()
 export class KbttAutoSubmitSchedulerService {
@@ -40,52 +43,39 @@ export class KbttAutoSubmitSchedulerService {
     try {
       // Independent from arrival scans: departed stays still have pending TS work.
       await this.kbttService.processStayLifecycleEvents();
-      const dueHotels = (await this.repository.findDueHotelsForAutoSubmit(currentHHmm)) ?? [];
+      await this.kbttService.runDueCooldownHealthProbes?.(now);
+
+      const isDailySlot = FIXED_DAILY_SLOTS.has(currentHHmm);
+      const dueHotels = isDailySlot
+        ? ((await (this.repository.findHotelsForDailyAutoSubmitSweep
+            ? this.repository.findHotelsForDailyAutoSubmitSweep()
+            : this.repository.findDueHotelsForAutoSubmit(currentHHmm))) ?? [])
+        : [];
       const dueScheduledRuns = (await this.repository.findDueScheduledRuns(now)) ?? [];
 
-      // UNKNOWN is deliberately excluded: a timed-out write may already have succeeded.
-      const minute = Number(currentHHmm.split(":")[1] || "0");
-      let errorRecoveryHotels: Array<{ hotelId: string }> = [];
-      if (minute % 15 === 0) {
-        const errConns = (await this.repository.findHotelsWithPendingErrorDeclarations()) ?? [];
-        const scheduledHotelIds = new Set([
-          ...dueHotels.map((h) => h.hotelId),
-          ...dueScheduledRuns.map((r) => r.hotelId),
-        ]);
-        errorRecoveryHotels = errConns.filter((c) => !scheduledHotelIds.has(c.hotelId));
-      }
-
-      if (
-        dueHotels.length === 0 &&
-        dueScheduledRuns.length === 0 &&
-        errorRecoveryHotels.length === 0
-      ) {
+      if (dueHotels.length === 0 && dueScheduledRuns.length === 0) {
         return;
       }
 
       if (dueHotels.length > 0) {
         this.logger.log(
-          `Found ${dueHotels.length} hotels due for KBTT auto-submit at ${currentHHmm} (dryRun=${isDryRun}).`,
+          `Found ${dueHotels.length} hotels due for KBTT daily slot ${currentHHmm} (dryRun=${isDryRun}).`,
         );
       }
       if (dueScheduledRuns.length > 0) {
-        this.logger.log(`Found ${dueScheduledRuns.length} due scheduled/continuation KBTT runs.`);
-      }
-      if (errorRecoveryHotels.length > 0) {
-        this.logger.log(
-          `Found ${errorRecoveryHotels.length} hotels with pending error declarations for auto-retry.`,
-        );
+        this.logger.log(`Found ${dueScheduledRuns.length} due scheduled/catch-up KBTT runs.`);
       }
 
       const tasks: Array<() => Promise<void>> = [];
+      const slotScheduledFor = isDailySlot ? scheduledVietnamDate(now, currentHHmm) : null;
 
       for (const item of dueHotels) {
-        if (!item.autoSubmitTime) continue;
+        if (!slotScheduledFor) continue;
         tasks.push(async () => {
           try {
             await this.kbttService.executeAutoSubmitForHotel(
               item.hotelId,
-              scheduledVietnamDate(now, item.autoSubmitTime!),
+              slotScheduledFor,
               isDryRun,
             );
           } catch (hotelError: any) {
@@ -109,19 +99,6 @@ export class KbttAutoSubmitSchedulerService {
             this.logger.error(
               `Failed auto-submit scheduled run ${run.id} for hotel ${run.hotelId}: ${runError?.message}`,
               runError?.stack,
-            );
-          }
-        });
-      }
-
-      for (const item of errorRecoveryHotels) {
-        tasks.push(async () => {
-          try {
-            await this.kbttService.executeAutoSubmitForHotel(item.hotelId, now, isDryRun);
-          } catch (hotelError: any) {
-            this.logger.error(
-              `Failed auto-submit error recovery for hotel ${item.hotelId}: ${hotelError?.message}`,
-              hotelError?.stack,
             );
           }
         });

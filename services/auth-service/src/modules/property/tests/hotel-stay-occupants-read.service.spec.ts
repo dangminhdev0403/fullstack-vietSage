@@ -1,5 +1,5 @@
 import { CitizenshipKind, GuestStayStatus } from "@prisma/client";
-import { HotelStayOccupantsReadService } from "../application/hotel-stay-occupants-read.service";
+import { ActiveStayOccupantRow, HotelStayOccupantsReadService } from "../application/hotel-stay-occupants-read.service";
 import { HotelRoomsRepository } from "../infrastructure/repositories/hotel-rooms.repository";
 import { updateStayBodySchema } from "../domain/schemas/rooms.schema";
 
@@ -544,6 +544,244 @@ describe("HotelStayOccupantsReadService & Repository (AGY-10/AGY-11 KBTT Foundat
       expect(mockTx.guestStayOccupant.update).not.toHaveBeenCalled();
       expect(mockTx.guestStayOccupant.create).not.toHaveBeenCalled();
       expect(mockTx.guestStayOccupant.deleteMany).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("BCA-01: Authoritative Occupant Paging at Max Page Size (500) & Multi-Hotel Isolation", () => {
+    const buildPrismaMockWithDataset = (allOccupants: Array<{
+      id: string;
+      stayId: string;
+      hotelId: string;
+      fullName: string;
+      phone: string | null;
+      identityNumber: string | null;
+      dateOfBirth: string | null;
+      gender: string | null;
+      nationality: string | null;
+      residencePlace: string | null;
+      isPrimary: boolean;
+      citizenshipKind: CitizenshipKind | null;
+      createdAt: Date;
+      updatedAt: Date;
+      stay: {
+        id: string;
+        hotelId: string;
+        roomId: string;
+        reservationCode: string;
+        reservation?: { groupCode: string | null };
+        status: GuestStayStatus;
+        checkedOutAt: Date | null;
+        plannedCheckInAt: Date;
+        plannedCheckOutAt: Date;
+        checkedInAt: Date | null;
+        room: { id: string; roomNumber: string };
+      };
+    }>) => {
+      const findMany = jest.fn().mockImplementation(async (args: any) => {
+        const activeStatuses: GuestStayStatus[] = args.where?.stay?.status?.in ?? [
+          GuestStayStatus.ACTIVE,
+          GuestStayStatus.CHECKED_IN,
+          GuestStayStatus.CHECKOUT_PENDING,
+        ];
+        const filtered = allOccupants.filter((row) => {
+          if (args.where?.hotelId && row.hotelId !== args.where.hotelId) return false;
+          if (args.where?.stay?.hotelId && row.stay.hotelId !== args.where.stay.hotelId) return false;
+          if (args.where?.stay?.checkedOutAt === null && row.stay.checkedOutAt !== null) return false;
+          if (!activeStatuses.includes(row.stay.status)) return false;
+          return true;
+        });
+
+        // Sort by id asc when paging (matching orderBy: [{ id: "asc" }])
+        const sorted = [...filtered].sort((a, b) => a.id.localeCompare(b.id));
+
+        let startIndex = 0;
+        if (args.cursor?.id) {
+          const cursorIdx = sorted.findIndex((r) => r.id === args.cursor.id);
+          if (cursorIdx === -1) {
+            return [];
+          }
+          startIndex = cursorIdx + (args.skip ?? 0);
+        }
+
+        const take = args.take ?? sorted.length;
+        return sorted.slice(startIndex, startIndex + take);
+      });
+
+      const repository = new HotelRoomsRepository({
+        guestStayOccupant: { findMany },
+      } as never);
+      const readService = new HotelStayOccupantsReadService(repository);
+
+      return { findMany, repository, readService };
+    };
+
+    const createOccupantFixtures = (count: number, hotelId = mockHotelId, prefix = "occ") =>
+      Array.from({ length: count }, (_, idx) => {
+        const seq = String(idx + 1).padStart(5, "0");
+        return {
+          id: `${prefix}-${seq}`,
+          stayId: `stay-${seq}`,
+          hotelId,
+          fullName: `Guest ${seq}`,
+          phone: null,
+          identityNumber: `0010900${seq}`,
+          dateOfBirth: "1990-01-01",
+          gender: "M",
+          nationality: "VNM",
+          residencePlace: "Da Nang",
+          isPrimary: true,
+          citizenshipKind: CitizenshipKind.VIETNAMESE,
+          createdAt: checkInTime,
+          updatedAt: checkInTime,
+          stay: {
+            id: `stay-${seq}`,
+            hotelId,
+            roomId: `room-${seq}`,
+            reservationCode: `RES-${seq}`,
+            reservation: { groupCode: null },
+            status: GuestStayStatus.ACTIVE,
+            checkedOutAt: null,
+            plannedCheckInAt: checkInTime,
+            plannedCheckOutAt: checkOutTime,
+            checkedInAt: checkInTime,
+            room: { id: `room-${seq}`, roomNumber: `${100 + idx}` },
+          },
+        };
+      });
+
+    it("returns all 500 active guests in a single page with nextCursor = null when exactly 500 guests exist and take = 500", async () => {
+      const dataset = createOccupantFixtures(500);
+      const { findMany, readService } = buildPrismaMockWithDataset(dataset);
+
+      const page1 = await readService.getActiveStayOccupantsPaged(mockHotelId, { take: 500 });
+
+      // Must pass take: 501 through HotelRoomsRepository to Prisma so sentinel detection works at take=500
+      expect(findMany).toHaveBeenCalledTimes(1);
+      expect(findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          take: 501,
+          skip: undefined,
+          cursor: undefined,
+          orderBy: [{ id: "asc" }],
+        }),
+      );
+      expect(page1.items).toHaveLength(500);
+      expect(page1.nextCursor).toBeNull();
+      expect(page1.items[0].id).toBe("occ-00001");
+      expect(page1.items[499].id).toBe("occ-00500");
+    });
+
+    it("detects row 501 when 501 active guests exist with take = 500 (nextCursor is non-null on page 1 and page 2 yields the 501st row)", async () => {
+      const dataset = createOccupantFixtures(501);
+      const { findMany, readService } = buildPrismaMockWithDataset(dataset);
+
+      const page1 = await readService.getActiveStayOccupantsPaged(mockHotelId, { take: 500 });
+      expect(page1.items).toHaveLength(500);
+      expect(page1.nextCursor).toBe("occ-00500");
+
+      const page2 = await readService.getActiveStayOccupantsPaged(mockHotelId, {
+        cursor: page1.nextCursor!,
+        take: 500,
+      });
+      expect(page2.items).toHaveLength(1);
+      expect(page2.items[0].id).toBe("occ-00501");
+      expect(page2.nextCursor).toBeNull();
+
+      expect(findMany).toHaveBeenCalledTimes(2);
+      expect(findMany).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          take: 501,
+          skip: 1,
+          cursor: { id: "occ-00500" },
+          orderBy: [{ id: "asc" }],
+        }),
+      );
+
+      const combinedIds = [...page1.items, ...page2.items].map((r) => r.id);
+      expect(combinedIds).toHaveLength(501);
+      expect(new Set(combinedIds).size).toBe(501);
+      expect(combinedIds).toEqual(dataset.map((r) => r.id));
+    });
+
+    it("iterates through >1000 active guests (1205 rows) with take = 500 in deterministic order with zero duplicates and zero missed rows", async () => {
+      const dataset = createOccupantFixtures(1205);
+      const { readService } = buildPrismaMockWithDataset(dataset);
+
+      const collected: ActiveStayOccupantRow[] = [];
+      const pageSizes: number[] = [];
+      let cursor: string | undefined = undefined;
+
+      while (true) {
+        const page = await readService.getActiveStayOccupantsPaged(mockHotelId, {
+          cursor,
+          take: 500,
+        });
+        pageSizes.push(page.items.length);
+        collected.push(...page.items);
+        if (!page.nextCursor) {
+          break;
+        }
+        cursor = page.nextCursor;
+      }
+
+      expect(pageSizes).toEqual([500, 500, 205]);
+      expect(collected).toHaveLength(1205);
+
+      const collectedIds = collected.map((r) => r.id);
+      expect(new Set(collectedIds).size).toBe(1205);
+      expect(collectedIds).toEqual(dataset.map((r) => r.id));
+    });
+
+    it("enforces cursor boundaries and strict multi-hotel isolation on both occupant and stay across pages", async () => {
+      const targetHotelOccupants = createOccupantFixtures(502, mockHotelId, "occ-target");
+      const otherHotelOccupants = createOccupantFixtures(300, otherHotelId, "occ-other");
+      // Cross-tenant/mismatch edge case: occupant has target hotelId, but stay belongs to otherHotelId
+      const mismatchedStayOccupant = {
+        ...createOccupantFixtures(1, mockHotelId, "occ-mismatch")[0],
+        id: "occ-target-00250-mismatch",
+        hotelId: mockHotelId,
+        stay: {
+          ...createOccupantFixtures(1, otherHotelId, "occ-mismatch")[0].stay,
+          hotelId: otherHotelId,
+        },
+      };
+
+      const { findMany, readService } = buildPrismaMockWithDataset([
+        ...targetHotelOccupants,
+        ...otherHotelOccupants,
+        mismatchedStayOccupant,
+      ]);
+
+      const collectedTarget: ActiveStayOccupantRow[] = [];
+      let cursor: string | undefined = undefined;
+      while (true) {
+        const page = await readService.getActiveStayOccupantsPaged(mockHotelId, {
+          cursor,
+          take: 500,
+        });
+        collectedTarget.push(...page.items);
+        if (!page.nextCursor) break;
+        cursor = page.nextCursor;
+      }
+
+      expect(collectedTarget).toHaveLength(502);
+      expect(collectedTarget.every((r) => r.hotelId === mockHotelId)).toBe(true);
+      expect(collectedTarget.some((r) => r.id.startsWith("occ-other"))).toBe(false);
+      expect(collectedTarget.some((r) => r.id === "occ-target-00250-mismatch")).toBe(false);
+
+      // Verify repository query always scopes both occupant.hotelId and stay.hotelId
+      for (const call of findMany.mock.calls) {
+        expect(call[0].where.hotelId).toBe(mockHotelId);
+        expect(call[0].where.stay.hotelId).toBe(mockHotelId);
+      }
+
+      // Clamping check: requesting take > 500 on service clamps page size to 500 while querying 501 sentinel
+      findMany.mockClear();
+      const clampedPage = await readService.getActiveStayOccupantsPaged(mockHotelId, { take: 9999 });
+      expect(clampedPage.items).toHaveLength(500);
+      expect(clampedPage.nextCursor).toBe("occ-target-00500");
+      expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 501 }));
     });
   });
 });

@@ -40,19 +40,23 @@ export function getBcaSummaryInfo(rows: KbttDeclarationListItem[]): BcaSummaryIn
 
   if (rows.length === 1) {
     const status = getDeclarationStatus(rows[0]);
-    const isError = rows[0].declaration?.status === "FAILED" || status.key === "REJECTED";
     return {
       label: status.label,
-      dotColor: isError ? "bg-rose-500" : status.dotColor,
-      badgeClass: isError ? "border-rose-200 bg-rose-50 text-rose-800" : status.badgeClass,
+      dotColor: status.dotColor,
+      badgeClass: status.badgeClass,
       key: status.key,
     };
   }
 
   const submitted = rows.filter((row) => row.declaration?.status === "SUBMITTED").length;
-  const reviewCount = rows.filter((row) =>
-    ["FAILED", "UNKNOWN"].includes(row.declaration?.status ?? row.derivedStatus),
-  ).length;
+  const reviewCount = rows.filter((row) => {
+    const status = row.declaration?.status ?? row.derivedStatus;
+    if (status === "UNKNOWN" || row.declaration?.eligibilityState === "RECONCILIATION_REQUIRED") return true;
+    if (status === "FAILED") {
+      return row.declaration?.eligibilityState !== "ELIGIBLE_SAME_DAY" && !row.declaration?.nextCatchUpAt;
+    }
+    return false;
+  }).length;
 
   if (reviewCount > 0) {
     return {
@@ -217,12 +221,13 @@ export function InHouseBcaStatus({
           <ul className="divide-y divide-slate-100">
             {rows.map((row) => {
               const rowStatus = getDeclarationStatus(row);
-              const isRowError = row.declaration?.status === "FAILED" || rowStatus.key === "REJECTED";
-              const canRetry = canManage && row.declaration?.status === "FAILED";
-              const badgeClass = isRowError
-                ? "border-rose-200 bg-rose-50 text-rose-800"
-                : rowStatus.badgeClass;
-              const dotColor = isRowError ? "bg-rose-500" : rowStatus.dotColor;
+              const canRetry =
+                canManage &&
+                row.declaration?.status === "FAILED" &&
+                row.declaration?.eligibilityState !== "RECONCILIATION_REQUIRED" &&
+                row.declaration?.providerCode !== "RECONCILIATION_REQUIRED";
+              const badgeClass = rowStatus.badgeClass;
+              const dotColor = rowStatus.dotColor;
 
               return (
                 <li key={row.occupantId} className="flex flex-col gap-1 py-2 first:pt-1 last:pb-0">

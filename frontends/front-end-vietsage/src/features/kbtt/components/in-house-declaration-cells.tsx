@@ -11,6 +11,86 @@ import { sanitizeErrorMessage, type KbttReconciliationRow, type KbttCatalogItem 
 const controlClass = "h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-base font-medium text-slate-900 shadow-2xs transition-all placeholder:text-slate-400 hover:border-slate-300 focus:border-[#003B2A] focus:outline-none focus:ring-1 focus:ring-[#003B2A] disabled:bg-slate-50 disabled:text-slate-500";
 export const declarationColumnLabels = ["Khách", "Giới tính", "Ngày sinh", "Giấy tờ", "Nhận phòng", "Dự kiến trả"];
 
+export function getReconciliationRowStatusBadge(row: KbttReconciliationRow): {
+  label: string;
+  dotColor: string;
+  badgeClass: string;
+} | null {
+  const code = row.reason ?? row.providerMessage ?? "";
+  if (row.status === "MATCHED" || row.declarationStatus === "SUBMITTED") {
+    return {
+      label: "Đã có BCA",
+      dotColor: "bg-emerald-600",
+      badgeClass: "border-emerald-200 bg-emerald-50 text-emerald-800",
+    };
+  }
+  if (
+    row.declarationStatus === "UNKNOWN" ||
+    row.status === "REVIEW" ||
+    code === "RECONCILIATION_REQUIRED"
+  ) {
+    return {
+      label: "Cần đối soát",
+      dotColor: "bg-amber-500",
+      badgeClass: "border-amber-200 bg-amber-50 text-amber-900",
+    };
+  }
+  if (code === "PRIOR_DAY_MANUAL" || code === "PRIOR_DAY_MANUAL_REQUIRED") {
+    return {
+      label: "Quá ngày — gửi thủ công",
+      dotColor: "bg-amber-500",
+      badgeClass: "border-amber-200 bg-amber-50 text-amber-900",
+    };
+  }
+  if (
+    code === "KBTT_TEMP_DISCONNECTED" ||
+    code === "KBTT_PROVIDER_UNAVAILABLE" ||
+    code === "KBTT_RETRY_PENDING"
+  ) {
+    return {
+      label: code === "KBTT_RETRY_PENDING" ? "Đang thử kết nối lại" : "Chờ kết nối BCA",
+      dotColor: "bg-amber-500",
+      badgeClass: "border-amber-200 bg-amber-50 text-amber-900",
+    };
+  }
+  if (code === "KBTT_AUTH_FAILED" || code === "KBTT_SESSION_ENDED") {
+    return {
+      label: "Cần đăng nhập lại BCA",
+      dotColor: "bg-rose-500",
+      badgeClass: "border-rose-200 bg-rose-50 text-rose-800",
+    };
+  }
+  if (code === "LOCAL_VALIDATION" || code === "NEEDS_CORRECTION") {
+    return {
+      label: "Cần sửa dữ liệu",
+      dotColor: "bg-amber-500",
+      badgeClass: "border-amber-200 bg-amber-50 text-amber-900",
+    };
+  }
+  if (code === "ELIGIBLE_SAME_DAY") {
+    return {
+      label: "Chờ gửi bù trong ngày",
+      dotColor: "bg-teal-500",
+      badgeClass: "border-teal-200 bg-teal-50 text-teal-900",
+    };
+  }
+  if (row.declarationStatus === "FAILED") {
+    return {
+      label: "Gửi lỗi",
+      dotColor: "bg-rose-500",
+      badgeClass: "border-rose-200 bg-rose-50 text-rose-800",
+    };
+  }
+  if (row.status === "NOT_FOUND") {
+    return {
+      label: "Chưa có BCA",
+      dotColor: "bg-slate-400",
+      badgeClass: "border-slate-200 bg-slate-50 text-slate-600",
+    };
+  }
+  return null;
+}
+
 function displayDate(raw: string): string {
   if (!raw) return "";
   if (/(?:Z|[+-]\d{2}:\d{2})$/.test(raw)) {
@@ -315,22 +395,16 @@ export function InHouseDeclarationCells({ hotelId, row, canManage, onUpdated, re
     {foreign ? <td className="px-2 py-2.5 align-middle whitespace-nowrap w-[10%] min-w-[125px]"><div className="w-full">{input("thoiHanTamTruStr", "Hạn tạm trú", "", "datetime-local", "w-full")}</div></td> : null}
     <td className={`px-2 py-2.5 align-middle whitespace-nowrap ${foreign ? "w-[7%] min-w-[90px]" : "w-[9%] min-w-[100px]"}`}>
       <div className="flex flex-col items-start gap-1">
-        {row.declarationStatus === "FAILED" ? (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-800 shadow-2xs">
-            <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
-            <span>Gửi lỗi</span>
-          </span>
-        ) : row.status === "MATCHED" ? (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 shadow-2xs">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
-            <span>Đã có BCA</span>
-          </span>
-        ) : row.status === "NOT_FOUND" ? (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-bold text-slate-600 shadow-2xs">
-            <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
-            <span>Chưa có BCA</span>
-          </span>
-        ) : null}
+        {(() => {
+          const badge = getReconciliationRowStatusBadge(row);
+          if (!badge) return null;
+          return (
+            <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-bold shadow-2xs ${badge.badgeClass}`}>
+              <span className={`h-1.5 w-1.5 rounded-full ${badge.dotColor}`} />
+              <span>{badge.label}</span>
+            </span>
+          );
+        })()}
       </div>
     </td>
     <td className={`px-2 py-2.5 align-middle whitespace-nowrap text-right ${foreign ? "w-[6%] min-w-[90px]" : "w-[10%] min-w-[100px]"}`}>

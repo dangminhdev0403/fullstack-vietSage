@@ -1,4 +1,6 @@
-﻿import {
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import {
   kbttPaginationQuerySchema,
   kbttAutoSubmitConfigSchema,
   kbttAutoSubmitRunStatusSchema,
@@ -8,21 +10,41 @@
 
 describe("KBTT Auto-Submit Schemas", () => {
   describe("kbttAutoSubmitConfigSchema", () => {
-    it("should accept valid config with HH:mm", () => {
-      const valid = {
+    it("should reject custom HH:mm time because daily slots are fixed at 12:00 and 21:00", () => {
+      const customTime = {
         autoSubmitEnabled: true,
         autoSubmitTime: "04:30",
       };
-      const res = kbttAutoSubmitConfigSchema.safeParse(valid);
-      expect(res.success).toBe(true);
+      const res = kbttAutoSubmitConfigSchema.safeParse(customTime);
+      expect(res.success).toBe(false);
     });
 
-    it("should accept disabled config without time", () => {
-      const valid = {
-        autoSubmitEnabled: false,
-      };
-      const res = kbttAutoSubmitConfigSchema.safeParse(valid);
-      expect(res.success).toBe(true);
+    it("should reject omitted autoSubmitEnabled even when autoSubmitTime is null", () => {
+      expect(kbttAutoSubmitConfigSchema.safeParse({ autoSubmitTime: null }).success).toBe(false);
+      expect(kbttAutoSubmitConfigSchema.safeParse({}).success).toBe(false);
+    });
+
+    it("BCA-07: aligns OpenAPI PUT /hotels/{hotelId}/kbtt/auto-submit schema with runtime kbttAutoSubmitConfigSchema", () => {
+      const openapiPath = resolve(
+        __dirname,
+        "../../../../../../shared/api-contract/openapi/v1/openapi.json",
+      );
+      const spec = JSON.parse(readFileSync(openapiPath, "utf8"));
+      const putSchema =
+        spec.paths?.["/hotels/{hotelId}/kbtt/auto-submit"]?.put?.requestBody?.content?.[
+          "application/json"
+        ]?.schema;
+      expect(putSchema).toBeDefined();
+      expect(putSchema.required).toEqual(["autoSubmitEnabled"]);
+      expect(putSchema.additionalProperties).toBe(false);
+      expect(putSchema.anyOf).toBeUndefined();
+      expect(putSchema.properties?.autoSubmitTime?.enum).toEqual([null]);
+      expect(putSchema.properties?.autoSubmitTime?.pattern).toBeUndefined();
+    });
+
+    it("should accept enabled/disabled config without time", () => {
+      expect(kbttAutoSubmitConfigSchema.safeParse({ autoSubmitEnabled: true }).success).toBe(true);
+      expect(kbttAutoSubmitConfigSchema.safeParse({ autoSubmitEnabled: false }).success).toBe(true);
     });
 
     it("should accept null time", () => {

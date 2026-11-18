@@ -19,7 +19,7 @@ import {
 
 import { useKbttPreferencesStore } from "../store/kbtt-preferences-store";
 import { kbttResource } from "../resources/kbtt-resource";
-import { useKbttConnection } from "../hooks/use-kbtt-connection";
+import { getKbttConnectionStatusInfo, useKbttConnection } from "../hooks/use-kbtt-connection";
 import { KbttDailyMovementsPanel } from "./kbtt-daily-movements-panel";
 import { KbttDeliveryStatus } from "./kbtt-delivery-status";
 import { KbttAutoSubmitSwitch } from "./kbtt-auto-submit-switch";
@@ -269,17 +269,156 @@ function formatNationality(row: KbttDeclarationListItem): string {
   return "Chưa xác định";
 }
 
+export function formatKbttCatchUpTime(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return new Intl.DateTimeFormat("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(parsed);
+}
+
 export function getDeclarationStatus(row: KbttDeclarationListItem) {
   const key = getKbttDeclarationDisplayStatus(row);
-  const states = {
-    UNSENT: { label: "Chưa gửi", dotColor: "bg-slate-400", badgeClass: "border-slate-200 bg-slate-50 text-slate-700" },
-    SUBMITTED: { label: "Đã gửi BCA", dotColor: "bg-emerald-500", badgeClass: "border-emerald-200 bg-emerald-50 text-emerald-800" },
-    LOCAL_ERROR: { label: row.declaration?.providerCode === "LOCAL_VALIDATION" ? "Cần sửa dữ liệu" : "Cần kiểm tra", dotColor: "bg-amber-500", badgeClass: "border-amber-200 bg-amber-50 text-amber-900" },
-    REJECTED: { label: "Bị từ chối", dotColor: "bg-rose-500", badgeClass: "border-rose-200 bg-rose-50 text-rose-800" },
-    UNKNOWN: { label: "Cần đối soát", dotColor: "bg-amber-500", badgeClass: "border-amber-200 bg-amber-50 text-amber-900" },
-    CANCELLED: { label: "Đã hủy", dotColor: "bg-amber-500", badgeClass: "border-amber-200 bg-amber-50 text-amber-900" },
+  const declaration = row.declaration;
+  const providerCode = declaration?.providerCode ?? null;
+  const eligibilityState = declaration?.eligibilityState ?? null;
+  const catchUpTime = formatKbttCatchUpTime(declaration?.nextCatchUpAt);
+
+  if (key === "SUBMITTED" || declaration?.status === "SUBMITTED" || eligibilityState === "SUBMITTED") {
+    return {
+      key: "SUBMITTED" as const,
+      stateCode: "SUBMITTED" as const,
+      label: "Đã gửi BCA",
+      detail: "Đã xác nhận gửi hồ sơ lên hệ thống Bộ Công an.",
+      dotColor: "bg-emerald-500",
+      badgeClass: "border-emerald-200 bg-emerald-50 text-emerald-800",
+    };
+  }
+
+  if (
+    key === "UNKNOWN" ||
+    declaration?.status === "UNKNOWN" ||
+    eligibilityState === "RECONCILIATION_REQUIRED" ||
+    providerCode === "RECONCILIATION_REQUIRED"
+  ) {
+    return {
+      key: "UNKNOWN" as const,
+      stateCode: "RECONCILIATION_REQUIRED" as const,
+      label: "Cần đối soát",
+      detail: "Chưa xác định kết quả gửi BCA — cần đối soát, không tự động gửi lại.",
+      dotColor: "bg-amber-500",
+      badgeClass: "border-amber-200 bg-amber-50 text-amber-900",
+    };
+  }
+
+  if (key === "CANCELLED" || declaration?.status === "CANCELLED") {
+    return {
+      key: "CANCELLED" as const,
+      stateCode: "CANCELLED" as const,
+      label: "Đã hủy",
+      detail: "Hồ sơ đã hủy, chưa gửi BCA.",
+      dotColor: "bg-amber-500",
+      badgeClass: "border-amber-200 bg-amber-50 text-amber-900",
+    };
+  }
+
+  if (eligibilityState === "PRIOR_DAY_MANUAL" || providerCode === "PRIOR_DAY_MANUAL_REQUIRED") {
+    return {
+      key,
+      stateCode: "PRIOR_DAY_MANUAL" as const,
+      label: "Quá ngày — gửi thủ công",
+      detail: "Khách nhận phòng ngày trước — cần kiểm tra và xử lý thủ công.",
+      dotColor: "bg-amber-500",
+      badgeClass: "border-amber-200 bg-amber-50 text-amber-900",
+    };
+  }
+
+  if (providerCode === "KBTT_AUTH_FAILED" || providerCode === "KBTT_SESSION_ENDED") {
+    return {
+      key,
+      stateCode: "LOGIN_REQUIRED" as const,
+      label: "Cần đăng nhập lại BCA",
+      detail: "Cần đăng nhập lại BCA để tiếp tục đồng bộ hồ sơ.",
+      dotColor: "bg-rose-500",
+      badgeClass: "border-rose-200 bg-rose-50 text-rose-800",
+    };
+  }
+
+  if (
+    providerCode === "KBTT_TEMP_DISCONNECTED" ||
+    providerCode === "KBTT_PROVIDER_UNAVAILABLE" ||
+    providerCode === "KBTT_RETRY_PENDING"
+  ) {
+    return {
+      key,
+      stateCode: "WAITING_CONNECTION" as const,
+      label: providerCode === "KBTT_RETRY_PENDING" ? "Đang thử kết nối lại" : "Chờ kết nối BCA",
+      detail: catchUpTime
+        ? `Tạm ngắt kết nối BCA — đang chờ kết nối lại (hẹn gửi bù ${catchUpTime}).`
+        : "Tạm ngắt kết nối BCA — đang chờ kết nối lại.",
+      dotColor: "bg-amber-500",
+      badgeClass: "border-amber-200 bg-amber-50 text-amber-900",
+    };
+  }
+
+  if (key === "REJECTED") {
+    return {
+      key: "REJECTED" as const,
+      stateCode: "REJECTED" as const,
+      label: "Bị từ chối",
+      detail: "Cổng dịch vụ công Bộ Công an từ chối tiếp nhận — cần kiểm tra và sửa dữ liệu.",
+      dotColor: "bg-rose-500",
+      badgeClass: "border-rose-200 bg-rose-50 text-rose-800",
+    };
+  }
+
+  if (eligibilityState === "NEEDS_CORRECTION" || providerCode === "LOCAL_VALIDATION") {
+    return {
+      key,
+      stateCode: "NEEDS_CORRECTION" as const,
+      label: "Cần sửa dữ liệu",
+      detail: "Thiếu hoặc sai dữ liệu bắt buộc — cần sửa trước khi gửi BCA.",
+      dotColor: "bg-amber-500",
+      badgeClass: "border-amber-200 bg-amber-50 text-amber-900",
+    };
+  }
+
+  if (catchUpTime || eligibilityState === "ELIGIBLE_SAME_DAY") {
+    return {
+      key,
+      stateCode: "ELIGIBLE_SAME_DAY" as const,
+      label: catchUpTime ? `Hẹn gửi bù ${catchUpTime}` : "Chờ gửi bù trong ngày",
+      detail: catchUpTime
+        ? `Đã xếp lịch gửi bù trong ngày lúc ${catchUpTime} (Asia/Ho_Chi_Minh).`
+        : "Đủ điều kiện gửi bù trong ngày theo khung giờ hệ thống.",
+      dotColor: "bg-teal-500",
+      badgeClass: "border-teal-200 bg-teal-50 text-teal-900",
+    };
+  }
+
+  if (key === "LOCAL_ERROR") {
+    return {
+      key: "LOCAL_ERROR" as const,
+      stateCode: "LOCAL_ERROR" as const,
+      label: "Cần kiểm tra",
+      detail: "Cần kiểm tra lại hồ sơ trước khi gửi BCA.",
+      dotColor: "bg-amber-500",
+      badgeClass: "border-amber-200 bg-amber-50 text-amber-900",
+    };
+  }
+
+  return {
+    key: "UNSENT" as const,
+    stateCode: "UNSENT" as const,
+    label: "Chưa gửi",
+    detail: "Chưa gửi lên hệ thống Bộ Công an.",
+    dotColor: "bg-slate-400",
+    badgeClass: "border-slate-200 bg-slate-50 text-slate-700",
   };
-  return { key, ...states[key] };
 }
 
 function SearchIcon({ className = "h-5 w-5" }: { className?: string }) {
@@ -573,11 +712,20 @@ export function KbttDeclarationsPage({
   const { connection: connectionQuery } = useKbttConnection(hotelId);
   const connectionData = connectionQuery.data;
   const isConnected = connectionQuery.isSuccess && connectionData?.status === "CONNECTED";
+  const connectionStatusInfo = getKbttConnectionStatusInfo(connectionData);
   const connectionIssue = isConnected ? null
     : connectionQuery.isPending ? "Đang tải trạng thái kết nối BCA. Vui lòng chờ."
       : connectionQuery.isError || !connectionData
         ? "Chưa đọc được trạng thái kết nối BCA. Vui lòng làm mới để kiểm tra lại."
-        : "Khách sạn chưa kết nối thành công với Cổng BCA. Vui lòng kết nối tài khoản trước khi gửi hồ sơ.";
+        : connectionStatusInfo.isRetryPending
+          ? "Đang thử kết nối lại sau 10 giây."
+          : connectionStatusInfo.isTemporaryDisconnect
+            ? "Tạm ngắt kết nối BCA — đang chờ kết nối lại."
+            : connectionStatusInfo.isFacilityConflict
+              ? connectionStatusInfo.message
+              : connectionStatusInfo.isLoginRequired
+                ? "Cần đăng nhập lại BCA."
+                : "Khách sạn chưa kết nối thành công với Cổng BCA. Vui lòng kết nối tài khoản trước khi gửi hồ sơ.";
 
   const [activeSection, setActiveSection] = useState<
     "declarations" | "arrivals" | "departures"
@@ -1184,6 +1332,7 @@ export function KbttDeclarationsPage({
 
       <KbttDeliveryStatus
         delivery={declarationsQuery.data?.delivery}
+        connection={connectionData}
         isLoading={declarationsQuery.isPending}
         hasError={declarationsQuery.isError}
       />
@@ -1919,8 +2068,24 @@ export function DeclarationModal({
           <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
             <div className="flex-1 overflow-y-auto px-6 py-5 sm:px-8 space-y-5">
               {submissionError && (
-                <p role="alert" className="break-words text-base text-amber-900">{submissionError}</p>
+                <p role="alert" className="break-words text-pretty text-base text-amber-900">{submissionError}</p>
               )}
+              {(() => {
+                const modalStatus = getDeclarationStatus(occupantSummary);
+                if (modalStatus.stateCode === "UNSENT") return null;
+                return (
+                  <div
+                    role="status"
+                    className={`flex flex-wrap items-center justify-between gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium ${modalStatus.badgeClass}`}
+                  >
+                    <span className="inline-flex items-center gap-2 whitespace-nowrap font-bold">
+                      <span className={`h-2 w-2 rounded-full ${modalStatus.dotColor}`} />
+                      {modalStatus.label}
+                    </span>
+                    <span className="text-pretty">{modalStatus.detail}</span>
+                  </div>
+                );
+              })()}
               {detailQuery.data?.declaration &&
                 ["DRAFT", "FAILED"].includes(detailQuery.data.declaration.status) &&
                 detailQuery.data.declaration.providerMessage && (
