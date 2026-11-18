@@ -579,9 +579,14 @@ export function InHouseReconciliation({ hotelId, canManage, canConfigureKbtt = f
 
       {/* Data Table */}
       {!data && pending ? (
-        <div role="status" className="py-12 text-center text-xs text-slate-500">
-          <VsIcon name="refresh" className="mx-auto mb-2 h-6 w-6 animate-spin text-emerald-800" />
-          <span>{connected ? "Đang tải danh sách khách và đối soát BCA…" : "Đang tải danh sách khách…"}</span>
+        <div role="status" className="flex flex-col items-center justify-center gap-4 rounded-xl border border-slate-200/80 bg-slate-50/40 py-16 text-center">
+          <div className="relative flex h-12 w-12 items-center justify-center">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500/20" />
+            <span className="h-10 w-10 animate-spin rounded-full border-[3px] border-emerald-200 border-t-[#003B2A]" />
+          </div>
+          <p className="text-base font-semibold text-slate-700 animate-pulse text-pretty">
+            {connected ? "Đang tải danh sách khách và đối soát BCA…" : "Đang tải danh sách khách…"}
+          </p>
         </div>
       ) : !visible.length ? (
         <div className="rounded-xl border border-dashed border-slate-200 py-12 text-center text-xs text-slate-500">
