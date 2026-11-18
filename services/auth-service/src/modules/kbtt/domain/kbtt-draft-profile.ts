@@ -10,6 +10,21 @@ export interface KbttDraftOccupant {
 const DATE_OVERRIDES = '__kbttDeclarationDates';
 const DECLARATION_DATE_FIELDS = ['ngayDenCsltStr', 'ngayDiDuKienStr'] as const;
 
+export function hasExplicitDeclarationDate(
+  draftPayloadJson: unknown,
+  key: 'ngayDenCsltStr' | 'ngayDiDuKienStr',
+): boolean {
+  if (!draftPayloadJson || typeof draftPayloadJson !== 'object' || Array.isArray(draftPayloadJson)) {
+    return false;
+  }
+  const dates = (draftPayloadJson as Record<string, unknown>)[DATE_OVERRIDES];
+  if (!dates || typeof dates !== 'object' || Array.isArray(dates)) {
+    return false;
+  }
+  const val = (dates as Record<string, unknown>)[key];
+  return typeof val === 'string' && isValidCalendarDateTime(val);
+}
+
 /** Internal provenance distinguishes explicit edits from legacy duplicated PMS timestamps. */
 export function markKbttDeclarationDates(data: Record<string, unknown>, edits: Record<string, unknown>): Record<string, unknown> {
   const raw = data[DATE_OVERRIDES];

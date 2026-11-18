@@ -27,6 +27,8 @@ import {
   canSelectKbttDeclaration,
   getKbttDeclarationDisplayStatus,
   getKbttSubmissionIssue,
+  getVietnamCalendarDate,
+  isArrivalDayWithinBcaWindow,
   kbttPaginationQuerySchema,
   formatKbttDraftForDisplay,
   formatKbttDraftForProvider,
@@ -326,12 +328,29 @@ export function getDeclarationStatus(row: KbttDeclarationListItem) {
     };
   }
 
-  if (eligibilityState === "PRIOR_DAY_MANUAL" || providerCode === "PRIOR_DAY_MANUAL_REQUIRED") {
+  if (
+    eligibilityState === "OUT_OF_DATE_WINDOW" ||
+    eligibilityState === "PRIOR_DAY_MANUAL" ||
+    providerCode === "OUT_OF_DATE_WINDOW" ||
+    providerCode === "PRIOR_DAY_MANUAL_REQUIRED"
+  ) {
     return {
       key,
-      stateCode: "PRIOR_DAY_MANUAL" as const,
+      stateCode: "OUT_OF_DATE_WINDOW" as const,
       label: "Quá ngày — gửi thủ công",
-      detail: "Khách nhận phòng ngày trước — cần kiểm tra và xử lý thủ công.",
+      detail: "Khách nhận phòng ngoài khung ngày cho phép — cần kiểm tra và gửi thủ công.",
+      dotColor: "bg-amber-500",
+      badgeClass: "border-amber-200 bg-amber-50 text-amber-900",
+    };
+  }
+
+  const arrivalDay = getVietnamCalendarDate(row.checkedInAt ?? row.plannedCheckInAt);
+  if (arrivalDay && !isArrivalDayWithinBcaWindow(arrivalDay)) {
+    return {
+      key,
+      stateCode: "OUT_OF_DATE_WINDOW" as const,
+      label: "Quá ngày — gửi thủ công",
+      detail: "Khách nhận phòng ngoài khung ngày cho phép — cần kiểm tra và gửi thủ công.",
       dotColor: "bg-amber-500",
       badgeClass: "border-amber-200 bg-amber-50 text-amber-900",
     };

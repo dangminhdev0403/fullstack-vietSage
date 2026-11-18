@@ -100,11 +100,11 @@ describe("both-country read-only in-house reconciliation", () => {
     expect(result.items[0].draftPayload).not.toHaveProperty("ghiChu");
     expect(f.provider.readAllHistory).not.toHaveBeenCalled();
   });
-  it("always reads both groups and both active/history sources, even with only VN local guests", async () => {
+  it("always reads both groups and both active/history sources within the bounded 30-day arrival window, even with only VN local guests", async () => {
     const f = fixture(); const result = await f.service.get("owner", "role", "hotel-1", true);
     expect(f.provider.readAllResidents.mock.calls.map((c) => c[0])).toEqual(["VIETNAMESE", "FOREIGN"]);
     expect(f.provider.readAllHistory.mock.calls.map((c) => c[0])).toEqual(["VIETNAMESE", "FOREIGN"]);
-    for (const kind of ["VIETNAMESE", "FOREIGN"]) expect(f.provider.readAllHistory).toHaveBeenCalledWith(kind, f.session.AccessToken, {}, expect.any(AbortSignal));
+    for (const kind of ["VIETNAMESE", "FOREIGN"]) expect(f.provider.readAllHistory).toHaveBeenCalledWith(kind, f.session.AccessToken, { dateFrom: "2026-11-16", dateTo: "2026-11-16" }, expect.any(AbortSignal));
     expect(result.sources.VIETNAMESE.state).toBe("COMPLETE"); expect(result.sources.FOREIGN.state).toBe("COMPLETE");
     expect(result.items[0]).toMatchObject({ status: "MATCHED", groupCode: "GROUP-1", bcaRecordId: "bca-1" });
     expect(kbttReconciliationResponseSchema.safeParse(result).success).toBe(true);
@@ -216,6 +216,113 @@ describe("both-country read-only in-house reconciliation", () => {
     f.provider.readAllHistory.mockRejectedValue(new KbttProviderReadError("NETWORK", "offline"));
     const result = await f.service.get("owner", "role", "hotel-1", true);
     expect(result.items[0].status).toBeNull(); expect(result.items[0].canRetry).toBe(false);
+  });
+
+  it("tracks per-guest/day history coverage within the rolling 30-day window so unqueried >30d guests are inconclusive/manual (never NOT_FOUND/canRetry) while preserving positive active-resident matches", async () => {
+    process.env.KBTT_AUTO_SUBMIT_LIVE_ENABLED = "true";
+    process.env.KBTT_AUTO_SUBMIT_KILL_SWITCH = "false";
+    const f = fixture();
+    // System time is 2026-11-16T06:00:00Z (today = 2026-11-16 VN, yesterday = 2026-11-15 VN, minWindowDay = 2026-10-18 VN)
+    const todayGuest = {
+      ...f.local,
+      id: "occ-today",
+      occupantId: "occ-today",
+      identityNumber: "000000000001",
+      checkedInAt: new Date("2026-11-15T17:30:00Z"), // 2026-11-16 00:30 VN (today, D)
+    };
+    const yesterdayGuest = {
+      ...f.local,
+      id: "occ-yesterday",
+      occupantId: "occ-yesterday",
+      identityNumber: "000000000002",
+      checkedInAt: new Date("2026-11-14T18:00:00Z"), // 2026-11-15 01:00 VN (yesterday, D+1)
+    };
+    const within30dPriorGuest = {
+      ...f.local,
+      id: "occ-d-minus-10",
+      occupantId: "occ-d-minus-10",
+      identityNumber: "000000000003",
+      checkedInAt: new Date("2026-11-06T03:00:00Z"), // 2026-11-06 10:00 VN (D-10: queried in 30d history, but manual-only)
+    };
+    const olderUnmatchedGuest = {
+      ...f.local,
+      id: "occ-older-45d-unmatched",
+      occupantId: "occ-older-45d-unmatched",
+      identityNumber: "000000000004",
+      checkedInAt: new Date("2026-10-01T03:00:00Z"), // 2026-10-01 10:00 VN (>30d: NOT queried in history)
+    };
+    const olderMatchedInResidentsGuest = {
+      ...f.local,
+      id: "occ-older-45d-matched",
+      occupantId: "occ-older-45d-matched",
+      identityNumber: "000000000005",
+      checkedInAt: new Date("2026-09-25T03:00:00Z"), // 2026-09-25 10:00 VN (>30d: matched via active readAllResidents)
+    };
+
+    f.occupants.getActiveStayOccupants.mockResolvedValue([
+      todayGuest,
+      yesterdayGuest,
+      within30dPriorGuest,
+      olderUnmatchedGuest,
+      olderMatchedInResidentsGuest,
+    ]);
+    f.provider.readAllHistory.mockResolvedValue([]);
+    f.provider.readAllResidents.mockImplementation(async (kind) =>
+      kind === "VIETNAMESE"
+        ? [
+            {
+              ...f.record,
+              id: "bca-resident-45d",
+              soGiayTo: "000000000005",
+              loaiGiayTo: 1,
+              ngayDenCslt: "2026-09-25T10:00:00+07:00",
+              ngayDiCslt: "",
+            },
+          ]
+        : [],
+    );
+
+    const result = await f.service.get("owner", "role", "hotel-1", true);
+    const byOccId = new Map(result.items.map((r) => [r.occupantId, r]));
+
+    // History was queried ONLY for the 3 days within the rolling 30-day window: 2026-11-06, 2026-11-15, 2026-11-16
+    const vnHistoryDays = f.provider.readAllHistory.mock.calls
+      .filter((c) => c[0] === "VIETNAMESE")
+      .map((c) => (c[2] as { dateFrom: string }).dateFrom);
+    expect(vnHistoryDays).toEqual(["2026-11-06", "2026-11-15", "2026-11-16"]);
+
+    // 1. Today (D) & Yesterday (D+1) are covered by history and within [yesterday, today] -> NOT_FOUND + canRetry: true
+    expect(byOccId.get("occ-today")).toMatchObject({
+      status: "NOT_FOUND",
+      reason: null,
+      canRetry: true,
+    });
+    expect(byOccId.get("occ-yesterday")).toMatchObject({
+      status: "NOT_FOUND",
+      reason: null,
+      canRetry: true,
+    });
+
+    // 2. D-10 is covered by 30-day history (confirmed NOT_FOUND) but outside [yesterday, today] -> OUT_OF_DATE_WINDOW + canRetry: false
+    expect(byOccId.get("occ-d-minus-10")).toMatchObject({
+      status: "NOT_FOUND",
+      reason: "OUT_OF_DATE_WINDOW",
+      canRetry: false,
+    });
+
+    // 3. >30d unqueried guest was NOT covered by history -> status: null (inconclusive), reason: OUT_OF_DATE_WINDOW, canRetry: false
+    expect(byOccId.get("occ-older-45d-unmatched")).toMatchObject({
+      status: null,
+      reason: "OUT_OF_DATE_WINDOW",
+      canRetry: false,
+    });
+
+    // 4. >30d guest positively present in active residents list preserves MATCHED status and bcaRecordId
+    expect(byOccId.get("occ-older-45d-matched")).toMatchObject({
+      status: "MATCHED",
+      bcaRecordId: "bca-resident-45d",
+      canRetry: false,
+    });
   });
 
 });

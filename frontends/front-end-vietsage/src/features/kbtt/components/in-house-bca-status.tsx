@@ -6,7 +6,13 @@ import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { kbttResource } from "../resources/kbtt-resource";
 import { DeclarationModal, getDeclarationStatus } from "./kbtt-declarations-page";
 import { KbttAutoSubmitSwitch } from "./kbtt-auto-submit-switch";
-import { getKbttSubmissionIssue, sanitizeErrorMessage, type KbttDeclarationListItem } from "../types/kbtt-contract";
+import {
+  getKbttSubmissionIssue,
+  getVietnamCalendarDate,
+  isArrivalDayWithinBcaWindow,
+  sanitizeErrorMessage,
+  type KbttDeclarationListItem,
+} from "../types/kbtt-contract";
 
 export function useInHouseBca(hotelId: string, stayIds: string[], enabled: boolean) {
   const resource = useMemo(() => kbttResource.bind({ hotelId }), [hotelId]);
@@ -51,7 +57,20 @@ export function getBcaSummaryInfo(rows: KbttDeclarationListItem[]): BcaSummaryIn
   const submitted = rows.filter((row) => row.declaration?.status === "SUBMITTED").length;
   const reviewCount = rows.filter((row) => {
     const status = row.declaration?.status ?? row.derivedStatus;
+    if (status === "SUBMITTED") return false;
     if (status === "UNKNOWN" || row.declaration?.eligibilityState === "RECONCILIATION_REQUIRED") return true;
+    if (
+      row.declaration?.eligibilityState === "OUT_OF_DATE_WINDOW" ||
+      row.declaration?.eligibilityState === "PRIOR_DAY_MANUAL" ||
+      row.declaration?.providerCode === "OUT_OF_DATE_WINDOW" ||
+      row.declaration?.providerCode === "PRIOR_DAY_MANUAL_REQUIRED"
+    ) {
+      return true;
+    }
+    const arrivalDay = getVietnamCalendarDate(row.checkedInAt ?? row.plannedCheckInAt);
+    if (arrivalDay && !isArrivalDayWithinBcaWindow(arrivalDay)) {
+      return true;
+    }
     if (status === "FAILED") {
       return row.declaration?.eligibilityState !== "ELIGIBLE_SAME_DAY" && !row.declaration?.nextCatchUpAt;
     }

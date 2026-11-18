@@ -6,7 +6,13 @@ import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { formatVnDateInput, toIsoDate } from "@/features/local-biometric/components/check-in-workspace";
 import { buildInlineDraft } from "../in-house-draft";
 import { kbttResource } from "../resources/kbtt-resource";
-import { sanitizeErrorMessage, type KbttReconciliationRow, type KbttCatalogItem } from "../types/kbtt-contract";
+import {
+  getVietnamCalendarDate,
+  isArrivalDayWithinBcaWindow,
+  sanitizeErrorMessage,
+  type KbttReconciliationRow,
+  type KbttCatalogItem,
+} from "../types/kbtt-contract";
 
 const controlClass = "h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-base font-medium text-slate-900 shadow-2xs transition-all placeholder:text-slate-400 hover:border-slate-300 focus:border-[#003B2A] focus:outline-none focus:ring-1 focus:ring-[#003B2A] disabled:bg-slate-50 disabled:text-slate-500";
 export const declarationColumnLabels = ["Khách", "Giới tính", "Ngày sinh", "Giấy tờ", "Nhận phòng", "Dự kiến trả"];
@@ -35,7 +41,23 @@ export function getReconciliationRowStatusBadge(row: KbttReconciliationRow): {
       badgeClass: "border-amber-200 bg-amber-50 text-amber-900",
     };
   }
-  if (code === "PRIOR_DAY_MANUAL" || code === "PRIOR_DAY_MANUAL_REQUIRED") {
+  if (
+    code === "OUT_OF_DATE_WINDOW" ||
+    code === "PRIOR_DAY_MANUAL" ||
+    code === "PRIOR_DAY_MANUAL_REQUIRED"
+  ) {
+    return {
+      label: "Quá ngày — gửi thủ công",
+      dotColor: "bg-amber-500",
+      badgeClass: "border-amber-200 bg-amber-50 text-amber-900",
+    };
+  }
+  const arrivalDay = getVietnamCalendarDate(row.checkedInAt);
+  if (
+    row.source === "VIETSAGE" &&
+    arrivalDay &&
+    !isArrivalDayWithinBcaWindow(arrivalDay)
+  ) {
     return {
       label: "Quá ngày — gửi thủ công",
       dotColor: "bg-amber-500",

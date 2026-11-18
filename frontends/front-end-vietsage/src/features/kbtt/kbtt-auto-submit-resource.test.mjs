@@ -249,4 +249,28 @@ test("auto-submit state schema and delivery status display nextCatchUpAt only wh
   );
   assert.match(activeCatchUpRender, /Tạm ngắt kết nối BCA — đang chờ kết nối lại/);
   assert.match(activeCatchUpRender, /Gửi bù 10 phút/);
+
+  // OUT_OF_DATE_WINDOW and PRIOR_DAY_MANUAL issues render out-of-window manual message
+  const outOfWindowRender = JSON.stringify(
+    KbttDeliveryStatus({
+      delivery: {
+        ...baseDelivery,
+        reviewCount: 1,
+        recentIssues: [
+          {
+            id: "issue-out-of-window",
+            kind: "INITIAL",
+            status: "BLOCKED",
+            roomNumber: "101",
+            fullName: "Nguyen Van A",
+            message: "OUT_OF_DATE_WINDOW",
+            updatedAt: "2026-11-18T05:00:00.000Z",
+          },
+        ],
+      },
+      isLoading: false,
+      hasError: false,
+    }),
+  );
+  assert.match(outOfWindowRender, /Quá hạn ngày — gửi thủ công/);
 });

@@ -9,11 +9,16 @@ import { reconcileGuests, reconciliationArrivalDay, type LocalReconciliationGues
 import { type KbttReconciliationResponse, type ReconciliationSource } from "../domain/schemas/kbtt-reconciliation.schema";
 import type { KbttSession } from "../domain/schemas/kbtt.schema";
 import { kbttForeignDraftDataSchema, kbttVietnameseDraftDataSchema } from "../domain/schemas/kbtt.schema";
-import { VIETNAM_TIME_ZONE, toYmd, plainDateAtTime } from "../../../common/time/vietnam-temporal";
+import { VIETNAM_TIME_ZONE, addDaysYmd, toYmd, plainDateAtTime } from "../../../common/time/vietnam-temporal";
 
-type KindRead = { guests: ProviderReconciliationGuest[]; source: ReconciliationSource };
+type KindRead = {
+  guests: ProviderReconciliationGuest[];
+  source: ReconciliationSource;
+  coveredHistoryDays: ReadonlySet<string>;
+};
 type RemoteSnapshot = { VIETNAMESE: KindRead; FOREIGN: KindRead };
 const KINDS: ReconciliationKind[] = ["VIETNAMESE", "FOREIGN"];
+const MAX_HISTORY_WINDOW_DAYS = 30;
 const object = (value: unknown): Record<string, unknown> | null => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
 const str = (value: unknown): string | null => typeof value === "string" && value.trim() ? value.trim() : null;
 const providerId = (value: unknown): string | null => typeof value === "number" && Number.isSafeInteger(value) && value > 0 ? String(value) : typeof value === "string" && /^\d{1,32}$/.test(value) ? value : null;
@@ -82,8 +87,14 @@ export class KbttReconciliationService implements OnModuleDestroy {
         declarationStatus: declaration?.status ?? null, providerMessage: declaration?.providerMessage ?? null, linkedBcaId: null, draftPayload };
     });
     const today = toYmd(new Date(), VIETNAM_TIME_ZONE);
-    const arrivalDays = local.map((row) => reconciliationArrivalDay(row.checkedInAt)).filter((day): day is string => Boolean(day));
-    const range = { dateFrom: arrivalDays.reduce((min, day) => day < min ? day : min, today), dateTo: today };
+    const yesterday = addDaysYmd(today, -1);
+    const minWindowDay = addDaysYmd(today, -(MAX_HISTORY_WINDOW_DAYS - 1));
+    const arrivalDays = local
+      .map((row) => reconciliationArrivalDay(row.checkedInAt))
+      .filter((day): day is string => Boolean(day));
+    const historyDays = [...new Set(arrivalDays.filter((day) => day >= minWindowDay && day <= today))].sort();
+    const earliestWindowDay = historyDays[0] ?? today;
+    const range = { dateFrom: earliestWindowDay, dateTo: today };
     const connection = await this.repository.find(hotelId);
     const viewKey = JSON.stringify([hotelId, connection?.csltId, connection?.ciphertext, restrictedRooms?.slice().sort() ?? null]);
     const unavailable = (state: "NOT_CONNECTED" | "NEEDS_LOGIN", message: string): KbttReconciliationResponse => ({
@@ -101,11 +112,11 @@ export class KbttReconciliationService implements OnModuleDestroy {
     });
     const session = this.sessions.getCachedReadSession(hotelId, connection);
     if (!session) return this.retainView(viewKey, unavailable("NEEDS_LOGIN", "Phiên BCA chưa sẵn sàng. Kiểm tra kết nối BCA để cập nhật phiên trước khi đối soát."));
-    const snapshot = await this.readBoth(hotelId, session, force);
+    const snapshot = await this.readBoth(hotelId, session, force, undefined, historyDays);
     if (KINDS.some((kind) => snapshot[kind].source.state !== "COMPLETE")) {
       this.lastKnown.delete(viewKey);
       await this.sessions.recoverReadSession(hotelId, session, async (signal) => {
-        const next = await this.readBoth(hotelId, session, true, signal);
+        const next = await this.readBoth(hotelId, session, true, signal, historyDays);
         if (KINDS.some((kind) => next[kind].source.state === "NEEDS_LOGIN")) {
           await this.sessions.disconnectFailedSession(hotelId, session);
           return false;
@@ -124,7 +135,19 @@ export class KbttReconciliationService implements OnModuleDestroy {
       return unavailable(!current || current.status === "DISCONNECTED" ? "NOT_CONNECTED" : "NEEDS_LOGIN", "Kết nối BCA đã thay đổi trong lúc đối soát. Vui lòng tải lại.");
     }
     const complete = new Set(KINDS.filter((kind) => snapshot[kind].source.state === "COMPLETE"));
-    let items = reconcileGuests(local, [...snapshot.VIETNAMESE.guests, ...snapshot.FOREIGN.guests], complete, connection.csltId);
+    let items = reconcileGuests(
+      local,
+      [...snapshot.VIETNAMESE.guests, ...snapshot.FOREIGN.guests],
+      complete,
+      connection.csltId,
+      {
+        coveredHistoryDays: {
+          VIETNAMESE: snapshot.VIETNAMESE.coveredHistoryDays,
+          FOREIGN: snapshot.FOREIGN.coveredHistoryDays,
+        },
+        retryableArrivalDays: new Set([yesterday, today]),
+      },
+    );
     // Provider room labels are not an authorization boundary. Restricted users see local scoped guests only.
     if (restrictedRooms !== undefined) items = items.filter((row) => row.source === "VIETSAGE");
     const paused = process.env.KBTT_AUTO_SUBMIT_KILL_SWITCH === "true" || process.env.KBTT_AUTO_SUBMIT_LIVE_ENABLED !== "true";
@@ -162,10 +185,19 @@ export class KbttReconciliationService implements OnModuleDestroy {
     return result;
   }
 
-  private async readBoth(hotelId: string, session: KbttSession, force: boolean, parent?: AbortSignal): Promise<RemoteSnapshot> {
+  private async readBoth(
+    hotelId: string,
+    session: KbttSession,
+    force: boolean,
+    parent?: AbortSignal,
+    historyDays?: string[],
+  ): Promise<RemoteSnapshot> {
     const now = Date.now();
     for (const [key, cached] of this.snapshots) if (cached.expiresAt <= now) this.snapshots.delete(key);
-    const key = JSON.stringify([hotelId, session.CsltId]);
+    const normalizedDays = historyDays?.length
+      ? [...new Set(historyDays)].sort()
+      : [toYmd(new Date(), VIETNAM_TIME_ZONE)];
+    const key = JSON.stringify([hotelId, session.CsltId, normalizedDays]);
     const running = this.pending.get(key);
     if (running?.session === session) return running.value;
     const cached = this.snapshots.get(key);
@@ -182,8 +214,16 @@ export class KbttReconciliationService implements OnModuleDestroy {
       signal.addEventListener("abort", onAbort, { once: true });
     });
     // The deadline must settle the service even if a transport ignores AbortSignal.
-    const value = Promise.allSettled(KINDS.map((kind) => Promise.race([this.readKind(kind, session, signal), deadline]))).then((results) => {
-      const reads = results.map((result) => result.status === "fulfilled" ? result.value : { guests: [], source: this.failure(result.reason, session) });
+    const value = Promise.allSettled(KINDS.map((kind) => Promise.race([this.readKind(kind, session, signal, normalizedDays), deadline]))).then((results) => {
+      const reads = results.map((result) =>
+        result.status === "fulfilled"
+          ? result.value
+          : {
+              guests: [],
+              source: this.failure(result.reason, session),
+              coveredHistoryDays: new Set<string>(),
+            },
+      );
       const snapshot = { VIETNAMESE: reads[0], FOREIGN: reads[1] };
       if (!signal.aborted && KINDS.every((kind) => snapshot[kind].source.state === "COMPLETE")) {
         if (this.snapshots.size >= 100) this.snapshots.delete(this.snapshots.keys().next().value!);
@@ -198,9 +238,29 @@ export class KbttReconciliationService implements OnModuleDestroy {
     }
   }
 
-  private async readKind(kind: ReconciliationKind, session: KbttSession, signal: AbortSignal): Promise<KindRead> {
+  private async readKind(
+    kind: ReconciliationKind,
+    session: KbttSession,
+    signal: AbortSignal,
+    historyDays: string[],
+  ): Promise<KindRead> {
+    const readHistoryByDays = async (): Promise<unknown[]> => {
+      const rows: unknown[] = [];
+      for (const day of historyDays) {
+        signal.throwIfAborted();
+        const dayRows = await this.provider.readAllHistory(
+          kind,
+          session.AccessToken,
+          { dateFrom: day, dateTo: day },
+          signal,
+        );
+        rows.push(...dayRows);
+      }
+      return rows;
+    };
     const responses = await Promise.allSettled([
-      this.provider.readAllResidents(kind, session.AccessToken, signal), this.provider.readAllHistory(kind, session.AccessToken, {}, signal),
+      this.provider.readAllResidents(kind, session.AccessToken, signal),
+      readHistoryByDays(),
     ]);
     const guests = new Map<string, ProviderReconciliationGuest>();
     let issue: ReconciliationSource | null = null;
@@ -218,7 +278,11 @@ export class KbttReconciliationService implements OnModuleDestroy {
         } catch (error) { issue ??= this.failure(error, session); }
       }
     }
-    return { guests: [...guests.values()], source: issue ?? { state: "COMPLETE", checkedAt: new Date().toISOString(), error: null } };
+    return {
+      guests: [...guests.values()],
+      source: issue ?? { state: "COMPLETE", checkedAt: new Date().toISOString(), error: null },
+      coveredHistoryDays: issue ? new Set<string>() : new Set(historyDays),
+    };
   }
 
   private normalizeProvider(value: unknown, kind: ReconciliationKind, csltId: string, active: boolean): ProviderReconciliationGuest {

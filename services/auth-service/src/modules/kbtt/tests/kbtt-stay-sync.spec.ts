@@ -785,6 +785,7 @@ describe("BCA stay lifecycle delivery", () => {
       ["2026-11-04T08:00:00Z", "SUCCESS"],
       ["2026-11-04T17:00:00Z", "BUSINESS_REJECTION"],
     ])("checks the initial queued date against %s", async (departure, outcome) => {
+      jest.setSystemTime(new Date("2026-11-01T08:00:00Z"));
       const f = create();
       f.declaration.status = "UNKNOWN";
       f.stay.plannedCheckOutAt = new Date(departure);
@@ -828,6 +829,212 @@ describe("BCA stay lifecycle delivery", () => {
       message: expect.any(String),
     });
     expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+  });
+
+  it("BCA-08: blocks staySync sendInitial and lifecycle dispatch (EXTEND/CHECKOUT/RECOVER) when facility ownership conflicts or DB conflict query fails", async () => {
+    const f = fixture();
+    f.declaration.status = "UNKNOWN";
+    f.repository.initialDeclaration.mockResolvedValue({ ...f.declaration, stay: f.stay });
+
+    // 1. sendInitial blocked when facility conflict is detected
+    const conflictInitial = await f.service.sendInitial(
+      f.stay.hotelId,
+      "VIETNAMESE",
+      f.declaration.submittedPayloadJson!,
+      "test-access-token",
+      f.declaration.id,
+      "cslt-1",
+      true,
+      undefined,
+      async () => true,
+    );
+    expect(conflictInitial).toEqual({
+      outcome: "BUSINESS_REJECTION",
+      code: "KBTT_FACILITY_CONFLICT",
+      message: expect.any(String),
+    });
+    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+
+    // 2. sendInitial blocked when DB conflict query throws
+    const dbErrorInitial = await f.service.sendInitial(
+      f.stay.hotelId,
+      "VIETNAMESE",
+      f.declaration.submittedPayloadJson!,
+      "test-access-token",
+      f.declaration.id,
+      "cslt-1",
+      true,
+      undefined,
+      async () => {
+        throw new Error("DB error");
+      },
+    );
+    expect(dbErrorInitial).toEqual({
+      outcome: "BUSINESS_REJECTION",
+      code: "KBTT_UNAVAILABLE",
+      message: expect.any(String),
+    });
+    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+
+    // 3. dispatch (CHECKOUT) holds operation with KBTT_FACILITY_CONFLICT when facility is owned by another hotel
+    f.declaration.status = "SUBMITTED";
+    f.repository.runnable.mockResolvedValue([f.operation]);
+    await f.service.run(f.resolveSession, undefined, async () => true);
+    expect(f.repository.update).toHaveBeenCalledWith(
+      f.operation.id,
+      ["PENDING", "BLOCKED"],
+      expect.objectContaining({
+        status: "BLOCKED",
+        providerCode: "KBTT_FACILITY_CONFLICT",
+      }),
+    );
+    expect(f.provider.changeDeparture).not.toHaveBeenCalled();
+
+    // 4. dispatch holds operation with KBTT_UNAVAILABLE when conflict query throws
+    f.repository.update.mockClear();
+    await f.service.run(f.resolveSession, undefined, async () => {
+      throw new Error("DB unavailable");
+    });
+    expect(f.repository.update).toHaveBeenCalledWith(
+      f.operation.id,
+      ["PENDING", "BLOCKED"],
+      expect.objectContaining({
+        status: "BLOCKED",
+        providerCode: "KBTT_UNAVAILABLE",
+      }),
+    );
+    expect(f.provider.changeDeparture).not.toHaveBeenCalled();
+  });
+
+  it("BCA-04 post-claim & post-provider fence: rechecks connection/session AFTER claim so login/logout during claim blocks old token dispatch, and fences late 401/rejection without permanent REJECTED or damaging new session while preserving SUCCESS/UNKNOWN", async () => {
+    // 1. Relogin (ciphertext/token change) during await repository.claim blocks provider call and reverts claim to BLOCKED (attemptedAt: null)
+    const f1 = fixture();
+    (f1.connection as any).ciphertext = "cipher-gen-A";
+    f1.repository.runnable.mockResolvedValue([f1.operation]);
+    f1.repository.claim.mockImplementationOnce(async () => {
+      // Simulate relogin A -> B while claim is awaited
+      (f1.connection as any).ciphertext = "cipher-gen-B";
+      f1.resolveSession.mockResolvedValue({
+        AccessToken: "token-gen-B",
+        CsltId: "cslt-1",
+      });
+      return true;
+    });
+    await f1.service.run(f1.resolveSession);
+    expect(f1.provider.changeDeparture).not.toHaveBeenCalled();
+    expect(f1.repository.finish).toHaveBeenCalledWith(
+      f1.operation.id,
+      "lease-token",
+      expect.objectContaining({
+        status: "BLOCKED",
+        attemptedAt: null,
+        providerCode: "CONNECTION_SCOPE_CHANGED",
+      }),
+      undefined,
+    );
+
+    // 2. Logout during await repository.claim blocks provider call and reverts claim to BLOCKED (attemptedAt: null)
+    const f2 = fixture();
+    (f2.connection as any).ciphertext = "cipher-gen-A";
+    f2.repository.runnable.mockResolvedValue([f2.operation]);
+    f2.repository.claim.mockImplementationOnce(async () => {
+      f2.declarations.find.mockResolvedValue(null);
+      return true;
+    });
+    await f2.service.run(f2.resolveSession);
+    expect(f2.provider.changeDeparture).not.toHaveBeenCalled();
+    expect(f2.repository.finish).toHaveBeenCalledWith(
+      f2.operation.id,
+      "lease-token",
+      expect.objectContaining({
+        status: "BLOCKED",
+        attemptedAt: null,
+        providerCode: "CONNECTION_SCOPE_CHANGED",
+      }),
+      undefined,
+    );
+
+    // 3. Relogin during in-flight provider call returning stale 401: fences as BLOCKED (CONNECTION_SCOPE_CHANGED, attemptedAt: null), NEVER marks REJECTED, and NEVER calls onProviderFailure on new session
+    const f3 = fixture();
+    (f3.connection as any).ciphertext = "cipher-gen-A";
+    f3.repository.runnable.mockResolvedValue([f3.operation]);
+    const onFailure3 = jest.fn().mockResolvedValue(undefined);
+    f3.provider.changeDeparture.mockImplementationOnce(async () => {
+      (f3.connection as any).ciphertext = "cipher-gen-B";
+      f3.resolveSession.mockResolvedValue({
+        AccessToken: "token-gen-B",
+        CsltId: "cslt-1",
+      });
+      return {
+        outcome: "BUSINESS_REJECTION",
+        code: "401",
+        message: "Token gen A revoked",
+      };
+    });
+    await f3.service.run(f3.resolveSession, onFailure3);
+    expect(f3.repository.finish).toHaveBeenCalledWith(
+      f3.operation.id,
+      "lease-token",
+      expect.objectContaining({
+        status: "BLOCKED",
+        attemptedAt: null,
+        providerCode: "CONNECTION_SCOPE_CHANGED",
+      }),
+      undefined,
+    );
+    expect(onFailure3).not.toHaveBeenCalled();
+
+    // 4. Same-generation 401 holds operation as BLOCKED (AUTHENTICATION_REQUIRED, attemptedAt: null) instead of permanent REJECTED, and notifies session failure
+    const f4 = fixture();
+    (f4.connection as any).ciphertext = "cipher-gen-A";
+    f4.repository.runnable.mockResolvedValue([f4.operation]);
+    const onFailure4 = jest.fn().mockResolvedValue(undefined);
+    f4.provider.changeDeparture.mockResolvedValueOnce({
+      outcome: "BUSINESS_REJECTION",
+      code: "401",
+      message: "Expired token",
+    });
+    await f4.service.run(f4.resolveSession, onFailure4);
+    expect(f4.repository.finish).toHaveBeenCalledWith(
+      f4.operation.id,
+      "lease-token",
+      expect.objectContaining({
+        status: "BLOCKED",
+        attemptedAt: null,
+        providerCode: "AUTHENTICATION_REQUIRED",
+      }),
+      undefined,
+    );
+    expect(onFailure4).toHaveBeenCalledWith(
+      f4.stay.hotelId,
+      expect.objectContaining({ AccessToken: "test-access-token" }),
+      { authRejected: true },
+    );
+
+    // 5. Late SUCCESS or AMBIGUOUS after relogin preserves SUCCEEDED / UNKNOWN evidence without damaging the new session
+    const f5 = fixture();
+    (f5.connection as any).ciphertext = "cipher-gen-A";
+    f5.repository.runnable.mockResolvedValue([f5.operation]);
+    const onFailure5 = jest.fn().mockResolvedValue(undefined);
+    f5.provider.changeDeparture.mockImplementationOnce(async () => {
+      (f5.connection as any).ciphertext = "cipher-gen-B";
+      return {
+        outcome: "AMBIGUOUS",
+        code: "NETWORK_ERROR",
+        message: "Timeout after relogin",
+      };
+    });
+    await f5.service.run(f5.resolveSession, onFailure5);
+    expect(f5.repository.finish).toHaveBeenCalledWith(
+      f5.operation.id,
+      "lease-token",
+      expect.objectContaining({
+        status: "UNKNOWN",
+        resolvedAt: null,
+      }),
+      undefined,
+    );
+    expect(onFailure5).not.toHaveBeenCalled();
   });
 
 });

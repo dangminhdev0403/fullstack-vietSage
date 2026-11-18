@@ -563,6 +563,7 @@ describe("HotelStayOccupantsReadService & Repository (AGY-10/AGY-11 KBTT Foundat
       citizenshipKind: CitizenshipKind | null;
       createdAt: Date;
       updatedAt: Date;
+      kbttGuestDeclarations?: Array<{ status: string }>;
       stay: {
         id: string;
         hotelId: string;
@@ -585,26 +586,60 @@ describe("HotelStayOccupantsReadService & Repository (AGY-10/AGY-11 KBTT Foundat
         ];
         const filtered = allOccupants.filter((row) => {
           if (args.where?.hotelId && row.hotelId !== args.where.hotelId) return false;
+          if (args.where?.id?.gt && row.id <= args.where.id.gt) return false;
+          if (args.where?.stayId?.in && !args.where.stayId.in.includes(row.stayId)) return false;
           if (args.where?.stay?.hotelId && row.stay.hotelId !== args.where.stay.hotelId) return false;
+          if (args.where?.stay?.roomId?.in && !args.where.stay.roomId.in.includes(row.stay.roomId)) return false;
           if (args.where?.stay?.checkedOutAt === null && row.stay.checkedOutAt !== null) return false;
           if (!activeStatuses.includes(row.stay.status)) return false;
+
+          if (args.where?.kbttGuestDeclarations?.none?.status?.in) {
+            const excludedStatuses: string[] = args.where.kbttGuestDeclarations.none.status.in;
+            const declarations = row.kbttGuestDeclarations ?? [];
+            if (declarations.some((d) => excludedStatuses.includes(d.status))) {
+              return false;
+            }
+          }
+          if (args.where?.kbttGuestDeclarations?.some?.status) {
+            const targetStatus: string = args.where.kbttGuestDeclarations.some.status;
+            const declarations = row.kbttGuestDeclarations ?? [];
+            if (!declarations.some((d) => d.status === targetStatus)) {
+              return false;
+            }
+          }
+
+          if (Array.isArray(args.where?.stay?.OR)) {
+            const matchesOr = args.where.stay.OR.some((branch: any) => {
+              if (branch.checkedInAt && typeof branch.checkedInAt === "object" && "not" in branch.checkedInAt) {
+                if (row.stay.checkedInAt === null) return false;
+                if (branch.checkedInAt.gte && row.stay.checkedInAt < branch.checkedInAt.gte) return false;
+                if (branch.checkedInAt.lt && row.stay.checkedInAt >= branch.checkedInAt.lt) return false;
+                return true;
+              }
+              if (branch.checkedInAt === null && branch.plannedCheckInAt) {
+                if (row.stay.checkedInAt !== null) return false;
+                if (branch.plannedCheckInAt.gte && row.stay.plannedCheckInAt < branch.plannedCheckInAt.gte) return false;
+                if (branch.plannedCheckInAt.lt && row.stay.plannedCheckInAt >= branch.plannedCheckInAt.lt) return false;
+                return true;
+              }
+              return false;
+            });
+            if (!matchesOr) return false;
+          }
+
           return true;
         });
 
         // Sort by id asc when paging (matching orderBy: [{ id: "asc" }])
         const sorted = [...filtered].sort((a, b) => a.id.localeCompare(b.id));
 
-        let startIndex = 0;
-        if (args.cursor?.id) {
-          const cursorIdx = sorted.findIndex((r) => r.id === args.cursor.id);
-          if (cursorIdx === -1) {
-            return [];
-          }
-          startIndex = cursorIdx + (args.skip ?? 0);
-        }
+        const afterCursor = args.cursor?.id
+          ? sorted.filter((r) => r.id >= args.cursor.id)
+          : sorted;
+        const startIndex = args.skip ?? 0;
 
-        const take = args.take ?? sorted.length;
-        return sorted.slice(startIndex, startIndex + take);
+        const take = args.take ?? afterCursor.length;
+        return afterCursor.slice(startIndex, startIndex + take);
       });
 
       const repository = new HotelRoomsRepository({
@@ -660,11 +695,11 @@ describe("HotelStayOccupantsReadService & Repository (AGY-10/AGY-11 KBTT Foundat
       expect(findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           take: 501,
-          skip: undefined,
-          cursor: undefined,
           orderBy: [{ id: "asc" }],
         }),
       );
+      expect(findMany.mock.calls[0][0].skip).toBeUndefined();
+      expect(findMany.mock.calls[0][0].cursor).toBeUndefined();
       expect(page1.items).toHaveLength(500);
       expect(page1.nextCursor).toBeNull();
       expect(page1.items[0].id).toBe("occ-00001");
@@ -692,11 +727,15 @@ describe("HotelStayOccupantsReadService & Repository (AGY-10/AGY-11 KBTT Foundat
         2,
         expect.objectContaining({
           take: 501,
-          skip: 1,
-          cursor: { id: "occ-00500" },
+          where: expect.objectContaining({
+            hotelId: mockHotelId,
+            id: { gt: "occ-00500" },
+          }),
           orderBy: [{ id: "asc" }],
         }),
       );
+      expect(findMany.mock.calls[1][0].cursor).toBeUndefined();
+      expect(findMany.mock.calls[1][0].skip).toBeUndefined();
 
       const combinedIds = [...page1.items, ...page2.items].map((r) => r.id);
       expect(combinedIds).toHaveLength(501);
@@ -782,6 +821,293 @@ describe("HotelStayOccupantsReadService & Repository (AGY-10/AGY-11 KBTT Foundat
       expect(clampedPage.items).toHaveLength(500);
       expect(clampedPage.nextCursor).toBe("occ-target-00500");
       expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 501 }));
+    });
+
+    it("returns unsynchronized guest #2001 on page 1 without scanning 2,000 already-SUBMITTED guests when kbttFilter = UNSYNCHRONIZED and arrival bounds are supplied", async () => {
+      const arrivalStart = new Date("2026-09-13T00:00:00.000Z");
+      const arrivalEnd = new Date("2026-09-14T00:00:00.000Z");
+
+      const submittedGuests = createOccupantFixtures(2000, mockHotelId, "occ").map((row) => ({
+        ...row,
+        kbttGuestDeclarations: [{ status: "SUBMITTED" }],
+      }));
+      const pendingGuest2001 = {
+        ...createOccupantFixtures(1, mockHotelId, "occ")[0],
+        id: "occ-02001",
+        stayId: "stay-02001",
+        fullName: "Guest 02001 (Failed/Pending)",
+        kbttGuestDeclarations: [{ status: "FAILED" }],
+      };
+      const draftGuest2002 = {
+        ...createOccupantFixtures(1, mockHotelId, "occ")[0],
+        id: "occ-02002",
+        stayId: "stay-02002",
+        fullName: "Guest 02002 (Draft)",
+        kbttGuestDeclarations: [{ status: "DRAFT" }],
+      };
+      const noDeclGuest2003 = {
+        ...createOccupantFixtures(1, mockHotelId, "occ")[0],
+        id: "occ-02003",
+        stayId: "stay-02003",
+        fullName: "Guest 02003 (No Declaration)",
+        kbttGuestDeclarations: [],
+      };
+      const cancelledGuest2004 = {
+        ...createOccupantFixtures(1, mockHotelId, "occ")[0],
+        id: "occ-02004",
+        stayId: "stay-02004",
+        fullName: "Guest 02004 (Cancelled)",
+        kbttGuestDeclarations: [{ status: "CANCELLED" }],
+      };
+
+      const { findMany, readService } = buildPrismaMockWithDataset([
+        ...submittedGuests,
+        pendingGuest2001,
+        draftGuest2002,
+        noDeclGuest2003,
+        cancelledGuest2004,
+      ]);
+
+      const page1 = await readService.getActiveStayOccupantsPaged(mockHotelId, {
+        kbttFilter: "UNSYNCHRONIZED",
+        arrivalStart,
+        arrivalEnd,
+        take: 100,
+      });
+
+      expect(findMany).toHaveBeenCalledTimes(1);
+      expect(findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          take: 101,
+          orderBy: [{ id: "asc" }],
+          where: expect.objectContaining({
+            hotelId: mockHotelId,
+            kbttGuestDeclarations: {
+              none: {
+                status: { in: ["SUBMITTED", "UNKNOWN", "CANCELLED"] },
+              },
+            },
+            stay: expect.objectContaining({
+              hotelId: mockHotelId,
+              checkedOutAt: null,
+              OR: [
+                {
+                  checkedInAt: {
+                    not: null,
+                    gte: arrivalStart,
+                    lt: arrivalEnd,
+                  },
+                },
+                {
+                  checkedInAt: null,
+                  plannedCheckInAt: {
+                    gte: arrivalStart,
+                    lt: arrivalEnd,
+                  },
+                },
+              ],
+            }),
+          }),
+        }),
+      );
+
+      expect(page1.items.map((r) => r.id)).toEqual(["occ-02001", "occ-02002", "occ-02003"]);
+      expect(page1.nextCursor).toBeNull();
+    });
+
+    it("queries Prisma with kbttGuestDeclarations.some.status = UNKNOWN when kbttFilter = UNKNOWN_ONLY and pages across keyset cursors", async () => {
+      const baseDataset = createOccupantFixtures(6, mockHotelId, "occ");
+      const dataset = [
+        { ...baseDataset[0], kbttGuestDeclarations: [{ status: "SUBMITTED" }] },
+        { ...baseDataset[1], kbttGuestDeclarations: [{ status: "UNKNOWN" }] },
+        { ...baseDataset[2], kbttGuestDeclarations: [{ status: "FAILED" }] },
+        { ...baseDataset[3], kbttGuestDeclarations: [{ status: "UNKNOWN" }] },
+        { ...baseDataset[4], kbttGuestDeclarations: [] },
+        { ...baseDataset[5], kbttGuestDeclarations: [{ status: "UNKNOWN" }] },
+      ];
+
+      const { findMany, readService } = buildPrismaMockWithDataset(dataset);
+
+      const page1 = await readService.getActiveStayOccupantsPaged(mockHotelId, {
+        kbttFilter: "UNKNOWN_ONLY",
+        take: 2,
+      });
+
+      expect(findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          take: 3,
+          where: expect.objectContaining({
+            hotelId: mockHotelId,
+            kbttGuestDeclarations: {
+              some: {
+                status: "UNKNOWN",
+              },
+            },
+          }),
+        }),
+      );
+      expect(page1.items.map((r) => r.id)).toEqual(["occ-00002", "occ-00004"]);
+      expect(page1.nextCursor).toBe("occ-00004");
+
+      const page2 = await readService.getActiveStayOccupantsPaged(mockHotelId, {
+        cursor: page1.nextCursor!,
+        kbttFilter: "UNKNOWN_ONLY",
+        take: 2,
+      });
+      expect(page2.items.map((r) => r.id)).toEqual(["occ-00006"]);
+      expect(page2.nextCursor).toBeNull();
+    });
+
+    it("does not skip the next eligible guest when the page-1 cursor row mutates out of UNSYNCHRONIZED or UNKNOWN_ONLY eligibility before page 2 is queried", async () => {
+      const dataset = createOccupantFixtures(5, mockHotelId, "occ").map((row) => ({
+        ...row,
+        kbttGuestDeclarations: [{ status: "DRAFT" }],
+      }));
+
+      const { findMany, readService } = buildPrismaMockWithDataset(dataset);
+
+      // Page 1 returns occ-00001 and occ-00002 (nextCursor = "occ-00002")
+      const page1 = await readService.getActiveStayOccupantsPaged(mockHotelId, {
+        kbttFilter: "UNSYNCHRONIZED",
+        take: 2,
+      });
+      expect(page1.items.map((r) => r.id)).toEqual(["occ-00001", "occ-00002"]);
+      expect(page1.nextCursor).toBe("occ-00002");
+
+      // Simulate page-1 guests being submitted before page 2 is fetched (mutating the UNSYNCHRONIZED predicate)
+      dataset[0].kbttGuestDeclarations = [{ status: "SUBMITTED" }];
+      dataset[1].kbttGuestDeclarations = [{ status: "SUBMITTED" }];
+
+      // Page 2 with true keyset where.id.gt = "occ-00002" must return occ-00003 and occ-00004 (never skipping occ-00003!)
+      const page2 = await readService.getActiveStayOccupantsPaged(mockHotelId, {
+        cursor: page1.nextCursor!,
+        kbttFilter: "UNSYNCHRONIZED",
+        take: 2,
+      });
+      expect(findMany).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            hotelId: mockHotelId,
+            id: { gt: "occ-00002" },
+          }),
+        }),
+      );
+      expect(findMany.mock.calls[1][0].cursor).toBeUndefined();
+      expect(findMany.mock.calls[1][0].skip).toBeUndefined();
+      expect(page2.items.map((r) => r.id)).toEqual(["occ-00003", "occ-00004"]);
+      expect(page2.nextCursor).toBe("occ-00004");
+
+      // Mutate occ-00003 and occ-00004 to UNKNOWN before page 3
+      dataset[2].kbttGuestDeclarations = [{ status: "UNKNOWN" }];
+      dataset[3].kbttGuestDeclarations = [{ status: "UNKNOWN" }];
+
+      const page3 = await readService.getActiveStayOccupantsPaged(mockHotelId, {
+        cursor: page2.nextCursor!,
+        kbttFilter: "UNSYNCHRONIZED",
+        take: 2,
+      });
+      expect(page3.items.map((r) => r.id)).toEqual(["occ-00005"]);
+      expect(page3.nextCursor).toBeNull();
+    });
+
+    it("accurately filters day-by-day arrival bounds (arrivalStart, arrivalEnd) across both checkedInAt != null and checkedInAt == null (plannedCheckInAt fallback) while preserving multi-hotel isolation", async () => {
+      const dayStart = new Date("2026-09-13T17:00:00.000Z"); // 2026-09-14 00:00 UTC+7
+      const dayEnd = new Date("2026-09-14T17:00:00.000Z"); // 2026-09-15 00:00 UTC+7
+      const base = createOccupantFixtures(5, mockHotelId, "occ");
+
+      const dataset = [
+        // 1. checkedInAt inside window (even though plannedCheckInAt was earlier) -> MATCH
+        {
+          ...base[0],
+          id: "occ-checkedin-in-window",
+          stay: {
+            ...base[0].stay,
+            plannedCheckInAt: new Date("2026-09-12T10:00:00.000Z"),
+            checkedInAt: new Date("2026-09-13T18:30:00.000Z"),
+          },
+        },
+        // 2. checkedInAt outside window (even though plannedCheckInAt was inside window) -> EXCLUDE
+        {
+          ...base[1],
+          id: "occ-checkedin-outside-window",
+          stay: {
+            ...base[1].stay,
+            plannedCheckInAt: new Date("2026-09-13T20:00:00.000Z"),
+            checkedInAt: new Date("2026-09-12T16:00:00.000Z"),
+          },
+        },
+        // 3. checkedInAt is null, plannedCheckInAt inside window -> MATCH
+        {
+          ...base[2],
+          id: "occ-planned-in-window",
+          stay: {
+            ...base[2].stay,
+            plannedCheckInAt: new Date("2026-09-14T05:00:00.000Z"),
+            checkedInAt: null,
+          },
+        },
+        // 4. checkedInAt is null, plannedCheckInAt at exact exclusive arrivalEnd -> EXCLUDE
+        {
+          ...base[3],
+          id: "occ-planned-at-exclusive-end",
+          stay: {
+            ...base[3].stay,
+            plannedCheckInAt: dayEnd,
+            checkedInAt: null,
+          },
+        },
+        // 5. Other hotel occupant with arrival inside window -> EXCLUDE
+        {
+          ...base[4],
+          id: "occ-other-hotel-in-window",
+          hotelId: otherHotelId,
+          stay: {
+            ...base[4].stay,
+            hotelId: otherHotelId,
+            plannedCheckInAt: new Date("2026-09-13T19:00:00.000Z"),
+            checkedInAt: new Date("2026-09-13T19:00:00.000Z"),
+          },
+        },
+      ];
+
+      const { findMany, readService } = buildPrismaMockWithDataset(dataset);
+
+      const page = await readService.getActiveStayOccupantsPaged(mockHotelId, {
+        arrivalStart: dayStart,
+        arrivalEnd: dayEnd,
+        take: 50,
+      });
+
+      expect(page.items.map((r) => r.id)).toEqual([
+        "occ-checkedin-in-window",
+        "occ-planned-in-window",
+      ]);
+      expect(findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            hotelId: mockHotelId,
+            stay: expect.objectContaining({
+              hotelId: mockHotelId,
+              OR: [
+                {
+                  checkedInAt: {
+                    not: null,
+                    gte: dayStart,
+                    lt: dayEnd,
+                  },
+                },
+                {
+                  checkedInAt: null,
+                  plannedCheckInAt: {
+                    gte: dayStart,
+                    lt: dayEnd,
+                  },
+                },
+              ],
+            }),
+          }),
+        }),
+      );
     });
   });
 });

@@ -106,6 +106,7 @@ export const kbttDeclarationEligibilityStateSchema = z.enum([
   "ELIGIBLE_SAME_DAY",
   "NEEDS_CORRECTION",
   "PRIOR_DAY_MANUAL",
+  "OUT_OF_DATE_WINDOW",
   "RECONCILIATION_REQUIRED",
   "SUBMITTED",
 ]);
@@ -159,7 +160,7 @@ export type KbttDeclarationListItem = z.infer<
 >;
 export const kbttDeclarationListSchema = z.array(kbttDeclarationListItemSchema);
 
-const KBTT_LOCAL_FAILURE_CODES = new Set(["LOCAL_VALIDATION","LOCAL_STATE_CHANGED","CONNECTION_SCOPE_CHANGED","DELIVERY_BUSY","RECONCILIATION_REQUIRED","LOCAL_PREPARATION","LOCAL_STAY_ENDED","DELIVERY_PAUSED","KBTT_NOT_CONFIGURED","KBTT_AUTH_FAILED","KBTT_PROVIDER_UNAVAILABLE","KBTT_TEMP_DISCONNECTED","KBTT_RETRY_PENDING","KBTT_SESSION_ENDED","PRIOR_DAY_MANUAL_REQUIRED"]);
+const KBTT_LOCAL_FAILURE_CODES = new Set(["LOCAL_VALIDATION","LOCAL_STATE_CHANGED","CONNECTION_SCOPE_CHANGED","DELIVERY_BUSY","RECONCILIATION_REQUIRED","LOCAL_PREPARATION","LOCAL_STAY_ENDED","DELIVERY_PAUSED","KBTT_NOT_CONFIGURED","KBTT_AUTH_FAILED","KBTT_PROVIDER_UNAVAILABLE","KBTT_TEMP_DISCONNECTED","KBTT_RETRY_PENDING","KBTT_SESSION_ENDED","PRIOR_DAY_MANUAL_REQUIRED","OUT_OF_DATE_WINDOW","KBTT_FACILITY_CONFLICT"]);
 
 export function getKbttDeclarationDisplayStatus(
   row: Pick<KbttDeclarationListItem, "declaration" | "derivedStatus">,
@@ -794,7 +795,8 @@ export function computeNextVietnamTenMinuteCatchUp(now: Date = new Date()): {
   scheduledAt: string;
   timeStr: string;
   dateStr: string;
-} | null {
+  isTomorrow: boolean;
+} {
   const vnOffsetMs = 7 * 3600_000;
   const vnNow = new Date(now.getTime() + vnOffsetMs);
   const year = vnNow.getUTCFullYear();
@@ -808,23 +810,31 @@ export function computeNextVietnamTenMinuteCatchUp(now: Date = new Date()): {
   const boundary = new Date(currentMinuteFloorUtc + deltaMinutes * 60_000);
   const vnBoundary = new Date(boundary.getTime() + vnOffsetMs);
 
-  if (
+  const isTomorrow =
     vnBoundary.getUTCFullYear() !== year ||
     vnBoundary.getUTCMonth() !== month ||
-    vnBoundary.getUTCDate() !== day
-  ) {
-    return null;
-  }
+    vnBoundary.getUTCDate() !== day;
 
   const hh = String(vnBoundary.getUTCHours()).padStart(2, "0");
   const mm = String(vnBoundary.getUTCMinutes()).padStart(2, "0");
-  const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  const dateStr = `${vnBoundary.getUTCFullYear()}-${String(vnBoundary.getUTCMonth() + 1).padStart(2, "0")}-${String(vnBoundary.getUTCDate()).padStart(2, "0")}`;
 
   return {
     scheduledAt: boundary.toISOString(),
     timeStr: `${hh}:${mm}`,
     dateStr,
+    isTomorrow,
   };
+}
+
+export function isArrivalDayWithinBcaWindow(
+  arrivalDateStr: string | null | undefined,
+  now: Date = new Date(),
+): boolean {
+  if (!arrivalDateStr || !/^\d{4}-\d{2}-\d{2}$/.test(arrivalDateStr)) return false;
+  const todayStr = getVietnamCalendarDate(now);
+  const yesterdayStr = getVietnamCalendarDate(new Date(now.getTime() - 24 * 3600_000));
+  return arrivalDateStr === todayStr || arrivalDateStr === yesterdayStr;
 }
 
 export function getVietnamCalendarDate(value: string | Date | null | undefined): string | null {

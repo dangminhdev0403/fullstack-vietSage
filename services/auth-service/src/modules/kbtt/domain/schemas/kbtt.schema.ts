@@ -138,16 +138,201 @@ export function isValidCalendarDateTime(str: string): boolean {
   );
 }
 
-export function getVietnamTodayStartStr(): string {
+export function getVietnamTodayStartStr(now: Date = new Date()): string {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Ho_Chi_Minh",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).formatToParts(new Date());
+  }).formatToParts(now);
   const map: Record<string, string> = {};
   for (const part of parts) map[part.type] = part.value;
   return `${map.year}-${map.month}-${map.day} 00:00:00`;
+}
+
+export interface KbttSubmissionDateContext {
+  todayYmd: string;
+  yesterdayYmd: string;
+}
+
+export function getKbttSubmissionDateContext(
+  nowOrTodayYmd: Date | string = new Date(),
+): KbttSubmissionDateContext {
+  const formatVnYmd = (instant: Date): string => {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Ho_Chi_Minh",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(instant);
+    const map: Record<string, string> = {};
+    for (const part of parts) map[part.type] = part.value;
+    return `${map.year}-${map.month}-${map.day}`;
+  };
+  let todayYmd: string;
+  if (typeof nowOrTodayYmd === "string" && /^\d{4}-\d{2}-\d{2}$/.test(nowOrTodayYmd)) {
+    todayYmd = nowOrTodayYmd;
+  } else {
+    const d = nowOrTodayYmd instanceof Date ? nowOrTodayYmd : new Date(nowOrTodayYmd);
+    todayYmd = formatVnYmd(Number.isNaN(d.getTime()) ? new Date() : d);
+  }
+  const [y, m, d] = todayYmd.split("-").map(Number);
+  const prevUtc = new Date(Date.UTC(y, m - 1, d - 1));
+  const yesterdayYmd = `${prevUtc.getUTCFullYear()}-${String(prevUtc.getUTCMonth() + 1).padStart(2, "0")}-${String(prevUtc.getUTCDate()).padStart(2, "0")}`;
+  return { todayYmd, yesterdayYmd };
+}
+
+export interface KbttSubmissionDateValidationIssue {
+  field: "ngayDenCsltStr" | "ngayDiDuKienStr" | "thoiHanTamTruStr";
+  code:
+    | "ARRIVAL_OUT_OF_WINDOW"
+    | "ARRIVAL_MISMATCH_STAY"
+    | "DEPARTURE_BEFORE_YESTERDAY"
+    | "DEPARTURE_BEFORE_ARRIVAL"
+    | "RESIDENCE_BEFORE_TODAY"
+    | "RESIDENCE_BEFORE_ARRIVAL"
+    | "INVALID_DATE_FORMAT";
+  message: string;
+}
+
+export function validateKbttSubmissionDates(
+  kind: "VIETNAMESE" | "FOREIGN",
+  payload: Record<string, unknown>,
+  nowOrContext: Date | string | KbttSubmissionDateContext = new Date(),
+  options?: {
+    authoritativeArrivalYmd?: string | null;
+    enforceArrivalWindow?: boolean;
+  },
+): {
+  valid: boolean;
+  outOfWindow: boolean;
+  issues: KbttSubmissionDateValidationIssue[];
+  message: string | null;
+  context: KbttSubmissionDateContext;
+} {
+  const context =
+    typeof nowOrContext === "object" &&
+    nowOrContext !== null &&
+    !(nowOrContext instanceof Date) &&
+    "todayYmd" in nowOrContext
+      ? nowOrContext
+      : getKbttSubmissionDateContext(nowOrContext as Date | string);
+
+  const issues: KbttSubmissionDateValidationIssue[] = [];
+  const enforceArrivalWindow = options?.enforceArrivalWindow ?? true;
+  const arrivalRaw =
+    typeof payload.ngayDenCsltStr === "string" ? payload.ngayDenCsltStr.trim() : "";
+  const departureRaw =
+    typeof payload.ngayDiDuKienStr === "string" ? payload.ngayDiDuKienStr.trim() : "";
+  const residenceRaw =
+    typeof payload.thoiHanTamTruStr === "string" ? payload.thoiHanTamTruStr.trim() : "";
+
+  const arrivalValid = isValidCalendarDateTime(arrivalRaw);
+  const departureValid = isValidCalendarDateTime(departureRaw);
+  const arrivalDay = arrivalValid ? arrivalRaw.slice(0, 10) : null;
+  const departureDay = departureValid ? departureRaw.slice(0, 10) : null;
+
+  if (!arrivalValid) {
+    issues.push({
+      field: "ngayDenCsltStr",
+      code: "INVALID_DATE_FORMAT",
+      message: "Ngày check-in: Ngày đến không phải là thời điểm lịch hợp lệ (YYYY-MM-DD HH:mm:ss).",
+    });
+  } else {
+    if (
+      options?.authoritativeArrivalYmd &&
+      options.authoritativeArrivalYmd !== arrivalDay
+    ) {
+      issues.push({
+        field: "ngayDenCsltStr",
+        code: "ARRIVAL_MISMATCH_STAY",
+        message: `Ngày check-in: Ngày đến khai báo (${arrivalDay}) không khớp ngày nhận phòng thực tế (${options.authoritativeArrivalYmd}); cần kiểm tra thủ công.`,
+      });
+    }
+    const effectiveArrivalDay = options?.authoritativeArrivalYmd ?? arrivalDay!;
+    if (
+      enforceArrivalWindow &&
+      effectiveArrivalDay !== context.todayYmd &&
+      effectiveArrivalDay !== context.yesterdayYmd
+    ) {
+      issues.push({
+        field: "ngayDenCsltStr",
+        code: "ARRIVAL_OUT_OF_WINDOW",
+        message: `Ngày check-in: Cổng BCA chỉ cho phép gửi khai báo cho ngày đến là hôm nay (${context.todayYmd}) hoặc hôm qua (${context.yesterdayYmd}); ngày nhận phòng (${effectiveArrivalDay}) đã ngoài khung cho phép.`,
+      });
+    } else if (
+      enforceArrivalWindow &&
+      arrivalDay !== context.todayYmd &&
+      arrivalDay !== context.yesterdayYmd
+    ) {
+      issues.push({
+        field: "ngayDenCsltStr",
+        code: "ARRIVAL_OUT_OF_WINDOW",
+        message: `Ngày check-in: Cổng BCA chỉ cho phép gửi khai báo cho ngày đến là hôm nay (${context.todayYmd}) hoặc hôm qua (${context.yesterdayYmd}); ngày đến (${arrivalDay}) đã ngoài khung cho phép.`,
+      });
+    }
+  }
+
+  if (!departureValid) {
+    issues.push({
+      field: "ngayDiDuKienStr",
+      code: "INVALID_DATE_FORMAT",
+      message:
+        "Ngày check-out dự kiến: Ngày đi dự kiến không phải là thời điểm lịch hợp lệ (YYYY-MM-DD HH:mm:ss).",
+    });
+  } else {
+    if (arrivalValid && departureRaw < arrivalRaw) {
+      issues.push({
+        field: "ngayDiDuKienStr",
+        code: "DEPARTURE_BEFORE_ARRIVAL",
+        message: "Ngày check-out dự kiến: Ngày đi dự kiến phải lớn hơn hoặc bằng ngày đến.",
+      });
+    }
+    if (departureDay! < context.yesterdayYmd) {
+      issues.push({
+        field: "ngayDiDuKienStr",
+        code: "DEPARTURE_BEFORE_YESTERDAY",
+        message: `Ngày check-out dự kiến: Ngày đi dự kiến (${departureDay}) phải từ ngày hôm qua (${context.yesterdayYmd}) trở đi.`,
+      });
+    }
+  }
+
+  if (kind === "FOREIGN") {
+    const residenceValid = isValidCalendarDateTime(residenceRaw);
+    const residenceDay = residenceValid ? residenceRaw.slice(0, 10) : null;
+    if (!residenceValid) {
+      issues.push({
+        field: "thoiHanTamTruStr",
+        code: "INVALID_DATE_FORMAT",
+        message:
+          "Thời hạn tạm trú: Thời hạn tạm trú không phải là thời điểm lịch hợp lệ (YYYY-MM-DD HH:mm:ss).",
+      });
+    } else {
+      if (arrivalValid && residenceRaw < arrivalRaw) {
+        issues.push({
+          field: "thoiHanTamTruStr",
+          code: "RESIDENCE_BEFORE_ARRIVAL",
+          message: "Thời hạn tạm trú: Thời hạn tạm trú không được trước ngày đến.",
+        });
+      }
+      if (residenceDay! < context.todayYmd) {
+        issues.push({
+          field: "thoiHanTamTruStr",
+          code: "RESIDENCE_BEFORE_TODAY",
+          message: `Thời hạn tạm trú: Thời hạn tạm trú (${residenceDay}) không được trước ngày hôm nay (${context.todayYmd}).`,
+        });
+      }
+    }
+  }
+
+  const outOfWindow = issues.some((i) => i.code === "ARRIVAL_OUT_OF_WINDOW");
+  return {
+    valid: issues.length === 0,
+    outOfWindow,
+    issues,
+    message: issues.length > 0 ? issues.map((i) => i.message).join("; ") : null,
+    context,
+  };
 }
 
 export const citizenshipKindSchema = z.enum(["VIETNAMESE", "FOREIGN"]);
@@ -514,25 +699,15 @@ export const kbttForeignReadySchema = z
         message: "Thời hạn tạm trú không phải là thời điểm lịch hợp lệ",
         path: ["thoiHanTamTruStr"],
       });
-    } else {
-      if (
-        isValidCalendarDateTime(val.ngayDenCsltStr) &&
-        val.thoiHanTamTruStr < val.ngayDenCsltStr
-      ) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Thời hạn tạm trú không được trước ngày đến",
-          path: ["thoiHanTamTruStr"],
-        });
-      }
-      const todayStart = getVietnamTodayStartStr();
-      if (val.thoiHanTamTruStr < todayStart) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Thời hạn tạm trú không được trước ngày hôm nay",
-          path: ["thoiHanTamTruStr"],
-        });
-      }
+    } else if (
+      isValidCalendarDateTime(val.ngayDenCsltStr) &&
+      val.thoiHanTamTruStr < val.ngayDenCsltStr
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Thời hạn tạm trú không được trước ngày đến",
+        path: ["thoiHanTamTruStr"],
+      });
     }
   });
 

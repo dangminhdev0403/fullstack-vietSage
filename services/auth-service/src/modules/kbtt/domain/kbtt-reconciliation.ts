@@ -131,12 +131,20 @@ function row(guest: LocalReconciliationGuest): ReconciliationRow {
   };
 }
 
+export interface ReconcileGuestsOptions {
+  coveredHistoryDays?:
+    | ReadonlySet<string>
+    | Partial<Record<ReconciliationKind, ReadonlySet<string>>>;
+  retryableArrivalDays?: ReadonlySet<string>;
+}
+
 /** Pure view composition. This function neither changes declaration state nor creates local guests. */
 export function reconcileGuests(
   local: LocalReconciliationGuest[],
   provider: ProviderReconciliationGuest[],
   completeKinds: Set<ReconciliationKind>,
   csltId: string,
+  options?: ReconcileGuestsOptions,
 ): ReconciliationRow[] {
   const providerId = (guest: Pick<ProviderReconciliationGuest, "kind" | "id">) => JSON.stringify([guest.kind, guest.id]);
   const byLinkedId = new Map<string, ProviderReconciliationGuest[]>();
@@ -213,7 +221,36 @@ export function reconcileGuests(
       item.bcaRecordId = candidates[0].id;
       consumed.add(providerId(candidates[0]));
     } else {
+      const arrivalDay = reconciliationArrivalDay(guest.checkedInAt);
+      const isHistoryDayCovered = (() => {
+        if (!options?.coveredHistoryDays) return true;
+        if (!arrivalDay) return false;
+        if (
+          options.coveredHistoryDays instanceof Set ||
+          typeof (options.coveredHistoryDays as ReadonlySet<string>).has === "function"
+        ) {
+          return (options.coveredHistoryDays as ReadonlySet<string>).has(arrivalDay);
+        }
+        const kindDays = (
+          options.coveredHistoryDays as Partial<Record<ReconciliationKind, ReadonlySet<string>>>
+        )[guest.kind!];
+        return Boolean(kindDays?.has(arrivalDay));
+      })();
+      if (!isHistoryDayCovered) {
+        item.status = null;
+        item.reason = "OUT_OF_DATE_WINDOW";
+        item.canRetry = false;
+        return item;
+      }
       item.status = "NOT_FOUND";
+      const isArrivalRetryable =
+        !options?.retryableArrivalDays ||
+        Boolean(arrivalDay && options.retryableArrivalDays.has(arrivalDay));
+      if (!isArrivalRetryable) {
+        item.reason = "OUT_OF_DATE_WINDOW";
+        item.canRetry = false;
+        return item;
+      }
       item.canRetry = guest.declarationStatus === null || ["DRAFT", "READY", "FAILED"].includes(guest.declarationStatus);
     }
     return item;

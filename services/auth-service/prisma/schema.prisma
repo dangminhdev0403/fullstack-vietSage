@@ -816,24 +816,27 @@ model KbttHotelConnection {
 }
 
 model KbttGuestDeclaration {
-  id                          String                @id @default(cuid())
-  hotelId                     String
-  stayId                      String
-  occupantId                  String
-  declarationKind             CitizenshipKind
-  revision                    Int                   @default(1)
-  status                      KbttDeclarationStatus @default(DRAFT)
-  draftPayloadJson            Json?
-  submittedPayloadJson        Json?
-  submittedPayloadFingerprint String?               @db.VarChar(64)
-  submittedCsltId             String?               @db.VarChar(32)
-  providerCode                String?               @db.VarChar(32)
-  providerMessage             String?               @db.VarChar(500)
-  providerResponseJson        Json?
-  submittedAt                 DateTime?
-  version                     Int                   @default(1)
-  createdAt                   DateTime              @default(now())
-  updatedAt                   DateTime              @updatedAt
+  id                            String                @id @default(cuid())
+  hotelId                       String
+  stayId                        String
+  occupantId                    String
+  declarationKind               CitizenshipKind
+  revision                      Int                   @default(1)
+  status                        KbttDeclarationStatus @default(DRAFT)
+  draftPayloadJson              Json?
+  submittedPayloadJson          Json?
+  submittedPayloadFingerprint   String?               @db.VarChar(64)
+  submittedCsltId               String?               @db.VarChar(32)
+  submittedConnectionCiphertext String?               @db.Text
+  claimToken                    String?               @db.VarChar(64)
+  attemptedAt                   DateTime?
+  providerCode                  String?               @db.VarChar(32)
+  providerMessage               String?               @db.VarChar(500)
+  providerResponseJson          Json?
+  submittedAt                   DateTime?
+  version                       Int                   @default(1)
+  createdAt                     DateTime              @default(now())
+  updatedAt                     DateTime              @updatedAt
 
   hotel    Hotel             @relation(fields: [hotelId], references: [id], onDelete: Restrict)
   stay     GuestStay         @relation(fields: [stayId], references: [id], onDelete: Restrict)
@@ -842,6 +845,7 @@ model KbttGuestDeclaration {
 
   @@unique([hotelId, stayId, occupantId, revision])
   @@index([hotelId, status])
+  @@index([hotelId, occupantId, revision])
   @@index([submittedCsltId, declarationKind, status])
   @@index([occupantId])
   @@index([stayId])
@@ -1325,6 +1329,7 @@ model GuestStayOccupant {
 
   @@index([stayId])
   @@index([hotelId])
+  @@index([hotelId, id])
 }
 
 model GuestSession {

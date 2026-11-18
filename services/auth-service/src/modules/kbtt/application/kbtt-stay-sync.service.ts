@@ -4,7 +4,8 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { addDaysYmd, formatLocalDateTime, toYmd, VIETNAM_TIME_ZONE } from "../../../common/time/vietnam-temporal";
 import { departurePayload, providerDate, providerDay, providerIdentity, sanitizedStayResult, submittedGuest, type DeclarationKind } from "../domain/kbtt-stay-sync";
-import { kbttForeignReadySchema, kbttVietnameseReadySchema, type KbttSession } from "../domain/schemas/kbtt.schema";
+import { composeKbttDraft, hasExplicitDeclarationDate } from "../domain/kbtt-draft-profile";
+import { kbttForeignReadySchema, kbttVietnameseReadySchema, validateKbttSubmissionDates, type KbttSession } from "../domain/schemas/kbtt.schema";
 import { KbttProviderClient, type KbttSubmitOutcome } from "../infrastructure/kbtt-provider.client";
 import { KbttRepository } from "../infrastructure/kbtt.repository";
 import { KbttStayRepository } from "../infrastructure/kbtt-stay.repository";
@@ -21,6 +22,7 @@ type SessionFailure = (
   session: KbttSession,
   options?: { authRejected?: boolean },
 ) => Promise<void>;
+type FacilityConflictCheck = (hotelId: string, csltId: string) => Promise<boolean>;
 
 @Injectable()
 export class KbttStaySyncService {
@@ -36,7 +38,40 @@ export class KbttStaySyncService {
     return process.env.KBTT_STAY_LIFECYCLE_ENABLED === "true";
   }
 
-  async run(resolveSession: SessionResolver, onProviderFailure?: SessionFailure) {
+  private async hasFacilityConflict(
+    hotelId: string,
+    csltId: string,
+    checkFacilityConflict?: FacilityConflictCheck,
+  ): Promise<{ conflict: boolean; unavailable: boolean }> {
+    const normalizedCsltId = csltId.trim();
+    if (!normalizedCsltId) return { conflict: false, unavailable: false };
+    try {
+      if (checkFacilityConflict) {
+        return { conflict: await checkFacilityConflict(hotelId, normalizedCsltId), unavailable: false };
+      }
+      if (typeof this.declarations.findConflictingFacilityConnections === "function") {
+        const conflicts = await this.declarations.findConflictingFacilityConnections(
+          normalizedCsltId,
+          hotelId,
+        );
+        return {
+          conflict: conflicts.some(
+            (row) => row.csltId === normalizedCsltId && row.hotelId !== hotelId,
+          ),
+          unavailable: false,
+        };
+      }
+      return { conflict: false, unavailable: false };
+    } catch {
+      return { conflict: false, unavailable: true };
+    }
+  }
+
+  async run(
+    resolveSession: SessionResolver,
+    onProviderFailure?: SessionFailure,
+    checkFacilityConflict?: FacilityConflictCheck,
+  ) {
     if (!this.enabled() || process.env.KBTT_AUTO_SUBMIT_LIVE_ENABLED !== "true" ||
         process.env.KBTT_AUTO_SUBMIT_KILL_SWITCH === "true") return;
     await this.repository.recoverInterrupted();
@@ -50,7 +85,7 @@ export class KbttStaySyncService {
     }
     for (const operation of await this.repository.runnable()) {
       try {
-        await this.dispatch(operation, resolveSession, onProviderFailure);
+        await this.dispatch(operation, resolveSession, onProviderFailure, checkFacilityConflict);
       } catch {
         // An unresolved durable operation is never automatically resent.
         this.logger.warn(`Could not finish BCA lifecycle operation ${operation.id}.`);
@@ -136,6 +171,7 @@ export class KbttStaySyncService {
   async sendInitial(
     hotelId: string, kind: DeclarationKind, payload: unknown[], accessToken: string,
     declarationId: string, csltId: string, requireEnabled = true, expectedCiphertext?: string,
+    checkFacilityConflict?: FacilityConflictCheck,
   ): Promise<KbttSubmitOutcome> {
     const guest = submittedGuest(payload);
     const identity = guest && providerIdentity(kind, guest);
@@ -153,6 +189,16 @@ export class KbttStaySyncService {
       (expectedCiphertext !== undefined && connection.ciphertext !== expectedCiphertext)
     ) {
       return localRejection("CONNECTION_SCOPE_CHANGED", "Kết nối BCA đã thay đổi; cần xác nhận lại cơ sở trước khi gửi.");
+    }
+    const initialFacilityCheck = await this.hasFacilityConflict(hotelId, csltId, checkFacilityConflict);
+    if (initialFacilityCheck.unavailable) {
+      return localRejection("KBTT_UNAVAILABLE", "Không thể xác minh quyền sở hữu cơ sở BCA. Đã chặn gửi để đảm bảo an toàn.");
+    }
+    if (initialFacilityCheck.conflict) {
+      return localRejection(
+        "KBTT_FACILITY_CONFLICT",
+        "Cơ sở lưu trú BCA này đang được liên kết với một khách sạn khác trên hệ thống. Đã chặn gửi tự động.",
+      );
     }
     const baselineCiphertext = expectedCiphertext ?? connection.ciphertext;
     const token = await this.repository.acquire(connection.csltId);
@@ -176,8 +222,48 @@ export class KbttStaySyncService {
           providerDay(guest.ngayDiDuKienStr) !== providerDay(composeKbttDraft(kind, (declaration.draftPayloadJson ?? {}) as Record<string, unknown>, { fullName: "", stay: current }).ngayDiDuKienStr)) {
         return localRejection("LOCAL_STATE_CHANGED", "Lượt lưu trú đã thay đổi; cần cập nhật hồ sơ trước khi gửi.");
       }
+      if (
+        expectedCiphertext !== undefined &&
+        (declaration as any).submittedConnectionCiphertext &&
+        (declaration as any).submittedConnectionCiphertext !== expectedCiphertext
+      ) {
+        return localRejection(
+          "CONNECTION_SCOPE_CHANGED",
+          "Kết nối BCA đã thay đổi; cần xác nhận lại cơ sở trước khi gửi.",
+        );
+      }
+      const initialClaimToken = (declaration as any).claimToken as string | null | undefined;
+      const authoritativeArrivalInstant = current.checkedInAt ?? current.plannedCheckInAt;
+      const authoritativeArrivalYmd = authoritativeArrivalInstant
+        ? toYmd(authoritativeArrivalInstant, VIETNAM_TIME_ZONE)
+        : undefined;
+      const dateCheck = validateKbttSubmissionDates(kind, guest, new Date(), {
+        authoritativeArrivalYmd: hasExplicitDeclarationDate(
+          declaration.draftPayloadJson,
+          "ngayDenCsltStr",
+        )
+          ? undefined
+          : authoritativeArrivalYmd,
+        enforceArrivalWindow: true,
+      });
+      if (!dateCheck.valid) {
+        return localRejection(
+          dateCheck.outOfWindow ? "OUT_OF_DATE_WINDOW" : "LOCAL_VALIDATION",
+          dateCheck.issues.map((i) => `${i.field}: ${i.message}`).join("; "),
+        );
+      }
       if (!(await this.repository.renew(connection.csltId, token))) {
         return localRejection("DELIVERY_BUSY", "Phiên gửi đã thay đổi; vui lòng thử lại sau.");
+      }
+      const finalFacilityCheck = await this.hasFacilityConflict(hotelId, csltId, checkFacilityConflict);
+      if (finalFacilityCheck.unavailable) {
+        return localRejection("KBTT_UNAVAILABLE", "Không thể xác minh quyền sở hữu cơ sở BCA. Đã chặn gửi để đảm bảo an toàn.");
+      }
+      if (finalFacilityCheck.conflict) {
+        return localRejection(
+          "KBTT_FACILITY_CONFLICT",
+          "Cơ sở lưu trú BCA này đang được liên kết với một khách sạn khác trên hệ thống. Đã chặn gửi tự động.",
+        );
       }
       const latest = await this.declarations.find(hotelId);
       if (!latest || latest.status !== "CONNECTED" || latest.csltId !== csltId || latest.ciphertext !== baselineCiphertext) {
@@ -186,17 +272,85 @@ export class KbttStaySyncService {
       if (requireEnabled && !latest.autoSubmitEnabled) {
         return localRejection("DELIVERY_PAUSED", "Luồng gửi BCA đang tạm dừng.");
       }
-      return await this.provider.submitDeclaration(kind, payload, accessToken);
+      const latestDeclaration = await this.repository.initialDeclaration(declarationId, hotelId);
+      if (
+        !latestDeclaration ||
+        latestDeclaration.status !== "UNKNOWN" ||
+        latestDeclaration.submittedCsltId !== csltId ||
+        latestDeclaration.stay?.checkedOutAt ||
+        !latestDeclaration.stay ||
+        !ACTIVE_STAYS.has(latestDeclaration.stay.status) ||
+        (initialClaimToken !== undefined &&
+          ((latestDeclaration as any).claimToken ?? null) !== (initialClaimToken ?? null))
+      ) {
+        return localRejection(
+          "LOCAL_STATE_CHANGED",
+          "Lượt lưu trú hoặc trạng thái hồ sơ đã thay đổi trước khi gửi.",
+        );
+      }
+      if (
+        expectedCiphertext !== undefined &&
+        (latestDeclaration as any).submittedConnectionCiphertext &&
+        (latestDeclaration as any).submittedConnectionCiphertext !== expectedCiphertext
+      ) {
+        return localRejection(
+          "CONNECTION_SCOPE_CHANGED",
+          "Kết nối BCA đã thay đổi; cần xác nhận lại cơ sở trước khi gửi.",
+        );
+      }
+      const outcome = await this.provider.submitDeclaration(kind, payload, accessToken);
+      if (outcome.outcome === "BUSINESS_REJECTION") {
+        const postConnection = await this.declarations.find(hotelId).catch(() => null);
+        if (
+          !postConnection ||
+          postConnection.status !== "CONNECTED" ||
+          postConnection.csltId !== csltId ||
+          postConnection.ciphertext !== baselineCiphertext
+        ) {
+          return localRejection(
+            "CONNECTION_SCOPE_CHANGED",
+            "Kết nối BCA đã thay đổi trong lúc gửi; hệ thống sẽ tự gửi lại theo kết nối mới.",
+          );
+        }
+      }
+      return outcome;
     } finally {
       await this.repository.release(connection.csltId, token);
     }
   }
 
-  private async dispatch(operation: KbttStayOperation, resolveSession: SessionResolver, onProviderFailure?: SessionFailure) {
+  private async dispatch(
+    operation: KbttStayOperation,
+    resolveSession: SessionResolver,
+    onProviderFailure?: SessionFailure,
+    checkFacilityConflict?: FacilityConflictCheck,
+  ) {
     const connection = await this.declarations.find(operation.hotelId);
     if (connection && !connection.autoSubmitEnabled) return;
     if (!connection || connection.status !== "CONNECTED" || connection.csltId !== operation.csltId) {
       await this.hold(operation, "CONNECTION_REQUIRED", "Cần khôi phục đúng kết nối của cơ sở đã khai báo.");
+      return;
+    }
+    const baselineCiphertext = connection.ciphertext;
+    const initialFacilityCheck = await this.hasFacilityConflict(
+      operation.hotelId,
+      operation.csltId,
+      checkFacilityConflict,
+    );
+    if (initialFacilityCheck.unavailable) {
+      await this.hold(
+        operation,
+        "KBTT_UNAVAILABLE",
+        "Không thể xác minh quyền sở hữu cơ sở BCA trước khi cập nhật.",
+      );
+      return;
+    }
+    if (initialFacilityCheck.conflict) {
+      await this.hold(
+        operation,
+        "KBTT_FACILITY_CONFLICT",
+        "Cơ sở lưu trú BCA này đang được liên kết với một khách sạn khác trên hệ thống. Đã chặn cập nhật tự động.",
+      );
       return;
     }
     const token = await this.repository.acquire(operation.csltId);
@@ -296,8 +450,26 @@ export class KbttStaySyncService {
             return;
           }
           const schema = operation.declarationKind === "VIETNAMESE" ? kbttVietnameseReadySchema : kbttForeignReadySchema;
-          const parsed = schema.safeParse({ ...guest, soPhong: stay.room.roomNumber,
-            ngayDiDuKienStr: formatLocalDateTime(desired, VIETNAM_TIME_ZONE) });
+          const candidateRecoveryPayload = {
+            ...guest,
+            soPhong: stay.room.roomNumber,
+            ngayDiDuKienStr: formatLocalDateTime(desired, VIETNAM_TIME_ZONE),
+          };
+          const parsed = schema.safeParse(candidateRecoveryPayload);
+          const recoveryDateCheck = validateKbttSubmissionDates(
+            operation.declarationKind,
+            candidateRecoveryPayload,
+            new Date(),
+            { enforceArrivalWindow: false },
+          );
+          if (!recoveryDateCheck.valid) {
+            await this.hold(
+              operation,
+              recoveryDateCheck.outOfWindow ? "OUT_OF_DATE_WINDOW" : "LOCAL_VALIDATION",
+              recoveryDateCheck.issues.map((i) => `${i.field}: ${i.message}`).join("; "),
+            );
+            return;
+          }
           payload = parsed.success ? parsed.data : null;
         } else {
           payload = departurePayload(operation.declarationKind, guest, "GH", desired);
@@ -314,8 +486,29 @@ export class KbttStaySyncService {
         await this.hold(operation, "AUTHENTICATION_REQUIRED", "Cần khôi phục phiên kết nối BCA trước khi gửi.");
         return;
       }
+      const finalFacilityCheck = await this.hasFacilityConflict(
+        stay.hotelId,
+        operation.csltId,
+        checkFacilityConflict,
+      );
+      if (finalFacilityCheck.unavailable) {
+        await this.hold(
+          operation,
+          "KBTT_UNAVAILABLE",
+          "Không thể xác minh quyền sở hữu cơ sở BCA trước khi gửi.",
+        );
+        return;
+      }
+      if (finalFacilityCheck.conflict) {
+        await this.hold(
+          operation,
+          "KBTT_FACILITY_CONFLICT",
+          "Cơ sở lưu trú BCA này đang được liên kết với một khách sạn khác trên hệ thống. Đã chặn cập nhật tự động.",
+        );
+        return;
+      }
       const latestConnection = await this.declarations.find(stay.hotelId);
-      if (session.CsltId !== operation.csltId || latestConnection?.csltId !== operation.csltId || latestConnection.status !== "CONNECTED" || latestConnection.ciphertext !== connection.ciphertext) {
+      if (session.CsltId !== operation.csltId || latestConnection?.csltId !== operation.csltId || latestConnection.status !== "CONNECTED" || latestConnection.ciphertext !== baselineCiphertext) {
         await this.hold(operation, "CONNECTION_SCOPE_CHANGED", "Kết nối BCA đã thay đổi; cần khôi phục đúng cơ sở của hồ sơ gốc.");
         return;
       }
@@ -329,6 +522,113 @@ export class KbttStaySyncService {
       const claimed = await this.repository.claim(deliveryOperation, token, wire,
         createHash("sha256").update(JSON.stringify(wire)).digest("hex"));
       if (!claimed) return;
+
+      const holdAfterClaim = async (code: string, message: string) => {
+        await this.repository.finish(
+          operation.id,
+          token,
+          {
+            status: "BLOCKED",
+            attemptedAt: null,
+            payloadJson: Prisma.DbNull,
+            payloadFingerprint: null,
+            providerCode: code.slice(0, 64),
+            providerMessage: sanitizedStayResult(message),
+            resolvedAt: null,
+          },
+          undefined,
+        );
+      };
+      const releasePausedClaim = async () => {
+        await this.repository.finish(
+          operation.id,
+          token,
+          {
+            status: operation.status === "BLOCKED" ? "BLOCKED" : "PENDING",
+            attemptedAt: null,
+            payloadJson: Prisma.DbNull,
+            payloadFingerprint: null,
+            providerCode: (operation as any).providerCode ?? null,
+            providerMessage: (operation as any).providerMessage ?? null,
+            resolvedAt: null,
+          },
+          undefined,
+        );
+      };
+
+      // Recheck facility ownership, connection generation, auto-submit state, and active session AFTER claim before calling provider.
+      const postClaimFacilityCheck = await this.hasFacilityConflict(
+        stay.hotelId,
+        operation.csltId,
+        checkFacilityConflict,
+      );
+      if (postClaimFacilityCheck.unavailable) {
+        await holdAfterClaim(
+          "KBTT_UNAVAILABLE",
+          "Không thể xác minh quyền sở hữu cơ sở BCA trước khi gửi.",
+        );
+        return;
+      }
+      if (postClaimFacilityCheck.conflict) {
+        await holdAfterClaim(
+          "KBTT_FACILITY_CONFLICT",
+          "Cơ sở lưu trú BCA này đang được liên kết với một khách sạn khác trên hệ thống. Đã chặn cập nhật tự động.",
+        );
+        return;
+      }
+      const postClaimConnection = await this.declarations.find(stay.hotelId);
+      if (
+        !postClaimConnection ||
+        postClaimConnection.status !== "CONNECTED" ||
+        postClaimConnection.csltId !== operation.csltId ||
+        postClaimConnection.ciphertext !== baselineCiphertext
+      ) {
+        await holdAfterClaim(
+          "CONNECTION_SCOPE_CHANGED",
+          "Kết nối BCA đã thay đổi; cần khôi phục đúng cơ sở của hồ sơ gốc.",
+        );
+        return;
+      }
+      if (!postClaimConnection.autoSubmitEnabled) {
+        await releasePausedClaim();
+        return;
+      }
+      let postClaimSession: KbttSession;
+      try {
+        postClaimSession = await resolveSession(stay.hotelId, postClaimConnection);
+      } catch {
+        await holdAfterClaim(
+          "AUTHENTICATION_REQUIRED",
+          "Cần khôi phục phiên kết nối BCA trước khi gửi.",
+        );
+        return;
+      }
+      if (
+        postClaimSession.CsltId !== operation.csltId ||
+        postClaimSession.AccessToken !== session.AccessToken
+      ) {
+        await holdAfterClaim(
+          "CONNECTION_SCOPE_CHANGED",
+          "Kết nối BCA đã thay đổi; cần khôi phục đúng cơ sở của hồ sơ gốc.",
+        );
+        return;
+      }
+      if (isRecovery) {
+        const postClaimDateCheck = validateKbttSubmissionDates(
+          operation.declarationKind,
+          payload as Record<string, unknown>,
+          new Date(),
+          { enforceArrivalWindow: false },
+        );
+        if (!postClaimDateCheck.valid) {
+          await holdAfterClaim(
+            postClaimDateCheck.outOfWindow ? "OUT_OF_DATE_WINDOW" : "LOCAL_VALIDATION",
+            postClaimDateCheck.issues.map((i) => `${i.field}: ${i.message}`).join("; "),
+          );
+          return;
+        }
+      }
+
       let outcome: KbttSubmitOutcome;
       try {
         outcome = isRecovery
@@ -337,24 +637,102 @@ export class KbttStaySyncService {
       } catch {
         outcome = { outcome: "AMBIGUOUS", code: "INTERRUPTED_DELIVERY", message: "Lần gửi chưa rõ kết quả; cần đối soát." };
       }
-      const status = outcome.outcome === "SUCCESS" ? "SUCCEEDED"
-        : outcome.outcome === "BUSINESS_REJECTION" ? "REJECTED" : "UNKNOWN";
-      await this.repository.finish(operation.id, token, {
-        status, providerCode: outcome.code.slice(0, 64),
-        providerMessage: sanitizedStayResult(outcome.message),
-        resolvedAt: status === "UNKNOWN" ? null : new Date(),
-      }, undefined);
+
       const authRejected = /^(401|403|HTTP_401|HTTP_403|KBTT_AUTH_FAILED)$/.test(outcome.code);
-      if (onProviderFailure && (outcome.outcome === "AMBIGUOUS" || authRejected)) {
-        if (authRejected) {
-          await onProviderFailure(stay.hotelId, session, { authRejected: true });
-        } else {
-          await onProviderFailure(stay.hotelId, session);
+      const rateLimited = /^(429|HTTP_429|TOO_MANY_REQUESTS|KBTT_RATE_LIMITED)$/.test(outcome.code);
+      const postDispatchConnection = await this.declarations.find(stay.hotelId).catch(() => null);
+      let activePostDispatchSession: KbttSession | null = null;
+      if (
+        postDispatchConnection &&
+        postDispatchConnection.status === "CONNECTED" &&
+        postDispatchConnection.csltId === operation.csltId &&
+        postDispatchConnection.ciphertext === baselineCiphertext
+      ) {
+        try {
+          activePostDispatchSession = await resolveSession(stay.hotelId, postDispatchConnection);
+        } catch {
+          activePostDispatchSession = null;
         }
       }
+      const sameGenerationAndSession = Boolean(
+        postDispatchConnection &&
+          postDispatchConnection.status === "CONNECTED" &&
+          postDispatchConnection.csltId === operation.csltId &&
+          postDispatchConnection.ciphertext === baselineCiphertext &&
+          activePostDispatchSession &&
+          activePostDispatchSession.CsltId === operation.csltId &&
+          activePostDispatchSession.AccessToken === session.AccessToken,
+      );
+
+      if (outcome.outcome === "SUCCESS") {
+        await this.repository.finish(
+          operation.id,
+          token,
+          {
+            status: "SUCCEEDED",
+            providerCode: outcome.code.slice(0, 64),
+            providerMessage: sanitizedStayResult(outcome.message),
+            resolvedAt: new Date(),
+          },
+          undefined,
+        );
+        return;
+      }
+
+      if (outcome.outcome === "AMBIGUOUS") {
+        await this.repository.finish(
+          operation.id,
+          token,
+          {
+            status: "UNKNOWN",
+            providerCode: outcome.code.slice(0, 64),
+            providerMessage: sanitizedStayResult(outcome.message),
+            resolvedAt: null,
+          },
+          undefined,
+        );
+        if (sameGenerationAndSession && onProviderFailure) {
+          await onProviderFailure(stay.hotelId, session);
+        }
+        return;
+      }
+
+      if (!sameGenerationAndSession) {
+        await holdAfterClaim(
+          "CONNECTION_SCOPE_CHANGED",
+          "Kết nối BCA đã thay đổi trong lúc gửi; cần khôi phục đúng cơ sở của hồ sơ gốc.",
+        );
+        return;
+      }
+
+      if (authRejected || rateLimited) {
+        await holdAfterClaim(
+          authRejected ? "AUTHENTICATION_REQUIRED" : outcome.code.slice(0, 64),
+          outcome.message,
+        );
+        if (onProviderFailure) {
+          if (authRejected) {
+            await onProviderFailure(stay.hotelId, session, { authRejected: true });
+          } else {
+            await onProviderFailure(stay.hotelId, session);
+          }
+        }
+        return;
+      }
+
+      await this.repository.finish(
+        operation.id,
+        token,
+        {
+          status: "REJECTED",
+          providerCode: outcome.code.slice(0, 64),
+          providerMessage: sanitizedStayResult(outcome.message),
+          resolvedAt: new Date(),
+        },
+        undefined,
+      );
     } finally {
       await this.repository.release(operation.csltId, token);
     }
   }
 }
-import { composeKbttDraft } from "../domain/kbtt-draft-profile";

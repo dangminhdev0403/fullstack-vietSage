@@ -6,6 +6,8 @@ import {
   kbttAutoSubmitRunStatusSchema,
   kbttAutoSubmitRunSummarySchema,
   kbttAutoSubmitTestQuerySchema,
+  getKbttSubmissionDateContext,
+  validateKbttSubmissionDates,
 } from "../domain/schemas/kbtt.schema";
 
 describe("KBTT Auto-Submit Schemas", () => {
@@ -127,5 +129,84 @@ describe("KBTT current-page stay scope", () => {
     for (const stayIds of ["", "stay-1,", Array.from({ length: 21 }, (_, i) => `stay-${i}`).join(","), "x".repeat(129)]) {
       expect(kbttPaginationQuerySchema.safeParse({ stayIds }).success).toBe(false);
     }
+  });
+});
+
+describe("validateKbttSubmissionDates (Current Date Policy)", () => {
+  const context = getKbttSubmissionDateContext(new Date("2026-09-14T05:00:00.000Z")); // 2026-09-14 12:00 VN
+
+  it("accepts arrival on today (2026-09-14) or yesterday (2026-09-13) and departure >= yesterday", () => {
+    expect(
+      validateKbttSubmissionDates(
+        "VIETNAMESE",
+        {
+          ngayDenCsltStr: "2026-09-14 10:00:00",
+          ngayDiDuKienStr: "2026-09-15 12:00:00",
+        },
+        context,
+      ),
+    ).toEqual(expect.objectContaining({ valid: true, outOfWindow: false }));
+
+    expect(
+      validateKbttSubmissionDates(
+        "VIETNAMESE",
+        {
+          ngayDenCsltStr: "2026-09-13 15:00:00",
+          ngayDiDuKienStr: "2026-09-14 12:00:00",
+        },
+        context,
+      ),
+    ).toEqual(expect.objectContaining({ valid: true, outOfWindow: false }));
+  });
+
+  it("rejects arrival on D-2 (2026-09-12) or tomorrow (2026-09-15) with outOfWindow=true", () => {
+    const dMinus2 = validateKbttSubmissionDates(
+      "VIETNAMESE",
+      {
+        ngayDenCsltStr: "2026-09-12 14:00:00",
+        ngayDiDuKienStr: "2026-09-15 12:00:00",
+      },
+      context,
+    );
+    expect(dMinus2.valid).toBe(false);
+    expect(dMinus2.outOfWindow).toBe(true);
+    expect(dMinus2.issues[0]?.field).toBe("ngayDenCsltStr");
+
+    const tomorrow = validateKbttSubmissionDates(
+      "VIETNAMESE",
+      {
+        ngayDenCsltStr: "2026-09-15 08:00:00",
+        ngayDiDuKienStr: "2026-09-16 12:00:00",
+      },
+      context,
+    );
+    expect(tomorrow.valid).toBe(false);
+    expect(tomorrow.outOfWindow).toBe(true);
+  });
+
+  it("enforces foreign thoiHanTamTruStr >= today and >= ngayDenCsltStr", () => {
+    const yesterdayResidence = validateKbttSubmissionDates(
+      "FOREIGN",
+      {
+        ngayDenCsltStr: "2026-09-13 14:00:00",
+        ngayDiDuKienStr: "2026-09-15 12:00:00",
+        thoiHanTamTruStr: "2026-09-13 23:59:59",
+      },
+      context,
+    );
+    expect(yesterdayResidence.valid).toBe(false);
+    expect(yesterdayResidence.outOfWindow).toBe(false);
+    expect(yesterdayResidence.issues.map((i) => i.field)).toContain("thoiHanTamTruStr");
+
+    const todayResidence = validateKbttSubmissionDates(
+      "FOREIGN",
+      {
+        ngayDenCsltStr: "2026-09-13 14:00:00",
+        ngayDiDuKienStr: "2026-09-14 12:00:00",
+        thoiHanTamTruStr: "2026-09-14 00:00:00",
+      },
+      context,
+    );
+    expect(todayResidence.valid).toBe(true);
   });
 });

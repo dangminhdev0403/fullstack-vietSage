@@ -33,6 +33,7 @@ import {
 } from "../domain/schemas/kbtt.schema";
 import { KbttCredentialCipher } from "../infrastructure/kbtt-credential-cipher";
 import { KbttProviderClient, kbttAuthFailed } from "../infrastructure/kbtt-provider.client";
+import { KbttRepository } from "../infrastructure/kbtt.repository";
 import { loadKbttConfig } from "../infrastructure/kbtt.config";
 
 jest.mock("../../../common/config/env.config", () => ({ envConfig: {} }));
@@ -278,6 +279,29 @@ function fixture(providerRead?: KbttProviderReadClient) {
         return updated;
       },
     ),
+    settleAcceptedDeclaration: jest.fn(
+      async (params: { id: string; hotelId: string; expectedVersion: number; data: any }) => {
+        try {
+          return await repository.updateDeclaration(params);
+        } catch (err) {
+          if (!(err instanceof ConflictException)) throw err;
+          const existing = declarations.get(params.id);
+          if (!existing || existing.hotelId !== params.hotelId) {
+            throw new NotFoundException("Hồ sơ không tồn tại.");
+          }
+          if (existing.status === "SUBMITTED") return existing;
+          const updated = {
+            ...existing,
+            ...params.data,
+            version: existing.version + 1,
+            updatedAt: new Date(),
+          };
+          declarations.set(params.id, updated);
+          return updated;
+        }
+      },
+    ),
+    recoverInterruptedDeclarations: jest.fn(async () => 0),
     claimAutoSubmitRunLease: jest.fn(
       async (hotelId: string, scheduledFor: Date, dryRun: boolean) => ({
         id: "run-auto-1",
@@ -298,8 +322,9 @@ function fixture(providerRead?: KbttProviderReadClient) {
       }),
     ),
     renewAutoSubmitRunLease: jest.fn(async () => true),
+    saveUnknownContinuation: jest.fn().mockResolvedValue(undefined),
     createScheduledAutoSubmitRun: jest.fn(
-      async (hotelId: string, scheduledFor: Date, dryRun: boolean, trigger = "MANUAL_DELAYED") => ({
+      async (hotelId: string, scheduledFor: Date, dryRun: boolean, trigger = "MANUAL_DELAYED", extraSummary: Record<string, any> = {}) => ({
         id: "run-scheduled-" + Math.random().toString(36).substring(2, 9),
         hotelId,
         scheduledFor,
@@ -312,7 +337,7 @@ function fixture(providerRead?: KbttProviderReadClient) {
         unknownCount: 0,
         telegramSent: false,
         telegramMessageId: null,
-        summaryJson: { trigger },
+        summaryJson: { trigger, ...extraSummary },
         createdAt: new Date(),
         updatedAt: new Date(),
       }),
@@ -480,18 +505,59 @@ function fixture(providerRead?: KbttProviderReadClient) {
       [...occupants.values()].filter((o) => o.hotelId === hotelId),
     ),
     getActiveStayOccupantsPaged: jest.fn(
-      async (hotelId: string, options: { cursor?: string; take?: number }) => {
-        const all = [...occupants.values()].filter((o) => o.hotelId === hotelId);
-        const take = options?.take ?? 10;
-        let startIndex = 0;
+      async (
+        hotelId: string,
+        options?: {
+          cursor?: string;
+          take?: number;
+          arrivalStart?: Date;
+          arrivalEnd?: Date;
+          kbttFilter?: "UNSYNCHRONIZED" | "UNKNOWN_ONLY";
+        },
+      ) => {
+        const hotelAll = [...occupants.values()].filter((o) => o.hotelId === hotelId);
+        let cursorAfterIndex = -1;
         if (options?.cursor) {
-          const found = all.findIndex((o) => o.id === options.cursor);
-          if (found >= 0) {
-            startIndex = found + 1;
+          const idxInHotel = hotelAll.findIndex((o) => o.id === options.cursor);
+          if (idxInHotel >= 0) {
+            cursorAfterIndex = idxInHotel;
           }
         }
-        const page = all.slice(startIndex, startIndex + take);
-        const hasMore = startIndex + take < all.length;
+        const all = hotelAll.filter((o, idx) => {
+          if (cursorAfterIndex >= 0 && idx <= cursorAfterIndex) return false;
+          if (cursorAfterIndex < 0 && options?.cursor && o.id <= options.cursor) return false;
+          if (options?.arrivalStart || options?.arrivalEnd) {
+            const rawArrival =
+              o.checkedInAt ??
+              o.stay?.checkedInAt ??
+              o.plannedCheckInAt ??
+              o.stay?.plannedCheckInAt;
+            if (rawArrival) {
+              const arrivalDate = rawArrival instanceof Date ? rawArrival : new Date(rawArrival);
+              if (options.arrivalStart && arrivalDate < options.arrivalStart) return false;
+              if (options.arrivalEnd && arrivalDate >= options.arrivalEnd) return false;
+            }
+          }
+          if (options?.kbttFilter === "UNSYNCHRONIZED") {
+            const occDecls = [...declarations.values()].filter(
+              (d) => d.hotelId === hotelId && d.occupantId === o.id,
+            );
+            if (occDecls.some((d) => ["SUBMITTED", "UNKNOWN", "CANCELLED"].includes(d.status))) {
+              return false;
+            }
+          } else if (options?.kbttFilter === "UNKNOWN_ONLY") {
+            const occDecls = [...declarations.values()].filter(
+              (d) => d.hotelId === hotelId && d.occupantId === o.id,
+            );
+            if (!occDecls.some((d) => d.status === "UNKNOWN")) {
+              return false;
+            }
+          }
+          return true;
+        });
+        const take = options?.take ?? 10;
+        const page = all.slice(0, take);
+        const hasMore = take < all.length;
         return {
           items: page,
           nextCursor: hasMore && page.length > 0 ? page[page.length - 1].id : null,
@@ -522,6 +588,9 @@ function fixture(providerRead?: KbttProviderReadClient) {
 }
 
 beforeEach(() => {
+  jest
+    .useFakeTimers({ doNotFake: ["nextTick", "setImmediate", "setTimeout", "clearTimeout"] })
+    .setSystemTime(new Date("2026-09-14T05:00:00.000Z"));
   (KbttService as any).activeFacilities?.clear?.();
   (KbttService as any).activeFacilityLocks?.clear?.();
   process.env.KBTT_AUTO_SUBMIT_LIVE_ENABLED = "true";
@@ -532,6 +601,7 @@ beforeEach(() => {
   process.env.KBTT_CREDENTIAL_ENCRYPTION_KEY = randomBytes(32).toString("base64");
 });
 afterEach(() => {
+  jest.useRealTimers();
   jest.restoreAllMocks();
   global.fetch = originalFetch;
 });
@@ -758,19 +828,35 @@ describe("KBTT secure manual authentication", () => {
   });
 
   it("records paused immediate delivery without retaining an automatic queue", async () => {
+    jest.setSystemTime(new Date("2026-09-15T05:00:00.000Z"));
     const f = fixture();
-    f.occupants.set(primaryOccupant.id, primaryOccupant);
+    const outOfWindowOccupant = {
+      ...primaryOccupant,
+      checkedInAt: new Date("2026-09-13T03:00:00.000Z"),
+      plannedCheckInAt: new Date("2026-09-13T03:00:00.000Z"),
+      stay: {
+        ...primaryOccupant.stay,
+        checkedInAt: new Date("2026-09-13T03:00:00.000Z"),
+        plannedCheckInAt: new Date("2026-09-13T03:00:00.000Z"),
+      },
+    };
+    f.occupants.set(outOfWindowOccupant.id, outOfWindowOccupant);
     await f.service.connect("owner", "owner-role", "hotel-1", credentials);
     f.provider.login.mockClear();
-    const result = await f.service.submit("owner", "owner-role", "hotel-1", primaryOccupant.id);
+    const pausedOccupant = { ...primaryOccupant };
+    f.occupants.set(pausedOccupant.id, pausedOccupant);
+    const result = await f.service.submit("owner", "owner-role", "hotel-1", pausedOccupant.id);
     expect(result).toMatchObject({ status: "FAILED", providerCode: "DELIVERY_PAUSED" });
     expect((await f.service.listDeclarations("owner", "owner-role", "hotel-1")).delivery.state).toBe("PAUSED");
     expect(f.provider.login).not.toHaveBeenCalled();
     expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+    // Move to D+2 (2026-09-16) so automatic sweep does not auto-send the 2026-09-14 arrival, then restore to 2026-09-15 for explicit retry
+    jest.setSystemTime(new Date("2026-09-16T05:00:00.000Z"));
     await f.service.updateAutoSubmitEnabled("front-desk", "staff-role", "hotel-1", true);
     await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
     expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
-    const retry = await f.service.submit("owner", "owner-role", "hotel-1", primaryOccupant.id);
+    jest.setSystemTime(new Date("2026-09-15T05:00:00.000Z"));
+    const retry = await f.service.submit("owner", "owner-role", "hotel-1", pausedOccupant.id);
     expect(retry.status).toBe("UNKNOWN");
     await finishInitialDeliveries(f);
     expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
@@ -3503,15 +3589,15 @@ describe("BCA same-day 12:00/21:00 slots, 10-minute catch-up, and temporary disc
     jest.useRealTimers();
   });
 
-  it("computes strictly future 10-minute boundaries in Asia/Ho_Chi_Minh (12:07 -> 12:10, 21:03 -> 21:10, 12:10:00 -> 12:20, 23:55 -> null)", () => {
+  it("computes strictly future 10-minute boundaries in Asia/Ho_Chi_Minh (12:07 -> 12:10, 21:03 -> 21:10, 12:10:00 -> 12:20, 23:55 -> 00:00 next day)", () => {
     expect(computeVietnamNextTenMinuteBoundary(new Date("2026-09-14T05:07:22.000Z"))?.toISOString())
       .toBe("2026-09-14T05:10:00.000Z"); // 12:07 -> 12:10
     expect(computeVietnamNextTenMinuteBoundary(new Date("2026-09-14T14:03:00.000Z"))?.toISOString())
       .toBe("2026-09-14T14:10:00.000Z"); // 21:03 -> 21:10
     expect(computeVietnamNextTenMinuteBoundary(new Date("2026-09-14T05:10:00.000Z"))?.toISOString())
       .toBe("2026-09-14T05:20:00.000Z"); // exact 12:10:00 -> 12:20
-    expect(computeVietnamNextTenMinuteBoundary(new Date("2026-09-14T16:55:00.000Z")))
-      .toBeNull(); // 23:55 crosses midnight into 2026-09-15 -> null
+    expect(computeVietnamNextTenMinuteBoundary(new Date("2026-09-14T16:55:00.000Z"))?.toISOString())
+      .toBe("2026-09-14T17:00:00.000Z"); // 23:55 crosses midnight into 2026-09-15 00:00 VN
   });
 
   it("computes next fixed daily slot at 12:00 or 21:00 Vietnam time", () => {
@@ -3529,17 +3615,30 @@ describe("BCA same-day 12:00/21:00 slots, 10-minute catch-up, and temporary disc
     });
   });
 
-  it("submits only same-current-day arrivals existing at the slot cutoff and never alters prior-day arrival dates", async () => {
+  it("submits current-day and yesterday (D+1) arrivals existing at the slot cutoff while blocking out-of-window (D-2) arrivals without altering arrival dates", async () => {
     const f = fixture();
     await f.service.connect("owner", "owner-role", "hotel-1", credentials);
     enableAutomaticDelivery(f);
 
-    const priorDayGuest = {
+    const outOfWindowGuest = {
       ...primaryOccupant,
-      id: "occ-prior-day",
-      fullName: "Prior Day Guest",
+      id: "occ-d-minus-2",
+      fullName: "Out Of Window Guest",
       identityNumber: "001090888001",
-      checkedInAt: new Date("2026-09-13T08:00:00.000Z"),
+      checkedInAt: new Date("2026-09-12T08:00:00.000Z"), // 2026-09-12 (D-2)
+      plannedCheckInAt: new Date("2026-09-12T08:00:00.000Z"),
+      stay: {
+        ...primaryOccupant.stay,
+        checkedInAt: new Date("2026-09-12T08:00:00.000Z"),
+        plannedCheckInAt: new Date("2026-09-12T08:00:00.000Z"),
+      },
+    };
+    const yesterdayGuest = {
+      ...primaryOccupant,
+      id: "occ-yesterday",
+      fullName: "Yesterday Guest",
+      identityNumber: "001090888099",
+      checkedInAt: new Date("2026-09-13T08:00:00.000Z"), // 2026-09-13 15:00 VN (yesterday / D+1 retry)
       plannedCheckInAt: new Date("2026-09-13T08:00:00.000Z"),
       stay: {
         ...primaryOccupant.stay,
@@ -3574,7 +3673,8 @@ describe("BCA same-day 12:00/21:00 slots, 10-minute catch-up, and temporary disc
       },
     };
 
-    f.occupants.set(priorDayGuest.id, priorDayGuest);
+    f.occupants.set(outOfWindowGuest.id, outOfWindowGuest);
+    f.occupants.set(yesterdayGuest.id, yesterdayGuest);
     f.occupants.set(sameDayBeforeCutoff.id, sameDayBeforeCutoff);
     f.occupants.set(sameDayAfterCutoff.id, sameDayAfterCutoff);
 
@@ -3585,15 +3685,20 @@ describe("BCA same-day 12:00/21:00 slots, 10-minute catch-up, and temporary disc
       false,
     );
 
-    expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
+    expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(2);
+    expect(f.provider.submitDeclaration).toHaveBeenCalledWith(
+      "VIETNAMESE",
+      [expect.objectContaining({ hoTen: "Yesterday Guest", ngayDenCsltStr: "2026-09-13 15:00:00" })],
+      expect.any(String),
+    );
     expect(f.provider.submitDeclaration).toHaveBeenCalledWith(
       "VIETNAMESE",
       [expect.objectContaining({ hoTen: "Nguyen Van Som", ngayDenCsltStr: "2026-09-14 11:00:00" })],
       expect.any(String),
     );
-    expect(priorDayGuest.checkedInAt.toISOString()).toBe("2026-09-13T08:00:00.000Z");
+    expect(outOfWindowGuest.checkedInAt.toISOString()).toBe("2026-09-12T08:00:00.000Z");
 
-    // 21:00 slot sweep processes only the remaining same-day arrival (12:02 guest) and still skips prior-day guest
+    // 21:00 slot sweep processes only the remaining same-day arrival (12:02 guest) and still skips D-2 guest
     jest.setSystemTime(new Date("2026-09-14T14:00:00.000Z"));
     // Refresh session so it stays valid at 21:00 VN
     f.provider.refresh.mockResolvedValueOnce(
@@ -3614,55 +3719,58 @@ describe("BCA same-day 12:00/21:00 slots, 10-minute catch-up, and temporary disc
     f.service.onModuleDestroy();
   });
 
-  it("registers earlier same-day unsent check-ins for the next 10-minute boundary upon late BCA login or enabling auto-send", async () => {
-    jest.setSystemTime(new Date("2026-09-14T05:07:00.000Z")); // 12:07 VN
+  it("schedules catch-up across midnight at 23:55 -> 00:00 next day (D+1) using actual arrival D without fabricating today, and blocks at D+2", async () => {
+    jest.setSystemTime(new Date("2026-09-14T16:55:00.000Z")); // 23:55 VN on 2026-09-14 (day D)
     const f = fixture();
-    f.occupants.set(primaryOccupant.id, primaryOccupant);
-
-    // Check-in occurred at 10:00 VN before hotel logged into BCA
-    await f.service.triggerCheckInBcaPush("hotel-1", primaryOccupant.stayId);
-    const initialDecl = await f.repository.findLatestDeclaration("hotel-1", primaryOccupant.id);
-    expect(initialDecl).toMatchObject({ status: "FAILED", providerCode: "KBTT_NOT_CONFIGURED" });
-
-    // Hotel logs in at 12:07 VN (switch remains disabled until enabled)
+    f.occupants.set(primaryOccupant.id, structuredClone(primaryOccupant));
     await f.service.connect("owner", "owner-role", "hotel-1", credentials);
-    expect(f.rows.get("hotel-1")?.autoSubmitEnabled).toBe(false);
-    expect(f.repository.createScheduledAutoSubmitRun).not.toHaveBeenCalled();
-
-    // Hotel enables auto-send at 12:07 VN -> schedules catch-up at 12:10 VN (05:10:00.000Z)
     await f.service.updateAutoSubmitEnabled("owner", "owner-role", "hotel-1", true);
+
+    // At 23:55 VN on 2026-09-14, next 10-minute boundary is 00:00 on 2026-09-15 (17:00:00.000Z)
     expect(f.repository.createScheduledAutoSubmitRun).toHaveBeenCalledWith(
       "hotel-1",
-      new Date("2026-09-14T05:10:00.000Z"),
+      new Date("2026-09-14T17:00:00.000Z"),
       false,
       "CATCH_UP_10M",
-      { cutoffAt: "2026-09-14T05:10:00.000Z" },
+      { cutoffAt: "2026-09-14T17:00:00.000Z" },
     );
 
-    // Advance to 12:10 VN -> executes catch-up and submits same-day record with original 10:00 arrival time
-    await jest.advanceTimersByTimeAsync(3 * 60_000);
+    // At 00:00 VN on 2026-09-15 (D+1), guest who arrived on 2026-09-14 (yesterday) is submitted with actual arrival 2026-09-14!
+    jest.setSystemTime(new Date("2026-09-14T17:00:00.000Z"));
+    f.provider.refresh.mockResolvedValueOnce(
+      session({ Exp: Math.floor(new Date("2026-09-14T17:00:00.000Z").getTime() / 1000) + 300 }),
+    );
+    await f.service.executeAutoSubmitForHotel(
+      "hotel-1",
+      new Date("2026-09-14T17:00:00.000Z"),
+      false,
+    );
     expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
     expect(f.provider.submitDeclaration).toHaveBeenCalledWith(
       "VIETNAMESE",
       [expect.objectContaining({ ngayDenCsltStr: "2026-09-14 10:00:00" })],
       expect.any(String),
     );
-    f.service.onModuleDestroy();
-  });
 
-  it("does not schedule or execute catch-up across midnight and never alters arrival date after midnight", async () => {
-    jest.setSystemTime(new Date("2026-09-14T16:55:00.000Z")); // 23:55 VN on 2026-09-14
-    const f = fixture();
-    f.occupants.set(primaryOccupant.id, primaryOccupant);
-    await f.service.connect("owner", "owner-role", "hotel-1", credentials);
-    await f.service.updateAutoSubmitEnabled("owner", "owner-role", "hotel-1", true);
-
-    // At 23:55 VN, next 10-minute boundary would be 00:00 on 2026-09-15 -> must not schedule
-    expect(f.repository.createScheduledAutoSubmitRun).not.toHaveBeenCalled();
-
-    // After midnight (00:05 VN on 2026-09-15), running auto-submit does not send 2026-09-14 guest
-    jest.setSystemTime(new Date("2026-09-14T17:05:00.000Z"));
-    await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
+    // On D+2 (2026-09-16 12:00 VN), an unsent guest who arrived on 2026-09-14 is out of window and is not sent automatically
+    const dPlus2Guest = {
+      ...primaryOccupant,
+      id: "occ-d-plus-2",
+      identityNumber: "001090666777",
+      plannedCheckOutAt: new Date("2026-09-18T05:00:00.000Z"),
+      stay: {
+        ...primaryOccupant.stay,
+        plannedCheckOutAt: new Date("2026-09-18T05:00:00.000Z"),
+      },
+    };
+    f.occupants.set(dPlus2Guest.id, dPlus2Guest);
+    jest.setSystemTime(new Date("2026-09-16T05:00:00.000Z"));
+    f.provider.submitDeclaration.mockClear();
+    await f.service.executeAutoSubmitForHotel(
+      "hotel-1",
+      new Date("2026-09-16T05:00:00.000Z"),
+      false,
+    );
     expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
     f.service.onModuleDestroy();
   });
@@ -3925,12 +4033,12 @@ describe("BCA same-day 12:00/21:00 slots, 10-minute catch-up, and temporary disc
     const priorDayStayOccupant = {
       ...primaryOccupant,
       id: "occ-prior-with-edited-draft",
-      checkedInAt: new Date("2026-09-13T07:00:00.000Z"), // 2026-09-13 14:00 VN (prior day)
-      plannedCheckInAt: new Date("2026-09-13T07:00:00.000Z"),
+      checkedInAt: new Date("2026-09-12T07:00:00.000Z"), // 2026-09-12 14:00 VN (D-2 out-of-window stay)
+      plannedCheckInAt: new Date("2026-09-12T07:00:00.000Z"),
       stay: {
         ...primaryOccupant.stay,
-        checkedInAt: new Date("2026-09-13T07:00:00.000Z"),
-        plannedCheckInAt: new Date("2026-09-13T07:00:00.000Z"),
+        checkedInAt: new Date("2026-09-12T07:00:00.000Z"),
+        plannedCheckInAt: new Date("2026-09-12T07:00:00.000Z"),
       },
     };
     f.occupants.set(priorDayStayOccupant.id, priorDayStayOccupant);
@@ -3958,10 +4066,10 @@ describe("BCA same-day 12:00/21:00 slots, 10-minute catch-up, and temporary disc
       ),
     ).toBe(false);
 
-    // Listing declarations surfaces PRIOR_DAY_MANUAL with nextCatchUpAt: null
+    // Listing declarations surfaces OUT_OF_DATE_WINDOW with nextCatchUpAt: null
     const list = await f.service.listDeclarations("owner", "owner-role", "hotel-1");
     expect(list.items[0].declaration).toMatchObject({
-      eligibilityState: "PRIOR_DAY_MANUAL",
+      eligibilityState: "OUT_OF_DATE_WINDOW",
       nextCatchUpAt: null,
     });
 
@@ -4267,8 +4375,8 @@ describe("BCA same-day 12:00/21:00 slots, 10-minute catch-up, and temporary disc
     );
     expect(recResult).toEqual({
       settledCount: 1,
-      retryScheduledCount: 1,
-      remainingUnknownCount: 0,
+      retryScheduledCount: 0,
+      remainingUnknownCount: 1,
     });
 
     // guestMatched is settled as SUBMITTED without another POST
@@ -4279,20 +4387,605 @@ describe("BCA same-day 12:00/21:00 slots, 10-minute catch-up, and temporary disc
       providerCode: "200",
     });
 
-    // guestNotFound is transitioned to FAILED (KBTT_PROVIDER_UNAVAILABLE) and scheduled for 21:10 VN catch-up
+    // guestNotFound MUST remain UNKNOWN (empty read is NOT authoritative proof of nonacceptance) and must NOT schedule automatic retry
     const updatedNotFound = await f.repository.findLatestDeclaration("hotel-1", guestNotFound.id);
     expect(updatedNotFound).toMatchObject({
       id: declNotFound.id,
+      status: "UNKNOWN",
+      providerCode: "PROVIDER_TIMEOUT",
+    });
+    expect(f.repository.createScheduledAutoSubmitRun).not.toHaveBeenCalled();
+    f.service.onModuleDestroy();
+  });
+
+  it("BCA-09 + BCA-04: fences in-flight deferred POST (21:03:50 -> 21:04:00 empty read -> 21:04:10 late SUCCESS) without duplicate resend or lost acceptance, and fences generation change during ownership await and late 401/SUCCESS after relogin", async () => {
+    jest.setSystemTime(new Date("2026-09-14T14:03:50.000Z")); // 21:03:50 VN
+    const client = new KbttProviderReadClient();
+    jest.spyOn(client, "getAccommodation").mockResolvedValue({
+      httpStatus: 200,
+      envelope: { code: "200" },
+      data: { id: 1000227, tenCSLT: "Khách sạn mẫu" },
+    });
+    jest.spyOn(client, "readAllResidents").mockResolvedValue([]);
+    jest.spyOn(client, "readAllHistory").mockResolvedValue([]);
+
+    const f = fixture(client);
+    f.occupants.set(primaryOccupant.id, structuredClone(primaryOccupant));
+    await f.service.connect("owner", "owner-role", "hotel-1", credentials);
+    enableAutomaticDelivery(f);
+
+    // 1. Reproduce deferred POST starting at 21:03:50, cron running at 21:04:00 seeing empty BCA list, and POST succeeding at 21:04:10
+    let resolveDeferredPost!: (val: any) => void;
+    f.provider.submitDeclaration.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveDeferredPost = resolve;
+        }),
+    );
+
+    const submitted = await f.service.submit("owner", "owner-role", "hotel-1", primaryOccupant.id);
+    expect(submitted.status).toBe("UNKNOWN");
+
+    // Advance to 21:04:00 VN while POST is still in flight -> cron runs reconciliation with empty BCA reads
+    jest.setSystemTime(new Date("2026-09-14T14:04:00.000Z"));
+    const midFlightRec = await f.service.reconcilePendingUnknownDeclarationsForHotel(
+      "hotel-1",
+      true,
+      new Date("2026-09-14T14:04:00.000Z"),
+    );
+    expect(midFlightRec).toEqual({
+      settledCount: 0,
+      retryScheduledCount: 0,
+      remainingUnknownCount: 1,
+    });
+    expect(f.repository.createScheduledAutoSubmitRun).not.toHaveBeenCalled();
+
+    // Even if an external process incremented version on the row while in flight, late SUCCESS at 21:04:10 must settle SUBMITTED and never lose acceptance proof!
+    const rawDecl = f.declarations.get(submitted.id);
+    rawDecl.version += 1;
+
+    jest.setSystemTime(new Date("2026-09-14T14:04:10.000Z"));
+    resolveDeferredPost({
+      outcome: "SUCCESS",
+      code: "200",
+      message: "Thành công",
+      data: { id: "bca-late-999" },
+    });
+    await finishInitialDeliveries(f);
+
+    const settledDecl = await f.repository.findLatestDeclaration("hotel-1", primaryOccupant.id);
+    expect(settledDecl).toMatchObject({
+      id: submitted.id,
+      status: "SUBMITTED",
+      providerCode: "200",
+    });
+    expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
+
+    // 2. Generation change A -> B during hasConflictingFacilityOwnership await when staySync is disabled must block old token A!
+    const guestGenRace = {
+      ...primaryOccupant,
+      id: "occ-gen-race",
+      identityNumber: "001090555666",
+    };
+    f.occupants.set(guestGenRace.id, guestGenRace);
+    const declRace = await f.repository.createDeclaration({
+      hotelId: "hotel-1",
+      stayId: guestGenRace.stayId,
+      occupantId: guestGenRace.id,
+      declarationKind: "VIETNAMESE",
+      status: "UNKNOWN",
+      submittedCsltId: "1000227",
+      submittedPayloadJson: [
+        {
+          hoTen: "Nguyen Van Race",
+          gioiTinh: "M",
+          ngayThangNamSinhStr: "1990-01-01",
+          soGiayTo: "001090555666",
+          loaiGiayTo: 1,
+          lyDoCuTru: 1,
+          soPhong: "101",
+          ngayDenCsltStr: "2026-09-14 10:00:00",
+          ngayDiDuKienStr: "2026-09-15 12:00:00",
+        },
+      ],
+    });
+    const connA = f.rows.get("hotel-1")!;
+    const tokenA = f.service.getCachedReadSession("hotel-1", connA)!.AccessToken;
+    const cipherA = connA.ciphertext;
+
+    f.repository.findConflictingFacilityConnections.mockImplementationOnce(async () => {
+      // Simulate concurrent relogin to generation B during the ownership await
+      const newSessionB = session({ AccessToken: "token-gen-B-live", CsltId: "1000227" });
+      f.rows.set("hotel-1", { ...connA, ciphertext: "cipher-gen-B-live" });
+      (f.service as any).sessions.set("hotel-1", {
+        ciphertext: "cipher-gen-B-live",
+        session: newSessionB,
+      });
+      return [];
+    });
+
+    f.provider.submitDeclaration.mockClear();
+    const raceOutcome = await (f.service as any).sendInitialDeclaration(
+      "hotel-1",
+      declRace.id,
+      "VIETNAMESE",
+      declRace.submittedPayloadJson,
+      tokenA,
+      "1000227",
+      true,
+      cipherA,
+    );
+    expect(raceOutcome).toMatchObject({
+      outcome: "BUSINESS_REJECTION",
+      code: "CONNECTION_SCOPE_CHANGED",
+    });
+    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+
+    // 3. Late 401 failure from old generation A after relogin to generation B must NOT mark generation B AUTH_FAILED, and converts declaration failure to CONNECTION_SCOPE_CHANGED so it can retry under B
+    await (f.service as any).persistDeclarationFailed(
+      "hotel-1",
+      declRace,
+      "fp-old-a",
+      { outcome: "BUSINESS_REJECTION", code: "401", message: "Unauthorized old token" },
+      cipherA,
+    );
+    expect(f.rows.get("hotel-1")?.status).toBe("CONNECTED");
+    const afterLate401 = await f.repository.findLatestDeclaration("hotel-1", guestGenRace.id);
+    expect(afterLate401).toMatchObject({
       status: "FAILED",
-      providerCode: "KBTT_PROVIDER_UNAVAILABLE",
+      providerCode: "CONNECTION_SCOPE_CHANGED",
+    });
+    f.service.onModuleDestroy();
+  });
+
+  it("BCA-08 + BCA-06: blocks provider dispatch when KbttRepository.findConflictingFacilityConnections fails and returns connect/check/updateAutoSubmitEnabled promptly without awaiting slow background UNKNOWN reconciliation", async () => {
+    const f = fixture();
+    f.occupants.set(primaryOccupant.id, structuredClone(primaryOccupant));
+    await f.service.connect("owner", "owner-role", "hotel-1", credentials);
+    enableAutomaticDelivery(f);
+
+    // 1. Direct unit test on KbttRepository.findConflictingFacilityConnections: DB failure throws kbttUnavailable instead of returning []
+    const brokenRepo = new KbttRepository({
+      kbttHotelConnection: {
+        findMany: jest.fn().mockRejectedValue(new Error("Connection pool exhausted")),
+      },
+    } as never);
+    await expect(brokenRepo.findConflictingFacilityConnections("1000227", "hotel-1")).rejects.toThrow();
+
+    // 2. When findConflictingFacilityConnections throws during sendInitialDeclaration, provider is NOT called
+    const decl = await f.repository.createDeclaration({
+      hotelId: "hotel-1",
+      stayId: primaryOccupant.stayId,
+      occupantId: primaryOccupant.id,
+      declarationKind: "VIETNAMESE",
+      status: "UNKNOWN",
+      submittedCsltId: "1000227",
+      submittedPayloadJson: [
+        {
+          hoTen: "Nguyen Van A",
+          gioiTinh: "M",
+          ngayThangNamSinhStr: "1990-01-01",
+          soGiayTo: "001090012345",
+          loaiGiayTo: 1,
+          lyDoCuTru: 1,
+          soPhong: "101",
+          ngayDenCsltStr: "2026-09-14 10:00:00",
+          ngayDiDuKienStr: "2026-09-15 12:00:00",
+        },
+      ],
+    });
+    const conn = f.rows.get("hotel-1")!;
+    const tok = f.service.getCachedReadSession("hotel-1", conn)!.AccessToken;
+    f.repository.findConflictingFacilityConnections.mockRejectedValueOnce(new Error("DB down"));
+    const blockedOutcome = await (f.service as any).sendInitialDeclaration(
+      "hotel-1",
+      decl.id,
+      "VIETNAMESE",
+      decl.submittedPayloadJson,
+      tok,
+      "1000227",
+      true,
+      conn.ciphertext,
+    );
+    expect(blockedOutcome).toMatchObject({
+      outcome: "BUSINESS_REJECTION",
+      code: "KBTT_UNAVAILABLE",
+    });
+    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+
+    // 3. Slow background UNKNOWN reconciliation does not block check or updateAutoSubmitEnabled
+    let releaseSlowReconcile!: () => void;
+    const slowReconcileSpy = jest
+      .spyOn(f.service, "reconcilePendingUnknownDeclarationsForHotel")
+      .mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            releaseSlowReconcile = () =>
+              resolve({ settledCount: 0, retryScheduledCount: 0, remainingUnknownCount: 1 });
+          }),
+      );
+
+    let checkSettled = false;
+    const checkPromise = f.service.check("owner", "owner-role", "hotel-1").then((res) => {
+      checkSettled = true;
+      return res;
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(checkSettled).toBe(true);
+    expect(slowReconcileSpy).toHaveBeenCalled();
+    releaseSlowReconcile?.();
+    await checkPromise;
+    f.service.onModuleDestroy();
+  });
+
+  it("BCA-01 + BCA-08 + BCA-09: prioritizes DB-side day/status cohorts so old UNKNOWN prefixes never starve recent work, resumes bounded UNKNOWN/unsent cursors without capped false absence, and treats DB facility ownership as authoritative over stale activeFacilities cache", async () => {
+    jest.setSystemTime(new Date("2026-09-14T14:03:00.000Z")); // 2026-09-14 21:03 VN
+    const client = new KbttProviderReadClient();
+    jest.spyOn(client, "getAccommodation").mockResolvedValue({
+      httpStatus: 200,
+      envelope: { code: "200" },
+      data: { id: 1000227, tenCSLT: "Khách sạn mẫu" },
+    });
+    jest.spyOn(client, "readAllResidents").mockResolvedValue([]);
+    const readHistory = jest.spyOn(client, "readAllHistory").mockImplementation(async (kind) =>
+      kind === "VIETNAMESE"
+        ? [
+            {
+              id: "bca-recent-match-1",
+              hoTen: "Khach Moi Hom Nay",
+              csltId: 1000227,
+              soGiayTo: "001090999888",
+              loaiGiayTo: 1,
+              quocTich: "VNM",
+              ngayDenCslt: "2026-09-14 10:00:00",
+              ngayDiCslt: "",
+              ngayDiDuKien: "2026-09-15 12:00:00",
+              soPhong: "101",
+            },
+          ]
+        : [],
+    );
+
+    const f = fixture(client);
+
+    // 1. Seed a stale entry in static activeFacilities for another hotel while DB has 0 conflicting rows
+    const facilityKey = (f.service as any).getFacilityKey("1000227");
+    (KbttService as any).activeFacilities.set(facilityKey, "stale-deleted-hotel-99");
+    await expect(f.service.connect("owner", "owner-role", "hotel-1", credentials)).resolves.toMatchObject({
+      status: "CONNECTED",
+      csltId: "1000227",
+    });
+    expect((KbttService as any).activeFacilities.get(facilityKey)).toBe("hotel-1");
+    enableAutomaticDelivery(f);
+
+    // 2. Seed an old >30d UNKNOWN prefix (2026-07-01) and a D-10 UNKNOWN prefix (2026-09-04) before a today UNKNOWN guest (2026-09-14)
+    const oldOutWindowGuest = {
+      ...primaryOccupant,
+      id: "occ-0001-old-july",
+      fullName: "Khach Cu Thang 7",
+      identityNumber: "001090111000",
+      checkedInAt: new Date("2026-07-01T03:00:00.000Z"),
+      plannedCheckInAt: new Date("2026-07-01T03:00:00.000Z"),
+      stay: {
+        ...primaryOccupant.stay,
+        checkedInAt: new Date("2026-07-01T03:00:00.000Z"),
+        plannedCheckInAt: new Date("2026-07-01T03:00:00.000Z"),
+      },
+    };
+    const recentTodayGuest = {
+      ...primaryOccupant,
+      id: "occ-9999-today",
+      fullName: "Khach Moi Hom Nay",
+      identityNumber: "001090999888",
+      checkedInAt: new Date("2026-09-14T03:00:00.000Z"),
+      plannedCheckInAt: new Date("2026-09-14T03:00:00.000Z"),
+      stay: {
+        ...primaryOccupant.stay,
+        checkedInAt: new Date("2026-09-14T03:00:00.000Z"),
+        plannedCheckInAt: new Date("2026-09-14T03:00:00.000Z"),
+      },
+    };
+    f.occupants.set(oldOutWindowGuest.id, oldOutWindowGuest);
+    f.occupants.set(recentTodayGuest.id, recentTodayGuest);
+
+    await f.repository.createDeclaration({
+      hotelId: "hotel-1",
+      stayId: oldOutWindowGuest.stayId,
+      occupantId: oldOutWindowGuest.id,
+      declarationKind: "VIETNAMESE",
+      status: "UNKNOWN",
+      submittedCsltId: "1000227",
+      submittedPayloadJson: [
+        {
+          hoTen: oldOutWindowGuest.fullName,
+          soGiayTo: oldOutWindowGuest.identityNumber,
+          loaiGiayTo: 1,
+          ngayDenCsltStr: "2026-07-01 10:00:00",
+          ngayDiDuKienStr: "2026-09-15 12:00:00",
+        },
+      ],
+    });
+    const declRecent = await f.repository.createDeclaration({
+      hotelId: "hotel-1",
+      stayId: recentTodayGuest.stayId,
+      occupantId: recentTodayGuest.id,
+      declarationKind: "VIETNAMESE",
+      status: "UNKNOWN",
+      submittedCsltId: "1000227",
+      submittedPayloadJson: [
+        {
+          hoTen: recentTodayGuest.fullName,
+          soGiayTo: recentTodayGuest.identityNumber,
+          loaiGiayTo: 1,
+          ngayDenCsltStr: "2026-09-14 10:00:00",
+          ngayDiDuKienStr: "2026-09-15 12:00:00",
+        },
+      ],
+    });
+
+    f.occupantsReadService.getActiveStayOccupantsPaged.mockClear();
+    const recRes = await f.service.reconcilePendingUnknownDeclarationsForHotel(
+      "hotel-1",
+      true,
+      new Date("2026-09-14T14:03:00.000Z"),
+    );
+    expect(recRes).toEqual({
+      settledCount: 1,
+      retryScheduledCount: 0,
+      remainingUnknownCount: 0,
+    });
+    expect(readHistory).toHaveBeenCalledWith(
+      "VIETNAMESE",
+      expect.any(String),
+      { dateFrom: "2026-09-14", dateTo: "2026-09-14" },
+      expect.any(AbortSignal),
+    );
+    expect((await f.repository.findLatestDeclaration("hotel-1", recentTodayGuest.id))?.status).toBe(
+      "SUBMITTED",
+    );
+    expect(declRecent.id).toBeDefined();
+
+    // Verify DB-side arrivalStart/arrivalEnd cohort bounds were passed to getActiveStayOccupantsPaged
+    expect(f.occupantsReadService.getActiveStayOccupantsPaged).toHaveBeenNthCalledWith(
+      1,
+      "hotel-1",
+      expect.objectContaining({
+        kbttFilter: "UNKNOWN_ONLY",
+        arrivalStart: expect.any(Date),
+        arrivalEnd: expect.any(Date),
+      }),
+    );
+
+    // 3. Capped scan in reconcilePendingUnknownDeclarationsForHotel (>20 pages) reports incomplete: true, saves nextCursor, and schedules durable CONTINUATION_UNKNOWN
+    let pageCallCount = 0;
+    f.occupantsReadService.getActiveStayOccupantsPaged.mockImplementation(async (_hId, opts) => {
+      pageCallCount++;
+      return {
+        items: [recentTodayGuest],
+        nextCursor: `cursor-page-${pageCallCount}`,
+      };
+    });
+    await f.repository.updateDeclaration({
+      id: declRecent.id,
+      hotelId: "hotel-1",
+      expectedVersion: (await f.repository.findLatestDeclaration("hotel-1", recentTodayGuest.id))!
+        .version,
+      data: { status: "UNKNOWN" },
+    });
+    (f.service as any).historyDayCache?.clear();
+    readHistory.mockResolvedValue([]);
+
+    const cappedRec = await f.service.reconcilePendingUnknownDeclarationsForHotel(
+      "hotel-1",
+      true,
+      new Date("2026-09-14T14:03:00.000Z"),
+    );
+    expect(cappedRec).toEqual({
+      settledCount: 0,
+      retryScheduledCount: 0,
+      remainingUnknownCount: 1,
+      incomplete: true,
+      nextCursor: "cursor-page-20",
     });
     expect(f.repository.createScheduledAutoSubmitRun).toHaveBeenCalledWith(
       "hotel-1",
       new Date("2026-09-14T14:10:00.000Z"),
       false,
-      "CATCH_UP_10M",
-      { cutoffAt: "2026-09-14T14:10:00.000Z" },
+      "CONTINUATION_UNKNOWN",
+      expect.objectContaining({ unknownResume: expect.objectContaining({ recent: "cursor-page-20", day: "2026-09-14" }) }),
     );
+
+    // Simulate process restart: only the persisted checkpoint survives.
+    const checkpoint = f.repository.createScheduledAutoSubmitRun.mock.calls.at(-1)![4]!.unknownResume;
+    (f.service as any).unknownReconciliationCursors.clear();
+    f.occupantsReadService.getActiveStayOccupantsPaged.mockClear();
+    f.occupantsReadService.getActiveStayOccupantsPaged.mockResolvedValue({
+      items: [],
+      nextCursor: null,
+    });
+    await f.service.reconcilePendingUnknownDeclarationsForHotel(
+      "hotel-1",
+      true,
+      new Date("2026-09-14T14:10:00.000Z"),
+      checkpoint,
+    );
+    expect(f.occupantsReadService.getActiveStayOccupantsPaged).toHaveBeenNthCalledWith(
+      1,
+      "hotel-1",
+      expect.objectContaining({
+        cursor: "cursor-page-20",
+        kbttFilter: "UNKNOWN_ONLY",
+      }),
+    );
+
+    // Exactly finishing recent work at the budget must continue the older cohort,
+    // including when the scheduled boundary already belongs to another trigger.
+    let exactPage = 0;
+    const pendingBoundary = { id: "existing-boundary", status: "RUNNING", scheduledFor: new Date("2026-09-14T14:10:00.000Z") };
+    f.repository.findPendingScheduledAutoSubmitRuns.mockResolvedValue([pendingBoundary] as any);
+    f.occupantsReadService.getActiveStayOccupantsPaged.mockImplementation(async () => ({
+      items: [recentTodayGuest],
+      nextCursor: ++exactPage < 20 ? `exact-${exactPage}` : null,
+    }));
+    await f.service.reconcilePendingUnknownDeclarationsForHotel("hotel-1", true, new Date("2026-09-14T14:03:00.000Z"));
+    expect(f.repository.saveUnknownContinuation).toHaveBeenLastCalledWith("existing-boundary", expect.objectContaining({ day: "2026-09-14", next: "window" }));
+    (f.service as any).unknownReconciliationCursors.clear();
+    f.occupantsReadService.getActiveStayOccupantsPaged.mockClear();
+    f.occupantsReadService.getActiveStayOccupantsPaged.mockResolvedValue({ items: [], nextCursor: null });
+    await f.service.reconcilePendingUnknownDeclarationsForHotel("hotel-1", true, new Date("2026-09-14T14:10:00.000Z"), { day: "2026-09-14", next: "window" });
+    expect(f.occupantsReadService.getActiveStayOccupantsPaged).toHaveBeenNthCalledWith(1, "hotel-1", expect.objectContaining({ arrivalEnd: new Date("2026-09-12T17:00:00.000Z"), cursor: undefined }));
+
+    // 4. hasPendingUnknownWork and hasEligibleSameDayUnsentWork never report false absence when capped with nextCursor !== null
+    let unknownCheckPage = 0;
+    f.occupantsReadService.getActiveStayOccupantsPaged.mockImplementation(async () => {
+      unknownCheckPage++;
+      return {
+        items: [oldOutWindowGuest], // not UNKNOWN in declMap when we set status to DRAFT
+        nextCursor: `unk-cursor-${unknownCheckPage}`,
+      };
+    });
+    const oldDecl = (await f.repository.findLatestDeclaration("hotel-1", oldOutWindowGuest.id))!;
+    await f.repository.updateDeclaration({
+      id: oldDecl.id,
+      hotelId: "hotel-1",
+      expectedVersion: oldDecl.version,
+      data: { status: "DRAFT" },
+    });
+    await expect(
+      f.service.hasPendingUnknownWork("hotel-1", new Date("2026-09-14T14:03:00.000Z")),
+    ).resolves.toBe(true);
+    expect(unknownCheckPage).toBe(50);
+
+    let unsentCheckPage = 0;
+    const lockedFailedDecl = (await f.repository.findLatestDeclaration(
+      "hotel-1",
+      recentTodayGuest.id,
+    ))!;
+    const draftForLocked = (f.service as any).withOccupantDefaults(
+      "VIETNAMESE",
+      lockedFailedDecl.draftPayloadJson ?? {},
+      recentTodayGuest,
+    );
+    const lockedFp = createHash("sha256")
+      .update(JSON.stringify([draftForLocked]))
+      .digest("hex");
+    await f.repository.updateDeclaration({
+      id: lockedFailedDecl.id,
+      hotelId: "hotel-1",
+      expectedVersion: lockedFailedDecl.version,
+      data: {
+        status: "FAILED",
+        providerCode: "LOCAL_VALIDATION",
+        submittedPayloadFingerprint: lockedFp,
+      },
+    });
+    f.occupantsReadService.getActiveStayOccupantsPaged.mockImplementation(async () => {
+      unsentCheckPage++;
+      return {
+        items: [recentTodayGuest], // ineligible because LOCAL_VALIDATION with unchanged fingerprint
+        nextCursor: `unsent-cursor-${unsentCheckPage}`,
+      };
+    });
+    await expect(
+      f.service.hasEligibleSameDayUnsentWork("hotel-1", new Date("2026-09-14T14:03:00.000Z")),
+    ).resolves.toBe(true);
+    expect(unsentCheckPage).toBe(100);
     f.service.onModuleDestroy();
+  });
+
+  it("BCA-08 + BCA-09: verifies applied local PostgreSQL indexes/columns and enforces KbttHotelConnection_csltId_key inside a rolled-back transaction", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    require("dotenv").config({ path: resolve(__dirname, "../../../../.env") });
+    const dbUrl =
+      process.env.DATABASE_URL ||
+      "postgresql://postgres:postgres@localhost:5432/vietsage_auth?schema=public";
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { Pool } = require("pg") as typeof import("pg");
+    const pool = new Pool({ connectionString: dbUrl, max: 1 });
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const idxRes = await client.query<{ indexname: string }>(`
+        SELECT indexname
+        FROM pg_indexes
+        WHERE schemaname = 'public'
+          AND indexname IN (
+            'KbttHotelConnection_csltId_key',
+            'KbttGuestDeclaration_hotelId_occupantId_revision_idx',
+            'GuestStayOccupant_hotelId_id_idx'
+          )
+        ORDER BY indexname ASC
+      `);
+      expect(idxRes.rows.map((r) => r.indexname)).toEqual([
+        "GuestStayOccupant_hotelId_id_idx",
+        "KbttGuestDeclaration_hotelId_occupantId_revision_idx",
+        "KbttHotelConnection_csltId_key",
+      ]);
+
+      const colRes = await client.query<{ column_name: string }>(`
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'KbttGuestDeclaration'
+          AND column_name IN ('submittedConnectionCiphertext', 'claimToken', 'attemptedAt')
+        ORDER BY column_name ASC
+      `);
+      expect(colRes.rows.map((r) => r.column_name)).toEqual([
+        "attemptedAt",
+        "claimToken",
+        "submittedConnectionCiphertext",
+      ]);
+
+      const dupRes = await client.query(`
+        SELECT "csltId", COUNT(*)
+        FROM "KbttHotelConnection"
+        GROUP BY "csltId"
+        HAVING COUNT(*) > 1
+      `);
+      expect(dupRes.rowCount).toBe(0);
+
+      // Verify unique index constraint on KbttHotelConnection(csltId) inside SAVEPOINT so the transaction remains clean
+      await client.query(`
+        INSERT INTO "Tenant" ("id", "code", "name", "updatedAt")
+        VALUES ('tenant-bca-mig-test-1', 'TBM1', 'Tenant BCA Mig Test 1', NOW()),
+               ('tenant-bca-mig-test-2', 'TBM2', 'Tenant BCA Mig Test 2', NOW())
+      `);
+      await client.query(`
+        INSERT INTO "Hotel" ("id", "tenantId", "name", "code", "updatedAt")
+        VALUES
+          ('hotel-bca-mig-1', 'tenant-bca-mig-test-1', 'Hotel 1', 'HBM1', NOW()),
+          ('hotel-bca-mig-2', 'tenant-bca-mig-test-2', 'Hotel 2', 'HBM2', NOW())
+      `);
+      await client.query(`
+        INSERT INTO "KbttHotelConnection" (
+          "hotelId", "csltId", "ciphertext", "iv", "authTag", "keyVersion",
+          "status", "lastCheckedAt", "lastConnectedAt"
+        ) VALUES (
+          'hotel-bca-mig-1', '999888777', 'cipher-1', 'iv-1', 'tag-1', 1,
+          'CONNECTED', NOW(), NOW()
+        )
+      `);
+      await client.query("SAVEPOINT sp_dup_cslt");
+      let duplicateConstraintErrorCode: string | null = null;
+      try {
+        await client.query(`
+          INSERT INTO "KbttHotelConnection" (
+            "hotelId", "csltId", "ciphertext", "iv", "authTag", "keyVersion",
+            "status", "lastCheckedAt", "lastConnectedAt"
+          ) VALUES (
+            'hotel-bca-mig-2', '999888777', 'cipher-2', 'iv-2', 'tag-2', 1,
+            'CONNECTED', NOW(), NOW()
+          )
+        `);
+      } catch (err: any) {
+        duplicateConstraintErrorCode = err?.code ?? "UNKNOWN_PG_ERROR";
+        await client.query("ROLLBACK TO SAVEPOINT sp_dup_cslt");
+      }
+      expect(duplicateConstraintErrorCode).toBe("23505");
+    } finally {
+      await client.query("ROLLBACK").catch(() => undefined);
+      client.release();
+      await pool.end();
+    }
   });
 });

@@ -17,7 +17,7 @@ import {
   type OnModuleDestroy,
   type OnModuleInit,
 } from "@nestjs/common";
-import { createHash } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import {
   KbttAutoSubmitRun,
   KbttGuestDeclaration,
@@ -34,6 +34,7 @@ import { StayCheckInEventBus } from "../../../shared/events";
 import { z } from "zod";
 import {
   assertKbttDeclarationMutable,
+  getKbttSubmissionDateContext,
   KBTT_DAILY_SCHEDULE_SLOTS,
   KBTT_SCHEDULE_TIMEZONE,
   normalizeDateStringToIso,
@@ -45,6 +46,7 @@ import {
   kbttProviderWardSchema,
   kbttVietnameseReadySchema,
   parseDraftPayload,
+  validateKbttSubmissionDates,
   type KbttAutoSubmitConfig,
   type KbttCatalogItemView,
   type KbttCatalogKind,
@@ -56,6 +58,7 @@ import {
   type KbttDerivedStatus,
   type KbttPaginationQuery,
   type KbttSession,
+  type KbttSubmissionDateContext,
 } from "../domain/schemas/kbtt.schema";
 import { KbttCredentialCipher } from "../infrastructure/kbtt-credential-cipher";
 import {
@@ -69,6 +72,7 @@ import { KbttRepository } from "../infrastructure/kbtt.repository";
 import {
   composeKbttDraft,
   compactKbttDeclarationDraft,
+  hasExplicitDeclarationDate,
   markKbttDeclarationDates,
 } from "../domain/kbtt-draft-profile";
 import {
@@ -94,6 +98,11 @@ const KBTT_TRANSIENT_OR_PAUSED_CODES = new Set([
   "DELIVERY_PAUSED",
   "KBTT_NOT_CONFIGURED",
   "KBTT_AUTH_FAILED",
+  "AUTHENTICATION_REQUIRED",
+  "401",
+  "403",
+  "HTTP_401",
+  "HTTP_403",
   "KBTT_SESSION_ENDED",
   "KBTT_TEMP_DISCONNECTED",
   "KBTT_RETRY_PENDING",
@@ -114,7 +123,7 @@ const KBTT_RATE_LIMIT_CODES = new Set([
   "KBTT_RATE_LIMITED",
 ]);
 
-export function computeVietnamNextTenMinuteBoundary(now: Date = new Date()): Date | null {
+export function computeVietnamNextTenMinuteBoundary(now: Date = new Date()): Date {
   const vnOffsetMs = 7 * 3600_000;
   const vnNow = new Date(now.getTime() + vnOffsetMs);
   const year = vnNow.getUTCFullYear();
@@ -125,11 +134,7 @@ export function computeVietnamNextTenMinuteBoundary(now: Date = new Date()): Dat
 
   const deltaMinutes = 10 - (minute % 10);
   const minuteFloorUtcMs = Date.UTC(year, month, day, hour, minute, 0, 0) - vnOffsetMs;
-  const boundary = new Date(minuteFloorUtcMs + deltaMinutes * 60_000);
-  if (toYmd(boundary, VIETNAM_TIME_ZONE) !== toYmd(now, VIETNAM_TIME_ZONE)) {
-    return null;
-  }
-  return boundary;
+  return new Date(minuteFloorUtcMs + deltaMinutes * 60_000);
 }
 
 export function computeVietnamNextDailySlot(now: Date = new Date()): {
@@ -304,8 +309,18 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
   private readonly healthProbes = new Map<string, Promise<boolean>>();
   private readonly unknownReconciliations = new Map<
     string,
-    Promise<{ settledCount: number; retryScheduledCount: number; remainingUnknownCount: number }>
+    Promise<{
+      settledCount: number;
+      retryScheduledCount: number;
+      remainingUnknownCount: number;
+      incomplete?: boolean;
+      nextCursor?: string | null;
+    }>
   >();
+  private readonly unknownReconciliationCursors = new Map<string, string>();
+  private readonly unknownWorkCheckCursors = new Map<string, string>();
+  private readonly unsentWorkCheckCursors = new Map<string, string>();
+  private readonly autoSubmitResumeCursors = new Map<string, string>();
   private readonly revocations = new Map<
     string,
     { controller: AbortController; task: Promise<void> }
@@ -314,6 +329,10 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
   private readonly operations = new Map<string, Promise<unknown>>();
   private readonly initialDeliveries = new Map<string, Promise<void>>();
   private readonly scheduledTimers = new Map<string, NodeJS.Timeout>();
+  private readonly historyDayCache = new Map<
+    string,
+    { expiresAt: number; rows: Promise<unknown[]> }
+  >();
 
   constructor(
     private readonly access: HotelAccessService,
@@ -333,6 +352,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       (hotelId, connection) => this.getOrRefreshSession(hotelId, connection),
       (hotelId, session, options) =>
         this.handleProviderSessionFailure(hotelId, session, options?.authRejected ?? false),
+      (hotelId, csltId) => this.hasConflictingFacilityOwnership(hotelId, csltId),
     );
   }
 
@@ -417,8 +437,20 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
           message: "Kết nối BCA đã thay đổi; cần xác nhận lại cơ sở trước khi gửi.",
         };
       }
-      if (await this.hasConflictingFacilityOwnership(hotelId, csltId)) {
-        await this.markFacilityConflictIfCurrent(hotelId, connection.ciphertext);
+      const baselineCiphertext = expectedCiphertext ?? connection.ciphertext;
+      let hasFacilityConflict = false;
+      try {
+        hasFacilityConflict = await this.hasConflictingFacilityOwnership(hotelId, csltId);
+      } catch {
+        return {
+          outcome: "BUSINESS_REJECTION",
+          code: "KBTT_UNAVAILABLE",
+          message:
+            "Không thể xác minh quyền sở hữu cơ sở lưu trú BCA trong hệ thống; đã chặn gửi để đảm bảo an toàn.",
+        };
+      }
+      if (hasFacilityConflict) {
+        await this.markFacilityConflictIfCurrent(hotelId, baselineCiphertext);
         return {
           outcome: "BUSINESS_REJECTION",
           code: "KBTT_FACILITY_CONFLICT",
@@ -426,14 +458,58 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
             "Cơ sở lưu trú BCA này đang bị trùng liên kết với một khách sạn khác trên hệ thống; luồng gửi đã được chặn an toàn.",
         };
       }
-      if (requireEnabled && !connection.autoSubmitEnabled) {
+      const authoritativeArrivalInstant =
+        current.stay.checkedInAt ?? current.stay.plannedCheckInAt;
+      const authoritativeArrivalYmd = authoritativeArrivalInstant
+        ? toYmd(authoritativeArrivalInstant, VIETNAM_TIME_ZONE)
+        : undefined;
+      const dateCheck = validateKbttSubmissionDates(
+        kind,
+        guest as Record<string, unknown>,
+        new Date(),
+        {
+          authoritativeArrivalYmd: hasExplicitDeclarationDate(
+            current.draftPayloadJson,
+            "ngayDenCsltStr",
+          )
+            ? undefined
+            : authoritativeArrivalYmd,
+          enforceArrivalWindow: true,
+        },
+      );
+      if (!dateCheck.valid) {
+        return {
+          outcome: "BUSINESS_REJECTION",
+          code: dateCheck.outOfWindow ? "OUT_OF_DATE_WINDOW" : "LOCAL_VALIDATION",
+          message: dateCheck.issues.map((i) => `${i.field}: ${i.message}`).join("; "),
+        };
+      }
+      // Recheck connection generation, status and session immediately before calling the provider after every awaited precondition.
+      const finalConnection = await this.repository.find(hotelId);
+      const finalCached = this.sessions.get(hotelId);
+      if (
+        !finalConnection ||
+        finalConnection.status !== "CONNECTED" ||
+        finalConnection.csltId !== csltId ||
+        finalConnection.ciphertext !== baselineCiphertext ||
+        !finalCached ||
+        finalCached.session.AccessToken !== accessToken ||
+        finalCached.session.CsltId !== csltId ||
+        finalCached.ciphertext !== baselineCiphertext
+      ) {
+        return {
+          outcome: "BUSINESS_REJECTION",
+          code: "CONNECTION_SCOPE_CHANGED",
+          message: "Kết nối BCA đã thay đổi; cần xác nhận lại cơ sở trước khi gửi.",
+        };
+      }
+      if (requireEnabled && !finalConnection.autoSubmitEnabled) {
         return {
           outcome: "BUSINESS_REJECTION",
           code: "DELIVERY_PAUSED",
           message: "Luồng gửi BCA đang tạm dừng.",
         };
       }
-      const baselineCiphertext = expectedCiphertext ?? connection.ciphertext;
       const outcome = this.staySync?.enabled()
         ? await this.staySync.sendInitial(
             hotelId,
@@ -444,12 +520,35 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
             csltId,
             requireEnabled,
             baselineCiphertext,
+            (hId, cId) => this.hasConflictingFacilityOwnership(hId, cId),
           )
         : await this.provider.submitDeclaration(kind, payload, accessToken);
+      const latestAfterProvider = await this.repository.find(hotelId).catch(() => null);
+      const cachedAfterProvider = this.sessions.get(hotelId);
+      const sameGenerationAfterProvider = Boolean(
+        latestAfterProvider &&
+          latestAfterProvider.status === "CONNECTED" &&
+          latestAfterProvider.csltId === csltId &&
+          latestAfterProvider.ciphertext === baselineCiphertext &&
+          cachedAfterProvider &&
+          cachedAfterProvider.ciphertext === baselineCiphertext &&
+          cachedAfterProvider.session.AccessToken === accessToken,
+      );
+      if (!sameGenerationAfterProvider && outcome.outcome === "BUSINESS_REJECTION") {
+        return {
+          outcome: "BUSINESS_REJECTION",
+          code: "CONNECTION_SCOPE_CHANGED",
+          message:
+            "Phiên kết nối BCA đã thay đổi trong lúc gửi; hệ thống sẽ tự gửi lại theo kết nối mới.",
+        };
+      }
       const authRejected = /^(401|403|HTTP_401|HTTP_403|KBTT_AUTH_FAILED)$/.test(outcome.code);
       const rateLimited = KBTT_RATE_LIMIT_CODES.has(outcome.code);
-      if (outcome.outcome === "AMBIGUOUS" || authRejected || rateLimited) {
-        const failed = this.sessions.get(hotelId)?.session;
+      if (
+        sameGenerationAfterProvider &&
+        (outcome.outcome === "AMBIGUOUS" || authRejected || rateLimited)
+      ) {
+        const failed = cachedAfterProvider?.session;
         if (failed?.AccessToken === accessToken) {
           if (rateLimited) {
             await this.enterTemporaryDisconnectCooldown(
@@ -465,7 +564,8 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       }
       return outcome;
     } catch {
-      const failed = this.sessions.get(hotelId)?.session;
+      const failedCached = this.sessions.get(hotelId);
+      const failed = failedCached?.session;
       if (failed?.AccessToken === accessToken) {
         try {
           await this.handleProviderSessionFailure(hotelId, failed, false);
@@ -489,13 +589,12 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     });
 
     const now = new Date();
-    const todayYmd = toYmd(now, VIETNAM_TIME_ZONE);
     const runs = await this.repository.findPendingScheduledAutoSubmitRuns();
     for (const run of runs) {
       const trigger = (run.summaryJson as any)?.trigger;
-      const runYmd = toYmd(run.scheduledFor, VIETNAM_TIME_ZONE);
-      const isFutureToday = runYmd === todayYmd && run.scheduledFor.getTime() > now.getTime();
-      if (!isFutureToday && trigger !== "MANUAL_DELAYED") {
+      const isFuture = run.scheduledFor.getTime() > now.getTime();
+      const resumableUnknown = (run.summaryJson as any)?.unknownResume?.day === toYmd(now, VIETNAM_TIME_ZONE);
+      if (!isFuture && trigger !== "MANUAL_DELAYED" && !resumableUnknown) {
         try {
           await this.repository.finalizeAutoSubmitRun(run.id, {
             status: "CANCELLED",
@@ -581,13 +680,20 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     const normalizedCsltId = csltId.trim();
     if (!normalizedCsltId) return false;
     const key = this.getFacilityKey(normalizedCsltId);
-    const activeOwner = KbttService.activeFacilities.get(key);
-    if (activeOwner && activeOwner !== hotelId) {
-      return true;
+    if (typeof this.repository.findConflictingFacilityConnections === "function") {
+      const dbConflicts =
+        (await this.repository.findConflictingFacilityConnections(normalizedCsltId, hotelId)) ?? [];
+      if (dbConflicts.length > 0) {
+        return true;
+      }
+      const activeOwner = KbttService.activeFacilities.get(key);
+      if (activeOwner && activeOwner !== hotelId) {
+        KbttService.activeFacilities.delete(key);
+      }
+      return false;
     }
-    const dbConflicts =
-      (await this.repository.findConflictingFacilityConnections?.(normalizedCsltId, hotelId)) ?? [];
-    return dbConflicts.length > 0;
+    const activeOwner = KbttService.activeFacilities.get(key);
+    return Boolean(activeOwner && activeOwner !== hotelId);
   }
 
   private async markFacilityConflictIfCurrent(hotelId: string, ciphertext: string) {
@@ -671,7 +777,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
         await this.revoke(previous.AccessToken);
       const latest = await this.repository.find(hotelId);
       if (latest?.status === "CONNECTED" && latest.autoSubmitEnabled) {
-        await this.reconcilePendingUnknownDeclarationsForHotel(hotelId).catch(() => null);
+        void this.reconcilePendingUnknownDeclarationsForHotel(hotelId).catch(() => null);
         await this.scheduleEligibleSameDayCatchUp(hotelId).catch(() => null);
       }
       return this.view(latest);
@@ -732,7 +838,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
         await this.revoke(cached.session.AccessToken);
       const latest = await this.repository.find(hotelId);
       if (latest?.status === "CONNECTED" && latest.autoSubmitEnabled) {
-        await this.reconcilePendingUnknownDeclarationsForHotel(hotelId).catch(() => null);
+        void this.reconcilePendingUnknownDeclarationsForHotel(hotelId).catch(() => null);
         await this.scheduleEligibleSameDayCatchUp(hotelId).catch(() => null);
       }
       return this.view(latest);
@@ -769,6 +875,10 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     this.cooldownTimers.clear();
     this.healthProbes.clear();
     this.unknownReconciliations.clear();
+    this.unknownReconciliationCursors.clear();
+    this.unknownWorkCheckCursors.clear();
+    this.unsentWorkCheckCursors.clear();
+    this.autoSubmitResumeCursors.clear();
     for (const revocation of this.revocations.values()) revocation.controller.abort();
     this.revocations.clear();
     this.sessionEnded.clear();
@@ -1242,11 +1352,23 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       | NonNullable<Awaited<ReturnType<KbttRepository["findOccupant"]>>>
       | ActiveStayOccupantRow,
     declaration: KbttGuestDeclaration | null | undefined,
-    todayYmd: string,
+    nowOrContext: Date | string | KbttSubmissionDateContext,
     cutoffInstant?: Date | null,
   ): boolean {
     const kind = declaration?.declarationKind ?? occupant.citizenshipKind;
     if (!kind) return false;
+    const context =
+      typeof nowOrContext === "string"
+        ? {
+            todayYmd: nowOrContext,
+            yesterdayYmd: addDaysYmd(nowOrContext, -1),
+            todayStartStr: `${nowOrContext} 00:00:00`,
+            yesterdayStartStr: `${addDaysYmd(nowOrContext, -1)} 00:00:00`,
+            tomorrowStartStr: `${addDaysYmd(nowOrContext, 1)} 00:00:00`,
+          }
+        : nowOrContext instanceof Date
+          ? getKbttSubmissionDateContext(nowOrContext)
+          : nowOrContext;
     const arrivalInstant = this.getOccupantArrivalInstant(occupant);
     if (cutoffInstant && arrivalInstant && arrivalInstant.getTime() > cutoffInstant.getTime()) {
       return false;
@@ -1258,7 +1380,14 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       return false;
     }
     const arrivalYmd = this.getOccupantArrivalVietnamYmd(occupant, draft);
-    if (!arrivalYmd || arrivalYmd !== todayYmd) {
+    if (!arrivalYmd || (arrivalYmd !== context.todayYmd && arrivalYmd !== context.yesterdayYmd)) {
+      return false;
+    }
+    const dateCheck = validateKbttSubmissionDates(kind, draft, context, {
+      authoritativeArrivalYmd: arrivalYmd,
+      enforceArrivalWindow: true,
+    });
+    if (dateCheck.outOfWindow) {
       return false;
     }
     if (!declaration) return true;
@@ -1290,32 +1419,75 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     return false;
   }
 
-  async hasPendingUnknownWork(hotelId: string): Promise<boolean> {
+  async hasPendingUnknownWork(hotelId: string, now: Date = new Date()): Promise<boolean> {
     if (!this.occupantsReadService) return false;
-    let cursor: string | undefined = undefined;
+    const todayYmd = toYmd(now, VIETNAM_TIME_ZONE);
+    const yesterdayYmd = addDaysYmd(todayYmd, -1);
+    const minWindowDay = addDaysYmd(todayYmd, -29);
+    const recentStart = getDayBounds(yesterdayYmd, VIETNAM_TIME_ZONE).start;
+    const todayEnd = getDayBounds(todayYmd, VIETNAM_TIME_ZONE).end;
+    const windowStart = getDayBounds(minWindowDay, VIETNAM_TIME_ZONE).start;
+
+    const cohorts = [
+      { key: `${hotelId}:recent`, arrivalStart: recentStart, arrivalEnd: todayEnd },
+      { key: `${hotelId}:window`, arrivalStart: windowStart, arrivalEnd: recentStart },
+    ];
     const pageSize = 100;
-    for (let page = 0; page < 10; page++) {
-      const res = await this.occupantsReadService.getActiveStayOccupantsPaged(hotelId, {
-        cursor,
-        take: pageSize,
-      });
-      const items = res?.items ?? [];
-      if (items.length === 0) return false;
-      const decls = await this.repository.findDeclarationsByHotel(
-        hotelId,
-        items.map((i) => i.id),
-      );
-      const declMap = new Map<string, KbttGuestDeclaration>();
-      for (const d of decls) {
-        if (!declMap.has(d.occupantId)) declMap.set(d.occupantId, d);
-      }
-      for (const occ of items) {
-        if (declMap.get(occ.id)?.status === "UNKNOWN") {
-          return true;
+    const maxPages = 50;
+    let pagesUsed = 0;
+
+    for (const cohort of cohorts) {
+      const savedCursor = this.unknownWorkCheckCursors.get(cohort.key);
+      let cursor: string | undefined = savedCursor;
+      let wrapped = !savedCursor;
+
+      while (pagesUsed < maxPages) {
+        pagesUsed++;
+        const res = await this.occupantsReadService.getActiveStayOccupantsPaged(hotelId, {
+          cursor,
+          take: pageSize,
+          arrivalStart: cohort.arrivalStart,
+          arrivalEnd: cohort.arrivalEnd,
+          kbttFilter: "UNKNOWN_ONLY",
+        });
+        const items = res?.items ?? [];
+        if (items.length > 0) {
+          const decls = await this.repository.findDeclarationsByHotel(
+            hotelId,
+            items.map((i) => i.id),
+          );
+          const declMap = new Map<string, KbttGuestDeclaration>();
+          for (const d of decls) {
+            if (!declMap.has(d.occupantId)) declMap.set(d.occupantId, d);
+          }
+          for (const occ of items) {
+            if (declMap.get(occ.id)?.status === "UNKNOWN") {
+              if (res?.nextCursor) {
+                this.unknownWorkCheckCursors.set(cohort.key, res.nextCursor);
+              } else {
+                this.unknownWorkCheckCursors.delete(cohort.key);
+              }
+              return true;
+            }
+          }
+        }
+        if (res?.nextCursor && items.length > 0) {
+          cursor = res.nextCursor;
+          if (pagesUsed >= maxPages) {
+            this.unknownWorkCheckCursors.set(cohort.key, cursor);
+            // Capped before reaching EOF of the DB cohort: never report a false absence.
+            return true;
+          }
+        } else {
+          this.unknownWorkCheckCursors.delete(cohort.key);
+          if (!wrapped && pagesUsed < maxPages) {
+            wrapped = true;
+            cursor = undefined;
+            continue;
+          }
+          break;
         }
       }
-      if (!res?.nextCursor) break;
-      cursor = res.nextCursor;
     }
     return false;
   }
@@ -1403,11 +1575,72 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     };
   }
 
+  private isDeclarationClaimActive(
+    declaration: KbttGuestDeclaration,
+    now: Date = new Date(),
+  ): boolean {
+    if (this.initialDeliveries.has(declaration.id)) {
+      return true;
+    }
+    const claimToken = (declaration as any).claimToken as string | null | undefined;
+    if (!claimToken) return false;
+    const attemptedAtRaw =
+      ((declaration as any).attemptedAt as Date | string | null | undefined) ??
+      declaration.updatedAt;
+    const attemptedAt =
+      attemptedAtRaw instanceof Date ? attemptedAtRaw : new Date(attemptedAtRaw ?? 0);
+    if (Number.isNaN(attemptedAt.getTime())) return false;
+    return now.getTime() - attemptedAt.getTime() < 5 * 60_000;
+  }
+
+  private async readCoalescedProviderHistoryDay(
+    csltId: string,
+    ciphertext: string,
+    kind: ReconciliationKind,
+    dayYmd: string,
+    accessToken: string,
+    signal?: AbortSignal,
+  ): Promise<unknown[]> {
+    const nowMs = Date.now();
+    for (const [k, cached] of this.historyDayCache.entries()) {
+      if (cached.expiresAt <= nowMs) this.historyDayCache.delete(k);
+    }
+    const cacheKey = `${csltId}:${ciphertext}:${kind}:${dayYmd}`;
+    const existing = this.historyDayCache.get(cacheKey);
+    if (existing && existing.expiresAt > nowMs) {
+      return existing.rows;
+    }
+    const rowsPromise = this.providerRead!
+      .readAllHistory(kind, accessToken, { dateFrom: dayYmd, dateTo: dayYmd }, signal)
+      .catch((err) => {
+        if (this.historyDayCache.get(cacheKey)?.rows === rowsPromise) {
+          this.historyDayCache.delete(cacheKey);
+        }
+        throw err;
+      });
+    if (this.historyDayCache.size >= 200) {
+      const oldestKey = this.historyDayCache.keys().next().value;
+      if (oldestKey) this.historyDayCache.delete(oldestKey);
+    }
+    this.historyDayCache.set(cacheKey, {
+      expiresAt: nowMs + 30_000,
+      rows: rowsPromise,
+    });
+    return rowsPromise;
+  }
+
   async reconcilePendingUnknownDeclarationsForHotel(
     hotelId: string,
     forceExplicit = false,
     now: Date = new Date(),
-  ): Promise<{ settledCount: number; retryScheduledCount: number; remainingUnknownCount: number }> {
+    resume?: { day: string; recent?: string; window?: string; next?: string },
+  ): Promise<{
+    settledCount: number;
+    retryScheduledCount: number;
+    remainingUnknownCount: number;
+    incomplete?: boolean;
+    nextCursor?: string | null;
+  }> {
     const existingTask = this.unknownReconciliations.get(hotelId);
     if (existingTask) return existingTask;
 
@@ -1415,6 +1648,10 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       if (!this.providerRead || !this.occupantsReadService) {
         return { settledCount: 0, retryScheduledCount: 0, remainingUnknownCount: 0 };
       }
+      await this.repository.recoverInterruptedDeclarations?.(
+        hotelId,
+        new Date(now.getTime() - 5 * 60_000),
+      );
       const connection = await this.repository.find(hotelId).catch(() => null);
       const cached = this.sessions.get(hotelId);
       if (
@@ -1428,26 +1665,161 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       ) {
         return { settledCount: 0, retryScheduledCount: 0, remainingUnknownCount: 0 };
       }
-      if (await this.hasConflictingFacilityOwnership(hotelId, connection.csltId)) {
+      let hasFacilityConflict = false;
+      try {
+        hasFacilityConflict = await this.hasConflictingFacilityOwnership(hotelId, connection.csltId);
+      } catch {
+        return {
+          settledCount: 0,
+          retryScheduledCount: 0,
+          remainingUnknownCount: 0,
+          incomplete: true,
+        };
+      }
+      if (hasFacilityConflict) {
         await this.markFacilityConflictIfCurrent(hotelId, connection.ciphertext);
         return { settledCount: 0, retryScheduledCount: 0, remainingUnknownCount: 0 };
       }
 
-      const occupants: ActiveStayOccupantRow[] = [];
-      let cursor: string | undefined = undefined;
-      for (let page = 0; page < 10; page++) {
-        const res = await this.occupantsReadService.getActiveStayOccupantsPaged(hotelId, {
-          cursor,
-          take: 500,
-        });
-        const items = res?.items ?? [];
-        if (items.length === 0) break;
-        occupants.push(...items);
-        if (!res?.nextCursor) break;
-        cursor = res.nextCursor;
+      const todayYmd = toYmd(now, VIETNAM_TIME_ZONE);
+      const yesterdayYmd = addDaysYmd(todayYmd, -1);
+      const minWindowDay = addDaysYmd(todayYmd, -29);
+      if (this.unknownReconciliationCursors.get(`${hotelId}:day`) !== todayYmd) {
+        for (const key of ["recent", "window", "next"]) {
+          this.unknownReconciliationCursors.delete(`${hotelId}:${key}`);
+        }
+        this.unknownReconciliationCursors.set(`${hotelId}:day`, todayYmd);
       }
+      if (resume?.day === todayYmd) {
+        if (resume.next === "window") this.unknownReconciliationCursors.set(`${hotelId}:next`, "window");
+        for (const cohort of ["recent", "window"] as const) {
+          const cursor = resume[cohort];
+          if (cursor) this.unknownReconciliationCursors.set(`${hotelId}:${cohort}`, cursor);
+        }
+      }
+      const recentStart = getDayBounds(yesterdayYmd, VIETNAM_TIME_ZONE).start;
+      const todayEnd = getDayBounds(todayYmd, VIETNAM_TIME_ZONE).end;
+      const windowStart = getDayBounds(minWindowDay, VIETNAM_TIME_ZONE).start;
+
+      const cohorts = [
+        { key: `${hotelId}:recent`, arrivalStart: recentStart, arrivalEnd: todayEnd },
+        { key: `${hotelId}:window`, arrivalStart: windowStart, arrivalEnd: recentStart },
+      ];
+      const occupants: ActiveStayOccupantRow[] = [];
+      const seenOccupantIds = new Set<string>();
+      const maxPages = 20;
+      let pagesUsed = 0;
+      let hasMoreUnknownPages = false;
+      let nextResumeCursor: string | null = null;
+
+      const startCohort = this.unknownReconciliationCursors.get(`${hotelId}:next`) === "window" ? 1 : 0;
+      for (const cohort of cohorts.slice(startCohort)) {
+        if (pagesUsed >= maxPages) {
+          hasMoreUnknownPages = true;
+          if (!this.unknownReconciliationCursors.has(`${hotelId}:next`)) {
+            this.unknownReconciliationCursors.set(`${hotelId}:next`, "window");
+          }
+          break;
+        }
+        const savedCursor = this.unknownReconciliationCursors.get(cohort.key);
+        let cursor: string | undefined = savedCursor;
+
+        while (pagesUsed < maxPages) {
+          pagesUsed++;
+          const res = await this.occupantsReadService.getActiveStayOccupantsPaged(hotelId, {
+            cursor,
+            take: 500,
+            arrivalStart: cohort.arrivalStart,
+            arrivalEnd: cohort.arrivalEnd,
+            kbttFilter: "UNKNOWN_ONLY",
+          });
+          const items = res?.items ?? [];
+          for (const item of items) {
+            if (!seenOccupantIds.has(item.id)) {
+              seenOccupantIds.add(item.id);
+              occupants.push(item);
+            }
+          }
+          if (res?.nextCursor && items.length > 0) {
+            cursor = res.nextCursor;
+            if (pagesUsed >= maxPages) {
+              hasMoreUnknownPages = true;
+              nextResumeCursor = cursor;
+              this.unknownReconciliationCursors.set(cohort.key, cursor);
+              this.unknownReconciliationCursors.set(`${hotelId}:next`, cohort.key.endsWith(":window") ? "window" : "recent");
+              break;
+            }
+          } else {
+            this.unknownReconciliationCursors.delete(cohort.key);
+            this.unknownReconciliationCursors.delete(`${hotelId}:next`);
+            break;
+          }
+        }
+      }
+
+      const scheduleBoundedUnknownContinuationIfNeeded = async () => {
+        if (
+          !hasMoreUnknownPages ||
+          !connection.autoSubmitEnabled ||
+          process.env.KBTT_AUTO_SUBMIT_KILL_SWITCH === "true" ||
+          process.env.KBTT_AUTO_SUBMIT_LIVE_ENABLED !== "true" ||
+          !this.repository.createScheduledAutoSubmitRun
+        ) {
+          return;
+        }
+        try {
+          const nextBoundary = computeVietnamNextTenMinuteBoundary(now);
+          const unknownResume = {
+            day: todayYmd,
+            recent: this.unknownReconciliationCursors.get(`${hotelId}:recent`),
+            window: this.unknownReconciliationCursors.get(`${hotelId}:window`),
+            next: this.unknownReconciliationCursors.get(`${hotelId}:next`),
+          };
+          const pending = await this.repository.findPendingScheduledAutoSubmitRuns(hotelId);
+          const existing = pending.find(
+            (r) =>
+              r.status === "RUNNING" &&
+              r.scheduledFor.getTime() === nextBoundary.getTime(),
+          );
+          if (existing) {
+            await this.repository.saveUnknownContinuation(existing.id, unknownResume);
+            this.armScheduledRun(existing);
+            return;
+          }
+          const run = await this.repository.createScheduledAutoSubmitRun(
+            hotelId,
+            nextBoundary,
+            false,
+            "CONTINUATION_UNKNOWN",
+            {
+              cutoffAt: nextBoundary.toISOString(),
+              unknownResume: {
+                day: todayYmd,
+                recent: this.unknownReconciliationCursors.get(`${hotelId}:recent`),
+                window: this.unknownReconciliationCursors.get(`${hotelId}:window`),
+                next: this.unknownReconciliationCursors.get(`${hotelId}:next`),
+              },
+            },
+          );
+          if (run) {
+            await this.repository.saveUnknownContinuation(run.id, unknownResume);
+            this.armScheduledRun(run);
+          }
+        } catch {
+          // non-blocking continuation registration
+        }
+      };
+
       if (occupants.length === 0) {
-        return { settledCount: 0, retryScheduledCount: 0, remainingUnknownCount: 0 };
+        await scheduleBoundedUnknownContinuationIfNeeded();
+        return {
+          settledCount: 0,
+          retryScheduledCount: 0,
+          remainingUnknownCount: 0,
+          ...(hasMoreUnknownPages
+            ? { incomplete: true, ...(nextResumeCursor ? { nextCursor: nextResumeCursor } : {}) }
+            : {}),
+        };
       }
 
       const declarations = await this.repository.findDeclarationsByHotel(
@@ -1458,15 +1830,40 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       for (const d of declarations) {
         if (!declByOccupant.has(d.occupantId)) declByOccupant.set(d.occupantId, d);
       }
-      const unknownDeclarations = occupants
+      const allUnknownDeclarations = occupants
         .map((occ) => ({ occupant: occ, declaration: declByOccupant.get(occ.id) ?? null }))
         .filter(
           (item): item is { occupant: ActiveStayOccupantRow; declaration: KbttGuestDeclaration } =>
             item.declaration?.status === "UNKNOWN",
         );
 
-      if (unknownDeclarations.length === 0) {
-        return { settledCount: 0, retryScheduledCount: 0, remainingUnknownCount: 0 };
+      if (allUnknownDeclarations.length === 0) {
+        await scheduleBoundedUnknownContinuationIfNeeded();
+        return {
+          settledCount: 0,
+          retryScheduledCount: 0,
+          remainingUnknownCount: 0,
+          ...(hasMoreUnknownPages
+            ? { incomplete: true, ...(nextResumeCursor ? { nextCursor: nextResumeCursor } : {}) }
+            : {}),
+        };
+      }
+
+      // Skip declarations that currently have an active in-flight claim across processes or in-memory.
+      const reconcilableUnknowns = allUnknownDeclarations.filter(
+        ({ declaration }) => !this.isDeclarationClaimActive(declaration, now),
+      );
+      const fencedInFlightCount = allUnknownDeclarations.length - reconcilableUnknowns.length;
+      if (reconcilableUnknowns.length === 0) {
+        await scheduleBoundedUnknownContinuationIfNeeded();
+        return {
+          settledCount: 0,
+          retryScheduledCount: 0,
+          remainingUnknownCount: fencedInFlightCount,
+          ...(hasMoreUnknownPages
+            ? { incomplete: true, ...(nextResumeCursor ? { nextCursor: nextResumeCursor } : {}) }
+            : {}),
+        };
       }
 
       let activeSession: KbttSession;
@@ -1476,24 +1873,77 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
         return {
           settledCount: 0,
           retryScheduledCount: 0,
-          remainingUnknownCount: unknownDeclarations.length,
+          remainingUnknownCount: allUnknownDeclarations.length,
+          incomplete: true,
+          ...(nextResumeCursor ? { nextCursor: nextResumeCursor } : {}),
         };
       }
 
-      const kinds: ReconciliationKind[] = ["VIETNAMESE", "FOREIGN"];
+      const neededDaysByKind: Record<ReconciliationKind, Set<string>> = {
+        VIETNAMESE: new Set<string>(),
+        FOREIGN: new Set<string>(),
+      };
+      const neededKinds = new Set<ReconciliationKind>();
+      for (const { occupant, declaration } of reconcilableUnknowns) {
+        if (declaration.submittedCsltId && declaration.submittedCsltId !== connection.csltId) {
+          continue;
+        }
+        const nat = occupant.nationality?.trim().toUpperCase();
+        const kind: ReconciliationKind =
+          declaration.declarationKind ??
+          occupant.citizenshipKind ??
+          (nat === "VNM" ? "VIETNAMESE" : "FOREIGN");
+        neededKinds.add(kind);
+        const draft = this.declarationDraft(declaration, occupant);
+        const arrivalYmd = this.getOccupantArrivalVietnamYmd(occupant, draft);
+        if (arrivalYmd && arrivalYmd >= minWindowDay && arrivalYmd <= todayYmd) {
+          neededDaysByKind[kind].add(arrivalYmd);
+        }
+      }
+
+      if (neededKinds.size === 0) {
+        await scheduleBoundedUnknownContinuationIfNeeded();
+        return {
+          settledCount: 0,
+          retryScheduledCount: 0,
+          remainingUnknownCount: allUnknownDeclarations.length,
+          ...(hasMoreUnknownPages
+            ? { incomplete: true, ...(nextResumeCursor ? { nextCursor: nextResumeCursor } : {}) }
+            : {}),
+        };
+      }
+
       const providerGuests: ProviderReconciliationGuest[] = [];
       const completeKinds = new Set<ReconciliationKind>();
       let authFailed = false;
       let transientReadFailed = false;
+      let incompleteRead = false;
 
-      for (const kind of kinds) {
+      for (const kind of neededKinds) {
+        const sortedDays = [...neededDaysByKind[kind]].sort();
         try {
           const [residents, history] = await withKbttDeadline(
-            (sig) =>
-              Promise.all([
-                this.providerRead!.readAllResidents(kind, activeSession.AccessToken, sig),
-                this.providerRead!.readAllHistory(kind, activeSession.AccessToken, {}, sig),
-              ]),
+            async (sig) => {
+              const residentsPromise = this.providerRead!.readAllResidents(
+                kind,
+                activeSession.AccessToken,
+                sig,
+              );
+              const historyRows: unknown[] = [];
+              for (const dayYmd of sortedDays) {
+                sig.throwIfAborted();
+                const dayRows = await this.readCoalescedProviderHistoryDay(
+                  connection.csltId,
+                  connection.ciphertext,
+                  kind,
+                  dayYmd,
+                  activeSession.AccessToken,
+                  sig,
+                );
+                historyRows.push(...dayRows);
+              }
+              return [await residentsPromise, historyRows] as const;
+            },
             undefined,
             10_000,
           );
@@ -1529,6 +1979,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
           providerGuests.push(...merged.values());
           completeKinds.add(kind);
         } catch (err) {
+          incompleteRead = true;
           const known = err instanceof KbttProviderReadError ? err : null;
           if (
             known?.details.httpStatus === 401 ||
@@ -1547,7 +1998,9 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
         return {
           settledCount: 0,
           retryScheduledCount: 0,
-          remainingUnknownCount: unknownDeclarations.length,
+          remainingUnknownCount: allUnknownDeclarations.length,
+          incomplete: true,
+          ...(nextResumeCursor ? { nextCursor: nextResumeCursor } : {}),
         };
       }
 
@@ -1563,7 +2016,9 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
         return {
           settledCount: 0,
           retryScheduledCount: 0,
-          remainingUnknownCount: unknownDeclarations.length,
+          remainingUnknownCount: allUnknownDeclarations.length,
+          incomplete: true,
+          ...(nextResumeCursor ? { nextCursor: nextResumeCursor } : {}),
         };
       }
 
@@ -1574,12 +2029,13 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
         return {
           settledCount: 0,
           retryScheduledCount: 0,
-          remainingUnknownCount: unknownDeclarations.length,
+          remainingUnknownCount: allUnknownDeclarations.length,
+          incomplete: true,
+          ...(nextResumeCursor ? { nextCursor: nextResumeCursor } : {}),
         };
       }
 
-      const localGuests: LocalReconciliationGuest[] = occupants.map((row) => {
-        const decl = declByOccupant.get(row.id);
+      const localGuests: LocalReconciliationGuest[] = reconcilableUnknowns.map(({ occupant: row, declaration: decl }) => {
         const nat = row.nationality?.trim().toUpperCase();
         const kind =
           decl?.declarationKind ?? row.citizenshipKind ?? (nat === "VNM" ? "VIETNAMESE" : null);
@@ -1633,6 +2089,9 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
         providerGuests,
         completeKinds,
         connection.csltId,
+        {
+          coveredHistoryDays: neededDaysByKind,
+        },
       );
       const reconciledByOccupant = new Map(
         reconciledRows
@@ -1641,11 +2100,10 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       );
 
       let settledCount = 0;
-      let retryScheduledCount = 0;
-      let remainingUnknownCount = 0;
-      const todayYmd = toYmd(now, VIETNAM_TIME_ZONE);
+      const retryScheduledCount = 0;
+      let remainingUnknownCount = fencedInFlightCount;
 
-      for (const { occupant, declaration } of unknownDeclarations) {
+      for (const { occupant, declaration } of reconcilableUnknowns) {
         if (
           declaration.submittedCsltId &&
           declaration.submittedCsltId !== connection.csltId
@@ -1658,72 +2116,54 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
           !matchedRow ||
           !matchedRow.kind ||
           !completeKinds.has(matchedRow.kind) ||
-          matchedRow.status === "REVIEW" ||
-          matchedRow.status === null
+          matchedRow.status !== "MATCHED" ||
+          !matchedRow.bcaRecordId
         ) {
+          // Empty or non-matching read is never authoritative proof of nonacceptance; preserve UNKNOWN for manual review.
           remainingUnknownCount++;
           continue;
         }
 
-        if (matchedRow.status === "MATCHED" && matchedRow.bcaRecordId) {
-          try {
-            await this.repository.updateDeclaration({
-              id: declaration.id,
-              hotelId,
-              expectedVersion: declaration.version,
-              data: {
-                status: "SUBMITTED",
-                submittedCsltId: connection.csltId,
-                providerCode: "200",
-                providerMessage: `Đã đối soát khớp hồ sơ trên BCA (#${matchedRow.bcaRecordId}).`,
-                providerResponseJson: {
-                  reconciled: true,
-                  bcaRecordId: matchedRow.bcaRecordId,
-                } as Prisma.InputJsonValue,
-                submittedAt: declaration.submittedAt ?? now,
-              },
-            });
-            settledCount++;
-          } catch {
-            remainingUnknownCount++;
-          }
-          continue;
-        }
-
-        // Complete both-source read proves nonacceptance (NOT_FOUND) on the same facility
-        if (matchedRow.status === "NOT_FOUND" && completeKinds.size === 2) {
-          const arrivalYmd = this.getOccupantArrivalVietnamYmd(occupant);
-          const isSameDay = arrivalYmd === todayYmd;
-          try {
-            await this.repository.updateDeclaration({
-              id: declaration.id,
-              hotelId,
-              expectedVersion: declaration.version,
-              data: {
-                status: "FAILED",
-                providerCode: isSameDay ? "KBTT_PROVIDER_UNAVAILABLE" : "PRIOR_DAY_MANUAL_REQUIRED",
-                providerMessage: isSameDay
-                  ? "Đã đối soát BCA: hồ sơ chưa được ghi nhận từ lần gửi gián đoạn trước; sẵn sàng gửi bù trong ngày."
-                  : "Đã đối soát BCA: hồ sơ nhận phòng ngày trước chưa được ghi nhận; cần xử lý thủ công.",
-                submittedAt: null,
-              },
-            });
-            if (isSameDay) {
-              retryScheduledCount++;
-            }
-          } catch {
-            remainingUnknownCount++;
-          }
-        } else {
+        try {
+          await this.repository.updateDeclaration({
+            id: declaration.id,
+            hotelId,
+            expectedVersion: declaration.version,
+            expectedStatus: "UNKNOWN",
+            data: {
+              status: "SUBMITTED",
+              submittedCsltId: connection.csltId,
+              claimToken: null,
+              providerCode: "200",
+              providerMessage: `Đã đối soát khớp hồ sơ trên BCA (#${matchedRow.bcaRecordId}).`,
+              providerResponseJson: {
+                reconciled: true,
+                bcaRecordId: matchedRow.bcaRecordId,
+              } as Prisma.InputJsonValue,
+              submittedAt: declaration.submittedAt ?? now,
+            },
+          });
+          settledCount++;
+        } catch {
           remainingUnknownCount++;
         }
       }
 
-      if (retryScheduledCount > 0 && latestConn.autoSubmitEnabled) {
-        await this.scheduleEligibleSameDayCatchUp(hotelId, now).catch(() => null);
+      if (transientReadFailed) {
+        await this.enterTemporaryDisconnectCooldown(hotelId, activeSession);
+      } else {
+        await scheduleBoundedUnknownContinuationIfNeeded();
       }
 
-      return { settledCount, retryScheduledCount, remainingUnknownCount };
+      const isIncomplete = hasMoreUnknownPages || incompleteRead || completeKinds.size < neededKinds.size;
+      return {
+        settledCount,
+        retryScheduledCount,
+        remainingUnknownCount,
+        ...(isIncomplete
+          ? { incomplete: true, ...(nextResumeCursor ? { nextCursor: nextResumeCursor } : {}) }
+          : {}),
+      };
     })();
 
     this.unknownReconciliations.set(hotelId, task);
@@ -1738,31 +2178,69 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
 
   async hasEligibleSameDayUnsentWork(hotelId: string, now: Date = new Date()): Promise<boolean> {
     if (!this.occupantsReadService) return false;
-    const todayYmd = toYmd(now, VIETNAM_TIME_ZONE);
-    let cursor: string | undefined = undefined;
+    const context = getKbttSubmissionDateContext(now);
+    const todayBounds = getDayBounds(context.todayYmd, VIETNAM_TIME_ZONE);
+    const yesterdayBounds = getDayBounds(context.yesterdayYmd, VIETNAM_TIME_ZONE);
+    const cohorts = [
+      { key: `${hotelId}:today`, arrivalStart: todayBounds.start, arrivalEnd: todayBounds.end },
+      { key: `${hotelId}:yesterday`, arrivalStart: yesterdayBounds.start, arrivalEnd: todayBounds.start },
+    ];
     const pageSize = 100;
-    for (let page = 0; page < 10; page++) {
-      const res = await this.occupantsReadService.getActiveStayOccupantsPaged(hotelId, {
-        cursor,
-        take: pageSize,
-      });
-      const items = res?.items ?? [];
-      if (items.length === 0) return false;
-      const decls = await this.repository.findDeclarationsByHotel(
-        hotelId,
-        items.map((i) => i.id),
-      );
-      const declMap = new Map<string, KbttGuestDeclaration>();
-      for (const d of decls) {
-        if (!declMap.has(d.occupantId)) declMap.set(d.occupantId, d);
-      }
-      for (const occ of items) {
-        if (this.isDeclarationEligibleForAutoCatchUp(occ, declMap.get(occ.id), todayYmd)) {
-          return true;
+    const maxPages = 100;
+    let pagesUsed = 0;
+
+    for (const cohort of cohorts) {
+      const savedCursor = this.unsentWorkCheckCursors.get(cohort.key);
+      let cursor: string | undefined = savedCursor;
+      let wrapped = !savedCursor;
+
+      while (pagesUsed < maxPages) {
+        pagesUsed++;
+        const res = await this.occupantsReadService.getActiveStayOccupantsPaged(hotelId, {
+          cursor,
+          take: pageSize,
+          arrivalStart: cohort.arrivalStart,
+          arrivalEnd: cohort.arrivalEnd,
+          kbttFilter: "UNSYNCHRONIZED",
+        });
+        const items = res?.items ?? [];
+        if (items.length > 0) {
+          const decls = await this.repository.findDeclarationsByHotel(
+            hotelId,
+            items.map((i) => i.id),
+          );
+          const declMap = new Map<string, KbttGuestDeclaration>();
+          for (const d of decls) {
+            if (!declMap.has(d.occupantId)) declMap.set(d.occupantId, d);
+          }
+          for (const occ of items) {
+            if (this.isDeclarationEligibleForAutoCatchUp(occ, declMap.get(occ.id), context)) {
+              if (res?.nextCursor) {
+                this.unsentWorkCheckCursors.set(cohort.key, res.nextCursor);
+              } else {
+                this.unsentWorkCheckCursors.delete(cohort.key);
+              }
+              return true;
+            }
+          }
+        }
+        if (res?.nextCursor && items.length > 0) {
+          cursor = res.nextCursor;
+          if (pagesUsed >= maxPages) {
+            this.unsentWorkCheckCursors.set(cohort.key, cursor);
+            // Capped before reaching EOF of the DB cohort: never report a false absence.
+            return true;
+          }
+        } else {
+          this.unsentWorkCheckCursors.delete(cohort.key);
+          if (!wrapped && pagesUsed < maxPages) {
+            wrapped = true;
+            cursor = undefined;
+            continue;
+          }
+          break;
         }
       }
-      if (!res?.nextCursor) break;
-      cursor = res.nextCursor;
     }
     return false;
   }
@@ -1888,13 +2366,12 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       this.repository.findPendingScheduledAutoSubmitRuns(hotelId),
     ]);
     const now = new Date();
-    const todayYmd = toYmd(now, VIETNAM_TIME_ZONE);
+    const dateContext = getKbttSubmissionDateContext(now);
     const pendingCatchUp = pendingRuns.find(
       (r) =>
         r.status === "RUNNING" &&
         (r.summaryJson as any)?.trigger === "CATCH_UP_10M" &&
-        r.scheduledFor.getTime() > now.getTime() &&
-        toYmd(r.scheduledFor, VIETNAM_TIME_ZONE) === todayYmd,
+        r.scheduledFor.getTime() > now.getTime(),
     );
     const hotelCatchUpIso =
       connection?.autoSubmitEnabled && pendingCatchUp
@@ -1914,24 +2391,32 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       const classification = decl?.declarationKind ?? occupant.citizenshipKind ?? null;
       const derivedStatus: KbttDerivedStatus = decl ? decl.status : "MISSING_PROFILE";
       const arrivalYmd = this.getOccupantArrivalVietnamYmd(occupant, draft);
-      const isSameDay = arrivalYmd === todayYmd;
+      const isInArrivalWindow =
+        arrivalYmd === dateContext.todayYmd || arrivalYmd === dateContext.yesterdayYmd;
+      const dateCheck = classification
+        ? validateKbttSubmissionDates(classification, draft, dateContext, {
+            authoritativeArrivalYmd: arrivalYmd,
+            enforceArrivalWindow: true,
+          })
+        : { valid: true, outOfWindow: !isInArrivalWindow, issues: [] };
       const isEligibleCatchUp = this.isDeclarationEligibleForAutoCatchUp(
         occupant,
         decl,
-        todayYmd,
+        dateContext,
       );
       const eligibilityState:
         | "ELIGIBLE_SAME_DAY"
         | "NEEDS_CORRECTION"
         | "PRIOR_DAY_MANUAL"
+        | "OUT_OF_DATE_WINDOW"
         | "RECONCILIATION_REQUIRED"
         | "SUBMITTED" =
         decl?.status === "SUBMITTED"
           ? "SUBMITTED"
           : decl?.status === "UNKNOWN"
             ? "RECONCILIATION_REQUIRED"
-            : !isSameDay
-              ? "PRIOR_DAY_MANUAL"
+            : !isInArrivalWindow || dateCheck.outOfWindow
+              ? "OUT_OF_DATE_WINDOW"
               : isEligibleCatchUp
                 ? "ELIGIBLE_SAME_DAY"
                 : "NEEDS_CORRECTION";
@@ -2047,7 +2532,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
 
     const query = pagination?.q?.trim().toLocaleLowerCase("vi") ?? "";
     const checkInBounds = pagination?.checkInDate ? getDayBounds(pagination.checkInDate, VIETNAM_TIME_ZONE) : null;
-    const localFailureCodes = new Set(["LOCAL_VALIDATION","LOCAL_STATE_CHANGED","CONNECTION_SCOPE_CHANGED","DELIVERY_BUSY","RECONCILIATION_REQUIRED","LOCAL_PREPARATION","LOCAL_STAY_ENDED","DELIVERY_PAUSED","KBTT_NOT_CONFIGURED","KBTT_AUTH_FAILED","KBTT_PROVIDER_UNAVAILABLE","KBTT_TEMP_DISCONNECTED","KBTT_RETRY_PENDING","KBTT_SESSION_ENDED","PRIOR_DAY_MANUAL_REQUIRED"]);
+    const localFailureCodes = new Set(["LOCAL_VALIDATION","LOCAL_STATE_CHANGED","CONNECTION_SCOPE_CHANGED","DELIVERY_BUSY","RECONCILIATION_REQUIRED","LOCAL_PREPARATION","LOCAL_STAY_ENDED","DELIVERY_PAUSED","KBTT_NOT_CONFIGURED","KBTT_AUTH_FAILED","KBTT_PROVIDER_UNAVAILABLE","KBTT_TEMP_DISCONNECTED","KBTT_RETRY_PENDING","KBTT_SESSION_ENDED","PRIOR_DAY_MANUAL_REQUIRED","OUT_OF_DATE_WINDOW","KBTT_FACILITY_CONFLICT","KBTT_UNAVAILABLE"]);
     const filteredItems = items.filter((item) => {
       if (query && ![item.roomNumber, item.fullName, item.identityNumber]
         .some((value) => value?.toLocaleLowerCase("vi").includes(query))) return false;
@@ -2084,14 +2569,12 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       this.repository.findPendingScheduledAutoSubmitRuns(hotelId),
     ]);
     const now = new Date();
-    const todayYmd = toYmd(now, VIETNAM_TIME_ZONE);
     const nextSlot = computeVietnamNextDailySlot(now);
     const pendingCatchUp = pendingRuns.find(
       (r) =>
         r.status === "RUNNING" &&
         (r.summaryJson as any)?.trigger === "CATCH_UP_10M" &&
-        r.scheduledFor.getTime() > now.getTime() &&
-        toYmd(r.scheduledFor, VIETNAM_TIME_ZONE) === todayYmd,
+        r.scheduledFor.getTime() > now.getTime(),
     );
     const live = process.env.KBTT_AUTO_SUBMIT_LIVE_ENABLED === "true" &&
       process.env.KBTT_AUTO_SUBMIT_KILL_SWITCH !== "true";
@@ -2104,7 +2587,10 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       KBTT_TEMP_DISCONNECTED: "Tạm ngắt kết nối BCA; hệ thống đang chờ kết nối lại.",
       KBTT_RETRY_PENDING: "Đang thử kết nối lại BCA sau 10 giây.",
       KBTT_PROVIDER_UNAVAILABLE: "Chưa thể kết nối BCA để gửi hồ sơ.",
-      PRIOR_DAY_MANUAL_REQUIRED: "Hồ sơ nhận phòng ngày trước chưa gửi; cần xử lý thủ công.",
+      PRIOR_DAY_MANUAL_REQUIRED: "Hồ sơ ngoài khung ngày cho phép của BCA; cần xử lý thủ công.",
+      OUT_OF_DATE_WINDOW: "Hồ sơ ngoài khung ngày cho phép của BCA; cần xử lý thủ công.",
+      KBTT_FACILITY_CONFLICT: "Cơ sở BCA đang bị trùng liên kết với khách sạn khác; đã chặn gửi.",
+      KBTT_UNAVAILABLE: "Tạm thời không thể xác minh trạng thái cơ sở BCA.",
       LOCAL_QUEUED: "Hồ sơ chưa được gửi BCA. Kiểm tra dữ liệu trước khi gửi.",
       LOCAL_STATE_CHANGED: "Lượt lưu trú đã thay đổi; cần kiểm tra hồ sơ trước khi gửi.",
       DELIVERY_BUSY: "Chưa thể bắt đầu lần gửi; cần kiểm tra trước khi gửi lại.",
@@ -2330,11 +2816,16 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       profile, draftPayloadJson: this.compactDraft(citizenshipKind, draftData, canonical),
     });
     const now = new Date();
-    const todayYmd = toYmd(now, VIETNAM_TIME_ZONE);
-    if (this.isDeclarationEligibleForAutoCatchUp(canonical, savedDeclaration, todayYmd)) {
+    const dateContext = getKbttSubmissionDateContext(now);
+    if (this.isDeclarationEligibleForAutoCatchUp(canonical, savedDeclaration, dateContext)) {
       const schema =
         citizenshipKind === "VIETNAMESE" ? kbttVietnameseReadySchema : kbttForeignReadySchema;
-      if (schema.safeParse(draftData).success) {
+      const arrivalYmd = this.getOccupantArrivalVietnamYmd(canonical, draftData);
+      const dateCheck = validateKbttSubmissionDates(citizenshipKind, draftData, dateContext, {
+        authoritativeArrivalYmd: arrivalYmd,
+        enforceArrivalWindow: true,
+      });
+      if (schema.safeParse(draftData).success && dateCheck.valid) {
         await this.scheduleEligibleSameDayCatchUp(hotelId, now).catch(() => null);
       }
     }
@@ -2489,7 +2980,9 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     occupant: NonNullable<Awaited<ReturnType<KbttRepository["findOccupant"]>>>,
   ) {
     const latest = await this.repository.findLatestDeclaration(hotelId, occupantId);
-    if (latest?.status === "UNKNOWN" && this.initialDeliveries.has(latest.id)) return this.viewDeclaration(latest, occupant);
+    if (latest?.status === "UNKNOWN" && this.isDeclarationClaimActive(latest)) {
+      return this.viewDeclaration(latest, occupant);
+    }
     const { preparedDeclaration, declarationKind, payload } =
       await this.prepareInitialDeclaration(hotelId, occupantId, occupant);
     const fingerprint = createHash("sha256").update(JSON.stringify(payload)).digest("hex");
@@ -2501,16 +2994,21 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
         id: preparedDeclaration.id, hotelId, expectedVersion: preparedDeclaration.version,
         data: { status: "FAILED", providerCode: connection ? "DELIVERY_PAUSED" : "KBTT_NOT_CONFIGURED",
           providerMessage: connection ? "Luồng gửi BCA đang tạm dừng." : "Khách sạn chưa cấu hình kết nối BCA.",
-          submittedAt: null, submittedPayloadFingerprint: fingerprint },
+          submittedAt: null, submittedPayloadFingerprint: fingerprint, claimToken: null },
       });
       return this.viewDeclaration(failed, occupant);
     }
+    const claimToken = randomUUID();
+    const attemptedAt = new Date();
     const claimed = await this.repository.updateDeclaration({
       id: preparedDeclaration.id, hotelId, expectedVersion: preparedDeclaration.version,
       data: { status: "UNKNOWN", providerCode: null, providerMessage: null,
         providerResponseJson: Prisma.JsonNull, submittedAt: null,
         submittedPayloadJson: payload, submittedPayloadFingerprint: fingerprint,
-        submittedCsltId: connection.csltId },
+        submittedCsltId: connection.csltId,
+        submittedConnectionCiphertext: connection.ciphertext,
+        claimToken,
+        attemptedAt },
     });
     const delivery = this.serialize(`delivery:${connection.csltId}`, () =>
       this.deliverInitialDeclaration(hotelId, claimed, declarationKind, payload, fingerprint))
@@ -2520,7 +3018,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
           if (current?.id === claimed.id && current.version === claimed.version && current.status === "UNKNOWN") {
             await this.repository.updateDeclaration({
               id: current.id, hotelId, expectedVersion: current.version,
-              data: { status: "UNKNOWN", providerCode: "INTERRUPTED_DELIVERY",
+              data: { status: "UNKNOWN", claimToken: null, providerCode: "INTERRUPTED_DELIVERY",
                 providerMessage: "Lần gửi chưa rõ kết quả; cần đối soát trước khi gửi tiếp.", submittedAt: null },
             });
           }
@@ -2541,12 +3039,31 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     payload: unknown[],
     fingerprint: string,
   ): Promise<void> {
+    const attemptCiphertext =
+      ((declaration as any).submittedConnectionCiphertext as string | null | undefined) ?? undefined;
     const connection = await this.repository.find(hotelId);
     if (process.env.KBTT_AUTO_SUBMIT_KILL_SWITCH === "true" ||
         process.env.KBTT_AUTO_SUBMIT_LIVE_ENABLED !== "true" || !connection?.autoSubmitEnabled) {
       await this.persistDeclarationFailed(hotelId, declaration, fingerprint, {
         outcome: "BUSINESS_REJECTION", code: "DELIVERY_PAUSED", message: "Luồng gửi BCA đang tạm dừng.",
-      });
+      }, attemptCiphertext ?? connection?.ciphertext);
+      return;
+    }
+    if (
+      (attemptCiphertext && connection.ciphertext !== attemptCiphertext) ||
+      (declaration.submittedCsltId && connection.csltId !== declaration.submittedCsltId)
+    ) {
+      await this.persistDeclarationFailed(
+        hotelId,
+        declaration,
+        fingerprint,
+        {
+          outcome: "BUSINESS_REJECTION",
+          code: "CONNECTION_SCOPE_CHANGED",
+          message: "Kết nối BCA đã thay đổi; hệ thống sẽ tự gửi lại theo kết nối mới.",
+        },
+        attemptCiphertext ?? connection.ciphertext,
+      );
       return;
     }
     let session: KbttSession;
@@ -2556,12 +3073,13 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       const issue = stableKbttError(error);
       await this.persistDeclarationFailed(hotelId, declaration, fingerprint, {
         outcome: "BUSINESS_REJECTION", code: issue.code, message: issue.message,
-      });
+      }, attemptCiphertext ?? connection.ciphertext);
       if (!issue.authenticationFailed && connection.autoSubmitEnabled) {
         await this.scheduleEligibleSameDayCatchUp(hotelId).catch(() => null);
       }
       return;
     }
+    const baselineCiphertext = attemptCiphertext ?? connection.ciphertext;
     const outcome = await this.sendInitialDeclaration(
       hotelId,
       declaration.id,
@@ -2570,19 +3088,33 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       session.AccessToken,
       session.CsltId,
       true,
-      connection.ciphertext,
+      baselineCiphertext,
     );
     if (outcome.outcome === "SUCCESS") {
-      await this.persistDeclarationSubmitted(hotelId, declaration, payload, fingerprint, outcome);
+      await this.persistDeclarationSubmitted(
+        hotelId,
+        declaration,
+        payload,
+        fingerprint,
+        outcome,
+        session.CsltId,
+        baselineCiphertext,
+      );
     } else if (outcome.outcome === "BUSINESS_REJECTION") {
-      await this.persistDeclarationFailed(hotelId, declaration, fingerprint, outcome);
+      await this.persistDeclarationFailed(
+        hotelId,
+        declaration,
+        fingerprint,
+        outcome,
+        baselineCiphertext,
+      );
       if (KBTT_TRANSIENT_OR_PAUSED_CODES.has(outcome.code) && connection.autoSubmitEnabled) {
         await this.scheduleEligibleSameDayCatchUp(hotelId).catch(() => null);
       }
     } else {
       await this.repository.updateDeclaration({
         id: declaration.id, hotelId, expectedVersion: declaration.version,
-        data: { status: "UNKNOWN", providerCode: outcome.code.slice(0, 32),
+        data: { status: "UNKNOWN", claimToken: null, providerCode: outcome.code.slice(0, 32),
           providerMessage: sanitizeProviderText(outcome.message || "Lần gửi chưa rõ kết quả; cần đối soát."),
           providerResponseJson: outcome.data ? sanitizeProviderData(outcome.data) as Prisma.InputJsonValue : Prisma.JsonNull,
           submittedAt: null },
@@ -2630,6 +3162,37 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       throw new BadRequestException({
         code: "KBTT_PAYLOAD_INVALID",
         message: formatValidationIssues(parsed.error.issues),
+      });
+    }
+    const authoritativeArrivalYmd = this.getOccupantArrivalVietnamYmd(
+      occupant,
+      parsed.data as Record<string, unknown>,
+    );
+    const dateCheck = validateKbttSubmissionDates(
+      declarationKind,
+      parsed.data as Record<string, unknown>,
+      new Date(),
+      {
+        authoritativeArrivalYmd: hasExplicitDeclarationDate(
+          declaration?.draftPayloadJson,
+          "ngayDenCsltStr",
+        )
+          ? undefined
+          : authoritativeArrivalYmd,
+        enforceArrivalWindow: true,
+      },
+    );
+    if (!dateCheck.valid) {
+      throw new BadRequestException({
+        code: dateCheck.outOfWindow ? "OUT_OF_DATE_WINDOW" : "KBTT_PAYLOAD_INVALID",
+        message: dateCheck.issues
+          .map((issue) => {
+            const label = KBTT_FIELD_LABELS[issue.field] ?? issue.field;
+            return issue.message.toLocaleLowerCase("vi").includes(label.toLocaleLowerCase("vi"))
+              ? issue.message
+              : `${label}: ${issue.message}`;
+          })
+          .join("; "),
       });
     }
     const identityNumber =
@@ -2964,7 +3527,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     const updated = await this.repository.update(connection, { autoSubmitEnabled });
     if (autoSubmitEnabled) {
       if (updated.status === "CONNECTED") {
-        await this.reconcilePendingUnknownDeclarationsForHotel(hotelId).catch(() => null);
+        void this.reconcilePendingUnknownDeclarationsForHotel(hotelId).catch(() => null);
         await this.scheduleEligibleSameDayCatchUp(hotelId).catch(() => null);
       } else {
         const cached = this.sessions.get(hotelId);
@@ -2997,7 +3560,6 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       this.repository.findPendingScheduledAutoSubmitRuns(hotelId),
     ]);
     const now = new Date();
-    const todayYmd = toYmd(now, VIETNAM_TIME_ZONE);
     const nextSlot = computeVietnamNextDailySlot(now);
     const pendingSchedule = pendingRuns.find(
       (run) =>
@@ -3008,8 +3570,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       (run) =>
         run.status === "RUNNING" &&
         (run.summaryJson as any)?.trigger === "CATCH_UP_10M" &&
-        run.scheduledFor.getTime() > now.getTime() &&
-        toYmd(run.scheduledFor, VIETNAM_TIME_ZONE) === todayYmd,
+        run.scheduledFor.getTime() > now.getTime(),
     );
     const activeRun = runs.find(
       (r) =>
@@ -3060,7 +3621,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     });
     if (body.autoSubmitEnabled === true) {
       if (updated.status === "CONNECTED") {
-        await this.reconcilePendingUnknownDeclarationsForHotel(hotelId).catch(() => null);
+        void this.reconcilePendingUnknownDeclarationsForHotel(hotelId).catch(() => null);
         await this.scheduleEligibleSameDayCatchUp(hotelId).catch(() => null);
       } else {
         const cached = this.sessions.get(hotelId);
@@ -3093,19 +3654,60 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     payload: unknown[],
     fingerprint: string,
     outcome: KbttSubmitOutcome,
+    submittedCsltId?: string,
+    expectedCiphertext?: string,
   ) {
     const providerCode = outcome.code.slice(0, 32);
     const providerMessage = sanitizeProviderText(outcome.message || "Không có thông báo");
     const providerResponseJson = outcome.data
       ? (sanitizeProviderData(outcome.data) as Prisma.InputJsonValue)
       : Prisma.JsonNull;
+    const effectiveCsltId = submittedCsltId ?? declaration.submittedCsltId ?? null;
+    const liveConn = await this.repository.find(hotelId).catch(() => null);
+    if (liveConn && effectiveCsltId && liveConn.csltId !== effectiveCsltId) {
+      // Hotel relogged into a different BCA facility while the initial submission was in flight.
+      // Preserve the acceptance metadata on the original facility and mark UNKNOWN for manual review.
+      const settleFn =
+        this.repository.settleAcceptedDeclaration?.bind(this.repository) ??
+        this.repository.updateDeclaration.bind(this.repository);
+      await settleFn({
+        id: declaration.id,
+        hotelId,
+        expectedVersion: declaration.version,
+        data: {
+          status: "UNKNOWN",
+          claimToken: null,
+          submittedCsltId: effectiveCsltId,
+          submittedConnectionCiphertext:
+            expectedCiphertext ?? (declaration as any).submittedConnectionCiphertext ?? null,
+          draftPayloadJson: declaration.draftPayloadJson ?? Prisma.JsonNull,
+          submittedPayloadJson: payload as Prisma.InputJsonValue,
+          submittedPayloadFingerprint: fingerprint,
+          providerCode: "RECONCILIATION_REQUIRED",
+          providerMessage: sanitizeProviderText(
+            `Cơ sở BCA đã đổi từ #${effectiveCsltId} sang #${liveConn.csltId} khi hồ sơ được chấp nhận; cần đối soát cơ sở nhận.`,
+          ),
+          providerResponseJson,
+          submittedAt: new Date(),
+        },
+      });
+      return;
+    }
 
-    await this.repository.updateDeclaration({
+    const settleFn =
+      this.repository.settleAcceptedDeclaration?.bind(this.repository) ??
+      this.repository.updateDeclaration.bind(this.repository);
+    await settleFn({
       id: declaration.id,
       hotelId,
       expectedVersion: declaration.version,
       data: {
         status: "SUBMITTED",
+        claimToken: null,
+        ...(effectiveCsltId ? { submittedCsltId: effectiveCsltId } : {}),
+        ...(expectedCiphertext
+          ? { submittedConnectionCiphertext: expectedCiphertext }
+          : {}),
         draftPayloadJson: declaration.draftPayloadJson ?? Prisma.JsonNull,
         submittedPayloadJson: payload as Prisma.InputJsonValue,
         submittedPayloadFingerprint: fingerprint,
@@ -3122,7 +3724,41 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     declaration: KbttGuestDeclaration,
     fingerprint: string,
     outcome: KbttSubmitOutcome,
+    expectedCiphertext?: string,
   ) {
+    const baselineCiphertext =
+      expectedCiphertext ??
+      ((declaration as any).submittedConnectionCiphertext as string | null | undefined);
+    const liveConn = await this.repository.find(hotelId).catch(() => null);
+    if (
+      baselineCiphertext &&
+      (!liveConn || liveConn.ciphertext !== baselineCiphertext)
+    ) {
+      // Logout or a newer login generation superseded the in-flight attempt; do not overwrite with a terminal rejection.
+      try {
+        await this.repository.updateDeclaration({
+          id: declaration.id,
+          hotelId,
+          expectedVersion: declaration.version,
+          data: {
+            status: "FAILED",
+            claimToken: null,
+            submittedPayloadFingerprint: fingerprint,
+            providerCode: "CONNECTION_SCOPE_CHANGED",
+            providerMessage:
+              "Phiên kết nối BCA đã được làm mới trong lúc gửi; hệ thống sẽ tự gửi lại theo kết nối mới.",
+            submittedAt: null,
+          },
+        });
+      } catch {
+        // ignore CAS conflict
+      }
+      if (liveConn?.status === "CONNECTED" && liveConn.autoSubmitEnabled) {
+        await this.scheduleEligibleSameDayCatchUp(hotelId).catch(() => null);
+      }
+      return;
+    }
+
     const providerCode = outcome.code.slice(0, 32);
     let detailStr = "";
     if (Array.isArray(outcome.data) && outcome.data.length > 0) {
@@ -3155,6 +3791,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       expectedVersion: declaration.version,
       data: {
         status: "FAILED",
+        claimToken: null,
         submittedPayloadFingerprint: fingerprint,
         providerCode,
         providerMessage,
@@ -3177,6 +3814,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
         expectedVersion: declaration.version,
         data: {
           status: "UNKNOWN",
+          claimToken: null,
           submittedPayloadFingerprint: fingerprint,
           providerCode: "PROVIDER_TIMEOUT",
           providerMessage: sanitizeProviderText(message),
@@ -3207,11 +3845,13 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       const trigger = (run.summaryJson as any)?.trigger ?? "DAILY";
       const isManualDelayed = trigger === "MANUAL_DELAYED";
       const now = new Date();
-      const todayVietnamYmd = toYmd(now, VIETNAM_TIME_ZONE);
+      const dateContext = getKbttSubmissionDateContext(now);
+      const scheduledYmd = toYmd(scheduledForDate, VIETNAM_TIME_ZONE);
       if (
         !isDryRun &&
         !isManualDelayed &&
-        toYmd(scheduledForDate, VIETNAM_TIME_ZONE) !== todayVietnamYmd
+        scheduledYmd !== dateContext.todayYmd &&
+        scheduledYmd !== dateContext.yesterdayYmd
       ) {
         return this.repository.finalizeAutoSubmitRun(run.id, {
           status: "CANCELLED",
@@ -3249,7 +3889,24 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
         });
       }
 
-      if (await this.hasConflictingFacilityOwnership(hotelId, connection.csltId)) {
+      let hasFacilityConflict = false;
+      try {
+        hasFacilityConflict = await this.hasConflictingFacilityOwnership(hotelId, connection.csltId);
+      } catch {
+        return await this.repository.finalizeAutoSubmitRun(run.id, {
+          status: "FAILED",
+          totalCount: 0,
+          successCount: 0,
+          failedCount: 0,
+          unknownCount: 0,
+          telegramSent: false,
+          summaryJson: {
+            trigger,
+            error: "Không thể xác minh quyền sở hữu cơ sở lưu trú BCA trong hệ thống; đã chặn gửi để đảm bảo an toàn.",
+          },
+        });
+      }
+      if (hasFacilityConflict) {
         await this.markFacilityConflictIfCurrent(hotelId, connection.ciphertext);
         return await this.repository.finalizeAutoSubmitRun(run.id, {
           status: "FAILED",
@@ -3268,6 +3925,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
 
       const baselineCiphertext = connection.ciphertext;
       let session: KbttSession | null = null;
+      let hasUnknownReconciliationBacklog = false;
       if (!isDryRun) {
         try {
           session = await this.getOrRefreshSession(hotelId, connection);
@@ -3294,12 +3952,24 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
             summaryJson: { error: `Xác thực C06 thất bại: ${authError?.message || ""}` },
           });
         }
-        await this.reconcilePendingUnknownDeclarationsForHotel(hotelId, isManualDelayed).catch(
-          () => null,
-        );
+        const unknownRecResult = await this.reconcilePendingUnknownDeclarationsForHotel(
+          hotelId,
+          isManualDelayed,
+          new Date(),
+          (run.summaryJson as any)?.unknownResume,
+        ).catch(() => null);
+        if (unknownRecResult?.incomplete) {
+          hasUnknownReconciliationBacklog = true;
+        }
       }
 
-      let cursor: string | undefined = undefined;
+      const savedResumeCursor =
+        (trigger !== "CONTINUATION_UNKNOWN" && typeof (run.summaryJson as any)?.resumeCursor === "string" &&
+        (run.summaryJson as any).resumeCursor.trim()
+          ? (run.summaryJson as any).resumeCursor.trim()
+          : undefined) ?? this.autoSubmitResumeCursors.get(hotelId);
+      let cursor: string | undefined = savedResumeCursor;
+      let wrapped = !savedResumeCursor;
       let hasMorePages = true;
       const PAGE_SIZE = Number(
         process.env.KBTT_AUTO_SUBMIT_PAGE_SIZE || (process.env.NODE_ENV === "test" ? 100 : 500),
@@ -3307,6 +3977,10 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       const MAX_BATCH_ELIGIBLE = Number(
         process.env.KBTT_AUTO_SUBMIT_BATCH_SIZE || (process.env.NODE_ENV === "test" ? 100 : 1000),
       );
+      const MAX_SCAN_PAGES = 20;
+      let pagesScanned = 0;
+      const arrivalStart = getDayBounds(dateContext.yesterdayYmd, VIETNAM_TIME_ZONE).start;
+      const arrivalEnd = cutoffInstant;
       let totalEligibleCount = 0;
       let directSuccessCount = 0;
       const reconciledSuccessCount = 0;
@@ -3316,18 +3990,29 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       let hasTransientSafeFailure = false;
       let leaseFenced = false;
       let deliveryPaused = false;
-      let hasBacklog = false;
+      let hasBacklog = hasUnknownReconciliationBacklog;
 
       while (hasMorePages) {
+        if (pagesScanned >= MAX_SCAN_PAGES) {
+          hasBacklog = true;
+          if (cursor) {
+            this.autoSubmitResumeCursors.set(hotelId, cursor);
+          }
+          break;
+        }
         const leaseOk = await this.repository.renewAutoSubmitRunLease(run.id);
         if (!leaseOk) {
           leaseFenced = true;
           break;
         }
 
+        pagesScanned++;
         const pageResult = await this.occupantsReadService?.getActiveStayOccupantsPaged(hotelId, {
           cursor,
           take: PAGE_SIZE,
+          arrivalStart,
+          arrivalEnd,
+          kbttFilter: "UNSYNCHRONIZED",
         });
 
         const occupants = pageResult?.items ?? [];
@@ -3335,7 +4020,24 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
         hasMorePages = Boolean(cursor && occupants.length > 0);
 
         if (occupants.length === 0) {
+          this.autoSubmitResumeCursors.delete(hotelId);
+          if (!wrapped && pagesScanned < MAX_SCAN_PAGES) {
+            wrapped = true;
+            cursor = undefined;
+            hasMorePages = true;
+            continue;
+          }
           break;
+        }
+        if (!hasMorePages) {
+          this.autoSubmitResumeCursors.delete(hotelId);
+          if (!wrapped && pagesScanned < MAX_SCAN_PAGES) {
+            wrapped = true;
+            cursor = undefined;
+            hasMorePages = true;
+          }
+        } else if (cursor) {
+          this.autoSubmitResumeCursors.set(hotelId, cursor);
         }
 
         const existingDeclarations = await this.repository.findDeclarationsByHotel(
@@ -3349,14 +4051,14 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
           }
         }
 
-        const selectionTodayYmd = toYmd(new Date(), VIETNAM_TIME_ZONE);
+        const selectionContext = getKbttSubmissionDateContext(new Date());
         const candidates = occupants
           .map((occupant) => ({ occupant, declaration: latestByOccupant.get(occupant.id) ?? null }))
           .filter(({ occupant, declaration }) =>
             this.isDeclarationEligibleForAutoCatchUp(
               occupant,
               declaration,
-              selectionTodayYmd,
+              selectionContext,
               cutoffInstant,
             ),
           );
@@ -3380,7 +4082,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
                 declarationKind: occupant.citizenshipKind!,
                 revision: 1,
                 status: "READY",
-                draftPayloadJson: this.withOccupantDefaults(occupant.citizenshipKind, {}, occupant),
+                draftPayloadJson: this.withOccupantDefaults(occupant.citizenshipKind!, {}, occupant),
                 submittedPayloadJson: null,
                 submittedPayloadFingerprint: null,
                 submittedCsltId: null,
@@ -3428,9 +4130,41 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
               ? kbttVietnameseReadySchema
               : kbttForeignReadySchema;
           const validated = schema.safeParse(draft);
-          if (!validated.success) {
+          const arrivalYmd = occupant
+            ? this.getOccupantArrivalVietnamYmd(occupant, (draft ?? {}) as Record<string, unknown>)
+            : typeof (draft as any)?.ngayDenCsltStr === "string"
+              ? (draft as any).ngayDenCsltStr.slice(0, 10)
+              : null;
+          const dateCheck = validateKbttSubmissionDates(
+            decl.declarationKind,
+            (validated.success ? validated.data : (draft ?? {})) as Record<string, unknown>,
+            selectionContext,
+            {
+              authoritativeArrivalYmd: arrivalYmd,
+              enforceArrivalWindow: true,
+            },
+          );
+          if (!validated.success || !dateCheck.valid) {
             if (!isDryRun) {
-              const error = formatValidationIssues(validated.error.issues);
+              const zodIssueMsg = !validated.success
+                ? formatValidationIssues(validated.error.issues)
+                : "";
+              const dateIssueMsg = !dateCheck.valid
+                ? dateCheck.issues
+                    .map((issue) => {
+                      const label = KBTT_FIELD_LABELS[issue.field] ?? issue.field;
+                      return issue.message.toLocaleLowerCase("vi").includes(label.toLocaleLowerCase("vi"))
+                        ? issue.message
+                        : `${label}: ${issue.message}`;
+                    })
+                    .join("; ")
+                : "";
+              const error = [zodIssueMsg, dateIssueMsg].filter(Boolean).join("; ");
+              const failureCode = !validated.success
+                ? "LOCAL_VALIDATION"
+                : dateCheck.outOfWindow
+                  ? "OUT_OF_DATE_WINDOW"
+                  : "LOCAL_VALIDATION";
               const draftFp = createHash("sha256")
                 .update(JSON.stringify([draft]))
                 .digest("hex");
@@ -3443,7 +4177,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
                   status: "FAILED",
                   draftPayloadJson: occupant ? this.compactDraft(decl.declarationKind, draft as Record<string, unknown>, occupant) : draft as Prisma.InputJsonValue,
                   submittedPayloadFingerprint: draftFp,
-                  providerCode: "LOCAL_VALIDATION",
+                  providerCode: failureCode,
                   providerMessage: error,
                 });
               } else {
@@ -3453,8 +4187,9 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
                   expectedVersion: decl.version,
                   data: {
                     status: "FAILED",
+                    claimToken: null,
                     submittedPayloadFingerprint: draftFp,
-                    providerCode: "LOCAL_VALIDATION",
+                    providerCode: failureCode,
                     providerMessage: error,
                     submittedAt: null,
                   },
@@ -3486,11 +4221,6 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
 
           const payload = [validated.data];
           const fingerprint = createHash("sha256").update(JSON.stringify(payload)).digest("hex");
-          const arrivalYmd = occupant
-            ? this.getOccupantArrivalVietnamYmd(occupant, validated.data as Record<string, unknown>)
-            : typeof (validated.data as any)?.ngayDenCsltStr === "string"
-              ? (validated.data as any).ngayDenCsltStr.slice(0, 10)
-              : null;
           validItems.push({
             declaration: submitDeclaration,
             payload,
@@ -3537,6 +4267,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
                 expectedVersion: item.declaration.version,
                 data: {
                   status: "FAILED",
+                  claimToken: null,
                   submittedPayloadFingerprint: item.fingerprint,
                   providerCode: "CONNECTION_SCOPE_CHANGED",
                   providerMessage:
@@ -3551,8 +4282,16 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
             hasTransientSafeFailure = true;
             continue;
           }
-          const liveTodayYmd = toYmd(new Date(), VIETNAM_TIME_ZONE);
-          if (item.arrivalYmd && item.arrivalYmd !== liveTodayYmd) {
+          const liveDateCheck = validateKbttSubmissionDates(
+            item.declaration.declarationKind,
+            item.draftData,
+            new Date(),
+            {
+              authoritativeArrivalYmd: item.arrivalYmd,
+              enforceArrivalWindow: true,
+            },
+          );
+          if (!liveDateCheck.valid) {
             try {
               await this.repository.updateDeclaration({
                 id: item.declaration.id,
@@ -3560,9 +4299,14 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
                 expectedVersion: item.declaration.version,
                 data: {
                   status: "FAILED",
-                  providerCode: "PRIOR_DAY_MANUAL_REQUIRED",
-                  providerMessage:
-                    "Hồ sơ nhận phòng ngày trước chưa được gửi trong ngày; cần xử lý thủ công.",
+                  claimToken: null,
+                  submittedPayloadFingerprint: item.fingerprint,
+                  providerCode: liveDateCheck.outOfWindow
+                    ? "OUT_OF_DATE_WINDOW"
+                    : "LOCAL_VALIDATION",
+                  providerMessage: liveDateCheck.issues
+                    .map((i) => `${KBTT_FIELD_LABELS[i.field] ?? i.field}: ${i.message}`)
+                    .join("; "),
                   submittedAt: null,
                 },
               });
@@ -3573,11 +4317,16 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
             continue;
           }
           let claimedDeclaration: KbttGuestDeclaration;
+          const claimToken = randomUUID();
+          const attemptedAt = new Date();
           try {
             claimedDeclaration = await this.repository.updateDeclaration({
               id: item.declaration.id, hotelId, expectedVersion: item.declaration.version,
               data: { status: "UNKNOWN", submittedPayloadJson: item.payload as Prisma.InputJsonValue,
-                submittedPayloadFingerprint: item.fingerprint, submittedCsltId: session!.CsltId },
+                submittedPayloadFingerprint: item.fingerprint, submittedCsltId: session!.CsltId,
+                submittedConnectionCiphertext: baselineCiphertext,
+                claimToken,
+                attemptedAt },
             });
           } catch {
             continue; // Another writer owns the current declaration version.
@@ -3593,18 +4342,31 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
             baselineCiphertext,
           );
           if (outcome.outcome === "SUCCESS") {
-            await this.persistDeclarationSubmitted(hotelId, claimedDeclaration,
-              item.payload, item.fingerprint, outcome);
+            await this.persistDeclarationSubmitted(
+              hotelId,
+              claimedDeclaration,
+              item.payload,
+              item.fingerprint,
+              outcome,
+              session!.CsltId,
+              baselineCiphertext,
+            );
             directSuccessCount++;
           } else if (outcome.outcome === "BUSINESS_REJECTION" && outcome.code === "DELIVERY_PAUSED") {
             await this.repository.updateDeclaration({
               id: claimedDeclaration.id, hotelId, expectedVersion: claimedDeclaration.version,
-              data: { status: "FAILED", providerCode: "DELIVERY_PAUSED", providerMessage: "Luồng gửi BCA đang tạm dừng." },
+              data: { status: "FAILED", claimToken: null, providerCode: "DELIVERY_PAUSED", providerMessage: "Luồng gửi BCA đang tạm dừng." },
             });
             deliveryPaused = true;
             break;
           } else if (outcome.outcome === "BUSINESS_REJECTION") {
-            await this.persistDeclarationFailed(hotelId, claimedDeclaration, item.fingerprint, outcome);
+            await this.persistDeclarationFailed(
+              hotelId,
+              claimedDeclaration,
+              item.fingerprint,
+              outcome,
+              baselineCiphertext,
+            );
             bcaRejectionCount++;
             if (KBTT_TRANSIENT_OR_PAUSED_CODES.has(outcome.code)) {
               hasTransientSafeFailure = true;
@@ -3619,11 +4381,22 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
 
         if (totalEligibleCount >= MAX_BATCH_ELIGIBLE) {
           while (hasMorePages && !hasBacklog) {
+            if (pagesScanned >= MAX_SCAN_PAGES) {
+              hasBacklog = true;
+              if (cursor) {
+                this.autoSubmitResumeCursors.set(hotelId, cursor);
+              }
+              break;
+            }
+            pagesScanned++;
             const nextResult = await this.occupantsReadService?.getActiveStayOccupantsPaged(
               hotelId,
               {
                 cursor,
                 take: PAGE_SIZE,
+                arrivalStart,
+                arrivalEnd,
+                kbttFilter: "UNSYNCHRONIZED",
               },
             );
             const nextOccupants = nextResult?.items ?? [];
@@ -3639,10 +4412,10 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
             for (const d of nextDecls) {
               if (!declByOcc.has(d.occupantId)) declByOcc.set(d.occupantId, d);
             }
-            const nextCheckYmd = toYmd(new Date(), VIETNAM_TIME_ZONE);
+            const nextCheckContext = getKbttSubmissionDateContext(new Date());
             for (const occ of nextOccupants) {
               const decl = declByOcc.get(occ.id);
-              if (this.isDeclarationEligibleForAutoCatchUp(occ, decl, nextCheckYmd, cutoffInstant)) {
+              if (this.isDeclarationEligibleForAutoCatchUp(occ, decl, nextCheckContext, cutoffInstant)) {
                 hasBacklog = true;
                 break;
               }
@@ -3656,7 +4429,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
         return null;
       }
 
-      if (totalEligibleCount === 0) {
+      if (totalEligibleCount === 0 && !hasBacklog) {
         return await this.repository.finalizeAutoSubmitRun(run.id, {
           status: "COMPLETED",
           totalCount: 0,
@@ -4027,9 +4800,37 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
           const schema =
             citizenshipKind === "VIETNAMESE" ? kbttVietnameseReadySchema : kbttForeignReadySchema;
           const validated = schema.safeParse(draft);
+          const arrivalYmd = this.getOccupantArrivalVietnamYmd(occupant, draft);
+          const dateCheck = validateKbttSubmissionDates(
+            citizenshipKind,
+            (validated.success ? validated.data : draft) as Record<string, unknown>,
+            new Date(),
+            {
+              authoritativeArrivalYmd: arrivalYmd,
+              enforceArrivalWindow: true,
+            },
+          );
 
-          if (!validated.success) {
-            const error = formatValidationIssues(validated.error.issues);
+          if (!validated.success || !dateCheck.valid) {
+            const zodIssueMsg = !validated.success
+              ? formatValidationIssues(validated.error.issues)
+              : "";
+            const dateIssueMsg = !dateCheck.valid
+              ? dateCheck.issues
+                  .map((issue) => {
+                    const label = KBTT_FIELD_LABELS[issue.field] ?? issue.field;
+                    return issue.message.toLocaleLowerCase("vi").includes(label.toLocaleLowerCase("vi"))
+                      ? issue.message
+                      : `${label}: ${issue.message}`;
+                  })
+                  .join("; ")
+              : "";
+            const error = [zodIssueMsg, dateIssueMsg].filter(Boolean).join("; ");
+            const failureCode = !validated.success
+              ? "LOCAL_VALIDATION"
+              : dateCheck.outOfWindow
+                ? "OUT_OF_DATE_WINDOW"
+                : "LOCAL_VALIDATION";
             const draftFp = createHash("sha256")
               .update(JSON.stringify([draft]))
               .digest("hex");
@@ -4043,7 +4844,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
                 status: "FAILED",
                 draftPayloadJson: this.compactDraft(citizenshipKind, draft, occupant),
                 submittedPayloadFingerprint: draftFp,
-                providerCode: "LOCAL_VALIDATION",
+                providerCode: failureCode,
                 providerMessage: error,
               });
             } else {
@@ -4053,9 +4854,10 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
                 expectedVersion: existingDecl.version,
                 data: {
                   status: "FAILED",
+                  claimToken: null,
                   draftPayloadJson: this.compactDraft(citizenshipKind, draft, occupant),
                   submittedPayloadFingerprint: draftFp,
-                  providerCode: "LOCAL_VALIDATION",
+                  providerCode: failureCode,
                   providerMessage: error,
                   submittedAt: null,
                 },

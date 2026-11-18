@@ -3048,17 +3048,52 @@ export class HotelRoomsRepository {
 
   async findActiveStayOccupantsByHotel(
     hotelId: string,
-    options?: { cursor?: string; take?: number; stayIds?: string[]; roomIds?: string[] },
+    options?: {
+      cursor?: string;
+      take?: number;
+      stayIds?: string[];
+      roomIds?: string[];
+      arrivalStart?: Date;
+      arrivalEnd?: Date;
+      kbttFilter?: "UNSYNCHRONIZED" | "UNKNOWN_ONLY";
+    },
   ) {
     // Allow up to 501 rows so paged readers can request MAX_PAGE_SIZE (500) + 1 sentinel row for hasMore detection
     const take =
       options?.take !== undefined && Number.isFinite(options.take)
         ? Math.min(Math.max(Math.trunc(options.take), 1), 501)
         : undefined;
+    const cursor = options?.cursor?.trim() ? options.cursor.trim() : undefined;
+    const hasArrivalBounds = options?.arrivalStart !== undefined || options?.arrivalEnd !== undefined;
+    const arrivalBounds = hasArrivalBounds
+      ? {
+          ...(options?.arrivalStart ? { gte: options.arrivalStart } : {}),
+          ...(options?.arrivalEnd ? { lt: options.arrivalEnd } : {}),
+        }
+      : undefined;
+
     return this.prisma.guestStayOccupant.findMany({
       where: {
         hotelId,
+        ...(cursor ? { id: { gt: cursor } } : {}),
         ...(options?.stayIds ? { stayId: { in: options.stayIds } } : {}),
+        ...(options?.kbttFilter === "UNSYNCHRONIZED"
+          ? {
+              kbttGuestDeclarations: {
+                none: {
+                  status: { in: ["SUBMITTED", "UNKNOWN", "CANCELLED"] },
+                },
+              },
+            }
+          : options?.kbttFilter === "UNKNOWN_ONLY"
+            ? {
+                kbttGuestDeclarations: {
+                  some: {
+                    status: "UNKNOWN",
+                  },
+                },
+              }
+            : {}),
         stay: {
           hotelId,
           checkedOutAt: null,
@@ -3070,11 +3105,25 @@ export class HotelRoomsRepository {
               GuestStayStatus.CHECKOUT_PENDING,
             ],
           },
+          ...(arrivalBounds
+            ? {
+                OR: [
+                  {
+                    checkedInAt: {
+                      not: null,
+                      ...arrivalBounds,
+                    },
+                  },
+                  {
+                    checkedInAt: null,
+                    plannedCheckInAt: arrivalBounds,
+                  },
+                ],
+              }
+            : {}),
         },
       },
       take,
-      skip: options?.cursor ? 1 : undefined,
-      cursor: options?.cursor ? { id: options.cursor } : undefined,
       include: {
         stay: {
           select: {
@@ -3097,7 +3146,7 @@ export class HotelRoomsRepository {
         },
       },
       orderBy:
-        options?.cursor || options?.take
+        cursor || options?.take
           ? [{ id: "asc" }]
           : [
               { stay: { room: { roomNumber: "asc" } } },

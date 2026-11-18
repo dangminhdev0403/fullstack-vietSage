@@ -1,8 +1,18 @@
--- Exclusive BCA facility ownership per hotel connection (BCA-08).
--- Application gate: before applying in production, verify no two KbttHotelConnection rows share the same csltId.
+-- Exclusive BCA facility ownership, durable declaration attempt/generation fencing, and pending-work indexes (BCA-01, BCA-04, BCA-08, BCA-09).
 BEGIN;
 SET LOCAL lock_timeout = '10s';
 
-CREATE UNIQUE INDEX "KbttHotelConnection_csltId_key" ON "KbttHotelConnection"("csltId");
+CREATE UNIQUE INDEX IF NOT EXISTS "KbttHotelConnection_csltId_key" ON "KbttHotelConnection"("csltId");
+
+ALTER TABLE "KbttGuestDeclaration"
+  ADD COLUMN IF NOT EXISTS "submittedConnectionCiphertext" TEXT,
+  ADD COLUMN IF NOT EXISTS "claimToken" VARCHAR(64),
+  ADD COLUMN IF NOT EXISTS "attemptedAt" TIMESTAMP(3);
+
+CREATE INDEX IF NOT EXISTS "KbttGuestDeclaration_hotelId_occupantId_revision_idx"
+  ON "KbttGuestDeclaration"("hotelId", "occupantId", "revision");
+
+CREATE INDEX IF NOT EXISTS "GuestStayOccupant_hotelId_id_idx"
+  ON "GuestStayOccupant"("hotelId", "id");
 
 COMMIT;

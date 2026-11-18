@@ -8,8 +8,10 @@ import {
   computeNextVietnamTenMinuteCatchUp,
   getVietnamCalendarDate,
   getVietnamTodayDate,
+  isArrivalDayWithinBcaWindow,
   KBTT_FIXED_SCHEDULE_SLOTS,
   KBTT_SCHEDULE_TIMEZONE,
+  kbttDeclarationEligibilityStateSchema,
   kbttDailyMovementItemSchema,
   kbttDailyMovementsQuerySchema,
   kbttDailyMovementsResponseSchema,
@@ -999,7 +1001,7 @@ test("T08B — KBTT daily movements contract, BFF route, query-resource, and sec
 test("local validation failures are distinct from provider rejection and uncertain delivery", () => {
   const row = { derivedStatus: "FAILED", declaration: { status: "FAILED", providerCode: "LOCAL_VALIDATION" } };
   assert.equal(getKbttDeclarationDisplayStatus(row), "LOCAL_ERROR");
-  for (const providerCode of ["LOCAL_STATE_CHANGED","CONNECTION_SCOPE_CHANGED","DELIVERY_BUSY","RECONCILIATION_REQUIRED","LOCAL_PREPARATION","LOCAL_STAY_ENDED","DELIVERY_PAUSED","KBTT_NOT_CONFIGURED","KBTT_AUTH_FAILED","KBTT_PROVIDER_UNAVAILABLE","KBTT_TEMP_DISCONNECTED","KBTT_RETRY_PENDING","KBTT_SESSION_ENDED","PRIOR_DAY_MANUAL_REQUIRED"]) {
+  for (const providerCode of ["LOCAL_STATE_CHANGED","CONNECTION_SCOPE_CHANGED","DELIVERY_BUSY","RECONCILIATION_REQUIRED","LOCAL_PREPARATION","LOCAL_STAY_ENDED","DELIVERY_PAUSED","KBTT_NOT_CONFIGURED","KBTT_AUTH_FAILED","KBTT_PROVIDER_UNAVAILABLE","KBTT_TEMP_DISCONNECTED","KBTT_RETRY_PENDING","KBTT_SESSION_ENDED","PRIOR_DAY_MANUAL_REQUIRED","OUT_OF_DATE_WINDOW"]) {
     assert.equal(getKbttDeclarationDisplayStatus({ ...row, declaration: { ...row.declaration, providerCode } }), "LOCAL_ERROR");
   }
   assert.equal(getKbttDeclarationDisplayStatus({ ...row, declaration: { ...row.declaration, providerCode: "400" } }), "REJECTED");
@@ -1141,13 +1143,14 @@ test("KBTT fixed 12:00/21:00 slots, 10-minute catch-up boundary, retired custom 
     },
   );
 
-  // computeNextVietnamTenMinuteCatchUp (12:07 -> 12:10, 21:03 -> 21:10, 12:10:00 -> 12:20, midnight rollover -> null)
+  // computeNextVietnamTenMinuteCatchUp (12:07 -> 12:10, 21:03 -> 21:10, 12:10:00 -> 12:20, 23:55 -> 00:00 next day)
   assert.deepEqual(
     computeNextVietnamTenMinuteCatchUp(new Date("2026-11-18T05:07:15.000Z")), // 12:07:15 VN
     {
       scheduledAt: "2026-11-18T05:10:00.000Z",
       timeStr: "12:10",
       dateStr: "2026-11-18",
+      isTomorrow: false,
     },
   );
   assert.deepEqual(
@@ -1156,6 +1159,7 @@ test("KBTT fixed 12:00/21:00 slots, 10-minute catch-up boundary, retired custom 
       scheduledAt: "2026-11-18T14:10:00.000Z",
       timeStr: "21:10",
       dateStr: "2026-11-18",
+      isTomorrow: false,
     },
   );
   assert.deepEqual(
@@ -1164,13 +1168,36 @@ test("KBTT fixed 12:00/21:00 slots, 10-minute catch-up boundary, retired custom 
       scheduledAt: "2026-11-18T05:20:00.000Z",
       timeStr: "12:20",
       dateStr: "2026-11-18",
+      isTomorrow: false,
     },
   );
-  assert.equal(
-    computeNextVietnamTenMinuteCatchUp(new Date("2026-11-18T16:55:00.000Z")), // 23:55:00 VN -> crosses midnight
-    null,
+  assert.deepEqual(
+    computeNextVietnamTenMinuteCatchUp(new Date("2026-11-18T16:55:00.000Z")), // 23:55:00 VN -> 00:00 next day
+    {
+      scheduledAt: "2026-11-18T17:00:00.000Z",
+      timeStr: "00:00",
+      dateStr: "2026-11-19",
+      isTomorrow: true,
+    },
   );
   assert.equal(getVietnamCalendarDate("2026-11-18T16:55:00.000Z"), "2026-11-18");
+
+  // isArrivalDayWithinBcaWindow accepts today and yesterday (D+1), rejects D-2 and tomorrow
+  const nowAnchor = new Date("2026-11-18T05:00:00.000Z"); // 2026-11-18 in Asia/Ho_Chi_Minh
+  assert.equal(isArrivalDayWithinBcaWindow("2026-11-18", nowAnchor), true); // today
+  assert.equal(isArrivalDayWithinBcaWindow("2026-11-17", nowAnchor), true); // yesterday (D+1)
+  assert.equal(isArrivalDayWithinBcaWindow("2026-11-16", nowAnchor), false); // D-2
+  assert.equal(isArrivalDayWithinBcaWindow("2026-11-19", nowAnchor), false); // tomorrow
+  assert.equal(isArrivalDayWithinBcaWindow(null, nowAnchor), false);
+
+  assert.deepEqual(kbttDeclarationEligibilityStateSchema.options, [
+    "ELIGIBLE_SAME_DAY",
+    "NEEDS_CORRECTION",
+    "PRIOR_DAY_MANUAL",
+    "OUT_OF_DATE_WINDOW",
+    "RECONCILIATION_REQUIRED",
+    "SUBMITTED",
+  ]);
 
   // Connection page removes custom time picker and distinguishes temporary disconnect vs login required
   const connectionPageSrc = readFileSync(
@@ -1192,7 +1219,9 @@ test("KBTT fixed 12:00/21:00 slots, 10-minute catch-up boundary, retired custom 
   );
   assert.match(declPageSrc, /ELIGIBLE_SAME_DAY/);
   assert.match(declPageSrc, /Hẹn gửi bù/);
+  assert.match(declPageSrc, /OUT_OF_DATE_WINDOW/);
   assert.match(declPageSrc, /PRIOR_DAY_MANUAL/);
+  assert.match(declPageSrc, /isArrivalDayWithinBcaWindow/);
   assert.match(declPageSrc, /Quá ngày — gửi thủ công/);
   assert.match(declPageSrc, /KBTT_TEMP_DISCONNECTED/);
   assert.match(declPageSrc, /Chờ kết nối BCA/);
@@ -1206,7 +1235,9 @@ test("KBTT fixed 12:00/21:00 slots, 10-minute catch-up boundary, retired custom 
     "utf8",
   );
   assert.match(cellsSrc, /getReconciliationRowStatusBadge/);
+  assert.match(cellsSrc, /OUT_OF_DATE_WINDOW/);
   assert.match(cellsSrc, /PRIOR_DAY_MANUAL/);
+  assert.match(cellsSrc, /isArrivalDayWithinBcaWindow/);
   assert.match(cellsSrc, /KBTT_TEMP_DISCONNECTED/);
   assert.match(cellsSrc, /KBTT_SESSION_ENDED/);
   assert.match(cellsSrc, /RECONCILIATION_REQUIRED/);

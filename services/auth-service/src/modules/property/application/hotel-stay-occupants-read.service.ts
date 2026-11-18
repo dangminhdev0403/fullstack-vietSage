@@ -30,17 +30,43 @@ export interface ActiveStayOccupantRow {
   updatedAt: Date;
 }
 
+export interface ActiveStayOccupantsPagedOptions {
+  cursor?: string;
+  take?: number;
+  stayIds?: string[];
+  roomIds?: string[];
+  /** Inclusive UTC start instant for authoritative stay arrival (`checkedInAt ?? plannedCheckInAt >= arrivalStart`) */
+  arrivalStart?: Date;
+  /** Exclusive UTC end instant for authoritative stay arrival (`checkedInAt ?? plannedCheckInAt < arrivalEnd`) */
+  arrivalEnd?: Date;
+  /**
+   * Filter directly in PostgreSQL by KBTT declaration status:
+   * - `"UNSYNCHRONIZED"`: occupants that do NOT have any `kbttGuestDeclarations` with `status: { in: ["SUBMITTED", "UNKNOWN", "CANCELLED"] }` (i.e. `kbttGuestDeclarations: { none: { status: { in: ["SUBMITTED", "UNKNOWN", "CANCELLED"] } } }`), so that even if a hotel has 5,000 already-SUBMITTED guests on early pages, a single DB query immediately returns only unsent/failed/draft/missing-profile guests!
+   * - `"UNKNOWN_ONLY"`: occupants that have `kbttGuestDeclarations: { some: { status: "UNKNOWN" } }`.
+   */
+  kbttFilter?: "UNSYNCHRONIZED" | "UNKNOWN_ONLY";
+}
+
 @Injectable()
 export class HotelStayOccupantsReadService {
   constructor(private readonly hotelRoomsRepository: HotelRoomsRepository) {}
 
-  async getActiveStayOccupants(hotelId: string, options?: { stayIds?: string[]; roomIds?: string[] }): Promise<ActiveStayOccupantRow[]> {
+  async getActiveStayOccupants(
+    hotelId: string,
+    options?: Pick<ActiveStayOccupantsPagedOptions, "stayIds" | "roomIds" | "arrivalStart" | "arrivalEnd" | "kbttFilter">,
+  ): Promise<ActiveStayOccupantRow[]> {
     if (!hotelId || typeof hotelId !== "string" || !hotelId.trim()) {
       return [];
     }
 
     const normalizedHotelId = hotelId.trim();
-    const rows = await (options?.stayIds || options?.roomIds
+    const hasFilterOptions =
+      options?.stayIds !== undefined ||
+      options?.roomIds !== undefined ||
+      options?.arrivalStart !== undefined ||
+      options?.arrivalEnd !== undefined ||
+      options?.kbttFilter !== undefined;
+    const rows = await (hasFilterOptions
       ? this.hotelRoomsRepository.findActiveStayOccupantsByHotel(normalizedHotelId, options)
       : this.hotelRoomsRepository.findActiveStayOccupantsByHotel(normalizedHotelId));
 
@@ -80,7 +106,7 @@ export class HotelStayOccupantsReadService {
 
   async getActiveStayOccupantsPaged(
     hotelId: string,
-    options?: { cursor?: string; take?: number },
+    options?: ActiveStayOccupantsPagedOptions,
   ): Promise<{ items: ActiveStayOccupantRow[]; nextCursor: string | null }> {
     if (!hotelId || typeof hotelId !== "string" || !hotelId.trim()) {
       return { items: [], nextCursor: null };
@@ -94,6 +120,11 @@ export class HotelStayOccupantsReadService {
     const rows = await this.hotelRoomsRepository.findActiveStayOccupantsByHotel(normalizedHotelId, {
       cursor: options?.cursor,
       take: take + 1,
+      ...(options?.stayIds !== undefined ? { stayIds: options.stayIds } : {}),
+      ...(options?.roomIds !== undefined ? { roomIds: options.roomIds } : {}),
+      ...(options?.arrivalStart !== undefined ? { arrivalStart: options.arrivalStart } : {}),
+      ...(options?.arrivalEnd !== undefined ? { arrivalEnd: options.arrivalEnd } : {}),
+      ...(options?.kbttFilter !== undefined ? { kbttFilter: options.kbttFilter } : {}),
     });
 
     const hasMore = rows.length > take;

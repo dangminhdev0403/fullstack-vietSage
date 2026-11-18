@@ -32,8 +32,12 @@ function formatIssueMessage(message: string | null): string {
   if (message === "KBTT_RETRY_PENDING") return "Đang thử kết nối lại sau 10 giây.";
   if (message === "KBTT_TEMP_DISCONNECTED") return "Tạm ngắt kết nối BCA — đang chờ kết nối lại.";
   if (message === "KBTT_SESSION_ENDED" || message === "KBTT_AUTH_FAILED") return "Cần đăng nhập lại BCA.";
-  if (message === "PRIOR_DAY_MANUAL_REQUIRED" || message === "PRIOR_DAY_MANUAL") {
-    return "Khách nhận phòng ngày trước — cần kiểm tra và gửi thủ công.";
+  if (
+    message === "OUT_OF_DATE_WINDOW" ||
+    message === "PRIOR_DAY_MANUAL_REQUIRED" ||
+    message === "PRIOR_DAY_MANUAL"
+  ) {
+    return "Quá hạn ngày — gửi thủ công.";
   }
   return sanitizeErrorMessage(message) || "Cần kiểm tra hồ sơ trước khi gửi tiếp.";
 }

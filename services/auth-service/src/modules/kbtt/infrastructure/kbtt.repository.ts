@@ -16,6 +16,15 @@ import { kbttUnavailable } from "./kbtt.config";
 export class KbttRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  async saveUnknownContinuation(runId: string, checkpoint: Record<string, unknown>) {
+    await this.prisma.$executeRaw`
+      UPDATE "KbttAutoSubmitRun"
+      SET "summaryJson" = COALESCE("summaryJson", '{}'::jsonb)
+        || jsonb_build_object('unknownResume', ${JSON.stringify(checkpoint)}::jsonb)
+      WHERE "id" = ${runId} AND "status" = 'RUNNING'
+    `;
+  }
+
   async find(hotelId: string) {
     try {
       return await this.prisma.kbttHotelConnection.findUnique({
@@ -31,7 +40,6 @@ export class KbttRepository {
     const normalizedCsltId = csltId.trim();
     if (!normalizedCsltId) return [];
     try {
-      if (!this.prisma.kbttHotelConnection?.findMany) return [];
       const rows = await this.prisma.kbttHotelConnection.findMany({
         where: {
           csltId: normalizedCsltId,
@@ -53,7 +61,7 @@ export class KbttRepository {
           )
         : [];
     } catch {
-      return [];
+      throw kbttUnavailable();
     }
   }
 
@@ -438,16 +446,27 @@ export class KbttRepository {
     id: string;
     hotelId: string;
     expectedVersion: number;
+    expectedClaimToken?: string | null;
+    expectedStatus?: KbttDeclarationStatus | KbttDeclarationStatus[];
     data: Prisma.KbttGuestDeclarationUpdateManyMutationInput;
   }): Promise<KbttGuestDeclaration> {
     try {
       const { version: _, ...restData } = (params.data ?? {}) as any;
+      const where: Prisma.KbttGuestDeclarationWhereInput = {
+        id: params.id,
+        hotelId: params.hotelId,
+        version: params.expectedVersion,
+      };
+      if (params.expectedClaimToken !== undefined) {
+        where.claimToken = params.expectedClaimToken;
+      }
+      if (params.expectedStatus !== undefined) {
+        where.status = Array.isArray(params.expectedStatus)
+          ? { in: params.expectedStatus }
+          : params.expectedStatus;
+      }
       const result = await this.prisma.kbttGuestDeclaration.updateMany({
-        where: {
-          id: params.id,
-          hotelId: params.hotelId,
-          version: params.expectedVersion,
-        },
+        where,
         data: {
           ...restData,
           version: params.expectedVersion + 1,
@@ -471,6 +490,80 @@ export class KbttRepository {
         throw error;
       }
       throw kbttUnavailable();
+    }
+  }
+
+  async settleAcceptedDeclaration(params: {
+    id: string;
+    hotelId: string;
+    expectedVersion: number;
+    expectedClaimToken?: string | null;
+    data: Prisma.KbttGuestDeclarationUpdateManyMutationInput;
+  }): Promise<KbttGuestDeclaration> {
+    try {
+      return await this.updateDeclaration(params);
+    } catch (error) {
+      if (!(error instanceof ConflictException)) {
+        throw error;
+      }
+      // Proof of positive provider acceptance must never be discarded because an intermediate reader incremented version.
+      try {
+        const current = await this.prisma.kbttGuestDeclaration.findFirst({
+          where: { id: params.id, hotelId: params.hotelId },
+        });
+        if (!current) {
+          throw new NotFoundException("Hồ sơ khai báo không tồn tại.");
+        }
+        if (current.status === "SUBMITTED") {
+          return current;
+        }
+        const { version: _, ...restData } = (params.data ?? {}) as any;
+        await this.prisma.kbttGuestDeclaration.updateMany({
+          where: {
+            id: params.id,
+            hotelId: params.hotelId,
+            version: current.version,
+          },
+          data: {
+            ...restData,
+            version: current.version + 1,
+          },
+        });
+        return (
+          (await this.prisma.kbttGuestDeclaration.findFirst({
+            where: { id: params.id, hotelId: params.hotelId },
+          })) ?? current
+        );
+      } catch (innerError) {
+        if (innerError instanceof NotFoundException) throw innerError;
+        throw kbttUnavailable();
+      }
+    }
+  }
+
+  async recoverInterruptedDeclarations(
+    hotelId?: string,
+    cutoff = new Date(Date.now() - 5 * 60 * 1000),
+  ): Promise<number> {
+    try {
+      if (!this.prisma.kbttGuestDeclaration?.updateMany) return 0;
+      const result = await this.prisma.kbttGuestDeclaration.updateMany({
+        where: {
+          ...(hotelId ? { hotelId } : {}),
+          status: "UNKNOWN",
+          claimToken: { not: null },
+          attemptedAt: { lt: cutoff },
+        },
+        data: {
+          claimToken: null,
+          providerCode: "INTERRUPTED_DELIVERY",
+          providerMessage:
+            "Lần gửi tới BCA bị gián đoạn trước khi xác nhận kết quả; cần đối soát trên cổng BCA trước khi gửi lại.",
+        },
+      });
+      return result?.count ?? 0;
+    } catch {
+      return 0;
     }
   }
 

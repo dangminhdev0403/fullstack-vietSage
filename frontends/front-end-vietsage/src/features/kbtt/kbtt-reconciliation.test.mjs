@@ -30,12 +30,66 @@ test("requires both country results and preserves partial failures without defau
 test("only confirmed absent local stays with safe send states can be submitted", () => {
   assert.equal(canRetryReconciledGuest(row), true);
   for (const status of ["MATCHED", "REVIEW", null]) assert.equal(canRetryReconciledGuest({ ...row, status }), false);
-  for (const declarationStatus of ["UNKNOWN", "SUBMITTED"]) assert.equal(canRetryReconciledGuest({ ...row, declarationStatus }), false);
+  for (const declarationStatus of ["UNKNOWN", "SUBMITTED"]) {
+    assert.equal(canRetryReconciledGuest({ ...row, declarationStatus }), false);
+    assert.equal(
+      kbttReconciliationSchema.safeParse({
+        ...response,
+        items: [{ ...row, declarationStatus, canRetry: true }],
+      }).success,
+      false,
+    );
+  }
   for (const declarationStatus of ["FAILED", "READY", "DRAFT", null]) assert.equal(canRetryReconciledGuest({ ...row, declarationStatus }), true);
   assert.equal(canRetryReconciledGuest({ ...row, source: "BCA_ONLY", occupantId: null }), false);
   assert.equal(canRetryReconciledGuest({ ...row, canRetry: false }), false);
   assert.equal(kbttReconciliationSchema.safeParse({ ...response, items: [{ ...row, source: "BCA_ONLY" }] }).success, false);
   assert.equal(kbttReconciliationSchema.safeParse({ ...response, items: [{ ...row, status: "MATCHED" }] }).success, false);
+});
+
+test("reconciliation row status badge and declaration status handle OUT_OF_DATE_WINDOW, PRIOR_DAY_MANUAL, and UNKNOWN without auto-retry", () => {
+  const { getReconciliationRowStatusBadge } = loadModule("./components/in-house-declaration-cells.tsx", {
+    "react/jsx-runtime": { jsx: () => null, jsxs: () => null, Fragment: "fragment" },
+    "react": { useEffect: () => {}, useMemo: (fn) => fn(), useRef: () => ({ current: null }), useState: (v) => [v, () => {}] },
+    "@tanstack/react-query": { useMutation: () => ({}), useQuery: () => ({}) },
+    "vs-icon": {},
+    "check-in-workspace": { formatVnDateInput: (v) => v, toIsoDate: (v) => v },
+    "in-house-draft": { buildInlineDraft: () => ({}) },
+    "kbtt-resource": { kbttResource: { bind: () => ({}) } },
+    "kbtt-contract": {
+      sanitizeErrorMessage: (m) => m ?? "",
+      getVietnamCalendarDate: (v) => (v ? String(v).slice(0, 10) : null),
+      isArrivalDayWithinBcaWindow: (d) => d === "2026-11-18" || d === "2026-11-17",
+    },
+  });
+
+  // OUT_OF_DATE_WINDOW and PRIOR_DAY_MANUAL render "Quá ngày — gửi thủ công"
+  for (const reason of ["OUT_OF_DATE_WINDOW", "PRIOR_DAY_MANUAL", "PRIOR_DAY_MANUAL_REQUIRED"]) {
+    const badge = getReconciliationRowStatusBadge({ ...row, reason });
+    assert.equal(badge?.label, "Quá ngày — gửi thủ công");
+  }
+  // Client-side fallback: D-2 arrival renders "Quá ngày — gửi thủ công" while yesterday (D+1) remains normal
+  assert.equal(
+    getReconciliationRowStatusBadge({ ...row, checkedInAt: "2026-11-16T02:00:00Z", declarationStatus: "DRAFT" })?.label,
+    "Quá ngày — gửi thủ công",
+  );
+  assert.equal(
+    getReconciliationRowStatusBadge({ ...row, checkedInAt: "2026-11-17T02:00:00Z", declarationStatus: "DRAFT" })?.label,
+    "Chưa có BCA",
+  );
+
+  // UNKNOWN / RECONCILIATION_REQUIRED renders "Cần đối soát" and is never retriable
+  const unknownBadge = getReconciliationRowStatusBadge({
+    ...row,
+    declarationStatus: "UNKNOWN",
+    reason: "RECONCILIATION_REQUIRED",
+    canRetry: false,
+  });
+  assert.equal(unknownBadge?.label, "Cần đối soát");
+  assert.equal(
+    canRetryReconciledGuest({ ...row, declarationStatus: "UNKNOWN", canRetry: false }),
+    false,
+  );
 });
 
 function loadModule(file, dependencies) {
