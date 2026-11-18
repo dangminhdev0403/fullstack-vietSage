@@ -1,6 +1,5 @@
 import {
   computeNextVietnamDailySlot,
-  KBTT_FIXED_SCHEDULE_SLOTS,
   sanitizeErrorMessage,
   type KbttConnection,
   type KbttDelivery,
@@ -96,7 +95,6 @@ export function KbttDeliveryStatus({
       <dl className="flex flex-wrap gap-x-6 gap-y-2 text-base text-slate-700">
         <div className="flex gap-2"><dt>Chờ gửi</dt><dd className="font-semibold tabular-nums">{delivery.pendingCount}</dd></div>
         <div className="flex gap-2"><dt>Cần xử lý</dt><dd className="font-semibold tabular-nums">{delivery.reviewCount}</dd></div>
-        <div className="flex gap-2"><dt>Khung giờ cố định</dt><dd className="font-semibold tabular-nums">{KBTT_FIXED_SCHEDULE_SLOTS.join(", ")}</dd></div>
         <div className="flex gap-2"><dt>Phiên tiếp theo</dt><dd className="font-semibold tabular-nums">{formatTime(nextScheduledSlotAt)}</dd></div>
         {nextCatchUpAt ? (
           <div className="flex gap-2"><dt>Gửi bù 10 phút</dt><dd className="font-semibold tabular-nums">{formatTime(nextCatchUpAt)}</dd></div>

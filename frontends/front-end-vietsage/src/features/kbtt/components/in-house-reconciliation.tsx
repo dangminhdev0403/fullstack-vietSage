@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getCoreRowModel, getFilteredRowModel, useReactTable, type ColumnDef } from "@tanstack/react-table";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { kbttResource } from "../resources/kbtt-resource";
+import { KbttScheduleInfo } from "./kbtt-schedule-info";
 import { InHouseBcaControls } from "./in-house-bca-status";
 import { InHouseDeclarationCells } from "./in-house-declaration-cells";
 import { DeclarationModal } from "./kbtt-declarations-page";
@@ -437,6 +438,8 @@ export function InHouseReconciliation({ hotelId, canManage, canConfigureKbtt = f
           </button>
         </div>
       </div>
+
+      <KbttScheduleInfo nextCatchUpAt={connection.data?.nextCatchUpAt ?? null} />
 
       {/* Sub-bar: Category Tabs & Search Bar with Active Filter Status */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
