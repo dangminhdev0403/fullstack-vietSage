@@ -182,6 +182,36 @@ export function getKbttSubmissionDateContext(
   return { todayYmd, yesterdayYmd };
 }
 
+/** Round only the outbound declaration; persisted stay/draft dates remain unchanged. */
+export function normalizeKbttSubmissionDates(
+  kind: "VIETNAMESE" | "FOREIGN",
+  payload: Record<string, unknown>,
+  nowOrContext: Date | string | KbttSubmissionDateContext = new Date(),
+): Record<string, unknown> {
+  const normalized = { ...payload };
+  const context = typeof nowOrContext === "object" && nowOrContext !== null &&
+    !(nowOrContext instanceof Date) && "todayYmd" in nowOrContext
+    ? nowOrContext : getKbttSubmissionDateContext(nowOrContext);
+  // Never repair malformed values: the strict validator must still reject them.
+  const validDateTime = (value: unknown): value is string =>
+    typeof value === "string" && isValidCalendarDateTime(value);
+  const arrival = normalized.ngayDenCsltStr;
+  if (validDateTime(arrival) && arrival.slice(0, 10) < context.yesterdayYmd) {
+    normalized.ngayDenCsltStr = `${context.yesterdayYmd}${arrival.slice(10)}`;
+  }
+  const normalizedArrival = normalized.ngayDenCsltStr;
+  const raiseDate = (field: string, minimumDay: string) => {
+    const value = normalized[field];
+    if (!validDateTime(value)) return;
+    let raised = value.slice(0, 10) < minimumDay ? `${minimumDay}${value.slice(10)}` : value;
+    if (validDateTime(normalizedArrival) && raised < normalizedArrival) raised = normalizedArrival;
+    normalized[field] = raised;
+  };
+  raiseDate("ngayDiDuKienStr", context.yesterdayYmd);
+  if (kind === "FOREIGN") raiseDate("thoiHanTamTruStr", context.todayYmd);
+  return normalized;
+}
+
 export interface KbttSubmissionDateValidationIssue {
   field: "ngayDenCsltStr" | "ngayDiDuKienStr" | "thoiHanTamTruStr";
   code:

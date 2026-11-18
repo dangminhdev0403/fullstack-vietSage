@@ -22,6 +22,12 @@ function remote(overrides: Partial<ProviderReconciliationGuest> = {}): ProviderR
 }
 
 describe("BCA read-only reconciliation", () => {
+  it("matches the persisted rounded wire day without changing the actual check-in shown locally", () => {
+    const guest = local({ checkedInAt: "2026-09-01T07:00:00Z", submittedArrivalAt: "2026-09-17T07:00:00Z", declarationStatus: "UNKNOWN" });
+    const result = reconcileGuests([guest], [remote()], all(), "123");
+    expect(result[0]).toMatchObject({ status: "MATCHED", canRetry: false, checkedInAt: guest.checkedInAt });
+    expect(reconcileGuests([guest], [remote({ csltId: "other" })], all(), "123")[0].status).not.toBe("MATCHED");
+  });
   it("matches exact qualified identity and Vietnam arrival day regardless of name, room, or local send state", () => {
     const rows = reconcileGuests([local()], [remote()], all(), "123");
     expect(rows).toHaveLength(1);

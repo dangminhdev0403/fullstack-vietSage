@@ -38,6 +38,7 @@ import {
   KBTT_DAILY_SCHEDULE_SLOTS,
   KBTT_SCHEDULE_TIMEZONE,
   normalizeDateStringToIso,
+  normalizeKbttSubmissionDates,
   kbttForeignReadySchema,
   kbttMetadata,
   kbttProviderCountrySchema,
@@ -72,7 +73,6 @@ import { KbttRepository } from "../infrastructure/kbtt.repository";
 import {
   composeKbttDraft,
   compactKbttDeclarationDraft,
-  hasExplicitDeclarationDate,
   markKbttDeclarationDates,
 } from "../domain/kbtt-draft-profile";
 import {
@@ -406,11 +406,11 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
         !("ngayDiDuKienStr" in guest) ||
         providerDay(guest.ngayDiDuKienStr) !==
           providerDay(
-            composeKbttDraft(
+            normalizeKbttSubmissionDates(kind, composeKbttDraft(
               kind,
               (current.draftPayloadJson ?? {}) as Record<string, unknown>,
               { fullName: "", stay: current.stay },
-            ).ngayDiDuKienStr,
+            ), new Date()).ngayDiDuKienStr,
           )
       ) {
         return {
@@ -458,32 +458,6 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
             "Cơ sở lưu trú BCA này đang bị trùng liên kết với một khách sạn khác trên hệ thống; luồng gửi đã được chặn an toàn.",
         };
       }
-      const authoritativeArrivalInstant =
-        current.stay.checkedInAt ?? current.stay.plannedCheckInAt;
-      const authoritativeArrivalYmd = authoritativeArrivalInstant
-        ? toYmd(authoritativeArrivalInstant, VIETNAM_TIME_ZONE)
-        : undefined;
-      const dateCheck = validateKbttSubmissionDates(
-        kind,
-        guest as Record<string, unknown>,
-        new Date(),
-        {
-          authoritativeArrivalYmd: hasExplicitDeclarationDate(
-            current.draftPayloadJson,
-            "ngayDenCsltStr",
-          )
-            ? undefined
-            : authoritativeArrivalYmd,
-          enforceArrivalWindow: true,
-        },
-      );
-      if (!dateCheck.valid) {
-        return {
-          outcome: "BUSINESS_REJECTION",
-          code: dateCheck.outOfWindow ? "OUT_OF_DATE_WINDOW" : "LOCAL_VALIDATION",
-          message: dateCheck.issues.map((i) => `${i.field}: ${i.message}`).join("; "),
-        };
-      }
       // Recheck connection generation, status and session immediately before calling the provider after every awaited precondition.
       const finalConnection = await this.repository.find(hotelId);
       const finalCached = this.sessions.get(hotelId);
@@ -508,6 +482,14 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
           outcome: "BUSINESS_REJECTION",
           code: "DELIVERY_PAUSED",
           message: "Luồng gửi BCA đang tạm dừng.",
+        };
+      }
+      const dateCheck = validateKbttSubmissionDates(kind, guest as Record<string, unknown>, new Date(), { enforceArrivalWindow: true });
+      if (!dateCheck.valid) {
+        return {
+          outcome: "BUSINESS_REJECTION",
+          code: dateCheck.outOfWindow ? "OUT_OF_DATE_WINDOW" : "LOCAL_VALIDATION",
+          message: dateCheck.issues.map((i) => `${i.field}: ${i.message}`).join("; "),
         };
       }
       const outcome = this.staySync?.enabled()
@@ -1380,11 +1362,10 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       return false;
     }
     const arrivalYmd = this.getOccupantArrivalVietnamYmd(occupant, draft);
-    if (!arrivalYmd || (arrivalYmd !== context.todayYmd && arrivalYmd !== context.yesterdayYmd)) {
+    if (!arrivalYmd || arrivalYmd > context.todayYmd) {
       return false;
     }
-    const dateCheck = validateKbttSubmissionDates(kind, draft, context, {
-      authoritativeArrivalYmd: arrivalYmd,
+    const dateCheck = validateKbttSubmissionDates(kind, normalizeKbttSubmissionDates(kind, draft, context), context, {
       enforceArrivalWindow: true,
     });
     if (dateCheck.outOfWindow) {
@@ -1411,8 +1392,16 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       if (!declaration.submittedPayloadFingerprint) {
         return true;
       }
+      const normalized = normalizeKbttSubmissionDates(kind, draft, context);
+      const ready = (kind === "VIETNAMESE" ? kbttVietnameseReadySchema : kbttForeignReadySchema).safeParse(normalized);
+      const lastAttemptAt = declaration.attemptedAt ?? declaration.updatedAt;
+      const confirmedProviderFailure = /^(?:HTTP_)?[1-5]\d{2}$/.test(declaration.providerCode ?? "");
+      if (confirmedProviderFailure && ready.success && dateCheck.valid && lastAttemptAt &&
+          toYmd(lastAttemptAt, VIETNAM_TIME_ZONE) < context.todayYmd) {
+        return true;
+      }
       const currentFp = createHash("sha256")
-        .update(JSON.stringify([draft]))
+        .update(JSON.stringify([ready.success ? ready.data : normalized]))
         .digest("hex");
       return currentFp !== declaration.submittedPayloadFingerprint;
     }
@@ -1895,7 +1884,11 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
           (nat === "VNM" ? "VIETNAMESE" : "FOREIGN");
         neededKinds.add(kind);
         const draft = this.declarationDraft(declaration, occupant);
-        const arrivalYmd = this.getOccupantArrivalVietnamYmd(occupant, draft);
+        const submitted = declaration.submittedCsltId === connection.csltId && Array.isArray(declaration.submittedPayloadJson)
+          ? declaration.submittedPayloadJson[0] as Record<string, unknown> | undefined : undefined;
+        const submittedArrival = submitted?.ngayDenCsltStr;
+        const arrivalYmd = typeof submittedArrival === "string" && isValidCalendarDateTime(submittedArrival)
+          ? submittedArrival.slice(0, 10) : this.getOccupantArrivalVietnamYmd(occupant, draft);
         if (arrivalYmd && arrivalYmd >= minWindowDay && arrivalYmd <= todayYmd) {
           neededDaysByKind[kind].add(arrivalYmd);
         }
@@ -2077,6 +2070,8 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
               ? snapshot.quocTich.trim()
               : null) ?? row.nationality,
           checkedInAt: arrivalInstant ? arrivalInstant.toISOString() : null,
+          submittedArrivalAt: decl.submittedCsltId === connection.csltId && typeof snapshot.ngayDenCsltStr === "string" && isValidCalendarDateTime(snapshot.ngayDenCsltStr)
+            ? new Date(snapshot.ngayDenCsltStr.replace(" ", "T") + "+07:00").toISOString() : null,
           plannedCheckOutAt: row.plannedCheckOutAt.toISOString(),
           declarationStatus: decl?.status ?? null,
           providerMessage: decl?.providerMessage ?? null,
@@ -2180,7 +2175,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     if (!this.occupantsReadService) return false;
     const context = getKbttSubmissionDateContext(now);
     const todayBounds = getDayBounds(context.todayYmd, VIETNAM_TIME_ZONE);
-    const yesterdayBounds = getDayBounds(context.yesterdayYmd, VIETNAM_TIME_ZONE);
+    const yesterdayBounds = getDayBounds(addDaysYmd(context.todayYmd, -29), VIETNAM_TIME_ZONE);
     const cohorts = [
       { key: `${hotelId}:today`, arrivalStart: todayBounds.start, arrivalEnd: todayBounds.end },
       { key: `${hotelId}:yesterday`, arrivalStart: yesterdayBounds.start, arrivalEnd: todayBounds.start },
@@ -2392,10 +2387,9 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       const derivedStatus: KbttDerivedStatus = decl ? decl.status : "MISSING_PROFILE";
       const arrivalYmd = this.getOccupantArrivalVietnamYmd(occupant, draft);
       const isInArrivalWindow =
-        arrivalYmd === dateContext.todayYmd || arrivalYmd === dateContext.yesterdayYmd;
+        Boolean(arrivalYmd && arrivalYmd <= dateContext.todayYmd);
       const dateCheck = classification
-        ? validateKbttSubmissionDates(classification, draft, dateContext, {
-            authoritativeArrivalYmd: arrivalYmd,
+        ? validateKbttSubmissionDates(classification, normalizeKbttSubmissionDates(classification, draft, dateContext), dateContext, {
             enforceArrivalWindow: true,
           })
         : { valid: true, outOfWindow: !isInArrivalWindow, issues: [] };
@@ -2821,11 +2815,10 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       const schema =
         citizenshipKind === "VIETNAMESE" ? kbttVietnameseReadySchema : kbttForeignReadySchema;
       const arrivalYmd = this.getOccupantArrivalVietnamYmd(canonical, draftData);
-      const dateCheck = validateKbttSubmissionDates(citizenshipKind, draftData, dateContext, {
-        authoritativeArrivalYmd: arrivalYmd,
+      const dateCheck = validateKbttSubmissionDates(citizenshipKind, normalizeKbttSubmissionDates(citizenshipKind, draftData, dateContext), dateContext, {
         enforceArrivalWindow: true,
       });
-      if (schema.safeParse(draftData).success && dateCheck.valid) {
+      if (schema.safeParse(normalizeKbttSubmissionDates(citizenshipKind, draftData, dateContext)).success && dateCheck.valid) {
         await this.scheduleEligibleSameDayCatchUp(hotelId, now).catch(() => null);
       }
     }
@@ -3004,7 +2997,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       id: preparedDeclaration.id, hotelId, expectedVersion: preparedDeclaration.version,
       data: { status: "UNKNOWN", providerCode: null, providerMessage: null,
         providerResponseJson: Prisma.JsonNull, submittedAt: null,
-        submittedPayloadJson: payload, submittedPayloadFingerprint: fingerprint,
+        submittedPayloadJson: payload as Prisma.InputJsonValue, submittedPayloadFingerprint: fingerprint,
         submittedCsltId: connection.csltId,
         submittedConnectionCiphertext: connection.ciphertext,
         claimToken,
@@ -3156,32 +3149,16 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     );
     const parsed =
       declarationKind === "VIETNAMESE"
-        ? kbttVietnameseReadySchema.safeParse(draft)
-        : kbttForeignReadySchema.safeParse(draft);
+        ? kbttVietnameseReadySchema.safeParse(normalizeKbttSubmissionDates(declarationKind, draft, new Date()))
+        : kbttForeignReadySchema.safeParse(normalizeKbttSubmissionDates(declarationKind, draft, new Date()));
     if (!parsed.success) {
       throw new BadRequestException({
         code: "KBTT_PAYLOAD_INVALID",
         message: formatValidationIssues(parsed.error.issues),
       });
     }
-    const authoritativeArrivalYmd = this.getOccupantArrivalVietnamYmd(
-      occupant,
-      parsed.data as Record<string, unknown>,
-    );
-    const dateCheck = validateKbttSubmissionDates(
-      declarationKind,
-      parsed.data as Record<string, unknown>,
-      new Date(),
-      {
-        authoritativeArrivalYmd: hasExplicitDeclarationDate(
-          declaration?.draftPayloadJson,
-          "ngayDenCsltStr",
-        )
-          ? undefined
-          : authoritativeArrivalYmd,
-        enforceArrivalWindow: true,
-      },
-    );
+    const wirePayload = normalizeKbttSubmissionDates(declarationKind, parsed.data, new Date());
+    const dateCheck = validateKbttSubmissionDates(declarationKind, wirePayload, new Date(), { enforceArrivalWindow: true });
     if (!dateCheck.valid) {
       throw new BadRequestException({
         code: dateCheck.outOfWindow ? "OUT_OF_DATE_WINDOW" : "KBTT_PAYLOAD_INVALID",
@@ -3213,7 +3190,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
           id: declaration.id,
           hotelId,
           expectedVersion: declaration.version,
-          data: { draftPayloadJson: this.compactDraft(declarationKind, parsed.data, occupant) },
+          data: { draftPayloadJson: this.compactDraft(declarationKind, draft, occupant) },
         })
       : await this.repository.createDeclaration({
           hotelId,
@@ -3221,10 +3198,10 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
           occupantId,
           declarationKind,
           status: "DRAFT",
-          draftPayloadJson: this.compactDraft(declarationKind, parsed.data, occupant),
+          draftPayloadJson: this.compactDraft(declarationKind, draft, occupant),
         });
 
-    return { preparedDeclaration, declarationKind, payload: [parsed.data], draft: parsed.data };
+    return { preparedDeclaration, declarationKind, payload: [wirePayload], draft };
   }
 
   private declarationDraft(
@@ -3979,7 +3956,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       );
       const MAX_SCAN_PAGES = 20;
       let pagesScanned = 0;
-      const arrivalStart = getDayBounds(dateContext.yesterdayYmd, VIETNAM_TIME_ZONE).start;
+      const arrivalStart = getDayBounds(addDaysYmd(dateContext.todayYmd, -29), VIETNAM_TIME_ZONE).start;
       const arrivalEnd = cutoffInstant;
       let totalEligibleCount = 0;
       let directSuccessCount = 0;
@@ -4129,7 +4106,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
             decl.declarationKind === "VIETNAMESE"
               ? kbttVietnameseReadySchema
               : kbttForeignReadySchema;
-          const validated = schema.safeParse(draft);
+          const validated = schema.safeParse(normalizeKbttSubmissionDates(decl.declarationKind, (draft ?? {}) as Record<string, unknown>, selectionContext));
           const arrivalYmd = occupant
             ? this.getOccupantArrivalVietnamYmd(occupant, (draft ?? {}) as Record<string, unknown>)
             : typeof (draft as any)?.ngayDenCsltStr === "string"
@@ -4137,10 +4114,9 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
               : null;
           const dateCheck = validateKbttSubmissionDates(
             decl.declarationKind,
-            (validated.success ? validated.data : (draft ?? {})) as Record<string, unknown>,
+            normalizeKbttSubmissionDates(decl.declarationKind, (validated.success ? validated.data : (draft ?? {})) as Record<string, unknown>, selectionContext),
             selectionContext,
             {
-              authoritativeArrivalYmd: arrivalYmd,
               enforceArrivalWindow: true,
             },
           );
@@ -4166,7 +4142,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
                   ? "OUT_OF_DATE_WINDOW"
                   : "LOCAL_VALIDATION";
               const draftFp = createHash("sha256")
-                .update(JSON.stringify([draft]))
+                .update(JSON.stringify([normalizeKbttSubmissionDates(decl.declarationKind, draft as Record<string, unknown>, selectionContext)]))
                 .digest("hex");
               if (decl.id.startsWith("pending:")) {
                 await this.repository.createDeclaration({
@@ -4175,7 +4151,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
                   occupantId: decl.occupantId,
                   declarationKind: decl.declarationKind,
                   status: "FAILED",
-                  draftPayloadJson: occupant ? this.compactDraft(decl.declarationKind, draft as Record<string, unknown>, occupant) : draft as Prisma.InputJsonValue,
+                  draftPayloadJson: occupant ? this.compactDraft(decl.declarationKind, draft as Record<string, unknown>, occupant) : (draft ?? {}) as Prisma.InputJsonValue as Prisma.InputJsonValue,
                   submittedPayloadFingerprint: draftFp,
                   providerCode: failureCode,
                   providerMessage: error,
@@ -4208,23 +4184,23 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
               occupantId: decl.occupantId,
               declarationKind: decl.declarationKind,
               status: "READY",
-              draftPayloadJson: occupant ? this.compactDraft(decl.declarationKind, validated.data, occupant) : validated.data,
+              draftPayloadJson: occupant ? this.compactDraft(decl.declarationKind, draft as Record<string, unknown>, occupant) : (draft ?? {}) as Prisma.InputJsonValue,
             });
           } else if (!isDryRun && occupant) {
             submitDeclaration = await this.repository.updateDeclaration({
               id: decl.id,
               hotelId,
               expectedVersion: decl.version,
-              data: { draftPayloadJson: occupant ? this.compactDraft(decl.declarationKind, validated.data, occupant) : validated.data },
+              data: { draftPayloadJson: occupant ? this.compactDraft(decl.declarationKind, draft as Record<string, unknown>, occupant) : (draft ?? {}) as Prisma.InputJsonValue },
             });
           }
 
-          const payload = [validated.data];
+          const payload = [normalizeKbttSubmissionDates(decl.declarationKind, validated.data, new Date())];
           const fingerprint = createHash("sha256").update(JSON.stringify(payload)).digest("hex");
           validItems.push({
             declaration: submitDeclaration,
             payload,
-            draftData: validated.data ?? {},
+            draftData: payload[0],
             fingerprint,
             arrivalYmd,
           });
@@ -4287,7 +4263,6 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
             item.draftData,
             new Date(),
             {
-              authoritativeArrivalYmd: item.arrivalYmd,
               enforceArrivalWindow: true,
             },
           );
@@ -4799,14 +4774,13 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
 
           const schema =
             citizenshipKind === "VIETNAMESE" ? kbttVietnameseReadySchema : kbttForeignReadySchema;
-          const validated = schema.safeParse(draft);
+          const validated = schema.safeParse(normalizeKbttSubmissionDates(citizenshipKind, draft, new Date()));
           const arrivalYmd = this.getOccupantArrivalVietnamYmd(occupant, draft);
           const dateCheck = validateKbttSubmissionDates(
             citizenshipKind,
-            (validated.success ? validated.data : draft) as Record<string, unknown>,
+            normalizeKbttSubmissionDates(citizenshipKind, (validated.success ? validated.data : draft) as Record<string, unknown>, new Date()),
             new Date(),
             {
-              authoritativeArrivalYmd: arrivalYmd,
               enforceArrivalWindow: true,
             },
           );
@@ -4832,7 +4806,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
                 ? "OUT_OF_DATE_WINDOW"
                 : "LOCAL_VALIDATION";
             const draftFp = createHash("sha256")
-              .update(JSON.stringify([draft]))
+              .update(JSON.stringify([normalizeKbttSubmissionDates(citizenshipKind, draft, new Date())]))
               .digest("hex");
 
             if (!existingDecl) {

@@ -63,29 +63,35 @@ test("reconciliation row status badge and declaration status handle OUT_OF_DATE_
     },
   });
 
-  // OUT_OF_DATE_WINDOW and PRIOR_DAY_MANUAL render "Quá ngày — gửi thủ công"
+  // OUT_OF_DATE_WINDOW and PRIOR_DAY_MANUAL render "Gửi lỗi"
   for (const reason of ["OUT_OF_DATE_WINDOW", "PRIOR_DAY_MANUAL", "PRIOR_DAY_MANUAL_REQUIRED"]) {
     const badge = getReconciliationRowStatusBadge({ ...row, reason });
-    assert.equal(badge?.label, "Quá ngày — gửi thủ công");
+    assert.equal(badge?.label, "Gửi lỗi");
   }
-  // Client-side fallback: D-2 arrival renders "Quá ngày — gửi thủ công" while yesterday (D+1) remains normal
+  // Unsent drafts remain distinct from failed attempts, regardless of arrival day.
   assert.equal(
     getReconciliationRowStatusBadge({ ...row, checkedInAt: "2026-11-16T02:00:00Z", declarationStatus: "DRAFT" })?.label,
-    "Quá ngày — gửi thủ công",
+    "Chưa có",
   );
   assert.equal(
     getReconciliationRowStatusBadge({ ...row, checkedInAt: "2026-11-17T02:00:00Z", declarationStatus: "DRAFT" })?.label,
-    "Chưa có BCA",
+    "Chưa có",
   );
 
-  // UNKNOWN / RECONCILIATION_REQUIRED renders "Cần đối soát" and is never retriable
+  for (const declarationStatus of [null, "DRAFT", "READY"]) {
+    assert.equal(getReconciliationRowStatusBadge({ ...row, declarationStatus })?.label, "Chưa có");
+    assert.equal(getReconciliationRowStatusBadge({ ...row, declarationStatus, status: "MATCHED" })?.label, "Đã có trên BCA");
+  }
+  // Ambiguous attempts retain the internal no-resend guard under the simplified label.
   const unknownBadge = getReconciliationRowStatusBadge({
     ...row,
     declarationStatus: "UNKNOWN",
     reason: "RECONCILIATION_REQUIRED",
     canRetry: false,
   });
-  assert.equal(unknownBadge?.label, "Cần đối soát");
+  assert.equal(unknownBadge?.label, "Gửi lỗi");
+  assert.equal(getReconciliationRowStatusBadge({ ...row, status: "MATCHED" })?.label, "Đã có trên BCA");
+  assert.equal(getReconciliationRowStatusBadge({ ...row, declarationStatus: "SUBMITTED" })?.label, "Đã có trên BCA");
   assert.equal(
     canRetryReconciledGuest({ ...row, declarationStatus: "UNKNOWN", canRetry: false }),
     false,

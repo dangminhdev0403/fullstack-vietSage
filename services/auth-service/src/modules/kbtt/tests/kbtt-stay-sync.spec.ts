@@ -574,11 +574,13 @@ describe("BCA stay lifecycle delivery", () => {
     expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
     expect(f.provider.submitDeclaration).toHaveBeenCalledWith("VIETNAMESE", [expect.objectContaining({
       soGiayTo: originalGuest.soGiayTo, loaiGiayTo: 1, soPhong: "101",
-      ngayDenCsltStr: originalGuest.ngayDenCsltStr, ngayDiDuKienStr: "2026-11-10 14:00:00",
+      ngayDenCsltStr: "2026-11-04 14:00:00", ngayDiDuKienStr: "2026-11-10 14:00:00",
     })], "test-access-token");
     expect(f.provider.changeDeparture).not.toHaveBeenCalled();
     expect(f.repository.finish).toHaveBeenCalledWith(f.operation.id, "lease-token",
       expect.objectContaining({ status: "SUCCEEDED", providerCode: "200" }), undefined);
+    expect(f.stay.checkedInAt.toISOString()).toBe("2026-11-01T07:00:00.000Z");
+    expect(f.declaration.submittedPayloadJson![0].ngayDenCsltStr).toBe(originalGuest.ngayDenCsltStr);
   });
 
   it("does not recover before the acknowledged departure has elapsed", async () => {

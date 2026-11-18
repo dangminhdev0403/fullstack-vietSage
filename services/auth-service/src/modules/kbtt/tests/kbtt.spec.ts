@@ -1,3 +1,4 @@
+import { kbttVietnameseReadySchema, normalizeKbttSubmissionDates } from "../domain/schemas/kbtt.schema";
 import { KbttProviderReadClient, KbttProviderReadError } from "../infrastructure/kbtt-provider-read.client";
 import {
   BadRequestException,
@@ -850,15 +851,11 @@ describe("KBTT secure manual authentication", () => {
     expect((await f.service.listDeclarations("owner", "owner-role", "hotel-1")).delivery.state).toBe("PAUSED");
     expect(f.provider.login).not.toHaveBeenCalled();
     expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
-    // Move to D+2 (2026-09-16) so automatic sweep does not auto-send the 2026-09-14 arrival, then restore to 2026-09-15 for explicit retry
+    // Previously paused work is safely caught up after enabling, even on D+2.
     jest.setSystemTime(new Date("2026-09-16T05:00:00.000Z"));
     await f.service.updateAutoSubmitEnabled("front-desk", "staff-role", "hotel-1", true);
     await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
-    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
-    jest.setSystemTime(new Date("2026-09-15T05:00:00.000Z"));
-    const retry = await f.service.submit("owner", "owner-role", "hotel-1", pausedOccupant.id);
-    expect(retry.status).toBe("UNKNOWN");
-    await finishInitialDeliveries(f);
+    expect(f.provider.submitDeclaration).toHaveBeenCalledWith("VIETNAMESE", [expect.objectContaining({ ngayDenCsltStr: "2026-09-15 10:00:00" })], expect.any(String));
     expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
     expect(f.declarations.get(result.id)?.status).toBe("SUBMITTED");
   });
@@ -3615,7 +3612,44 @@ describe("BCA same-day 12:00/21:00 slots, 10-minute catch-up, and temporary disc
     });
   });
 
-  it("submits current-day and yesterday (D+1) arrivals existing at the slot cutoff while blocking out-of-window (D-2) arrivals without altering arrival dates", async () => {
+  it("rounds historical wire payloads for each retry day while preserving local stay and draft dates", async () => {
+    const f = fixture();
+    const occupant = structuredClone(primaryOccupant);
+    occupant.stay.checkedInAt = new Date("2026-09-10T03:00:00.000Z");
+    occupant.stay.plannedCheckInAt = occupant.stay.checkedInAt;
+    occupant.checkedInAt = occupant.stay.checkedInAt;
+    occupant.plannedCheckInAt = occupant.stay.checkedInAt;
+    f.occupants.set(occupant.id, occupant);
+    const first = await (f.service as any).prepareInitialDeclaration("hotel-1", occupant.id, occupant);
+    expect(first.payload[0].ngayDenCsltStr).toBe("2026-09-13 10:00:00");
+    expect(first.draft.ngayDenCsltStr).toBe("2026-09-10 10:00:00");
+    expect(occupant.stay.checkedInAt.toISOString()).toBe("2026-09-10T03:00:00.000Z");
+    const fingerprint = createHash("sha256").update(JSON.stringify(first.payload)).digest("hex");
+    const failed = { ...first.preparedDeclaration, status: "FAILED", providerCode: "400", submittedPayloadFingerprint: fingerprint };
+    expect((f.service as any).isDeclarationEligibleForAutoCatchUp(occupant, failed, "2026-09-14")).toBe(false);
+    expect((f.service as any).isDeclarationEligibleForAutoCatchUp(occupant, failed, "2026-09-15")).toBe(true);
+    jest.setSystemTime(new Date("2026-09-15T05:00:00.000Z"));
+    const retry = await (f.service as any).prepareInitialDeclaration("hotel-1", occupant.id, occupant);
+    expect(retry.payload[0].ngayDenCsltStr).toBe("2026-09-14 10:00:00");
+    expect(retry.draft.ngayDenCsltStr).toBe("2026-09-10 10:00:00");
+    f.service.onModuleDestroy();
+  });
+
+  it("retries a confirmed provider failure on the next Vietnam day even when the valid wire payload is unchanged", async () => {
+    const f = fixture();
+    const occupant = structuredClone(primaryOccupant);
+    const prepared = await (f.service as any).prepareInitialDeclaration("hotel-1", occupant.id, occupant);
+    const failed = { ...prepared.preparedDeclaration, status: "FAILED", providerCode: "400",
+      attemptedAt: new Date("2026-09-14T05:00:00.000Z"),
+      submittedPayloadFingerprint: createHash("sha256").update(JSON.stringify(prepared.payload)).digest("hex") };
+    expect((f.service as any).isDeclarationEligibleForAutoCatchUp(occupant, failed, "2026-09-14")).toBe(false);
+    expect((f.service as any).isDeclarationEligibleForAutoCatchUp(occupant, failed, "2026-09-15")).toBe(true);
+    expect((f.service as any).isDeclarationEligibleForAutoCatchUp(occupant, { ...failed, status: "UNKNOWN" }, "2026-09-15")).toBe(false);
+    expect((f.service as any).isDeclarationEligibleForAutoCatchUp(occupant, { ...failed, providerCode: "LOCAL_VALIDATION" }, "2026-09-15")).toBe(false);
+    f.service.onModuleDestroy();
+  });
+
+  it("submits current-day and yesterday (D+1) arrivals existing at the slot cutoff and rounds older arrivals only on the wire without altering local dates", async () => {
     const f = fixture();
     await f.service.connect("owner", "owner-role", "hotel-1", credentials);
     enableAutomaticDelivery(f);
@@ -3685,7 +3719,12 @@ describe("BCA same-day 12:00/21:00 slots, 10-minute catch-up, and temporary disc
       false,
     );
 
-    expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(2);
+    expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(3);
+    expect(f.provider.submitDeclaration).toHaveBeenCalledWith(
+      "VIETNAMESE",
+      [expect.objectContaining({ hoTen: "Out Of Window Guest", ngayDenCsltStr: "2026-09-13 15:00:00" })],
+      expect.any(String),
+    );
     expect(f.provider.submitDeclaration).toHaveBeenCalledWith(
       "VIETNAMESE",
       [expect.objectContaining({ hoTen: "Yesterday Guest", ngayDenCsltStr: "2026-09-13 15:00:00" })],
@@ -3719,7 +3758,7 @@ describe("BCA same-day 12:00/21:00 slots, 10-minute catch-up, and temporary disc
     f.service.onModuleDestroy();
   });
 
-  it("schedules catch-up across midnight at 23:55 -> 00:00 next day (D+1) using actual arrival D without fabricating today, and blocks at D+2", async () => {
+  it("schedules catch-up across midnight at 23:55 -> 00:00 next day (D+1) preserves yesterday and rounds D+2 arrivals to the new yesterday", async () => {
     jest.setSystemTime(new Date("2026-09-14T16:55:00.000Z")); // 23:55 VN on 2026-09-14 (day D)
     const f = fixture();
     f.occupants.set(primaryOccupant.id, structuredClone(primaryOccupant));
@@ -3771,7 +3810,8 @@ describe("BCA same-day 12:00/21:00 slots, 10-minute catch-up, and temporary disc
       new Date("2026-09-16T05:00:00.000Z"),
       false,
     );
-    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+    expect(f.provider.submitDeclaration).toHaveBeenCalledWith("VIETNAMESE", [expect.objectContaining({ ngayDenCsltStr: "2026-09-15 10:00:00" })], expect.any(String));
+    expect(dPlus2Guest.stay.checkedInAt.toISOString()).toBe("2026-09-14T03:00:00.000Z");
     f.service.onModuleDestroy();
   });
 
@@ -4069,7 +4109,7 @@ describe("BCA same-day 12:00/21:00 slots, 10-minute catch-up, and temporary disc
     // Listing declarations surfaces OUT_OF_DATE_WINDOW with nextCatchUpAt: null
     const list = await f.service.listDeclarations("owner", "owner-role", "hotel-1");
     expect(list.items[0].declaration).toMatchObject({
-      eligibilityState: "OUT_OF_DATE_WINDOW",
+      eligibilityState: "NEEDS_CORRECTION",
       nextCatchUpAt: null,
     });
 
@@ -4867,7 +4907,7 @@ describe("BCA same-day 12:00/21:00 slots, 10-minute catch-up, and temporary disc
       recentTodayGuest,
     );
     const lockedFp = createHash("sha256")
-      .update(JSON.stringify([draftForLocked]))
+      .update(JSON.stringify([kbttVietnameseReadySchema.parse(normalizeKbttSubmissionDates("VIETNAMESE", draftForLocked, new Date("2026-09-14T14:03:00.000Z")))]))
       .digest("hex");
     await f.repository.updateDeclaration({
       id: lockedFailedDecl.id,

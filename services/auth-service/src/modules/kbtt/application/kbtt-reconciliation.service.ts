@@ -62,9 +62,15 @@ export class KbttReconciliationService implements OnModuleDestroy {
       : scope.mode === "ROOM_EXCLUSIVE" ? (scope.allowedRoomId ? [scope.allowedRoomId] : []) : undefined;
     const raw = await this.occupants.getActiveStayOccupants(hotelId, restrictedRooms ? { roomIds: restrictedRooms } : undefined);
     const declarations = await this.repository.findDeclarationsByHotel(hotelId, raw.map((row) => row.id));
+    const connection = await this.repository.find(hotelId);
     const byOccupant = new Map(declarations.map((declaration) => [declaration.occupantId, declaration]));
     const local: LocalReconciliationGuest[] = raw.map((row) => {
       const declaration = byOccupant.get(row.id);
+      const submitted = declaration &&
+        ["UNKNOWN", "SUBMITTED"].includes(declaration.status) &&
+        connection?.csltId && declaration.submittedCsltId === connection.csltId &&
+        Array.isArray(declaration.submittedPayloadJson)
+        ? object(declaration.submittedPayloadJson[0]) : null;
       const nationality = row.nationality?.trim().toUpperCase();
       const kind = declaration?.declarationKind ?? row.citizenshipKind ?? (nationality === "VNM" ? "VIETNAMESE" : null);
       const draft = kind ? composeKbttDraft(kind, object(declaration?.draftPayloadJson) ?? {}, row) : {};
@@ -83,6 +89,7 @@ export class KbttReconciliationService implements OnModuleDestroy {
         groupCode: row.groupCode ?? null, fullName: row.fullName, identityNumber: identity,
         kind, documentType, nationality: str(draft.quocTich) ?? row.nationality,
         checkedInAt: this.providerInstant(draft.ngayDenCsltStr) ?? row.checkedInAt?.toISOString() ?? null,
+        submittedArrivalAt: this.providerInstant(submitted?.ngayDenCsltStr),
         plannedCheckOutAt: this.providerInstant(draft.ngayDiDuKienStr) ?? row.plannedCheckOutAt.toISOString(),
         declarationStatus: declaration?.status ?? null, providerMessage: declaration?.providerMessage ?? null, linkedBcaId: null, draftPayload };
     });
@@ -90,12 +97,11 @@ export class KbttReconciliationService implements OnModuleDestroy {
     const yesterday = addDaysYmd(today, -1);
     const minWindowDay = addDaysYmd(today, -(MAX_HISTORY_WINDOW_DAYS - 1));
     const arrivalDays = local
-      .map((row) => reconciliationArrivalDay(row.checkedInAt))
+      .map((row) => reconciliationArrivalDay(row.submittedArrivalAt ?? row.checkedInAt))
       .filter((day): day is string => Boolean(day));
     const historyDays = [...new Set(arrivalDays.filter((day) => day >= minWindowDay && day <= today))].sort();
     const earliestWindowDay = historyDays[0] ?? today;
     const range = { dateFrom: earliestWindowDay, dateTo: today };
-    const connection = await this.repository.find(hotelId);
     const viewKey = JSON.stringify([hotelId, connection?.csltId, connection?.ciphertext, restrictedRooms?.slice().sort() ?? null]);
     const unavailable = (state: "NOT_CONNECTED" | "NEEDS_LOGIN", message: string): KbttReconciliationResponse => ({
       items: reconcileGuests(local, [], new Set(), connection?.csltId ?? ""), checkedAt: null, range,

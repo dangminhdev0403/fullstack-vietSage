@@ -7,8 +7,6 @@ import { formatVnDateInput, toIsoDate } from "@/features/local-biometric/compone
 import { buildInlineDraft } from "../in-house-draft";
 import { kbttResource } from "../resources/kbtt-resource";
 import {
-  getVietnamCalendarDate,
-  isArrivalDayWithinBcaWindow,
   sanitizeErrorMessage,
   type KbttReconciliationRow,
   type KbttCatalogItem,
@@ -22,95 +20,16 @@ export function getReconciliationRowStatusBadge(row: KbttReconciliationRow): {
   dotColor: string;
   badgeClass: string;
 } | null {
-  const code = row.reason ?? row.providerMessage ?? "";
-  if (row.status === "MATCHED" || row.declarationStatus === "SUBMITTED") {
-    return {
-      label: "Đã có BCA",
-      dotColor: "bg-emerald-600",
-      badgeClass: "border-emerald-200 bg-emerald-50 text-emerald-800",
-    };
-  }
-  if (
-    row.declarationStatus === "UNKNOWN" ||
-    row.status === "REVIEW" ||
-    code === "RECONCILIATION_REQUIRED"
-  ) {
-    return {
-      label: "Cần đối soát",
-      dotColor: "bg-amber-500",
-      badgeClass: "border-amber-200 bg-amber-50 text-amber-900",
-    };
-  }
-  if (
-    code === "OUT_OF_DATE_WINDOW" ||
-    code === "PRIOR_DAY_MANUAL" ||
-    code === "PRIOR_DAY_MANUAL_REQUIRED"
-  ) {
-    return {
-      label: "Quá ngày — gửi thủ công",
-      dotColor: "bg-amber-500",
-      badgeClass: "border-amber-200 bg-amber-50 text-amber-900",
-    };
-  }
-  const arrivalDay = getVietnamCalendarDate(row.checkedInAt);
-  if (
-    row.source === "VIETSAGE" &&
-    arrivalDay &&
-    !isArrivalDayWithinBcaWindow(arrivalDay)
-  ) {
-    return {
-      label: "Quá ngày — gửi thủ công",
-      dotColor: "bg-amber-500",
-      badgeClass: "border-amber-200 bg-amber-50 text-amber-900",
-    };
-  }
-  if (
-    code === "KBTT_TEMP_DISCONNECTED" ||
-    code === "KBTT_PROVIDER_UNAVAILABLE" ||
-    code === "KBTT_RETRY_PENDING"
-  ) {
-    return {
-      label: code === "KBTT_RETRY_PENDING" ? "Đang thử kết nối lại" : "Chờ kết nối BCA",
-      dotColor: "bg-amber-500",
-      badgeClass: "border-amber-200 bg-amber-50 text-amber-900",
-    };
-  }
-  if (code === "KBTT_AUTH_FAILED" || code === "KBTT_SESSION_ENDED") {
-    return {
-      label: "Cần đăng nhập lại BCA",
-      dotColor: "bg-rose-500",
-      badgeClass: "border-rose-200 bg-rose-50 text-rose-800",
-    };
-  }
-  if (code === "LOCAL_VALIDATION" || code === "NEEDS_CORRECTION") {
-    return {
-      label: "Cần sửa dữ liệu",
-      dotColor: "bg-amber-500",
-      badgeClass: "border-amber-200 bg-amber-50 text-amber-900",
-    };
-  }
-  if (code === "ELIGIBLE_SAME_DAY") {
-    return {
-      label: "Chờ gửi bù trong ngày",
-      dotColor: "bg-teal-500",
-      badgeClass: "border-teal-200 bg-teal-50 text-teal-900",
-    };
-  }
-  if (row.declarationStatus === "FAILED") {
-    return {
-      label: "Gửi lỗi",
-      dotColor: "bg-rose-500",
-      badgeClass: "border-rose-200 bg-rose-50 text-rose-800",
-    };
-  }
-  if (row.status === "NOT_FOUND") {
-    return {
-      label: "Chưa có BCA",
-      dotColor: "bg-slate-400",
-      badgeClass: "border-slate-200 bg-slate-50 text-slate-600",
-    };
-  }
-  return null;
+  const present = row.status === "MATCHED" || row.declarationStatus === "SUBMITTED";
+  const failed = row.declarationStatus === "FAILED" || row.declarationStatus === "UNKNOWN";
+  return {
+    label: present ? "Đã có trên BCA" : failed ? "Gửi lỗi" : "Chưa có",
+    dotColor: present ? "bg-emerald-600" : failed ? "bg-rose-500" : "bg-amber-500",
+    badgeClass: present
+      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+      : failed ? "border-rose-200 bg-rose-50 text-rose-800"
+        : "border-amber-200 bg-amber-50 text-amber-800",
+  };
 }
 
 function displayDate(raw: string): string {

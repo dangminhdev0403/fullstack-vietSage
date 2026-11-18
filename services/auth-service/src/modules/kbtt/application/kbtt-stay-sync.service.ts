@@ -4,8 +4,8 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { addDaysYmd, formatLocalDateTime, toYmd, VIETNAM_TIME_ZONE } from "../../../common/time/vietnam-temporal";
 import { departurePayload, providerDate, providerDay, providerIdentity, sanitizedStayResult, submittedGuest, type DeclarationKind } from "../domain/kbtt-stay-sync";
-import { composeKbttDraft, hasExplicitDeclarationDate } from "../domain/kbtt-draft-profile";
-import { kbttForeignReadySchema, kbttVietnameseReadySchema, validateKbttSubmissionDates, type KbttSession } from "../domain/schemas/kbtt.schema";
+import { composeKbttDraft } from "../domain/kbtt-draft-profile";
+import { kbttForeignReadySchema, kbttVietnameseReadySchema, normalizeKbttSubmissionDates, validateKbttSubmissionDates, type KbttSession } from "../domain/schemas/kbtt.schema";
 import { KbttProviderClient, type KbttSubmitOutcome } from "../infrastructure/kbtt-provider.client";
 import { KbttRepository } from "../infrastructure/kbtt.repository";
 import { KbttStayRepository } from "../infrastructure/kbtt-stay.repository";
@@ -219,7 +219,7 @@ export class KbttStaySyncService {
       const current = declaration?.stay;
       if (!current || declaration?.status !== "UNKNOWN" || declaration.submittedCsltId !== csltId ||
           current.checkedOutAt || !ACTIVE_STAYS.has(current.status) ||
-          providerDay(guest.ngayDiDuKienStr) !== providerDay(composeKbttDraft(kind, (declaration.draftPayloadJson ?? {}) as Record<string, unknown>, { fullName: "", stay: current }).ngayDiDuKienStr)) {
+          providerDay(guest.ngayDiDuKienStr) !== providerDay(normalizeKbttSubmissionDates(kind, composeKbttDraft(kind, (declaration.draftPayloadJson ?? {}) as Record<string, unknown>, { fullName: "", stay: current })).ngayDiDuKienStr)) {
         return localRejection("LOCAL_STATE_CHANGED", "Lượt lưu trú đã thay đổi; cần cập nhật hồ sơ trước khi gửi.");
       }
       if (
@@ -233,17 +233,7 @@ export class KbttStaySyncService {
         );
       }
       const initialClaimToken = (declaration as any).claimToken as string | null | undefined;
-      const authoritativeArrivalInstant = current.checkedInAt ?? current.plannedCheckInAt;
-      const authoritativeArrivalYmd = authoritativeArrivalInstant
-        ? toYmd(authoritativeArrivalInstant, VIETNAM_TIME_ZONE)
-        : undefined;
       const dateCheck = validateKbttSubmissionDates(kind, guest, new Date(), {
-        authoritativeArrivalYmd: hasExplicitDeclarationDate(
-          declaration.draftPayloadJson,
-          "ngayDenCsltStr",
-        )
-          ? undefined
-          : authoritativeArrivalYmd,
         enforceArrivalWindow: true,
       });
       if (!dateCheck.valid) {
@@ -297,6 +287,12 @@ export class KbttStaySyncService {
           "CONNECTION_SCOPE_CHANGED",
           "Kết nối BCA đã thay đổi; cần xác nhận lại cơ sở trước khi gửi.",
         );
+      }
+      // Keep the claimed wire snapshot immutable; if midnight made it stale, retry
+      // from the original draft rather than silently changing an in-flight claim.
+      const finalDateCheck = validateKbttSubmissionDates(kind, guest);
+      if (!finalDateCheck.valid) {
+        return localRejection("LOCAL_STATE_CHANGED", finalDateCheck.message ?? "Ngày khai báo đã thay đổi; cần chuẩn bị lại hồ sơ.");
       }
       const outcome = await this.provider.submitDeclaration(kind, payload, accessToken);
       if (outcome.outcome === "BUSINESS_REJECTION") {
@@ -450,17 +446,17 @@ export class KbttStaySyncService {
             return;
           }
           const schema = operation.declarationKind === "VIETNAMESE" ? kbttVietnameseReadySchema : kbttForeignReadySchema;
-          const candidateRecoveryPayload = {
+          const candidateRecoveryPayload = normalizeKbttSubmissionDates(operation.declarationKind, {
             ...guest,
             soPhong: stay.room.roomNumber,
             ngayDiDuKienStr: formatLocalDateTime(desired, VIETNAM_TIME_ZONE),
-          };
+          });
           const parsed = schema.safeParse(candidateRecoveryPayload);
           const recoveryDateCheck = validateKbttSubmissionDates(
             operation.declarationKind,
             candidateRecoveryPayload,
             new Date(),
-            { enforceArrivalWindow: false },
+            { enforceArrivalWindow: true },
           );
           if (!recoveryDateCheck.valid) {
             await this.hold(
@@ -618,7 +614,7 @@ export class KbttStaySyncService {
           operation.declarationKind,
           payload as Record<string, unknown>,
           new Date(),
-          { enforceArrivalWindow: false },
+          { enforceArrivalWindow: true },
         );
         if (!postClaimDateCheck.valid) {
           await holdAfterClaim(

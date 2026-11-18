@@ -8,6 +8,7 @@ import {
   kbttAutoSubmitTestQuerySchema,
   getKbttSubmissionDateContext,
   validateKbttSubmissionDates,
+  normalizeKbttSubmissionDates,
 } from "../domain/schemas/kbtt.schema";
 
 describe("KBTT Auto-Submit Schemas", () => {
@@ -208,5 +209,49 @@ describe("validateKbttSubmissionDates (Current Date Policy)", () => {
       context,
     );
     expect(todayResidence.valid).toBe(true);
+  });
+});
+
+
+describe("normalizeKbttSubmissionDates outbound-only rounding", () => {
+  const context = { todayYmd: "2026-11-18", yesterdayYmd: "2026-11-17" };
+  it("rounds old dates without mutating frozen local data and preserves valid clock times", () => {
+    const payload = Object.freeze({ ngayDenCsltStr: "2026-11-15 14:00:00", ngayDiDuKienStr: "2026-11-16 18:00:00", hoTen: "Guest" });
+    const result = normalizeKbttSubmissionDates("VIETNAMESE", payload, context);
+    expect(result).toEqual({ ...payload, ngayDenCsltStr: "2026-11-17 14:00:00", ngayDiDuKienStr: "2026-11-17 18:00:00" });
+    expect(result).not.toBe(payload);
+    expect(payload.ngayDenCsltStr).toBe("2026-11-15 14:00:00");
+    expect(validateKbttSubmissionDates("VIETNAMESE", result, context).valid).toBe(true);
+  });
+  it.each(["2026-11-17 14:00:00", "2026-11-18 14:00:00"])("preserves in-window arrival %s", (arrival) => {
+    const payload = { ngayDenCsltStr: arrival, ngayDiDuKienStr: "2026-11-19 12:00:00" };
+    expect(normalizeKbttSubmissionDates("VIETNAMESE", payload, context)).toEqual(payload);
+  });
+  it("raises departure to the full normalized arrival when retaining its time would reverse ordering", () => {
+    expect(normalizeKbttSubmissionDates("VIETNAMESE", { ngayDenCsltStr: "2026-11-15 14:00:00", ngayDiDuKienStr: "2026-11-16 12:00:00" }, context)).toEqual({ ngayDenCsltStr: "2026-11-17 14:00:00", ngayDiDuKienStr: "2026-11-17 14:00:00" });
+  });
+  it("raises foreign residence to today, preserving its time or arrival ordering", () => {
+    const payload = { ngayDenCsltStr: "2026-11-18 14:00:00", ngayDiDuKienStr: "2026-11-18 15:00:00", thoiHanTamTruStr: "2026-11-15 12:00:00" };
+    const result = normalizeKbttSubmissionDates("FOREIGN", payload, context);
+    expect(result.thoiHanTamTruStr).toBe("2026-11-18 14:00:00");
+    expect(validateKbttSubmissionDates("FOREIGN", result, context).valid).toBe(true);
+    expect(normalizeKbttSubmissionDates("FOREIGN", { ...payload, thoiHanTamTruStr: "2026-11-15 18:00:00" }, context).thoiHanTamTruStr).toBe("2026-11-18 18:00:00");
+  });
+  it("recomputes Vietnam date across midnight and month boundaries on each attempt", () => {
+    const payload = { ngayDenCsltStr: "2026-10-20 14:00:00", ngayDiDuKienStr: "2026-10-20 18:00:00" };
+    expect(normalizeKbttSubmissionDates("VIETNAMESE", payload, new Date("2026-10-31T16:59:59Z")).ngayDenCsltStr).toBe("2026-10-30 14:00:00");
+    expect(normalizeKbttSubmissionDates("VIETNAMESE", payload, new Date("2026-10-31T17:00:00Z")).ngayDenCsltStr).toBe("2026-10-31 14:00:00");
+  });
+  it.each([undefined, "", "2026-02-30 14:00:00", "2026-11-15", 123])("leaves malformed or missing arrival invalid: %s", (arrival) => {
+    const result = normalizeKbttSubmissionDates("FOREIGN", { ngayDenCsltStr: arrival, ngayDiDuKienStr: "invalid", thoiHanTamTruStr: null }, context);
+    expect(result.ngayDenCsltStr).toBe(arrival);
+    expect(result.ngayDiDuKienStr).toBe("invalid");
+    expect(result.thoiHanTamTruStr).toBeNull();
+    expect(validateKbttSubmissionDates("FOREIGN", result, context).valid).toBe(false);
+  });
+  it("never brings future arrivals into the accepted window", () => {
+    const result = normalizeKbttSubmissionDates("VIETNAMESE", { ngayDenCsltStr: "2026-11-19 14:00:00", ngayDiDuKienStr: "2026-11-20 12:00:00" }, context);
+    expect(result.ngayDenCsltStr).toBe("2026-11-19 14:00:00");
+    expect(validateKbttSubmissionDates("VIETNAMESE", result, context).outOfWindow).toBe(true);
   });
 });

@@ -1,5 +1,22 @@
 # BCA catch-up, recovery and tenant isolation remediation
 
+## Historical test completed; normal operation restored (2026-11-19)
+
+- Removed the temporary September reference-day implementation and both local environment overrides after the user's matching test.
+- Reconciliation and submission use the actual Vietnam calendar date. The approved outbound rounding, 30-day bounded queue, persisted-wire matching and no-resend UNKNOWN protections remain.
+- In-house badges distinguish unsent records (Chưa có trên BCA), failed attempts (Gửi lỗi), and confirmed/matched records (Đã có trên BCA). A positive match takes precedence over the local failure label.
+- Local database fixtures were retained; this code commit does not modify database records or prove live-provider delivery.
+
+## Approved rolling submission-date policy (supersedes D+2 blocking below)
+
+- At each preparation/dispatch use the current Vietnam calendar day, never a fixed date or login date. Preserve valid today/yesterday arrival values; clamp older arrival days to yesterday, retaining the time.
+- For the outbound declaration only, raise expected departure to at least yesterday and the normalized arrival timestamp; raise foreign residence validity to at least today and the normalized arrival timestamp. Missing/malformed fields and future arrival remain validation failures.
+- Never update PMS check-in/check-out dates or draft dates to these rounded values. Persist the actual outbound payload as the attempt snapshot. UNKNOWN reconciliation must match that snapshot's arrival day on the same facility, while local display retains actual dates.
+- Safe unsent/failed active stays within the bounded 30-day queue may be prepared again on subsequent scheduled runs. UNKNOWN is not automatically resent from empty provider reads; SUBMITTED and CANCELLED remain excluded. A midnight boundary invalidating a claimed wire snapshot requires fresh preparation, not silent mutation of that claim.
+- No browser/UI testing or live BCA calls are authorized by this source-change request.
+- Confirmed provider rejection with locally valid data can retry on the next Vietnam day even if its normalized wire payload is unchanged. Same-day unchanged business rejection remains suppressed; invalid local data still requires correction.
+- Validation after implementation: 15 backend suites, 491 passed / 1 explicitly skipped database-writing test; backend TypeScript, 309-file service-boundary check and diff whitespace check passed. Regression coverage includes historical outbound rounding, next-day retries, Vietnam midnight, immutable local dates and matching the persisted rounded arrival on the correct facility. No UI/browser, live provider or database writes were performed.
+
 ## Latest Approved Policy Overrides (2026-11-18 Re-Review)
 
 The following user-approved policies supersede earlier same-day-only and prepare-only migration assumptions in this register and in `.hermes/plans/2026-11-18_035617-bca-same-day-catch-up-and-soft-disconnect.md`:

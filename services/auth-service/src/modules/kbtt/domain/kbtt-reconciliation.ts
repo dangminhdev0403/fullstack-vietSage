@@ -15,6 +15,8 @@ export interface LocalReconciliationGuest {
   documentType: number | null;
   nationality: string | null;
   checkedInAt: string | null;
+  /** Persisted wire arrival for matching a rounded declaration; never a display date. */
+  submittedArrivalAt?: string | null;
   plannedCheckOutAt: string | null;
   declarationStatus: string | null;
   providerMessage: string | null;
@@ -107,7 +109,7 @@ function key(kind: ReconciliationKind | null, number: string | null, document: s
 }
 
 function localKey(guest: LocalReconciliationGuest): string | null {
-  return key(guest.kind, normalized(guest.identityNumber), qualifier(guest), reconciliationArrivalDay(guest.checkedInAt));
+  return key(guest.kind, normalized(guest.identityNumber), qualifier(guest), reconciliationArrivalDay(guest.submittedArrivalAt ?? guest.checkedInAt));
 }
 
 function remoteKey(guest: ProviderReconciliationGuest): string | null {
@@ -209,7 +211,7 @@ export function reconcileGuests(
     const candidates = byKey.get(matchKey) ?? [];
     const uncertain = (remoteByIdentity.get(identityKey(guest)!) ?? []).some((candidate) =>
       !remoteKey(candidate) || conflictingIds.has(providerId(candidate)) ||
-      (providerDay(candidate) === reconciliationArrivalDay(guest.checkedInAt) && qualifier(candidate) !== qualifier(guest)));
+      (providerDay(candidate) === reconciliationArrivalDay(guest.submittedArrivalAt ?? guest.checkedInAt) && qualifier(candidate) !== qualifier(guest)));
     if (uncertain || candidates.length > 1 || candidates.some((candidate) => conflictingIds.has(providerId(candidate)))) {
       item.status = "REVIEW";
       item.reason = uncertain ? "Thông tin giấy tờ hoặc ngày đến trên BCA chưa khớp hoặc chưa đầy đủ."
@@ -221,7 +223,7 @@ export function reconcileGuests(
       item.bcaRecordId = candidates[0].id;
       consumed.add(providerId(candidates[0]));
     } else {
-      const arrivalDay = reconciliationArrivalDay(guest.checkedInAt);
+      const arrivalDay = reconciliationArrivalDay(guest.submittedArrivalAt ?? guest.checkedInAt);
       const isHistoryDayCovered = (() => {
         if (!options?.coveredHistoryDays) return true;
         if (!arrivalDay) return false;
