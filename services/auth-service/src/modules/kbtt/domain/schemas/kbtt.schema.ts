@@ -54,6 +54,11 @@ export function kbttMetadata(session: KbttSession) {
 export const occupantIdParamSchema = z.string().trim().min(1).max(128);
 export const stayIdParamSchema = z.string().trim().min(1).max(128);
 
+export const kbttClearDeclarationSchema = z.object({
+  action: z.enum(["MARK_SUBMITTED", "DISMISS", "DELETE"]).default("MARK_SUBMITTED"),
+});
+export type KbttClearDeclarationInput = z.infer<typeof kbttClearDeclarationSchema>;
+
 export const kbttPaginationQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(50),

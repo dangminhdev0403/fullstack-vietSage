@@ -2112,7 +2112,7 @@ export function StaffRoomsClient({
               `walkin-${options.room.id}-${Date.now()}`,
             reservationCode:
               options.reservationCode || `WI-${getRoomNumber(options.room)}`,
-            groupCode: resolvedGroupCode,
+            groupCode: options.groupCode?.trim() || "",
             roomId: options.room.id,
             roomNumber: getRoomNumber(options.room),
             floor: options.room.floor || null,

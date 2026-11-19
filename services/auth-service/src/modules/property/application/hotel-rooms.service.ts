@@ -1170,6 +1170,14 @@ export class HotelRoomsService {
       throw new NotFoundException("Không tìm thấy lượt lưu trú");
     }
 
+    if (dto.plannedCheckOutAt) {
+      this.stayCheckInPublisher?.publishStayDepartureChanged?.({
+        hotelId,
+        stayId,
+        actorUserId,
+      });
+    }
+
     await this.emitRoomStatusUpdated({
       hotelId,
       roomId: stay.roomId,
@@ -1285,6 +1293,12 @@ export class HotelRoomsService {
       nextRoomStatus: dto.nextRoomStatus ?? RoomStatus.PROCESSING,
       cleaningPriority: dto.cleaningPriority,
       notes: dto.notes,
+    });
+
+    this.stayCheckInPublisher?.publishStayDepartureChanged?.({
+      hotelId,
+      stayId,
+      actorUserId,
     });
 
     this.eventPublisher.publishConversationClosed({

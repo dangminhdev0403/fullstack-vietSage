@@ -44,6 +44,7 @@ import {
   kbttBatchSubmitSummarySchema,
   kbttCatalogKindSchema,
   kbttCatalogQuerySchema,
+  kbttClearDeclarationSchema,
   kbttCredentialsSchema,
   kbttDailyMovementsQuerySchema,
   kbttDevResetSchema,
@@ -324,6 +325,28 @@ export class KbttController {
       request.user.roleId,
       parseWithZod(hotelIdParamSchema, hotelId),
       parseWithZod(occupantIdParamSchema, occupantId),
+    );
+  }
+
+  @Post("declarations/:occupantId/clear")
+  @HttpCode(200)
+  @Header("Cache-Control", "no-store")
+  @ApiParam({ name: "occupantId", type: String })
+  @RequirePermission("hotel.kbtt.declarations.manage")
+  @ApiOperation({ summary: "Clear or resolve a failed declaration (mark submitted, dismiss, or delete)" })
+  clearDeclaration(
+    @Req() request: RequestWithRequiredUser,
+    @Param("hotelId") hotelId: string,
+    @Param("occupantId") occupantId: string,
+    @Body() body?: unknown,
+  ) {
+    const input = parseWithZod(kbttClearDeclarationSchema, body ?? {});
+    return this.service.clearDeclaration(
+      request.user.userId,
+      request.user.roleId,
+      parseWithZod(hotelIdParamSchema, hotelId),
+      parseWithZod(occupantIdParamSchema, occupantId),
+      input,
     );
   }
 

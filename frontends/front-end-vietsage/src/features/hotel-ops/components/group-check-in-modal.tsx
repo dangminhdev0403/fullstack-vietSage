@@ -1130,16 +1130,43 @@ function GroupCheckInForm({
     const roomsWithCccd = roomsState.filter((r) =>
       r.guests.some((g) => Boolean(g.identityNumber?.trim())),
     ).length;
+    const isSingleRoom =
+      roomsState.length === 1 &&
+      (!rooms?.[0]?.groupCode ||
+        rooms?.[0]?.groupCode.startsWith("WI-") ||
+        rooms?.[0]?.groupCode.startsWith("RES-"));
 
     const confirm = await showConfirmDialog({
       icon: "question",
-      title: "Nhận phòng đoàn?",
-      details: [
-        { label: "Đoàn", value: groupCode },
-        { label: "Nhận phòng", value: `${roomsState.length} phòng · ${totalGuestsCount} khách` },
-        { label: "Đã có CCCD", value: `${roomsWithCccd}/${roomsState.length} phòng` },
-      ],
-      confirmText: `Nhận phòng ${roomsState.length} phòng`,
+      title: isSingleRoom
+        ? `Nhận phòng ${roomsState[0]?.roomNumber || ""}?`
+        : "Nhận phòng đoàn?",
+      details: isSingleRoom
+        ? [
+            { label: "Phòng", value: roomsState[0]?.roomNumber || "" },
+            {
+              label: "Khách chính",
+              value: roomsState[0]?.guests[0]?.fullName || "Chưa nhập",
+            },
+            {
+              label: "Số CCCD",
+              value: roomsState[0]?.guests[0]?.identityNumber || "Chưa có",
+            },
+          ]
+        : [
+            { label: "Đoàn", value: groupCode },
+            {
+              label: "Nhận phòng",
+              value: `${roomsState.length} phòng · ${totalGuestsCount} khách`,
+            },
+            {
+              label: "Đã có CCCD",
+              value: `${roomsWithCccd}/${roomsState.length} phòng`,
+            },
+          ],
+      confirmText: isSingleRoom
+        ? "Nhận phòng ngay"
+        : `Nhận phòng ${roomsState.length} phòng`,
       cancelText: "Kiểm tra lại",
       reverseButtons: false,
     });
@@ -1153,6 +1180,9 @@ function GroupCheckInForm({
     let successCount = 0;
     let failCount = 0;
     const failedRooms: Array<{ reservationId: string; reason: string }> = [];
+
+    const effectiveGroupCode =
+      isSingleRoom || groupCode?.startsWith("WI-") ? undefined : groupCode;
 
     for (let i = 0; i < roomsState.length; i++) {
       const room = roomsState[i];
@@ -1184,9 +1214,9 @@ function GroupCheckInForm({
             plannedCheckInAt: new Date().toISOString(),
             plannedCheckOutAt:
               parseHotelDatetimeToIso(room.plannedCheckOutAt) || room.plannedCheckOutAt,
-            groupCode: groupCode || undefined,
-            groupLeadGuestName: roomsState[0]?.guests[0]?.fullName?.trim() || undefined,
-            groupLeadGuestPhone: roomsState[0]?.guests[0]?.phone?.trim() || undefined,
+            groupCode: effectiveGroupCode,
+            groupLeadGuestName: effectiveGroupCode ? (roomsState[0]?.guests[0]?.fullName?.trim() || undefined) : undefined,
+            groupLeadGuestPhone: effectiveGroupCode ? (roomsState[0]?.guests[0]?.phone?.trim() || undefined) : undefined,
             occupants: extraOccupants.length > 0 ? extraOccupants : undefined,
           });
 
@@ -1264,13 +1294,20 @@ function GroupCheckInForm({
     onBatchResults?.(newResults);
 
     if (failCount === 0) {
+      const isSingleRoom =
+        roomsState.length === 1 &&
+        (!rooms?.[0]?.groupCode ||
+          rooms?.[0]?.groupCode.startsWith("WI-") ||
+          rooms?.[0]?.groupCode.startsWith("RES-"));
+      onClose();
+      await onSuccess?.();
       await showSuccessAlert(
-        "Đã nhận phòng đoàn",
-        `${successCount} phòng · Đoàn #${groupCode}`,
+        isSingleRoom ? "Đã nhận phòng" : "Đã nhận phòng đoàn",
+        isSingleRoom
+          ? `Phòng ${roomsState[0]?.roomNumber || ""} · ${roomsState[0]?.guests[0]?.fullName || "Khách lưu trú"}`
+          : `${successCount} phòng · Đoàn #${groupCode}`,
         { timer: false },
       );
-      await onSuccess?.();
-      onClose();
     } else {
       const newFailedMap: Record<string, string> = {};
       for (const f of failedRooms) {

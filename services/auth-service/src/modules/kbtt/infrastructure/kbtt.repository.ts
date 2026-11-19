@@ -442,6 +442,12 @@ export class KbttRepository {
     }
   }
 
+  async deleteDeclaration(hotelId: string, occupantId: string) {
+    return this.prisma.kbttGuestDeclaration.deleteMany({
+      where: { hotelId, occupantId },
+    });
+  }
+
   async updateDeclaration(params: {
     id: string;
     hotelId: string;

@@ -4,6 +4,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getCoreRowModel, getFilteredRowModel, useReactTable, type ColumnDef } from "@tanstack/react-table";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
+import { showConfirmDialog, showErrorAlert, showSuccessAlert } from "@/libs/swal";
 import { kbttResource } from "../resources/kbtt-resource";
 import { KbttAutoSubmitSection } from "./kbtt-auto-submit-section";
 import { KbttScheduleInfo } from "./kbtt-schedule-info";
@@ -283,6 +284,7 @@ export function InHouseReconciliation({ hotelId, canManage, canConfigureKbtt = f
   });
   const refresh = useMutation(resource.mutations.refreshReconciliation.options());
   const submit = useMutation(resource.mutations.submit.options());
+  const clearDeclarationMutation = useMutation(resource.mutations.clearDeclaration.options());
   const [kind, setKind] = useState<"VIETNAMESE" | "FOREIGN">("VIETNAMESE");
   const [search, setSearch] = useState(initialQuery);
   const [bcaStatus, setBcaStatus] = useState("ALL");
@@ -395,6 +397,35 @@ export function InHouseReconciliation({ hotelId, canManage, canConfigureKbtt = f
       setIssue(getKbttSubmissionIssue(result));
     } catch (error) { setIssue(sanitizeErrorMessage(error instanceof Error ? error.message : null)); }
     finally { sending.current = false; }
+  }
+
+  async function handleClearDeclaration(row: KbttReconciliationRow) {
+    if (!canManage || !row.occupantId) return;
+    const confirmed = await showConfirmDialog({
+      icon: "question",
+      title: "Xác nhận đã có trên BCA?",
+      text: `Khách ${row.fullName} (Phòng ${row.roomNumber}) đã được khai báo lưu trú trên hệ thống BCA hoặc muốn xóa bản ghi lỗi này?`,
+      confirmText: "Xác nhận đã gửi",
+      cancelText: "Hủy",
+      reverseButtons: false,
+    });
+    if (!confirmed.isConfirmed) return;
+
+    try {
+      await clearDeclarationMutation.mutateAsync({
+        occupantId: row.occupantId,
+        action: "MARK_SUBMITTED",
+      });
+      await showSuccessAlert(
+        "Đã xóa bản ghi lỗi",
+        `Hồ sơ của khách ${row.fullName} đã được đánh dấu "Đã có trên BCA".`,
+      );
+    } catch (error) {
+      await showErrorAlert(
+        "Không thể cập nhật hồ sơ",
+        error instanceof Error ? error.message : "Vui lòng thử lại sau.",
+      );
+    }
   }
   function closeDetail() { setSelected(null); trigger.current?.focus(); }
   function openDetail(row: KbttReconciliationRow, element: HTMLElement) { trigger.current = element; setSelected(row); }
@@ -716,34 +747,66 @@ export function InHouseReconciliation({ hotelId, canManage, canConfigureKbtt = f
                         throw new Error("Đã lưu hồ sơ; chưa đối soát đầy đủ BCA. Hãy kiểm tra kết nối trước khi gửi.");
                       }
                     }}
-                    renderActions={(dirty) =>
-                      canManage && row.occupantId && row.status !== "MATCHED" && !["UNKNOWN", "SUBMITTED", "CANCELLED"].includes(row.declarationStatus ?? "") ? (
-                        <button
-                          type="button"
-                          className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-[#003B2A] px-3.5 text-sm font-bold text-white shadow-2xs transition-all hover:bg-[#00281c] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#003B2A]/40 disabled:opacity-50 whitespace-nowrap"
-                          title={
-                            dirty
-                              ? "Đang chỉnh sửa hoặc tự lưu; hoàn tất đối soát trước khi gửi."
-                              : !ready
-                                ? "Cần đối soát đầy đủ cả hai nhóm BCA trước khi gửi."
-                                : !canRetryReconciledGuest(row)
-                                  ? "Chưa đủ điều kiện gửi: kiểm tra hồ sơ hoặc cấu hình cho phép gửi BCA."
-                                  : undefined
-                          }
-                          disabled={dirty || !ready || submit.isPending || !canRetryReconciledGuest(row)}
-                          onClick={() => void retry(row)}
-                        >
-                          <VsIcon name="send" className="h-3.5 w-3.5" />
-                          <span>
-                            {submit.isPending
-                              ? "Đang gửi…"
-                              : row.declarationStatus === "FAILED"
-                                ? "Gửi lại"
-                                : "Gửi BCA"}
-                          </span>
-                        </button>
-                      ) : null
-                    }
+                    renderActions={(dirty) => {
+                      if (!canManage || !row.occupantId) return null;
+                      const isFailedOrError =
+                        row.declarationStatus === "FAILED" ||
+                        (row.status !== "MATCHED" && Boolean(row.providerMessage));
+                      const isClearable =
+                        isFailedOrError &&
+                        !["SUBMITTED", "CANCELLED"].includes(row.declarationStatus ?? "");
+                      const canSend =
+                        row.status !== "MATCHED" &&
+                        !["UNKNOWN", "SUBMITTED", "CANCELLED"].includes(row.declarationStatus ?? "");
+
+                      if (!canSend && !isClearable) return null;
+
+                      return (
+                        <div className="flex items-center justify-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                          {canSend ? (
+                            <button
+                              type="button"
+                              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-[#003B2A] px-3.5 text-sm font-bold text-white shadow-2xs transition-all hover:bg-[#00281c] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#003B2A]/40 disabled:opacity-50 whitespace-nowrap cursor-pointer"
+                              title={
+                                dirty
+                                  ? "Đang chỉnh sửa hoặc tự lưu; hoàn tất đối soát trước khi gửi."
+                                  : !ready
+                                    ? "Cần đối soát đầy đủ cả hai nhóm BCA trước khi gửi."
+                                    : !canRetryReconciledGuest(row)
+                                      ? "Chưa đủ điều kiện gửi: kiểm tra hồ sơ hoặc cấu hình cho phép gửi BCA."
+                                      : undefined
+                              }
+                              disabled={dirty || !ready || submit.isPending || !canRetryReconciledGuest(row)}
+                              onClick={() => void retry(row)}
+                            >
+                              <VsIcon name="send" className="h-3.5 w-3.5" />
+                              <span>
+                                {submit.isPending
+                                  ? "Đang gửi…"
+                                  : row.declarationStatus === "FAILED"
+                                    ? "Gửi lại"
+                                    : "Gửi BCA"}
+                              </span>
+                            </button>
+                          ) : null}
+                          {isClearable ? (
+                            <button
+                              type="button"
+                              className="inline-flex h-9 items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 shadow-2xs transition-all hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 cursor-pointer whitespace-nowrap"
+                              title="Bỏ qua hoặc đánh dấu đã gửi BCA (xóa bản ghi lỗi khỏi danh sách)"
+                              disabled={clearDeclarationMutation.isPending}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                void handleClearDeclaration(row);
+                              }}
+                            >
+                              <VsIcon name="check_circle" className="h-3.5 w-3.5 text-emerald-600" />
+                              <span>Đã gửi</span>
+                            </button>
+                          ) : null}
+                        </div>
+                      );
+                    }}
                   />
                 </tr>
               ))}

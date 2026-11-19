@@ -310,5 +310,21 @@ export const kbttResource = createResource<HotelScope>()({
         kbttRepository.devUpdateOccupants(scope.hotelId, variables.occupants),
       invalidates: declarationInvalidates,
     }),
+    clearDeclaration: defineMutation({
+      defaults: { retry: false, networkMode: "always" },
+      mutationFn: ({
+        scope,
+        variables,
+      }: ResourceMutationContext<
+        HotelScope,
+        { occupantId: string; action?: "MARK_SUBMITTED" | "DISMISS" | "DELETE" }
+      >) =>
+        kbttRepository.clearDeclaration(
+          scope.hotelId,
+          variables.occupantId,
+          variables.action ?? "MARK_SUBMITTED",
+        ),
+      invalidates: declarationInvalidates,
+    }),
   },
 });

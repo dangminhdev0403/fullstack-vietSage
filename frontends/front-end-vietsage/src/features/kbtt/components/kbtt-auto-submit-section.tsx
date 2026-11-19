@@ -9,7 +9,7 @@ import { errorText, formatDateTime } from "./kbtt-connection-format";
 
 function showRunCompletionAlert(run: {
   status: string;
-  dryRun: boolean;
+  dryRun?: boolean | null;
   scheduledFor: string;
   successCount: number;
   totalEligible?: number | null;
@@ -88,15 +88,9 @@ function showRunCompletionAlert(run: {
   `;
 
   if (isFailed) {
-    return showErrorAlert(title, trustedAlertHtml(html), {
-      timer: false,
-      confirmButtonText: "Đã hiểu",
-    });
+    return showErrorAlert(title, trustedAlertHtml(html));
   }
-  return showSuccessAlert(title, trustedAlertHtml(html), {
-    timer: false,
-    confirmButtonText: "Đóng",
-  });
+  return showSuccessAlert(title, trustedAlertHtml(html));
 }
 
 export function KbttAutoSubmitSection({

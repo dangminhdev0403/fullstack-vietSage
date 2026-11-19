@@ -350,5 +350,18 @@ export const kbttRepository = {
     });
     return kbttDailyMovementsResponseSchema.parse(payload.data);
   },
+  async clearDeclaration(
+    hotelId: string,
+    occupantId: string,
+    action: "MARK_SUBMITTED" | "DISMISS" | "DELETE" = "MARK_SUBMITTED",
+  ): Promise<{ success: boolean; message: string }> {
+    const url = `/api/owner/hotels/${encodeURIComponent(hotelId)}/kbtt/declarations/${encodeURIComponent(occupantId)}/clear`;
+    const payload = await requestInternalApiEnvelope<{ success: boolean; message: string }>(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action }),
+    });
+    return payload.data;
+  },
 };
 

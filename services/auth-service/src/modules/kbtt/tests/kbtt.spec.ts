@@ -93,6 +93,11 @@ function session(overrides: Partial<KbttSession> = {}): KbttSession {
 }
 
 function fixture(providerRead?: KbttProviderReadClient) {
+  providerRead ??= {
+    getAccommodation: jest.fn().mockResolvedValue({ httpStatus: 200, envelope: { code: "200" }, data: { id: 1000227, tenCSLT: "Fixture" } }),
+    readAllResidents: jest.fn().mockResolvedValue([]),
+    readAllHistory: jest.fn().mockResolvedValue([]),
+  } as unknown as KbttProviderReadClient;
   const rows = new Map<string, KbttHotelConnection>();
   const declarations = new Map<string, any>();
   const occupants = new Map<string, any>();
@@ -826,7 +831,7 @@ describe("KBTT secure manual authentication", () => {
     expect(kbttAutoSubmitConfigSchema.safeParse({}).success).toBe(false);
   });
 
-  it("records paused immediate delivery without retaining an automatic queue", async () => {
+  it("allows manual delivery while auto is off and excludes it from the next automatic run", async () => {
     jest.setSystemTime(new Date("2026-09-15T05:00:00.000Z"));
     const f = fixture();
     const outOfWindowOccupant = {
@@ -845,20 +850,20 @@ describe("KBTT secure manual authentication", () => {
     const pausedOccupant = { ...primaryOccupant };
     f.occupants.set(pausedOccupant.id, pausedOccupant);
     const result = await f.service.submit("owner", "owner-role", "hotel-1", pausedOccupant.id);
-    expect(result).toMatchObject({ status: "FAILED", providerCode: "DELIVERY_PAUSED" });
-    expect((await f.service.listDeclarations("owner", "owner-role", "hotel-1")).delivery.state).toBe("PAUSED");
+    await finishInitialDeliveries(f);
+    expect(f.declarations.get(result.id)).toMatchObject({ status: "SUBMITTED", providerCode: "200" });
+    expect(f.rows.get("hotel-1")?.autoSubmitEnabled).toBe(false);
     expect(f.provider.login).not.toHaveBeenCalled();
-    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
-    // Previously paused work is safely caught up after enabling, even on D+2.
+    expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
     jest.setSystemTime(new Date("2026-09-16T05:00:00.000Z"));
     await f.service.updateAutoSubmitEnabled("front-desk", "staff-role", "hotel-1", true);
     await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
-    expect(f.provider.submitDeclaration).toHaveBeenCalledWith("VIETNAMESE", [expect.objectContaining({ ngayDenCsltStr: "2026-09-15 10:00:00" })], expect.any(String));
+    expect(f.provider.submitDeclaration).toHaveBeenCalledWith("VIETNAMESE", [expect.objectContaining({ ngayDenCsltStr: "2026-09-14 10:00:00" })], expect.any(String));
     expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
     expect(f.declarations.get(result.id)?.status).toBe("SUBMITTED");
   });
 
-  it("records a paused result when the switch is disabled immediately before transmission", async () => {
+  it("keeps an explicit manual send independent of the automatic switch", async () => {
     const f = fixture();
     f.occupants.set(primaryOccupant.id, primaryOccupant);
     await f.service.connect("owner", "owner-role", "hotel-1", credentials);
@@ -871,8 +876,8 @@ describe("KBTT secure manual authentication", () => {
     });
     const result = await f.service.submit("owner", "owner-role", "hotel-1", primaryOccupant.id);
     await finishInitialDeliveries(f);
-    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
-    expect(f.declarations.get(result.id)).toMatchObject({ status: "FAILED", providerCode: "DELIVERY_PAUSED" });
+    expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
+    expect(f.declarations.get(result.id)).toMatchObject({ status: "SUBMITTED", providerCode: "200" });
   });
 
   it("stops the remaining guests in an active automatic run when either workspace pauses delivery", async () => {
@@ -1506,14 +1511,16 @@ describe("KBTT edit and submit", () => {
     expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
   });
 
-  it("records a definitive local failure without provider calls when the hotel switch is disabled", async () => {
+  it("allows an explicitly requested send without enabling automatic delivery", async () => {
     const f = fixture();
     f.occupants.set("occ-vn", primaryOccupant);
     await f.service.connect("user-1", "role-1", "hotel-1", credentials);
     f.provider.login.mockClear();
     const result = await f.service.submit("user-1", "role-1", "hotel-1", "occ-vn");
-    expect(result).toMatchObject({ status: "FAILED", providerCode: "DELIVERY_PAUSED" });
-    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+    await finishInitialDeliveries(f);
+    expect(f.declarations.get(result.id)).toMatchObject({ status: "SUBMITTED", providerCode: "200" });
+    expect(f.rows.get("hotel-1")?.autoSubmitEnabled).toBe(false);
+    expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
     expect(f.provider.login).not.toHaveBeenCalled();
   });
 
@@ -2917,7 +2924,8 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
           ],
           nextCursor: null,
         });
-      (f.occupantsReadService as any).getActiveStayOccupantsPaged = pagedMock;
+      (f.occupantsReadService as any).getActiveStayOccupantsPaged = (hotelId: string, options: any) =>
+        options?.kbttFilter === "UNKNOWN_ONLY" ? Promise.resolve({ items: [], nextCursor: null }) : pagedMock(hotelId, options);
 
       let renewCount = 0;
       (f.repository as any).renewAutoSubmitRunLease = jest.fn(async () => {
@@ -4581,6 +4589,7 @@ describe("BCA same-day 12:00/21:00 slots, 10-minute catch-up, and temporary disc
 
     const submitted = await f.service.submit("owner", "owner-role", "hotel-1", primaryOccupant.id);
     expect(submitted.status).toBe("UNKNOWN");
+    await new Promise(resolve => setImmediate(resolve));
 
     // Advance to 21:04:00 VN while POST is still in flight -> cron runs reconciliation with empty BCA reads
     jest.setSystemTime(new Date("2026-09-14T14:04:00.000Z"));
@@ -5143,5 +5152,63 @@ describe("BCA same-day 12:00/21:00 slots, 10-minute catch-up, and temporary disc
       client.release();
       await pool.end();
     }
+  });
+});
+
+
+describe("BCA mandatory reconciliation before every initial transmission", () => {
+  async function setup() {
+    const f = fixture();
+    f.occupants.set(primaryOccupant.id, structuredClone(primaryOccupant));
+    await f.service.connect("owner", "owner-role", "hotel-1", credentials);
+    return { f, read: (f.service as any).providerRead };
+  }
+  it("settles an already accepted record without another POST", async () => {
+    const { f, read } = await setup();
+    read.readAllHistory.mockResolvedValue([{
+      id: "accepted-1", csltId: 1000227, hoTen: primaryOccupant.fullName,
+      soGiayTo: primaryOccupant.identityNumber, loaiGiayTo: 1,
+      ngayDenCslt: "2026-09-14T10:00:00+07:00", ngayDiDuKien: "2026-09-15T12:00:00+07:00",
+    }]);
+    const result = await f.service.submit("owner", "owner-role", "hotel-1", primaryOccupant.id);
+    await finishInitialDeliveries(f);
+    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+    expect(f.declarations.get(result.id)).toMatchObject({ status: "SUBMITTED", providerCode: "200" });
+    f.service.onModuleDestroy();
+  });
+  it("sends only after complete residents and arrival-day history reads prove no match", async () => {
+    const { f, read } = await setup();
+    f.provider.submitDeclaration.mockImplementation(async () => {
+      expect(read.readAllResidents).toHaveBeenCalled();
+      expect(read.readAllHistory).toHaveBeenCalledWith("VIETNAMESE", expect.any(String), { dateFrom: "2026-09-14", dateTo: "2026-09-14" }, expect.any(AbortSignal));
+      return { outcome: "SUCCESS", code: "200", message: "OK" };
+    });
+    await f.service.submit("owner", "owner-role", "hotel-1", primaryOccupant.id);
+    await finishInitialDeliveries(f);
+    expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
+    f.service.onModuleDestroy();
+  });
+  it("blocks a different-day active BCA stay with the same document instead of creating another", async () => {
+    const { f, read } = await setup();
+    read.readAllResidents.mockResolvedValue([{
+      id: "active-older", csltId: 1000227, hoTen: primaryOccupant.fullName,
+      soGiayTo: primaryOccupant.identityNumber, loaiGiayTo: 1,
+      ngayDenCslt: "2026-09-13T10:00:00+07:00",
+    }]);
+    const result = await f.service.submit("owner", "owner-role", "hotel-1", primaryOccupant.id);
+    await finishInitialDeliveries(f);
+    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+    expect(f.declarations.get(result.id)).toMatchObject({ status: "FAILED", providerCode: "RECONCILIATION_REQUIRED" });
+    f.service.onModuleDestroy();
+  });
+  it.each(["unavailable", "wrong-facility"])("defers without a POST when reconciliation is %s", async reason => {
+    const { f, read } = await setup();
+    if (reason === "unavailable") read.readAllHistory.mockRejectedValue(new Error("network"));
+    else read.readAllResidents.mockResolvedValue([{ id: "other", csltId: 999, hoTen: "Other" }]);
+    const result = await f.service.submit("owner", "owner-role", "hotel-1", primaryOccupant.id);
+    await finishInitialDeliveries(f);
+    expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
+    expect(f.declarations.get(result.id)).toMatchObject({ status: "FAILED", providerCode: "RECONCILIATION_REQUIRED" });
+    f.service.onModuleDestroy();
   });
 });

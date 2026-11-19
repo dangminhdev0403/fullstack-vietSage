@@ -30,6 +30,13 @@ export function getReconciliationRowStatusBadge(row: KbttReconciliationRow): {
       badgeClass: "border-emerald-200 bg-emerald-50 text-emerald-800",
     };
   }
+  if (row.declarationStatus === "CANCELLED") {
+    return {
+      label: "Đã bỏ qua",
+      dotColor: "bg-slate-400",
+      badgeClass: "border-slate-200 bg-slate-100 text-slate-700",
+    };
+  }
   const isFailedReason =
     code === "OUT_OF_DATE_WINDOW" ||
     code === "PRIOR_DAY_MANUAL" ||
@@ -432,7 +439,7 @@ export function InHouseDeclarationCells({ hotelId, row, canManage, onUpdated, re
               Phòng {row.roomNumber}
             </span>
           ) : null}
-          {row.groupCode ? (
+          {row.groupCode && !row.groupCode.startsWith("WI-") && !row.groupCode.startsWith("RES-") && !row.groupCode.startsWith("ARR-") && !row.groupCode.startsWith("DIRECT") ? (
             <span className="inline-flex items-center gap-1 rounded bg-purple-50 px-1.5 py-0.5 text-xs font-bold text-purple-700 border border-purple-200/80 whitespace-nowrap">
               Đoàn #{row.groupCode}
             </span>

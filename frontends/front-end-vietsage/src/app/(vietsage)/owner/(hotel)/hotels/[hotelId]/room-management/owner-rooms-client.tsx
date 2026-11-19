@@ -1078,6 +1078,49 @@ export function OwnerRoomsClient({
     }
   }
 
+  async function deactivateAllQrCodes() {
+    const activeRooms = rooms.filter(isQrActive);
+    if (!activeRooms.length) {
+      await showWarningAlert(
+        "Không có QR hoạt động",
+        "Tất cả phòng đều đang ở trạng thái tạm tắt mã QR.",
+      );
+      return;
+    }
+
+    const confirmed = await showConfirmDialog({
+      icon: "warning",
+      title: `Tạm tắt ${activeRooms.length} mã QR?`,
+      text: "Khách quét mã QR sẽ không thể truy cập GuestOS cho đến khi được kích hoạt lại.",
+      confirmText: "Vô hiệu hóa tất cả",
+      cancelText: "Hủy",
+    });
+    if (!confirmed.isConfirmed) return;
+
+    setIsBulkQrBusy(true);
+    try {
+      showLoading("Đang tạm tắt toàn bộ QR");
+      for (const room of activeRooms) {
+        await requestInternalApiEnvelope<HotelRoomSummary>(
+          `/api/owner/hotels/${encodeURIComponent(hotelId)}/rooms/${encodeURIComponent(room.id)}/qr/deactivate`,
+          { method: "POST" },
+        );
+      }
+      await refreshRooms();
+      await showSuccessAlert(
+        "Đã vô hiệu hóa QR",
+        "Toàn bộ mã QR của khách sạn đã được tạm tắt thành công.",
+      );
+    } catch (error) {
+      await showErrorAlert(
+        "Không thể vô hiệu hóa toàn bộ QR",
+        getBusinessErrorMessage(error, "Vui lòng thử lại."),
+      );
+    } finally {
+      setIsBulkQrBusy(false);
+    }
+  }
+
   const [isResetting, setIsResetting] = useState(false);
 
   async function handleOperationalReset() {
@@ -1210,25 +1253,84 @@ export function OwnerRoomsClient({
       header: "Thao tác",
       className: "whitespace-nowrap px-4 py-5 text-right",
       headerClassName: "px-4 py-5 text-right",
-      cell: (room) => (
-        <div
-          className="flex items-center justify-end"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button
-            type="button"
-            title="Chỉnh sửa phòng"
-            aria-label="Chỉnh sửa phòng"
-            onClick={(e) => {
-              e.stopPropagation();
-              openEditRoom(room);
-            }}
-            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--primary)] transition hover:bg-[var(--primary-fixed)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e8b363]"
+      cell: (room) => {
+        const qrIsActive = isQrActive(room);
+        const showActivate = canActivateQr(room);
+
+        return (
+          <div
+            className="flex items-center justify-end gap-1.5"
+            onClick={(e) => e.stopPropagation()}
           >
-            <VsIcon name="edit" className="text-lg" />
-          </button>
-        </div>
-      ),
+            {qrIsActive ? (
+              <>
+                <button
+                  type="button"
+                  title="Quản lý QR"
+                  aria-label="Quản lý QR"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedQrRoom(room);
+                  }}
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--primary)] transition hover:bg-[var(--primary-fixed)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e8b363]"
+                >
+                  <VsIcon name="qr_code" className="text-lg" />
+                </button>
+                <button
+                  type="button"
+                  title="Lịch sử / Đổi mã QR"
+                  aria-label="Lịch sử hoặc đổi mã QR"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void updateRoomFromQrAction(room, "rotate");
+                  }}
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-blue-700 transition hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e8b363]"
+                >
+                  <VsIcon name="history" className="text-lg" />
+                </button>
+                <button
+                  type="button"
+                  title="Tạm tắt QR"
+                  aria-label="Tạm tắt QR (Vô hiệu hóa nhanh)"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void updateRoomFromQrAction(room, "deactivate");
+                  }}
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-amber-700 transition hover:bg-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e8b363]"
+                >
+                  <VsIcon name="visibility_off" className="text-lg" />
+                </button>
+              </>
+            ) : showActivate ? (
+              <button
+                type="button"
+                title="Kích hoạt QR"
+                aria-label="Kích hoạt nhanh mã QR"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void updateRoomFromQrAction(room, "activate");
+                }}
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-emerald-700 transition hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e8b363]"
+              >
+                <VsIcon name="verified" className="text-lg" />
+              </button>
+            ) : null}
+
+            <button
+              type="button"
+              title="Chỉnh sửa phòng"
+              aria-label="Chỉnh sửa phòng"
+              onClick={(e) => {
+                e.stopPropagation();
+                openEditRoom(room);
+              }}
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--primary)] transition hover:bg-[var(--primary-fixed)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e8b363]"
+            >
+              <VsIcon name="edit" className="text-lg" />
+            </button>
+          </div>
+        );
+      },
     },
   ];
 
@@ -1428,7 +1530,6 @@ export function OwnerRoomsClient({
       <div className="space-y-8">
 
       <section className="space-y-5">
-        {surfaceMode === "operations" && (
         <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-[#e5d8b8] bg-gradient-to-br from-[#fbf8f1] via-[#f7f2e4] to-[#f3ecda] p-5 sm:p-6 lg:p-7 shadow-[0_8px_30px_-6px_rgba(115,92,0,0.06),0_1px_2px_rgba(0,0,0,0.03)]">
           <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-[#f4d36f]/15 blur-3xl" aria-hidden="true" />
           <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -1440,7 +1541,7 @@ export function OwnerRoomsClient({
                 type="button"
                 onClick={() => void activateAllQrCodes()}
                 disabled={isBulkQrBusy}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#173d34] px-4.5 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:bg-[#204a40] hover:shadow-sm active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 whitespace-nowrap"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#173d34] px-4.5 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:bg-[#204a40] hover:shadow-sm active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 whitespace-nowrap cursor-pointer"
               >
                 <VsIcon name="task_alt" className="text-lg" />
                 <span>Kích hoạt toàn bộ QR</span>
@@ -1449,16 +1550,25 @@ export function OwnerRoomsClient({
                 type="button"
                 onClick={() => void exportAllQrCodes()}
                 disabled={isBulkQrBusy}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#d8ca9f] bg-white px-4.5 py-2.5 text-sm font-semibold text-[#173d34] shadow-xs transition hover:bg-[#faf7ee] hover:border-[#cbba88] hover:shadow-sm active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 whitespace-nowrap"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#d8ca9f] bg-white px-4.5 py-2.5 text-sm font-semibold text-[#173d34] shadow-xs transition hover:bg-[#faf7ee] hover:border-[#cbba88] hover:shadow-sm active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 whitespace-nowrap cursor-pointer"
               >
                 <VsIcon name="download" className="text-lg" />
                 <span>Xuất toàn bộ QR</span>
               </button>
               <button
                 type="button"
+                onClick={() => void deactivateAllQrCodes()}
+                disabled={isBulkQrBusy}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4.5 py-2.5 text-sm font-semibold text-amber-900 shadow-xs transition hover:bg-amber-100 hover:border-amber-400 hover:shadow-sm active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 whitespace-nowrap cursor-pointer"
+              >
+                <VsIcon name="visibility_off" className="text-lg text-amber-700" />
+                <span>Vô hiệu hóa toàn bộ QR</span>
+              </button>
+              <button
+                type="button"
                 onClick={() => void rotateAllQrCodes()}
                 disabled={isBulkQrBusy}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#ba1a1a] px-4.5 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:bg-[#a31515] hover:shadow-sm active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 whitespace-nowrap"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#ba1a1a] px-4.5 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:bg-[#a31515] hover:shadow-sm active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 whitespace-nowrap cursor-pointer"
               >
                 <VsIcon name="history" className="text-lg" />
                 <span>Đổi toàn bộ QR</span>
@@ -1466,7 +1576,6 @@ export function OwnerRoomsClient({
             </div>
           </div>
         </div>
-        )}
 
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
           {stats.map((item) => (
