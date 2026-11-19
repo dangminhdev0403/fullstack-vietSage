@@ -97,13 +97,31 @@ function DateInputCell({
   const [text, setText] = useState(() => displayDate(value || fallback));
   const isDateTime = type === "datetime-local";
   const dateInputRef = useRef<HTMLInputElement>(null);
+  const textInputRef = useRef<HTMLInputElement>(null);
+  const cursorRef = useRef<number | null>(null);
 
   useEffect(() => {
     setText(displayDate(value || fallback));
   }, [value, fallback]);
 
+  useEffect(() => {
+    if (cursorRef.current !== null && textInputRef.current) {
+      const pos = cursorRef.current;
+      textInputRef.current.setSelectionRange(pos, pos);
+      cursorRef.current = null;
+    }
+  }, [text]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatVnDateInput(e.target.value, text);
+    const rawVal = e.target.value;
+    const curPos = e.target.selectionStart;
+    const formatted = formatVnDateInput(rawVal, text);
+
+    if (curPos !== null) {
+      const diff = formatted.length - rawVal.length;
+      cursorRef.current = Math.max(0, curPos + diff);
+    }
+
     setText(formatted);
 
     const isoDate = toIsoDate(formatted);
@@ -134,6 +152,7 @@ function DateInputCell({
     if (isoDate) {
       let iso = isoDate;
       if (isDateTime) iso += ` ${originalTime || "00:00:00"}`;
+      setText(displayDate(iso));
       onCommit(field, iso);
       onBlurSave();
       return;
@@ -187,6 +206,7 @@ function DateInputCell({
   return (
     <div className="relative flex items-center w-full">
       <input
+        ref={textInputRef}
         aria-label={`${label}${field === "ngayDenCsltStr" || field === "ngayDiDuKienStr" ? " khai báo BCA" : ""} · ${fullName}`}
         required
         type="text"

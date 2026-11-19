@@ -50,16 +50,40 @@ export function formatVnDateInput(raw: string, prev: string = ""): string {
   // 3. Normalize separators (. or - to /)
   const normalized = raw.replace(/[.\-]/g, "/");
 
-  // 4. If user manually typed slash after 1-digit day or 1-digit month: e.g. "5/" -> "05/", "22/3/" -> "22/03/"
-  const slashParts = normalized.split("/");
-  if (slashParts.length === 2 && slashParts[0].length === 1 && normalized.endsWith("/")) {
-    return `0${slashParts[0]}/`;
-  }
-  if (slashParts.length === 3 && slashParts[1].length === 1 && normalized.endsWith("/")) {
-    return `${slashParts[0]}/0${slashParts[1]}/`;
+  // 4. Structured slash handling: preserve day/month/year segments independently without digit-shifting
+  if (normalized.includes("/")) {
+    const parts = normalized.split("/");
+    let [d = "", m = "", y = ""] = parts;
+
+    // Keep only digits in each part
+    d = d.replace(/\D/g, "");
+    m = m.replace(/\D/g, "");
+    y = y.replace(/\D/g, "").slice(0, 4);
+
+    // If user explicitly typed a trailing slash after a 1-digit day (e.g. '5/' -> '05/')
+    if (parts.length === 2 && d.length === 1 && normalized === d + "/") {
+      d = "0" + d;
+    }
+    // If user explicitly typed a trailing slash after a 1-digit month (e.g. '20/5/' -> '20/05/')
+    if (parts.length === 3 && m.length === 1 && normalized === d + "/" + m + "/") {
+      m = "0" + m;
+    }
+
+    // Limit day and month to 2 digits without shifting across boundaries
+    if (d.length > 2) d = d.slice(0, 2);
+    if (m.length > 2) m = m.slice(0, 2);
+
+    // Auto-append slash after 2-digit month ONLY if user was typing forward at the end
+    if (parts.length === 2 && m.length === 2 && normalized === d + "/" + m) {
+      return `${d}/${m}/`;
+    }
+
+    if (parts.length === 1) return d;
+    if (parts.length === 2) return `${d}/${m}`;
+    return `${d}/${m}/${y}`;
   }
 
-  // 5. Extract all numeric digits (max 8 digits for DDMMYYYY)
+  // 5. No slashes yet: user typing raw digits from scratch
   const digits = normalized.replace(/\D/g, "").slice(0, 8);
   if (!digits) return "";
 
