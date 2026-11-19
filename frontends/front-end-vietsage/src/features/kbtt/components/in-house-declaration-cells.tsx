@@ -95,14 +95,17 @@ function DateInputCell({
   onBlurSave: () => void;
 }) {
   const [text, setText] = useState(() => displayDate(value || fallback));
+  const [isFocused, setIsFocused] = useState(false);
   const isDateTime = type === "datetime-local";
   const dateInputRef = useRef<HTMLInputElement>(null);
   const textInputRef = useRef<HTMLInputElement>(null);
   const cursorRef = useRef<number | null>(null);
 
   useEffect(() => {
-    setText(displayDate(value || fallback));
-  }, [value, fallback]);
+    if (!isFocused) {
+      setText(displayDate(value || fallback));
+    }
+  }, [value, fallback, isFocused]);
 
   useEffect(() => {
     if (cursorRef.current !== null && textInputRef.current) {
@@ -124,17 +127,22 @@ function DateInputCell({
 
     setText(formatted);
 
-    const isoDate = toIsoDate(formatted);
-    if (isoDate) {
-      let iso = isoDate;
-      if (isDateTime) {
-        iso += ` ${originalTime || "00:00:00"}`;
+    // Only commit intermediate date if it forms a complete 10-char date (DD/MM/YYYY)
+    if (formatted.length === 10) {
+      const isoDate = toIsoDate(formatted);
+      if (isoDate) {
+        let iso = isoDate;
+        if (isDateTime) {
+          iso += ` ${originalTime || "00:00:00"}`;
+        }
+        onCommit(field, iso);
       }
-      onCommit(field, iso);
     }
   };
 
   const handleBlur = () => {
+    setIsFocused(false);
+
     if (/^\d{4}$/.test(text.trim())) {
       const year = text.trim();
       const isoDate = toIsoDate(`01/01/${year}`);
@@ -172,21 +180,6 @@ function DateInputCell({
     return toIsoDate(raw) || "";
   }, [text, value, fallback]);
 
-  const openPicker = () => {
-    if (disabled) return;
-    if (dateInputRef.current) {
-      try {
-        if (typeof dateInputRef.current.showPicker === "function") {
-          dateInputRef.current.showPicker();
-        } else {
-          dateInputRef.current.focus();
-        }
-      } catch {
-        dateInputRef.current.focus();
-      }
-    }
-  };
-
   const handleNativePickerChange = (isoVal: string) => {
     if (!isoVal) return;
     const parts = isoVal.split("-");
@@ -204,7 +197,7 @@ function DateInputCell({
   };
 
   return (
-    <div className="relative flex items-center w-full">
+    <div className="relative flex items-center w-full group">
       <input
         ref={textInputRef}
         aria-label={`${label}${field === "ngayDenCsltStr" || field === "ngayDiDuKienStr" ? " khai báo BCA" : ""} · ${fullName}`}
@@ -212,10 +205,11 @@ function DateInputCell({
         type="text"
         inputMode="numeric"
         placeholder="dd/mm/yyyy"
-        maxLength={10}
+        maxLength={12}
         value={text}
         disabled={disabled}
         className={`${className} font-mono text-base font-semibold tracking-wide !pl-2.5 !pr-9 text-slate-900`}
+        onFocus={() => setIsFocused(true)}
         onChange={handleChange}
         onBlur={handleBlur}
         onKeyDown={(e) => {
@@ -228,23 +222,18 @@ function DateInputCell({
         ref={dateInputRef}
         type="date"
         tabIndex={-1}
-        aria-hidden="true"
+        aria-label={`Chọn ${label.toLowerCase()} trên lịch`}
         disabled={disabled}
         value={isoForNative}
         onChange={(e) => handleNativePickerChange(e.target.value)}
-        className="sr-only absolute pointer-events-none"
+        className="absolute right-0 top-0 h-full w-9 opacity-0 cursor-pointer z-10 disabled:pointer-events-none"
       />
-      <button
-        type="button"
-        tabIndex={-1}
-        disabled={disabled}
-        onClick={openPicker}
-        title={`Chọn ${label.toLowerCase()} trên lịch`}
-        aria-label={`Mở lịch chọn ${label.toLowerCase()}`}
-        className="absolute right-1.5 flex h-7 w-7 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-[#003B2A] focus:outline-none focus-visible:ring-1 focus-visible:ring-[#003B2A] disabled:pointer-events-none disabled:opacity-40 transition-colors"
+      <div
+        aria-hidden="true"
+        className="absolute right-1.5 flex h-7 w-7 pointer-events-none items-center justify-center rounded-md text-slate-400 group-hover:text-[#003B2A] transition-colors"
       >
         <VsIcon name="calendar_today" className="h-4 w-4" />
-      </button>
+      </div>
     </div>
   );
 }
@@ -278,10 +267,13 @@ function IdentityInputCell({
   onBlurSave: () => void;
 }) {
   const [text, setText] = useState(() => formatIdentityNumber(value || fallback));
+  const [isFocused, setIsFocused] = useState(false);
 
   useEffect(() => {
-    setText(formatIdentityNumber(value || fallback));
-  }, [value, fallback]);
+    if (!isFocused) {
+      setText(formatIdentityNumber(value || fallback));
+    }
+  }, [value, fallback, isFocused]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const rawInput = e.target.value;
@@ -299,8 +291,12 @@ function IdentityInputCell({
       value={text}
       disabled={disabled}
       className={className}
+      onFocus={() => setIsFocused(true)}
       onChange={handleChange}
-      onBlur={onBlurSave}
+      onBlur={() => {
+        setIsFocused(false);
+        onBlurSave();
+      }}
       onKeyDown={(e) => {
         if (e.key === "Enter") e.currentTarget.blur();
       }}
