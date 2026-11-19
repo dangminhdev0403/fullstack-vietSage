@@ -44,43 +44,43 @@ function showRunCompletionAlert(run: {
     : "Hoàn tất";
 
   const html = `
-    <div class="space-y-3.5 text-left pt-1">
-      <div class="grid grid-cols-3 gap-2 text-center">
-        <div class="rounded-2xl border border-emerald-200/90 bg-emerald-50/70 p-3 shadow-2xs">
-          <div class="text-xs font-bold text-emerald-800">Thành công</div>
-          <div class="mt-1 text-2xl font-black text-emerald-700 tabular-nums">${run.successCount}</div>
+    <div class="space-y-4 text-left pt-1">
+      <div class="grid grid-cols-3 gap-2.5 text-center">
+        <div class="rounded-2xl border border-emerald-200/90 bg-emerald-50/70 p-3.5 shadow-2xs">
+          <div class="text-xs sm:text-sm font-bold text-emerald-800">Thành công</div>
+          <div class="mt-1 text-2xl sm:text-3xl font-black text-emerald-700 tabular-nums">${run.successCount}</div>
         </div>
-        <div class="rounded-2xl border ${failures > 0 ? "border-rose-300 bg-rose-50" : "border-slate-200 bg-slate-50/80"} p-3 shadow-2xs">
-          <div class="text-xs font-bold ${failures > 0 ? "text-rose-800" : "text-slate-500"}">Lỗi</div>
-          <div class="mt-1 text-2xl font-black ${failures > 0 ? "text-rose-700" : "text-slate-400"} tabular-nums">${failures}</div>
+        <div class="rounded-2xl border ${failures > 0 ? "border-rose-300 bg-rose-50" : "border-slate-200 bg-slate-50/80"} p-3.5 shadow-2xs">
+          <div class="text-xs sm:text-sm font-bold ${failures > 0 ? "text-rose-800" : "text-slate-500"}">Lỗi</div>
+          <div class="mt-1 text-2xl sm:text-3xl font-black ${failures > 0 ? "text-rose-700" : "text-slate-400"} tabular-nums">${failures}</div>
         </div>
-        <div class="rounded-2xl border ${unknown > 0 ? "border-amber-300 bg-amber-50" : "border-slate-200 bg-slate-50/80"} p-3 shadow-2xs">
-          <div class="text-xs font-bold ${unknown > 0 ? "text-amber-800" : "text-slate-500"}">Chưa rõ</div>
-          <div class="mt-1 text-2xl font-black ${unknown > 0 ? "text-amber-700" : "text-slate-400"} tabular-nums">${unknown}</div>
+        <div class="rounded-2xl border ${unknown > 0 ? "border-amber-300 bg-amber-50" : "border-slate-200 bg-slate-50/80"} p-3.5 shadow-2xs">
+          <div class="text-xs sm:text-sm font-bold ${unknown > 0 ? "text-amber-800" : "text-slate-500"}">Chưa rõ</div>
+          <div class="mt-1 text-2xl sm:text-3xl font-black ${unknown > 0 ? "text-amber-700" : "text-slate-400"} tabular-nums">${unknown}</div>
         </div>
       </div>
-      <div class="rounded-2xl border border-slate-200/80 bg-slate-50/70 p-3.5 text-xs text-slate-700 space-y-2">
-        <div class="flex items-center justify-between">
-          <span class="font-medium text-slate-500">Chế độ gửi:</span>
+      <div class="rounded-2xl border border-slate-200/90 bg-slate-50/80 p-4 sm:p-5 text-sm sm:text-base text-slate-700 space-y-3.5 shadow-2xs">
+        <div class="flex items-center justify-between gap-3">
+          <span class="font-medium text-slate-600">Chế độ gửi:</span>
           <span class="font-bold text-slate-900">${run.dryRun ? "Chạy thử (Dry-run)" : "Gửi thật lên BCA"}</span>
         </div>
-        <div class="flex items-center justify-between">
-          <span class="font-medium text-slate-500">Trạng thái:</span>
-          <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${
-            isFailed ? "bg-rose-100 text-rose-800" : isSkipped ? "bg-amber-100 text-amber-800" : isCancelled ? "bg-slate-200 text-slate-700" : "bg-emerald-100 text-emerald-800"
+        <div class="flex items-center justify-between gap-3">
+          <span class="font-medium text-slate-600">Trạng thái:</span>
+          <span class="inline-flex items-center px-3 py-1 rounded-lg text-xs sm:text-sm font-bold whitespace-nowrap shadow-2xs ${
+            isFailed ? "bg-rose-100 text-rose-800 border border-rose-200" : isSkipped ? "bg-amber-100 text-amber-800 border border-amber-200" : isCancelled ? "bg-slate-200 text-slate-700 border border-slate-300" : "bg-emerald-100 text-emerald-800 border border-emerald-200"
           }">${statusLabel}</span>
         </div>
-        <div class="flex items-center justify-between">
-          <span class="font-medium text-slate-500">Thời gian thực hiện:</span>
-          <span class="font-mono font-semibold text-slate-800">${formatDateTime(run.scheduledFor)}</span>
+        <div class="flex items-center justify-between gap-3">
+          <span class="font-medium text-slate-600">Thời gian thực hiện:</span>
+          <span class="font-mono font-bold text-slate-900">${formatDateTime(run.scheduledFor)}</span>
         </div>
-        <div class="flex items-center justify-between">
-          <span class="font-medium text-slate-500">Tổng hồ sơ:</span>
-          <span class="font-bold text-slate-900">${run.totalEligible ?? run.totalCount ?? run.successCount} hồ sơ</span>
+        <div class="flex items-center justify-between gap-3">
+          <span class="font-medium text-slate-600">Tổng hồ sơ:</span>
+          <span class="font-extrabold text-slate-900">${run.totalEligible ?? run.totalCount ?? run.successCount} hồ sơ</span>
         </div>
       </div>
       ${run.errorMessage ? `
-        <div class="rounded-2xl border border-rose-200 bg-rose-50/90 p-3 text-xs text-rose-800 leading-relaxed">
+        <div class="rounded-2xl border border-rose-200 bg-rose-50/90 p-3.5 text-sm text-rose-800 leading-relaxed font-medium">
           <span class="font-bold text-rose-900">Chi tiết lỗi: </span>${escapeHtml(run.errorMessage)}
         </div>
       ` : ""}
