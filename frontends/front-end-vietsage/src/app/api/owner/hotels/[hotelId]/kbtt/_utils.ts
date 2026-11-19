@@ -8,6 +8,8 @@ import {
   kbttCredentialsSchema,
   kbttErrorCode,
   kbttErrorMessage,
+  sanitizeProviderDetail,
+  sanitizeErrorMessage,
   type KbttCredentials,
 } from "@/features/kbtt/types/kbtt-contract";
 import { executeOwnerBackendRequest, validationErrorResponse } from "../../../_utils";
@@ -124,9 +126,12 @@ export async function handleKbttAutoSubmitRequest(
     );
   } catch (error) {
     const status = error instanceof HttpError && error.status >= 400 && error.status <= 599 ? error.status : 502;
-    const detail = error instanceof HttpError ? error.message : "Lỗi xử lý yêu cầu nộp tự động.";
+    const code = error instanceof HttpError ? kbttErrorCode(error.data) : null;
+    const detail = error instanceof HttpError && status < 500
+      ? sanitizeErrorMessage(sanitizeProviderDetail(error.data))
+      : "Không thể xử lý yêu cầu gửi BCA. Vui lòng thử lại sau.";
     return NextResponse.json(
-      { status, message: "KBTT_AUTO_SUBMIT_ERROR", data: { detail } },
+      { status, message: "KBTT_AUTO_SUBMIT_ERROR", data: { code, detail } },
       { status, headers: { "Cache-Control": "no-store" } },
     );
   }

@@ -79,12 +79,14 @@ export class KbttProviderClient {
     return (this.config.KBTT_BASE_URL ?? "").trim().replace(/\/+$/, "").toLowerCase();
   }
 
-  async login(credentials: KbttCredentials) {
+  async login(credentials: KbttCredentials, signal?: AbortSignal) {
     return this.session(
       await this.request(
         "token",
         "POST",
         new URLSearchParams({ ...credentials, "grant-type": "api_cslt" }),
+        undefined,
+        signal,
       ),
     );
   }
@@ -468,6 +470,8 @@ export class KbttProviderClient {
     }
     if (path === "revoke" && response.status === 401)
       throw new HttpException({ code: "KBTT_AUTH_FAILED", message: KBTT_AUTH_FAILED_MESSAGE }, 401);
+    if (path === "token" && (response.status === 401 || response.status === 403))
+      throw kbttAuthFailed();
     if (!response.ok || !response.body) throw kbttProviderError("KBTT_PROVIDER_UNAVAILABLE");
     try {
       const reader = response.body.getReader();
@@ -493,6 +497,9 @@ export class KbttProviderClient {
       )
         throw kbttProviderError("KBTT_PROVIDER_INVALID_RESPONSE");
       if (envelope.code !== "200") {
+        if (path === "token" && /^(429|5\d\d)$/.test(String(envelope.code))) {
+          throw kbttProviderError("KBTT_PROVIDER_UNAVAILABLE");
+        }
         const msg =
           typeof (envelope as any)?.message === "string" ? (envelope as any).message : undefined;
         throw kbttAuthFailed(msg);

@@ -157,12 +157,6 @@ export function computeVietnamNextDailySlot(now: Date = new Date()): {
   };
 }
 
-function formatVietnamDateTime(date: Date | string): string {
-  const d = typeof date === "string" ? new Date(date) : date;
-  if (isNaN(d.getTime())) return "";
-  return formatLocalDateTime(d, VIETNAM_TIME_ZONE);
-}
-
 function sanitizeProviderText(text: string): string {
   if (!text) return "";
   return text
@@ -298,8 +292,10 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       session: KbttSession;
       profile?: KbttConnectionProfile;
       cooldownUntil?: number;
+      recoveredAt?: number;
     }
   >();
+  private readonly tokenAcquisitions = new Map<string, { ciphertext: string; controller: AbortController; task: Promise<KbttSession> }>();
   private readonly readPreparations = new Map<string, Promise<{ ready: true }>>();
   private readonly recoveries = new Map<
     string,
@@ -347,7 +343,6 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
   ) {}
 
   async processStayLifecycleEvents() {
-    if (process.env.KBTT_AUTO_SUBMIT_KILL_SWITCH === "true") return;
     await this.staySync?.run(
       (hotelId, connection) => this.getOrRefreshSession(hotelId, connection),
       (hotelId, session, options) =>
@@ -382,16 +377,6 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     requireEnabled = true,
     expectedCiphertext?: string,
   ): Promise<KbttSubmitOutcome> {
-    if (
-      process.env.KBTT_AUTO_SUBMIT_KILL_SWITCH === "true" ||
-      process.env.KBTT_AUTO_SUBMIT_LIVE_ENABLED !== "true"
-    ) {
-      return {
-        outcome: "BUSINESS_REJECTION",
-        code: "DELIVERY_PAUSED",
-        message: "Luồng gửi BCA đang tạm dừng.",
-      };
-    }
     try {
       const current = await this.repository.findDeclarationForDispatch(hotelId, declarationId);
       const guest = Array.isArray(payload) ? payload[0] : null;
@@ -786,9 +771,10 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       const cached = this.sessions.get(hotelId);
       let session: KbttSession;
       try {
-        session = await this.getOrRefreshSession(hotelId, connection);
+        session = await this.waitForInteractiveSession(hotelId, connection);
       } catch (error) {
         const failure = stableKbttError(error);
+        if ((error as any)?.kbttBackgroundAcquisition) throw error;
         if (cached) {
           await this.handleProviderSessionFailure(
             hotelId,
@@ -815,9 +801,9 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
         throw error;
       }
       KbttService.activeFacilities.set(this.getFacilityKey(session.CsltId), hotelId);
-      await this.attachSession(hotelId, updated, session);
+      void this.attachSession(hotelId, updated, session).catch(() => null);
       if (cached && cached.session.AccessToken !== session.AccessToken)
-        await this.revoke(cached.session.AccessToken);
+        void this.revoke(cached.session.AccessToken);
       const latest = await this.repository.find(hotelId);
       if (latest?.status === "CONNECTED" && latest.autoSubmitEnabled) {
         void this.reconcilePendingUnknownDeclarationsForHotel(hotelId).catch(() => null);
@@ -851,6 +837,8 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
   }
 
   onModuleDestroy() {
+    for (const item of this.tokenAcquisitions.values()) item.controller.abort();
+    this.tokenAcquisitions.clear();
     for (const recovery of this.recoveries.values()) recovery.controller.abort();
     this.recoveries.clear();
     for (const timer of this.cooldownTimers.values()) clearTimeout(timer);
@@ -926,6 +914,8 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
   }
 
   private cancelRecovery(hotelId: string) {
+    this.tokenAcquisitions.get(hotelId)?.controller.abort();
+    this.tokenAcquisitions.delete(hotelId);
     this.recoveries.get(hotelId)?.controller.abort();
     this.recoveries.delete(hotelId);
     const cooldownTimer = this.cooldownTimers.get(hotelId);
@@ -948,7 +938,13 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       session: KbttSession;
       profile?: KbttConnectionProfile;
       cooldownUntil?: number;
-    } = { ciphertext: connection.ciphertext, session };
+      recoveredAt?: number;
+    } = {
+      ciphertext: connection.ciphertext, session,
+      profile: previous?.ciphertext === connection.ciphertext && previous.session.CsltId === session.CsltId
+        ? previous.profile : undefined,
+      recoveredAt: previous?.session === session ? previous.recoveredAt : undefined,
+    };
     this.sessions.set(hotelId, cached);
     const profile = await this.readConnectionProfile(session);
     if (this.sessions.get(hotelId) !== cached) return;
@@ -957,9 +953,10 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       await this.recoverReadSession(
         hotelId,
         session,
-        async (signal) => {
-          const next = await this.readConnectionProfile(session, signal);
-          if (this.sessions.get(hotelId) === cached && next.state === "READY") cached.profile = next;
+        async (signal, retrySession = session) => {
+          const next = await this.readConnectionProfile(retrySession, signal);
+          const live = this.sessions.get(hotelId);
+          if (live?.session === retrySession && next.state === "READY") live.profile = next;
           return next.state === "READY";
         },
         profile.error?.code === "KBTT_AUTH_FAILED",
@@ -1028,7 +1025,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     authRejected = false,
   ) {
     if (authRejected) {
-      await this.markAuthFailedSession(hotelId, session);
+      await this.recoverRejectedSession(hotelId, session).catch(() => null);
       return;
     }
     await this.enterTemporaryDisconnectCooldown(hotelId, session);
@@ -1041,13 +1038,27 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
   async recoverReadSession(
     hotelId: string,
     session: KbttSession,
-    retry: (signal: AbortSignal) => Promise<boolean>,
+    retry: (signal: AbortSignal, retrySession?: KbttSession) => Promise<boolean>,
     authenticationFailed = false,
   ) {
     const cached = this.sessions.get(hotelId);
     if (cached?.session !== session || this.recoveries.has(hotelId)) return;
     if (authenticationFailed) {
-      await this.markAuthFailedSession(hotelId, session);
+      const controller = new AbortController();
+      const recovery = { session, controller, task: undefined as Promise<void> | undefined };
+      this.recoveries.set(hotelId, recovery);
+      recovery.task = (async () => {
+        let renewed: KbttSession | undefined;
+        try {
+          renewed = await this.recoverRejectedSession(hotelId, session);
+          if (controller.signal.aborted || this.recoveries.get(hotelId) !== recovery || this.sessions.get(hotelId)?.session !== renewed) return;
+          recovery.session = renewed;
+          const recovered = await withKbttDeadline((signal) => retry(signal, renewed), controller.signal);
+          if (!recovered && this.sessions.get(hotelId)?.session === renewed) await this.enterTemporaryDisconnectCooldown(hotelId, renewed);
+        } catch {
+          if (renewed && !controller.signal.aborted && this.sessions.get(hotelId)?.session === renewed) await this.enterTemporaryDisconnectCooldown(hotelId, renewed);
+        } finally { if (this.recoveries.get(hotelId) === recovery) this.recoveries.delete(hotelId); }
+      })();
       return;
     }
     const recovery: { session: KbttSession; controller: AbortController; task?: Promise<void> } = {
@@ -1091,7 +1102,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
             } catch (retryErr) {
               if (recovery.controller.signal.aborted) return;
               if (stableKbttError(retryErr).authenticationFailed) {
-                await this.markAuthFailedSession(hotelId, session);
+                await this.handleProviderSessionFailure(hotelId, session, true);
                 return;
               }
             }
@@ -1144,6 +1155,8 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
 
   async runDueCooldownHealthProbes(now: Date = new Date()) {
     const tasks: Array<Promise<unknown>> = [];
+    const persisted = await this.repository.findHotelsForTokenRecovery?.(now) ?? [];
+    for (const { hotelId } of persisted) tasks.push(this.probeTemporarilyDisconnectedSession(hotelId, false).catch(() => false));
     for (const [hotelId, cached] of this.sessions.entries()) {
       if (cached.cooldownUntil && now.getTime() >= cached.cooldownUntil) {
         tasks.push(this.probeTemporarilyDisconnectedSession(hotelId, false).catch(() => false));
@@ -1169,123 +1182,38 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     if (tasks.length > 0) await Promise.allSettled(tasks);
   }
 
-  async probeTemporarilyDisconnectedSession(
-    hotelId: string,
-    forceExplicitRead = false,
-  ): Promise<boolean> {
-    const existingProbe = this.healthProbes.get(hotelId);
-    if (existingProbe) return existingProbe;
-
+  async probeTemporarilyDisconnectedSession(hotelId: string, forceExplicitRead = false): Promise<boolean> {
+    const running = this.healthProbes.get(hotelId);
+    if (running) return running;
     const probe = (async () => {
-      const cached = this.sessions.get(hotelId);
-      if (!cached || this.recoveries.has(hotelId)) return false;
-      if (cached.cooldownUntil && Date.now() < cached.cooldownUntil) {
-        return false;
-      }
-      const connection = await this.repository.find(hotelId).catch(() => null);
-      if (
-        !connection ||
-        connection.ciphertext !== cached.ciphertext ||
-        connection.status !== "DISCONNECTED" ||
-        connection.lastErrorCode !== "KBTT_TEMP_DISCONNECTED"
-      ) {
-        return false;
-      }
-      if (!forceExplicitRead) {
-        if (!connection.autoSubmitEnabled) return false;
-        const [hasSafeWork, hasUnknownWork] = await Promise.all([
-          this.hasEligibleSameDayUnsentWork(hotelId),
-          this.hasPendingUnknownWork(hotelId),
-        ]);
-        if (!hasSafeWork && !hasUnknownWork) return false;
-      }
-
-      let activeSession = cached.session;
-      let refreshed = false;
+      const connection = await this.repository.find(hotelId);
+      if (!connection || connection.status !== "DISCONNECTED" || connection.lastErrorCode !== "KBTT_TEMP_DISCONNECTED") return false;
+      if (!forceExplicitRead && !connection.autoSubmitEnabled) return false;
       try {
-        if (activeSession.Exp * 1000 <= Date.now() + 60_000) {
-          activeSession = await this.provider.refresh(activeSession.RefreshToken);
-          refreshed = true;
-        }
-        if (activeSession.CsltId !== connection.csltId) {
-          await this.markAuthFailedSession(hotelId, cached.session);
-          return false;
-        }
+        const session = await this.getOrRefreshSession(hotelId, connection, false);
         if (this.providerRead) {
-          const profile = await this.readConnectionProfile(activeSession);
+          let profile = await this.readConnectionProfile(session);
           if (profile.state !== "READY") {
-            if (profile.error?.code === "KBTT_AUTH_FAILED") {
-              await this.markAuthFailedSession(hotelId, cached.session);
-            } else if (this.sessions.get(hotelId) === cached) {
-              await this.enterTemporaryDisconnectCooldown(hotelId, cached.session);
-            }
+            if (profile.error?.code === "KBTT_AUTH_FAILED") await this.recoverRejectedSession(hotelId, session);
+            else await this.enterTemporaryDisconnectCooldown(hotelId, session);
             return false;
           }
-          if (this.sessions.get(hotelId) === cached) {
-            cached.profile = profile;
-          }
-        } else if (!refreshed) {
-          activeSession = await this.provider.refresh(activeSession.RefreshToken);
-          refreshed = true;
         }
-      } catch (err) {
-        const failure = stableKbttError(err);
-        if (failure.authenticationFailed) {
-          await this.markAuthFailedSession(hotelId, cached.session);
-        } else if (this.sessions.get(hotelId) === cached) {
-          await this.enterTemporaryDisconnectCooldown(hotelId, cached.session);
+        const latest = await this.repository.find(hotelId);
+        if (!latest || latest.ciphertext !== connection.ciphertext || latest.csltId !== session.CsltId || this.sessions.get(hotelId)?.session !== session) return false;
+        const cached = this.sessions.get(hotelId)!;
+        cached.cooldownUntil = undefined;
+        await this.repository.update(latest, { status: "CONNECTED", lastCheckedAt: new Date(), lastErrorCode: null, lastErrorMessage: null });
+        if (connection.autoSubmitEnabled) {
+          await this.reconcilePendingUnknownDeclarationsForHotel(hotelId).catch(() => null);
+          await this.scheduleEligibleSameDayCatchUp(hotelId).catch(() => null);
         }
-        return false;
-      }
-
-      if (this.sessions.get(hotelId) !== cached) {
-        if (refreshed && activeSession.AccessToken !== cached.session.AccessToken) {
-          await this.revoke(activeSession.AccessToken);
-        }
-        return false;
-      }
-      const latest = await this.repository.find(hotelId).catch(() => null);
-      if (
-        !latest ||
-        latest.ciphertext !== cached.ciphertext ||
-        latest.status !== "DISCONNECTED" ||
-        latest.csltId !== activeSession.CsltId
-      ) {
-        if (refreshed && activeSession.AccessToken !== cached.session.AccessToken) {
-          await this.revoke(activeSession.AccessToken);
-        }
-        return false;
-      }
-
-      const oldToken = cached.session.AccessToken;
-      cached.session = activeSession;
-      cached.cooldownUntil = undefined;
-      await this.repository.update(latest, {
-        ...kbttMetadata(activeSession),
-        status: "CONNECTED",
-        lastCheckedAt: new Date(),
-        lastConnectedAt: new Date(),
-        lastErrorCode: null,
-        lastErrorMessage: null,
-      });
-      if (refreshed && oldToken !== activeSession.AccessToken) {
-        await this.revoke(oldToken);
-      }
-      if (latest.autoSubmitEnabled) {
-        await this.reconcilePendingUnknownDeclarationsForHotel(hotelId).catch(() => null);
-        await this.scheduleEligibleSameDayCatchUp(hotelId).catch(() => null);
-      }
-      return true;
+        return true;
+      } catch { return false; }
     })();
-
     this.healthProbes.set(hotelId, probe);
-    try {
-      return await probe;
-    } finally {
-      if (this.healthProbes.get(hotelId) === probe) {
-        this.healthProbes.delete(hotelId);
-      }
-    }
+    try { return await probe; }
+    finally { if (this.healthProbes.get(hotelId) === probe) this.healthProbes.delete(hotelId); }
   }
 
   private getOccupantArrivalInstant(
@@ -1750,8 +1678,6 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
         if (
           !hasMoreUnknownPages ||
           !connection.autoSubmitEnabled ||
-          process.env.KBTT_AUTO_SUBMIT_KILL_SWITCH === "true" ||
-          process.env.KBTT_AUTO_SUBMIT_LIVE_ENABLED !== "true" ||
           !this.repository.createScheduledAutoSubmitRun
         ) {
           return;
@@ -1987,7 +1913,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       }
 
       if (authFailed) {
-        await this.markAuthFailedSession(hotelId, activeSession);
+        await this.handleProviderSessionFailure(hotelId, activeSession, true);
         return {
           settledCount: 0,
           retryScheduledCount: 0,
@@ -2244,12 +2170,6 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     hotelId: string,
     now: Date = new Date(),
   ): Promise<KbttAutoSubmitRun | null> {
-    if (
-      process.env.KBTT_AUTO_SUBMIT_KILL_SWITCH === "true" ||
-      process.env.KBTT_AUTO_SUBMIT_LIVE_ENABLED !== "true"
-    ) {
-      return null;
-    }
     const nextBoundary = computeVietnamNextTenMinuteBoundary(now);
     if (!nextBoundary) {
       return null;
@@ -2570,8 +2490,6 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
         (r.summaryJson as any)?.trigger === "CATCH_UP_10M" &&
         r.scheduledFor.getTime() > now.getTime(),
     );
-    const live = process.env.KBTT_AUTO_SUBMIT_LIVE_ENABLED === "true" &&
-      process.env.KBTT_AUTO_SUBMIT_KILL_SWITCH !== "true";
     const localIssueMessages: Record<string, string> = {
       LOCAL_STAY_ENDED: "Khách đã kết thúc lưu trú trước khi hồ sơ được gửi; cần đối soát.",
       DELIVERY_PAUSED: "Luồng gửi BCA đang tạm dừng; hồ sơ chưa được gửi.",
@@ -2600,7 +2518,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     return {
       mode: "BACKGROUND" as const,
       state: !connection ? "NOT_CONFIGURED" as const
-        : connection.status === "CONNECTED" && connection.autoSubmitEnabled && live ? "RUNNING" as const : "PAUSED" as const,
+        : connection.status === "CONNECTED" && connection.autoSubmitEnabled ? "RUNNING" as const : "PAUSED" as const,
       lifecycleEnabled: process.env.KBTT_STAY_LIFECYCLE_ENABLED === "true",
       pendingCount: snapshot.pendingCount,
       reviewCount: snapshot.reviewCount,
@@ -2843,24 +2761,13 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     const preparation = this.serialize(hotelId, async () => {
       let connection = await this.repository.find(hotelId);
       if (!connection) throw new NotFoundException({ code: "KBTT_NOT_CONFIGURED", message: "Khách sạn chưa cấu hình kết nối BCA." });
-      if (
-        connection.status === "DISCONNECTED" &&
-        connection.lastErrorCode === "KBTT_TEMP_DISCONNECTED"
-      ) {
-        const cached = this.sessions.get(hotelId);
-        if (cached && (!cached.cooldownUntil || Date.now() >= cached.cooldownUntil)) {
-          const resumed = await this.probeTemporarilyDisconnectedSession(hotelId, true);
-          if (resumed) {
-            connection = await this.repository.find(hotelId);
-          }
-        }
-      }
-      if (!connection || connection.status !== "CONNECTED") throw kbttAuthFailed("Cần đăng nhập lại BCA trước khi đối soát.");
+      if (connection.status !== "CONNECTED" && !(connection.status === "DISCONNECTED" && ["KBTT_TEMP_DISCONNECTED", "KBTT_RETRY_PENDING"].includes(connection.lastErrorCode ?? ""))) throw kbttAuthFailed();
       let session: KbttSession;
       try {
-        session = await this.getOrRefreshSession(hotelId, connection, false);
+        session = await this.waitForInteractiveSession(hotelId, connection);
         if (session.Exp * 1000 <= Date.now() + 5_000) throw kbttProviderError("KBTT_PROVIDER_INVALID_RESPONSE");
       } catch (error) {
+        if ((error as any)?.kbttBackgroundAcquisition) throw error;
         const failure = stableKbttError(error);
         const failed = this.sessions.get(hotelId)?.session;
         if (failed) {
@@ -2874,11 +2781,14 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
         if (this.sessions.get(hotelId)?.session === session) this.sessions.delete(hotelId);
         throw new ConflictException("Kết nối BCA đã thay đổi. Vui lòng thử lại.");
       }
-      await this.repository.update(current, {
-        ...kbttMetadata(session), status: "CONNECTED", lastCheckedAt: new Date(),
-        lastErrorCode: null, lastErrorMessage: null,
-      });
-      await this.reconcilePendingUnknownDeclarationsForHotel(hotelId, true).catch(() => null);
+      // Preparation is not a provider health check. A valid cached session needs no DB write;
+      // token acquisition itself persists connection metadata when it renews the access.
+      if (current.status !== "CONNECTED" || current.lastErrorCode || current.lastErrorMessage) {
+        await this.repository.update(current, {
+          ...kbttMetadata(session), status: "CONNECTED", lastErrorCode: null, lastErrorMessage: null,
+        });
+      }
+      void this.reconcilePendingUnknownDeclarationsForHotel(hotelId, true).catch(() => null);
       return { ready: true as const };
     });
     this.readPreparations.set(hotelId, preparation);
@@ -2891,63 +2801,88 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     if (cached?.session === session) this.sessions.set(hotelId, { ...cached, session: { ...session, Exp: 0 } });
   }
 
-  private async getOrRefreshSession(
-    hotelId: string,
-    connection: KbttHotelConnection,
-    revokePrevious = true,
-  ): Promise<KbttSession> {
-    if (this.recoveries.has(hotelId)) throw kbttAuthFailed("BCA đang tạm ngắt kết nối và thử lại.");
-    const current = await this.repository.find(hotelId);
-    if (!current || current.ciphertext !== connection.ciphertext || current.csltId !== connection.csltId) {
-      throw new ConflictException("Kết nối BCA đã thay đổi. Vui lòng kết nối lại.");
-    }
-    if (current.status !== "CONNECTED") throw kbttAuthFailed("Cần đăng nhập lại BCA trước khi đồng bộ.");
+  private async waitForInteractiveSession(hotelId: string, connection: KbttHotelConnection): Promise<KbttSession> {
+    let timer: NodeJS.Timeout | undefined;
+    const pending = this.getOrRefreshSession(hotelId, connection, false);
+    try {
+      return await Promise.race([pending, new Promise<never>((_, reject) => {
+        timer = setTimeout(() => {
+          const error = kbttProviderError("KBTT_PROVIDER_UNAVAILABLE");
+          Object.assign(error, { kbttBackgroundAcquisition: true });
+          reject(error);
+        }, 8_000);
+      })]);
+    } finally { if (timer) clearTimeout(timer); }
+  }
+
+  private async getOrRefreshSession(hotelId: string, connection: KbttHotelConnection, _revokePrevious = true): Promise<KbttSession> {
+    const running = this.tokenAcquisitions.get(hotelId);
+    if (running?.ciphertext === connection.ciphertext) return running.task;
+    const controller = new AbortController();
+    const acquisition = { ciphertext: connection.ciphertext, controller, task: undefined as unknown as Promise<KbttSession> };
+    acquisition.task = (async () => {
+      const assertCurrent = async () => {
+        const current = await this.repository.find(hotelId);
+        if (controller.signal.aborted || !current || current.ciphertext !== connection.ciphertext || current.csltId !== connection.csltId) throw new ConflictException("Kết nối BCA đã thay đổi. Vui lòng kết nối lại.");
+        if (current.status !== "CONNECTED" && !(current.status === "DISCONNECTED" && ["KBTT_TEMP_DISCONNECTED", "KBTT_RETRY_PENDING"].includes(current.lastErrorCode ?? ""))) throw kbttAuthFailed();
+        return current;
+      };
+      let current = await assertCurrent();
+      const cached = this.sessions.get(hotelId);
+      const cooldownUntil = cached?.ciphertext === current.ciphertext && cached.cooldownUntil ? cached.cooldownUntil : current.lastErrorCode === "KBTT_TEMP_DISCONNECTED" && current.lastCheckedAt ? current.lastCheckedAt.getTime() + KBTT_TEMP_DISCONNECT_COOLDOWN_MS : 0;
+      if (cooldownUntil > Date.now()) throw kbttProviderError("KBTT_PROVIDER_UNAVAILABLE");
+      if (cached?.ciphertext === current.ciphertext && cached.session.Exp * 1000 > Date.now() + 60_000) {
+        if (cached.session.CsltId !== current.csltId) throw new ConflictException("Phiên BCA không thuộc cơ sở đã kết nối.");
+        return cached.session;
+      }
+      const credentials = this.cipher.decrypt(hotelId, current);
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (attempt) await waitForKbttRetry(controller.signal);
+        current = await assertCurrent();
+        let session: KbttSession;
+        try { session = await this.provider.login(credentials, controller.signal); }
+        catch (error) {
+          current = await assertCurrent();
+          if (stableKbttError(error).authenticationFailed) {
+            this.sessions.delete(hotelId);
+            if (cached) this.notifySessionEnded(hotelId, cached.session);
+            await this.repository.update(current, { status: "AUTH_FAILED", lastCheckedAt: new Date(), lastErrorCode: "KBTT_AUTH_FAILED", lastErrorMessage: KBTT_AUTH_FAILED_MESSAGE });
+            throw error;
+          }
+          if (attempt < 2) continue;
+          if (cached?.ciphertext === current.ciphertext) cached.cooldownUntil = Date.now() + KBTT_TEMP_DISCONNECT_COOLDOWN_MS;
+          await this.repository.update(current, { status: "DISCONNECTED", lastCheckedAt: new Date(), lastErrorCode: "KBTT_TEMP_DISCONNECTED", lastErrorMessage: "Tạm ngắt kết nối BCA. Hệ thống sẽ thử lại sau 60 giây." });
+          throw kbttProviderError("KBTT_PROVIDER_UNAVAILABLE");
+        }
+        try {
+          current = await assertCurrent();
+          if (session.CsltId !== current.csltId || await this.hasConflictingFacilityOwnership(hotelId, session.CsltId)) throw new ConflictException("Cơ sở BCA đã thay đổi hoặc đang liên kết với khách sạn khác.");
+          current = await assertCurrent();
+        } catch (error) { void this.revoke(session.AccessToken); throw error; }
+        try {
+          await this.repository.update(current, { ...kbttMetadata(session), status: "CONNECTED", lastCheckedAt: new Date(), lastConnectedAt: new Date(), lastErrorCode: null, lastErrorMessage: null });
+          await assertCurrent();
+        } catch (error) { void this.revoke(session.AccessToken); throw error; }
+        this.sessions.set(hotelId, { ciphertext: current.ciphertext, session, recoveredAt: Date.now(), profile: cached?.ciphertext === current.ciphertext ? cached.profile : undefined });
+        return session;
+      }
+      throw kbttProviderError("KBTT_PROVIDER_UNAVAILABLE");
+    })();
+    this.tokenAcquisitions.set(hotelId, acquisition);
+    try { return await acquisition.task; }
+    finally { if (this.tokenAcquisitions.get(hotelId) === acquisition) this.tokenAcquisitions.delete(hotelId); }
+  }
+
+  async recoverRejectedSession(hotelId: string, session: KbttSession): Promise<KbttSession> {
+    const connection = await this.repository.find(hotelId);
     const cached = this.sessions.get(hotelId);
-    let session: KbttSession;
-
-    if (
-      cached?.ciphertext === connection.ciphertext &&
-      cached.session.Exp * 1000 > Date.now() + 60_000
-    ) {
-      if (cached.session.CsltId !== connection.csltId) {
-        this.sessions.delete(hotelId);
-        throw new ConflictException("Phiên BCA không thuộc cơ sở đã kết nối; cần xác nhận lại kết nối.");
-      }
-      return cached.session;
+    if (!connection || !cached || cached.ciphertext !== connection.ciphertext) throw kbttAuthFailed();
+    if (cached.session === session && cached.recoveredAt !== undefined && Date.now() < cached.recoveredAt + KBTT_TEMP_DISCONNECT_COOLDOWN_MS) {
+      await this.enterTemporaryDisconnectCooldown(hotelId, session);
+      throw kbttProviderError("KBTT_PROVIDER_UNAVAILABLE");
     }
-
-    if (cached?.ciphertext === connection.ciphertext) {
-      try {
-        session = await this.provider.refresh(cached.session.RefreshToken);
-      } catch (error) {
-        const failure = stableKbttError(error);
-        await this.handleProviderSessionFailure(
-          hotelId,
-          cached.session,
-          failure.authenticationFailed,
-        );
-        throw error;
-      }
-    } else {
-      throw kbttAuthFailed("Phiên BCA đã kết thúc. Vui lòng đăng nhập lại.");
-    }
-
-    if (session.CsltId !== connection.csltId) {
-      this.sessions.delete(hotelId);
-      throw new ConflictException("Phiên BCA không thuộc cơ sở đã kết nối; cần xác nhận lại kết nối.");
-    }
-    const latest = await this.repository.find(hotelId);
-    if (!latest || latest.status !== "CONNECTED" || latest.ciphertext !== connection.ciphertext || latest.csltId !== session.CsltId) {
-      if (this.sessions.get(hotelId) === cached) this.sessions.delete(hotelId);
-      await this.revoke(session.AccessToken);
-      throw new ConflictException("Kết nối BCA đã thay đổi trong lúc cập nhật phiên. Vui lòng kết nối lại.");
-    }
-    this.sessions.set(hotelId, { ciphertext: connection.ciphertext, session,
-      profile: cached?.ciphertext === connection.ciphertext && cached.session.CsltId === session.CsltId ? cached.profile : undefined });
-    if (revokePrevious && cached && cached.session.AccessToken !== session.AccessToken) {
-      await this.revoke(cached.session.AccessToken);
-    }
-    return session;
+    if (cached.session === session) cached.session = { ...session, Exp: 0 };
+    return this.getOrRefreshSession(hotelId, connection, false);
   }
 
   async submit(userId: string, roleId: string, hotelId: string, occupantId: string) {
@@ -2980,8 +2915,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       await this.prepareInitialDeclaration(hotelId, occupantId, occupant);
     const fingerprint = createHash("sha256").update(JSON.stringify(payload)).digest("hex");
     const connection = await this.repository.find(hotelId);
-    const paused = process.env.KBTT_AUTO_SUBMIT_KILL_SWITCH === "true" ||
-      process.env.KBTT_AUTO_SUBMIT_LIVE_ENABLED !== "true" || !connection?.autoSubmitEnabled;
+    const paused = !connection?.autoSubmitEnabled;
     if (!connection || paused) {
       const failed = await this.repository.updateDeclaration({
         id: preparedDeclaration.id, hotelId, expectedVersion: preparedDeclaration.version,
@@ -3035,8 +2969,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     const attemptCiphertext =
       ((declaration as any).submittedConnectionCiphertext as string | null | undefined) ?? undefined;
     const connection = await this.repository.find(hotelId);
-    if (process.env.KBTT_AUTO_SUBMIT_KILL_SWITCH === "true" ||
-        process.env.KBTT_AUTO_SUBMIT_LIVE_ENABLED !== "true" || !connection?.autoSubmitEnabled) {
+    if (!connection?.autoSubmitEnabled) {
       await this.persistDeclarationFailed(hotelId, declaration, fingerprint, {
         outcome: "BUSINESS_REJECTION", code: "DELIVERY_PAUSED", message: "Luồng gửi BCA đang tạm dừng.",
       }, attemptCiphertext ?? connection?.ciphertext);
@@ -3279,12 +3212,6 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
         cached.ciphertext === connection.ciphertext &&
         cached.session.CsltId === connection.csltId,
     );
-    const interruptedRecovery = Boolean(
-      connection &&
-        ((connection.lastErrorCode === "KBTT_RETRY_PENDING" &&
-          !this.recoveries.has(connection.hotelId)) ||
-          (connection.lastErrorCode === "KBTT_TEMP_DISCONNECTED" && !hasValidGeneration)),
-    );
     const profile =
       connection?.status === "CONNECTED" &&
       !this.recoveries.has(connection.hotelId) &&
@@ -3302,20 +3229,15 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       configured: Boolean(connection),
       status:
         connection &&
-        (this.recoveries.has(connection.hotelId) ||
-          (connection.status === "CONNECTED" && !hasValidGeneration))
+        (this.recoveries.has(connection.hotelId) || username === null)
           ? "DISCONNECTED"
           : (connection?.status ?? "DISCONNECTED"),
       maskedUsername: connection ? "••••••" : null,
       csltId: connection?.csltId ?? null,
       lastCheckedAt: connection?.lastCheckedAt.toISOString() ?? null,
       lastConnectedAt: connection?.lastConnectedAt.toISOString() ?? null,
-      lastErrorCode: interruptedRecovery
-        ? "KBTT_SESSION_ENDED"
-        : (connection?.lastErrorCode ?? null),
-      lastErrorMessage: interruptedRecovery
-        ? "Phiên BCA đã kết thúc. Vui lòng đăng nhập lại."
-        : (connection?.lastErrorMessage ?? null),
+      lastErrorCode: connection?.lastErrorCode ?? null,
+      lastErrorMessage: connection?.lastErrorMessage ?? null,
       cooldownUntil:
         hasValidGeneration && cached?.cooldownUntil
           ? new Date(cached.cooldownUntil).toISOString()
@@ -3804,8 +3726,6 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
   }
 
   async executeAutoSubmitForHotel(hotelId: string, scheduledForDate: Date, isDryRun: boolean) {
-    if (process.env.KBTT_AUTO_SUBMIT_KILL_SWITCH === "true") return null;
-    isDryRun = isDryRun || process.env.KBTT_AUTO_SUBMIT_LIVE_ENABLED !== "true";
     return this.serialize(hotelId, async () => {
       const run = await this.repository.claimAutoSubmitRunLease(
         hotelId,
@@ -4432,38 +4352,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
       const failedCount = validationFailureCount + bcaRejectionCount;
       const unknownCount = transientExhaustedCount;
 
-      let telegramSent = false;
-      if (
-        !isDryRun &&
-        this.telegramNotificationService &&
-        (this.telegramNotificationService as any).sendKbttAutoSubmitSummary
-      ) {
-        try {
-          const hotelName =
-            (connection as any)?.hotel?.name ||
-            (await this.repository.findHotelName?.(hotelId)) ||
-            hotelId;
-          telegramSent = await (this.telegramNotificationService as any).sendKbttAutoSubmitSummary(
-            hotelId,
-            {
-              hotelName,
-              scheduledTime: formatVietnamDateTime(scheduledForDate),
-              totalEligible: totalEligibleCount,
-              successCount,
-              failureCount: failedCount,
-              unknownCount,
-              isDryRun,
-              directSuccessCount,
-              reconciledSuccessCount,
-              validationFailureCount,
-              bcaRejectionCount,
-              transientExhaustedCount,
-            },
-          );
-        } catch {
-          // non-blocking
-        }
-      }
+      const telegramSent = false;
 
       let continuationScheduled = false;
       let nextContinuationAt: string | null = null;
@@ -4529,11 +4418,6 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
 
   async testAutoSubmit(userId: string, roleId: string, hotelId: string, dryRun = true) {
     await this.access.assertHotelAccess(userId, roleId, hotelId);
-    if (!dryRun && process.env.KBTT_AUTO_SUBMIT_LIVE_ENABLED !== "true") {
-      throw new BadRequestException(
-        "Live KBTT auto-submit chưa được bật trong môi trường hiện tại.",
-      );
-    }
     if (!dryRun) return this.scheduleAutoSubmit(userId, roleId, hotelId, false);
     const run = await this.executeAutoSubmitForHotel(hotelId, new Date(), true);
     if (!run) {
@@ -4561,11 +4445,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
 
   async testTelegram(userId: string, roleId: string, hotelId: string) {
     await this.access.assertHotelAccess(userId, roleId, hotelId);
-    const sent = await this.telegramNotificationService?.sendKbttTestMessage(hotelId);
-    if (!sent) {
-      throw new BadRequestException("Chưa cấu hình tuyến Telegram KBTT cho khách sạn.");
-    }
-    return { sent: true };
+    return { sent: false };
   }
 
   async sendBatchSummary(
@@ -4582,26 +4462,11 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     },
   ) {
     await this.access.assertHotelAccess(userId, roleId, hotelId);
-    const hotelName = (await this.repository.findHotelName?.(hotelId)) || hotelId;
-    const sent = await this.telegramNotificationService?.sendKbttAutoSubmitSummary(hotelId, {
-      hotelName,
-      scheduledTime: summary.scheduledTime || formatVietnamDateTime(new Date()),
-      totalEligible: summary.totalEligible,
-      successCount: summary.successCount,
-      failureCount: summary.failureCount,
-      unknownCount: summary.unknownCount ?? 0,
-      isDryRun: summary.isDryRun ?? false,
-    });
-    return { sent: Boolean(sent) };
+    return { sent: false };
   }
 
   async scheduleAutoSubmit(userId: string, roleId: string, hotelId: string, dryRun: boolean) {
     await this.access.assertHotelAccess(userId, roleId, hotelId);
-    if (!dryRun && process.env.KBTT_AUTO_SUBMIT_LIVE_ENABLED !== "true") {
-      throw new BadRequestException(
-        "Live KBTT auto-submit chưa được bật trong môi trường hiện tại.",
-      );
-    }
     const [pending, runs] = await Promise.all([
       this.repository.findPendingScheduledAutoSubmitRuns(hotelId),
       this.repository.getAutoSubmitRunHistory(hotelId, 5),
@@ -4624,7 +4489,7 @@ export class KbttService implements OnModuleDestroy, OnModuleInit {
     }
     const run = await this.repository.createScheduledAutoSubmitRun(
       hotelId,
-      new Date(Date.now() + 15_000),
+      new Date(Date.now() + 5_000),
       dryRun,
       "MANUAL_DELAYED",
     );

@@ -20002,7 +20002,7 @@
             "bearer": []
           }
         ],
-        "summary": "Send a Telegram-only KBTT connectivity test; never contacts C06",
+        "summary": "Deprecated compatibility endpoint; Telegram delivery is disabled",
         "tags": [
           "hotel-kbtt"
         ]
@@ -20043,7 +20043,7 @@
             "bearer": []
           }
         ],
-        "summary": "Send aggregated batch submission summary to Telegram aggregate channel",
+        "summary": "Deprecated compatibility endpoint; Telegram delivery is disabled",
         "tags": [
           "hotel-kbtt"
         ]
@@ -20084,7 +20084,7 @@
             "bearer": []
           }
         ],
-        "summary": "Send aggregated batch submission summary to Telegram aggregate channel",
+        "summary": "Deprecated compatibility endpoint; Telegram delivery is disabled",
         "tags": [
           "hotel-kbtt"
         ]
@@ -20125,7 +20125,7 @@
             "bearer": []
           }
         ],
-        "summary": "Schedule one KBTT auto-submit in 15 seconds",
+        "summary": "Schedule one KBTT auto-submit in 5 seconds",
         "tags": [
           "hotel-kbtt"
         ]

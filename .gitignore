@@ -70,3 +70,8 @@ __pycache__/
 /shared/kbtt/
 
 .local/orca-retained/housekeeping-realtime.env
+.mcp.json
+.agentsroom/
+.agents/mcp_config.json
+.agents/hooks.json
+.agents/agentsroom-hook.cmd

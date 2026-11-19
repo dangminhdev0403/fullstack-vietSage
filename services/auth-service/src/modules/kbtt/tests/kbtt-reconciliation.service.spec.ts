@@ -22,10 +22,25 @@ function fixture() {
   return { access, repository, occupants, sessions, provider, service, connection, session, local, record };
 }
 const savedEnv = { ...process.env };
-beforeEach(() => { jest.useFakeTimers(); jest.setSystemTime(new Date("2026-11-16T06:00:00Z")); process.env.KBTT_AUTO_SUBMIT_LIVE_ENABLED = "false"; process.env.KBTT_AUTO_SUBMIT_KILL_SWITCH = "true"; });
+beforeEach(() => { jest.useFakeTimers(); jest.setSystemTime(new Date("2026-11-16T06:00:00Z")); });
 afterEach(() => { jest.useRealTimers(); process.env = { ...savedEnv }; });
 
 describe("both-country read-only in-house reconciliation", () => {
+  it("uses the renewed access for both-country reads after an authentication rejection", async () => {
+    const f = fixture();
+    const renewed = { ...f.session, AccessToken: "fixture-new-access" };
+    f.provider.readAllHistory.mockRejectedValueOnce(new KbttProviderReadError("HTTP", "expired", { httpStatus: 401 }));
+    f.sessions.recoverReadSession.mockImplementation(async (_hotel, _session, callback) => {
+      const before = f.provider.readAllResidents.mock.calls.length;
+      await expect(callback(new AbortController().signal, renewed)).resolves.toBe(true);
+      const retried = f.provider.readAllResidents.mock.calls.slice(before);
+      expect(retried).toHaveLength(2);
+      expect(retried.every((args) => args[1] === renewed.AccessToken)).toBe(true);
+    });
+    await f.service.get("owner", "role", "hotel-1", true);
+    expect(f.sessions.recoverReadSession).toHaveBeenCalledWith("hotel-1", f.session, expect.any(Function), true);
+    expect(f.sessions.disconnectFailedSession).not.toHaveBeenCalled();
+  });
   it("keeps a delayed recovery read alive while the UI requests disconnected local guests", async () => {
     const f = fixture(); let retry!: (signal: AbortSignal) => Promise<boolean>;
     f.sessions.recoverReadSession.mockImplementation(async (_hotel, _session, callback) => {
@@ -153,7 +168,18 @@ describe("both-country read-only in-house reconciliation", () => {
   ])("treats incomplete or wrong-scope records as incomplete, never a negative conclusion", async (record) => {
     const f = fixture(); f.provider.readAllResidents.mockResolvedValueOnce([record]);
     const result = await f.service.get("owner", "role", "hotel-1", true);
-    expect(result.sources.VIETNAMESE.state).toBe("NOT_CONNECTED"); expect(result.items[0].status).toBeNull();
+    expect(result.sources.VIETNAMESE.state).toBe("INCOMPLETE"); expect(result.items[0].status).toBeNull();
+    expect(f.sessions.recoverReadSession).not.toHaveBeenCalled();
+    expect(result.sources.FOREIGN.state).toBe("COMPLETE");
+  });
+  it.each(["CONFIGURATION", "VALIDATION", "INVALID_RESPONSE"] as const)("keeps the token connected for a %s read failure", async (kind) => {
+    const f = fixture();
+    f.provider.readAllHistory.mockRejectedValueOnce(new KbttProviderReadError(kind, "read failed"));
+    const result = await f.service.get("owner", "role", "hotel-1", true);
+    expect(result.sources.VIETNAMESE.state).toBe(kind === "INVALID_RESPONSE" ? "INCOMPLETE" : "FAILED");
+    expect(result.sources.FOREIGN.state).toBe("COMPLETE");
+    expect(f.sessions.recoverReadSession).not.toHaveBeenCalled();
+    expect(result.items.every((row) => !row.canRetry)).toBe(true);
   });
   it("shows active and historical BCA guests as read-only rows without imports", async () => {
     const f = fixture(); f.occupants.getActiveStayOccupants.mockResolvedValue([]);
@@ -170,11 +196,11 @@ describe("both-country read-only in-house reconciliation", () => {
     expect(f.occupants.getActiveStayOccupants).toHaveBeenCalledWith("hotel-1", { roomIds: ["room-1"] });
     expect(result.items.every((row) => row.source === "VIETSAGE")).toBe(true);
   });
-  it("keeps paused delivery disabled even for a definite failed unmatched declaration", async () => {
+  it("allows retry after complete reconciliation for a definite failed unmatched declaration", async () => {
     const f = fixture(); f.repository.findDeclarationsByHotel.mockResolvedValue([{ occupantId: "occupant-1", status: "FAILED", declarationKind: "VIETNAMESE", draftPayloadJson: {}, providerMessage: "Synthetic rejection" }]);
     f.provider.readAllHistory.mockResolvedValue([]);
     const result = await f.service.get("owner", "role", "hotel-1", true);
-    expect(result.items[0]).toMatchObject({ status: "NOT_FOUND", declarationStatus: "FAILED", canRetry: false });
+    expect(result.items[0]).toMatchObject({ status: "NOT_FOUND", declarationStatus: "FAILED", canRetry: true });
   });
   it("protects reconciliation with declarations permissions", () => {
     expect(Reflect.getMetadata(REQUIRED_PERMISSION_KEY, KbttController.prototype.getReconciliation)).toEqual(["hotel.kbtt.declarations.view", "hotel.kbtt.declarations.manage"]);
@@ -219,8 +245,6 @@ describe("both-country read-only in-house reconciliation", () => {
   });
 
   it("tracks per-guest/day history coverage within the rolling 30-day window so unqueried >30d guests are inconclusive/manual (never NOT_FOUND/canRetry) while preserving positive active-resident matches", async () => {
-    process.env.KBTT_AUTO_SUBMIT_LIVE_ENABLED = "true";
-    process.env.KBTT_AUTO_SUBMIT_KILL_SWITCH = "false";
     const f = fixture();
     // System time is 2026-11-16T06:00:00Z (today = 2026-11-16 VN, yesterday = 2026-11-15 VN, minWindowDay = 2026-10-18 VN)
     const todayGuest = {

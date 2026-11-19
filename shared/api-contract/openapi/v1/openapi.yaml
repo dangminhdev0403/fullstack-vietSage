@@ -13025,7 +13025,7 @@ paths:
         "422": *a65
         "503": *a66
       security: *a67
-      summary: Send a Telegram-only KBTT connectivity test; never contacts C06
+      summary: Deprecated compatibility endpoint; Telegram delivery is disabled
       tags: *a68
   /hotels/{hotelId}/kbtt/auto-submit/summary:
     post:
@@ -13044,7 +13044,7 @@ paths:
         "422": *a65
         "503": *a66
       security: *a67
-      summary: Send aggregated batch submission summary to Telegram aggregate channel
+      summary: Deprecated compatibility endpoint; Telegram delivery is disabled
       tags: *a68
   /hotels/{hotelId}/kbtt/declarations/batch-summary:
     post:
@@ -13063,7 +13063,7 @@ paths:
         "422": *a65
         "503": *a66
       security: *a67
-      summary: Send aggregated batch submission summary to Telegram aggregate channel
+      summary: Deprecated compatibility endpoint; Telegram delivery is disabled
       tags: *a68
   /hotels/{hotelId}/kbtt/auto-submit/schedule:
     post:
@@ -13082,7 +13082,7 @@ paths:
         "422": *a65
         "503": *a66
       security: *a67
-      summary: Schedule one KBTT auto-submit in 15 seconds
+      summary: Schedule one KBTT auto-submit in 5 seconds
       tags: *a68
     delete:
       operationId: KbttController_cancelScheduledAutoSubmit

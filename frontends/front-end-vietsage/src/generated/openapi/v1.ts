@@ -4126,7 +4126,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Send a Telegram-only KBTT connectivity test; never contacts C06 */
+        /** Deprecated compatibility endpoint; Telegram delivery is disabled */
         post: operations["KbttController_testTelegram"];
         delete?: never;
         options?: never;
@@ -4143,7 +4143,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Send aggregated batch submission summary to Telegram aggregate channel */
+        /** Deprecated compatibility endpoint; Telegram delivery is disabled */
         post: operations["KbttController_sendAutoSubmitSummary"];
         delete?: never;
         options?: never;
@@ -4160,7 +4160,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Send aggregated batch submission summary to Telegram aggregate channel */
+        /** Deprecated compatibility endpoint; Telegram delivery is disabled */
         post: operations["KbttController_sendDeclarationsBatchSummary"];
         delete?: never;
         options?: never;
@@ -4177,7 +4177,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Schedule one KBTT auto-submit in 15 seconds */
+        /** Schedule one KBTT auto-submit in 5 seconds */
         post: operations["KbttController_scheduleAutoSubmit"];
         /** Cancel the pending one-shot KBTT auto-submit */
         delete: operations["KbttController_cancelScheduledAutoSubmit"];

@@ -12,8 +12,6 @@ describe("KbttAutoSubmitSchedulerService", () => {
     jest.useFakeTimers({ doNotFake: ["nextTick", "setImmediate"] });
     // Default test time: 12:00 in Asia/Ho_Chi_Minh (05:00 UTC)
     jest.setSystemTime(new Date("2026-09-14T05:00:00.000Z"));
-    delete process.env.KBTT_AUTO_SUBMIT_KILL_SWITCH;
-    delete process.env.KBTT_AUTO_SUBMIT_LIVE_ENABLED;
 
     kbttService = {
       processStayLifecycleEvents: jest.fn().mockResolvedValue(undefined),
@@ -49,18 +47,6 @@ describe("KbttAutoSubmitSchedulerService", () => {
 
   afterEach(() => {
     jest.useRealTimers();
-    delete process.env.KBTT_AUTO_SUBMIT_KILL_SWITCH;
-    delete process.env.KBTT_AUTO_SUBMIT_LIVE_ENABLED;
-  });
-
-  it("should skip execution when kill switch is enabled", async () => {
-    process.env.KBTT_AUTO_SUBMIT_KILL_SWITCH = "true";
-
-    await scheduler.handleCron();
-
-    expect(repository.findHotelsForDailyAutoSubmitSweep).not.toHaveBeenCalled();
-    expect(kbttService.processStayLifecycleEvents).not.toHaveBeenCalled();
-    expect(kbttService.executeAutoSubmitForHotel).not.toHaveBeenCalled();
   });
 
   it("processes pending checkout delivery even without arrival schedules", async () => {
@@ -73,7 +59,7 @@ describe("KbttAutoSubmitSchedulerService", () => {
     expect(kbttService.executeAutoSubmitForHotel).not.toHaveBeenCalled();
   });
 
-  it("should process due hotels at fixed 12:00 and 21:00 Vietnam slots with dryRun=true by default", async () => {
+  it("should process due hotels at fixed 12:00 and 21:00 Vietnam slots with live delivery", async () => {
     await scheduler.handleCron();
 
     expect(repository.findHotelsForDailyAutoSubmitSweep).toHaveBeenCalledTimes(1);
@@ -81,7 +67,7 @@ describe("KbttAutoSubmitSchedulerService", () => {
     expect(kbttService.executeAutoSubmitForHotel).toHaveBeenCalledWith(
       "hotel-1",
       new Date("2026-09-14T05:00:00.000Z"),
-      true,
+      false,
     );
 
     (kbttService.executeAutoSubmitForHotel as jest.Mock).mockClear();
@@ -90,12 +76,11 @@ describe("KbttAutoSubmitSchedulerService", () => {
     expect(kbttService.executeAutoSubmitForHotel).toHaveBeenCalledWith(
       "hotel-1",
       new Date("2026-09-14T14:00:00.000Z"),
-      true,
+      false,
     );
   });
 
-  it("should process due hotels with dryRun=false when KBTT_AUTO_SUBMIT_LIVE_ENABLED=true", async () => {
-    process.env.KBTT_AUTO_SUBMIT_LIVE_ENABLED = "true";
+  it("should process due hotels with dryRun=false", async () => {
 
     await scheduler.handleCron();
 
@@ -117,7 +102,7 @@ describe("KbttAutoSubmitSchedulerService", () => {
     expect(kbttService.executeAutoSubmitForHotel).toHaveBeenLastCalledWith(
       "hotel-2",
       expect.any(Date),
-      true,
+      false,
     );
   });
 

@@ -12,7 +12,6 @@ import type {
   KbttAutoSubmitConfig,
   KbttAutoSubmitEnabled,
   KbttAutoSubmitState,
-  KbttBatchSubmitSummary,
   KbttCatalogItem,
   KbttCatalogKind,
   KbttConnection,
@@ -34,6 +33,7 @@ const connectionInvalidates = [
 ] as const;
 const declarationInvalidates = [
   { type: "query", operation: "reconciliation" },
+  { type: "query", operation: "reconciliationLocal" },
   { type: "query", operation: "inHouseDeclarations" },
   { type: "query", operation: "declarations" },
   { type: "query", operation: "declarationDetail" },
@@ -257,19 +257,6 @@ export const kbttResource = createResource<HotelScope>()({
         { type: "query", operation: "declarations" },
         { type: "query", operation: "declarationDetail" },
       ],
-    }),
-    testTelegram: defineMutation({
-      defaults: { retry: false, networkMode: "always" },
-      mutationFn: ({ scope }: ResourceMutationContext<HotelScope, void>) =>
-        kbttRepository.testTelegram(scope.hotelId),
-    }),
-    sendBatchSummary: defineMutation({
-      defaults: { retry: false, networkMode: "always" },
-      mutationFn: ({
-        scope,
-        variables,
-      }: ResourceMutationContext<HotelScope, KbttBatchSubmitSummary>) =>
-        kbttRepository.sendBatchSummary(scope.hotelId, variables),
     }),
     scheduleAutoSubmit: defineMutation({
       defaults: { retry: false, networkMode: "always" },

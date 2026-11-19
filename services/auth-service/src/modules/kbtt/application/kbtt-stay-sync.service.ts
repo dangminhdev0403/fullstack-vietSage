@@ -72,8 +72,7 @@ export class KbttStaySyncService {
     onProviderFailure?: SessionFailure,
     checkFacilityConflict?: FacilityConflictCheck,
   ) {
-    if (!this.enabled() || process.env.KBTT_AUTO_SUBMIT_LIVE_ENABLED !== "true" ||
-        process.env.KBTT_AUTO_SUBMIT_KILL_SWITCH === "true") return;
+    if (!this.enabled()) return;
     await this.repository.recoverInterrupted();
     for (const event of await this.repository.pendingEvents()) {
       try {

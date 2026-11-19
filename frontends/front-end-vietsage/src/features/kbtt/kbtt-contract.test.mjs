@@ -1205,8 +1205,9 @@ test("KBTT fixed 12:00/21:00 slots, 10-minute catch-up boundary, retired custom 
     "utf8",
   );
   assert.doesNotMatch(connectionPageSrc, /type="time"|Lưu giờ gửi/);
-  assert.match(connectionPageSrc, /KBTT_FIXED_SCHEDULE_SLOTS/);
-  assert.match(connectionPageSrc, /nextScheduledSlotAt/);
+  const autoSubmitSectionSrc = readFileSync(new URL("./components/kbtt-auto-submit-section.tsx", import.meta.url), "utf8");
+  assert.match(autoSubmitSectionSrc, /KBTT_FIXED_SCHEDULE_SLOTS/);
+  assert.match(autoSubmitSectionSrc, /nextScheduledSlotAt/);
   assert.match(connectionPageSrc, /nextCatchUpAt/);
   assert.match(connectionPageSrc, /Đang thử kết nối lại sau 10 giây/);
   assert.match(connectionPageSrc, /Tạm ngắt kết nối BCA — đang chờ kết nối lại/);

@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getCoreRowModel, getFilteredRowModel, useReactTable, type ColumnDef } from "@tanstack/react-table";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { kbttResource } from "../resources/kbtt-resource";
+import { KbttAutoSubmitSection } from "./kbtt-auto-submit-section";
 import { KbttScheduleInfo } from "./kbtt-schedule-info";
 import { InHouseBcaControls } from "./in-house-bca-status";
 import { InHouseDeclarationCells } from "./in-house-declaration-cells";
@@ -38,7 +39,7 @@ function SortHeader({
   sortField: SortField | null;
   sortDirection: SortDirection;
   onSort: (field: SortField) => void;
-  align?: "left" | "right";
+  align?: "left" | "center" | "right";
 }) {
   const isSorted = sortField === field;
   return (
@@ -47,7 +48,7 @@ function SortHeader({
       onClick={() => onSort(field)}
       className={`group/sort inline-flex items-center gap-1.5 py-1 px-1.5 -mx-1.5 rounded-lg text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-700 transition-colors hover:bg-slate-200/60 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#003B2A]/40 ${
         isSorted ? "text-[#003B2A] font-extrabold" : ""
-      } ${align === "right" ? "ml-auto" : ""}`}
+      } ${align === "center" ? "mx-auto justify-center" : align === "right" ? "ml-auto" : ""}`}
       title={`Sắp xếp theo ${label.toLowerCase()} ${
         !isSorted
           ? "(Nhấn để sắp xếp tăng dần)"
@@ -74,6 +75,11 @@ function date(value: string | null) {
   if (!value) return "—";
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? "—" : new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", day: "2-digit", month: "2-digit", year: "numeric" }).format(parsed);
+}
+
+function dateTime(value: string) {
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? "—" : new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", year: "numeric", hour12: false }).format(parsed);
 }
 
 function LocalGuestDetail({ hotelId, row, canManage, sendBlockedReason, verifyBeforeSubmit, onClose, onUpdated }: {
@@ -214,7 +220,7 @@ export function getReconciliationConnectionBannerText(
         "Tài khoản cơ sở BCA này đang được liên kết với một khách sạn khác trên hệ thống."
       } Đang hiển thị danh sách khách VietSage.`,
       isTemporaryDisconnect: false,
-      isLoginRequired: false,
+      isLoginRequired: true,
     };
   }
   if (
@@ -244,24 +250,29 @@ export function InHouseReconciliation({ hotelId, canManage, canConfigureKbtt = f
   const connection = useQuery({ ...resource.queries.connection.options(), enabled: Boolean(hotelId),
     refetchOnMount: "always", staleTime: 0, retry: false,
     refetchInterval: (query) => getReconciliationConnectionPollInterval(query.state.data) });
-  const connected = connection.isSuccess && !connection.isFetching && connection.data.status === "CONNECTED";
+  const connected = connection.isSuccess && connection.data.status === "CONNECTED";
+  const canRestoreSession = Boolean(connection.data?.configured && connection.data.status === "DISCONNECTED"
+    && ["KBTT_TEMP_DISCONNECTED", "KBTT_RETRY_PENDING"].includes(connection.data.lastErrorCode ?? ""));
+  const canPrepareSession = connected;
   const [syncHotel, setSyncHotel] = useState<string | null>(null);
   const [completedHotel, setCompletedHotel] = useState<string | null>(null);
   useEffect(() => {
     setSyncHotel(null);
     setCompletedHotel(null);
-    if (!connected) return;
+    if (!canPrepareSession) return;
     const timer = setTimeout(() => setSyncHotel(hotelId), 5_000);
     return () => clearTimeout(timer);
-  }, [hotelId, connected]);
+  }, [hotelId, canPrepareSession]);
   const query = useQuery({
-    ...resource.queries.reconciliation.options(), enabled: connected && Boolean(hotelId) && syncHotel === hotelId, retry: false,
+    ...resource.queries.reconciliation.options(), enabled: canPrepareSession && Boolean(hotelId) && syncHotel === hotelId, retry: false,
+    refetchInterval: (query) => canRestoreSession || (connected && query.state.status === "error") ? 60_000 : false,
     refetchOnMount: "always", refetchOnWindowFocus: false, refetchOnReconnect: false, staleTime: 0, gcTime: 0,
   });
   useEffect(() => {
+    if (query.data && canRestoreSession && connection.dataUpdatedAt < query.dataUpdatedAt) void connection.refetch();
     if (query.data && connection.data?.status === "CONNECTED" && connection.dataUpdatedAt < query.dataUpdatedAt
       && Object.values(query.data.sources).some((source) => source.state === "NOT_CONNECTED")) void connection.refetch();
-  }, [query.data, query.dataUpdatedAt, connection.data?.status, connection.dataUpdatedAt, connection.refetch]);
+  }, [query.data, query.dataUpdatedAt, connection.data?.status, connection.dataUpdatedAt, connection.refetch, canRestoreSession]);
   useEffect(() => {
     if (syncHotel === hotelId && query.isFetchedAfterMount && !query.isFetching) setCompletedHotel(hotelId);
   }, [hotelId, syncHotel, query.isFetchedAfterMount, query.isFetching]);
@@ -289,11 +300,6 @@ export function InHouseReconciliation({ hotelId, canManage, canConfigureKbtt = f
     : localFallback.isLoading;
   const rows = data?.items ?? emptyRows;
   const rooms = useMemo(() => [...new Set(rows.map((row) => row.roomNumber).filter((value): value is string => Boolean(value)))].sort((a, b) => a.localeCompare(b, "vi", { numeric: true })), [rows]);
-  const counts = {
-    VIETNAMESE: rows.filter((row) => row.kind === "VIETNAMESE").length,
-    FOREIGN: rows.filter((row) => row.kind === "FOREIGN").length,
-    UNCLASSIFIED: rows.filter((row) => row.kind === null).length,
-  };
   const needle = search.trim().toLocaleLowerCase("vi");
   const globalFilter = useMemo(() => ({ kind, needle, bcaStatus, room }), [kind, needle, bcaStatus, room]);
   const table = useReactTable({
@@ -405,23 +411,20 @@ export function InHouseReconciliation({ hotelId, canManage, canConfigureKbtt = f
       {/* Top Header & Actions Bar */}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between border-b border-slate-100 pb-4">
         <div>
-          <div className="flex items-center gap-3">
-            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 whitespace-nowrap">
-              Danh sách khách đang lưu trú
-            </h2>
-            {data ? (
-              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs sm:text-sm font-bold text-emerald-900 whitespace-nowrap">
-                {counts.VIETNAMESE + counts.FOREIGN + counts.UNCLASSIFIED} khách
-              </span>
-            ) : null}
-          </div>
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 whitespace-nowrap">
+            Danh sách khách đang lưu trú
+          </h2>
           {data?.checkedAt ? (
-            <p className="mt-1 flex items-center gap-1.5 text-xs sm:text-sm text-slate-500">
-              <VsIcon name="schedule" className="h-4 w-4 text-slate-400" />
-              <span>Đối soát gần nhất: {date(data.checkedAt)}</span>
+            <p className="mt-2 inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm text-emerald-900">
+              <VsIcon name="schedule" className="h-4 w-4 text-emerald-700" />
+              <span className="font-medium">Đối soát gần nhất:</span>
+              <span className="font-bold tabular-nums whitespace-nowrap">{dateTime(data.checkedAt)}</span>
             </p>
           ) : (
-            <p className="mt-1 text-xs sm:text-sm text-slate-400">Chưa hoàn tất đối soát cả hai nhóm khách BCA</p>
+            <p className="mt-2 inline-flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-900">
+              <VsIcon name="schedule" className="h-4 w-4 text-amber-700" />
+              <span>Chưa hoàn tất đối soát cả hai nhóm khách BCA</span>
+            </p>
           )}
         </div>
 
@@ -440,6 +443,8 @@ export function InHouseReconciliation({ hotelId, canManage, canConfigureKbtt = f
       </div>
 
       <KbttScheduleInfo nextCatchUpAt={connection.data?.nextCatchUpAt ?? null} />
+
+      {canConfigureKbtt ? <KbttAutoSubmitSection hotelId={hotelId} canManage={canConfigureKbtt} isConnected={connected} toolsOnly /> : null}
 
       {/* Sub-bar: Category Tabs & Search Bar with Active Filter Status */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -549,9 +554,7 @@ export function InHouseReconciliation({ hotelId, canManage, canConfigureKbtt = f
                 {data ? " Đang hiển thị dữ liệu VietSage; trạng thái BCA chưa được cập nhật." : ""}
               </p>
             ) : null}
-            {(!connected && !getReconciliationConnectionBannerText(connection.data).isTemporaryDisconnect) ||
-            query.isError ||
-            (data && Object.values(data.sources).some((source) => source.state === "NOT_CONNECTED" || source.state === "NEEDS_LOGIN")) ? (
+            {connection.isSuccess && (!connection.data.configured || getReconciliationConnectionBannerText(connection.data).isLoginRequired) ? (
               <a className="inline-flex min-h-11 items-center font-semibold underline focus-visible:outline focus-visible:outline-2" href={`/owner/hotels/${encodeURIComponent(hotelId)}/settings?tab=integrations`}>Kết nối tài khoản BCA</a>
             ) : null}
             {localFallback.isError && (!connected || query.isError) ? <p className="text-pretty">Không tải được danh sách khách VietSage. Vui lòng thử lại.</p> : null}
@@ -602,15 +605,15 @@ export function InHouseReconciliation({ hotelId, canManage, canConfigureKbtt = f
               <tr>
                 <th
                   scope="col"
-                  className={`px-2.5 py-3 font-bold uppercase tracking-wider text-slate-700 text-xs sm:text-sm ${
+                  className={`px-2.5 py-3 font-bold uppercase tracking-wider text-slate-700 text-xs sm:text-sm text-left ${
                     kind === "FOREIGN" ? "w-[16%] min-w-[170px]" : "w-[18%] min-w-[180px]"
                   }`}
                 >
-                  <SortHeader label="Khách" field="fullName" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
+                  <SortHeader label="Khách" field="fullName" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="left" />
                 </th>
                 <th
                   scope="col"
-                  className={`px-2 py-3 font-bold uppercase tracking-wider text-slate-700 whitespace-nowrap text-xs sm:text-sm ${
+                  className={`px-2 py-3 font-bold uppercase tracking-wider text-slate-700 whitespace-nowrap text-xs sm:text-sm text-center ${
                     kind === "FOREIGN" ? "w-[6%] min-w-[75px]" : "w-[8%] min-w-[80px]"
                   }`}
                 >
@@ -618,63 +621,63 @@ export function InHouseReconciliation({ hotelId, canManage, canConfigureKbtt = f
                 </th>
                 <th
                   scope="col"
-                  className={`px-2 py-3 font-bold uppercase tracking-wider text-slate-700 whitespace-nowrap text-xs sm:text-sm ${
+                  className={`px-2 py-3 font-bold uppercase tracking-wider text-slate-700 whitespace-nowrap text-xs sm:text-sm text-center ${
                     kind === "FOREIGN" ? "w-[10%] min-w-[120px]" : "w-[12%] min-w-[125px]"
                   }`}
                 >
-                  <SortHeader label="Ngày sinh" field="birthDate" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
+                  <SortHeader label="Ngày sinh" field="birthDate" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="center" />
                 </th>
                 <th
                   scope="col"
-                  className={`px-2 py-3 font-bold uppercase tracking-wider text-slate-700 text-xs sm:text-sm ${
+                  className={`px-2 py-3 font-bold uppercase tracking-wider text-slate-700 text-xs sm:text-sm text-center ${
                     kind === "FOREIGN" ? "w-[14%] min-w-[140px]" : "w-[17%] min-w-[160px]"
                   }`}
                 >
-                  <SortHeader label={kind === "FOREIGN" ? "Hộ chiếu" : "Giấy tờ"} field="identityNumber" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
+                  <SortHeader label={kind === "FOREIGN" ? "Hộ chiếu" : "Giấy tờ"} field="identityNumber" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="center" />
                 </th>
                 <th
                   scope="col"
-                  className={`px-2 py-3 font-bold uppercase tracking-wider text-slate-700 whitespace-nowrap text-xs sm:text-sm ${
+                  className={`px-2 py-3 font-bold uppercase tracking-wider text-slate-700 whitespace-nowrap text-xs sm:text-sm text-center ${
                     kind === "FOREIGN" ? "w-[11%] min-w-[125px]" : "w-[13%] min-w-[130px]"
                   }`}
                 >
-                  <SortHeader label="Nhận phòng" field="checkedInAt" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
+                  <SortHeader label="Nhận phòng" field="checkedInAt" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="center" />
                 </th>
                 <th
                   scope="col"
-                  className={`px-2 py-3 font-bold uppercase tracking-wider text-slate-700 whitespace-nowrap text-xs sm:text-sm ${
+                  className={`px-2 py-3 font-bold uppercase tracking-wider text-slate-700 whitespace-nowrap text-xs sm:text-sm text-center ${
                     kind === "FOREIGN" ? "w-[11%] min-w-[125px]" : "w-[13%] min-w-[130px]"
                   }`}
                 >
-                  <SortHeader label="Dự kiến trả" field="plannedCheckOutAt" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
+                  <SortHeader label="Dự kiến trả" field="plannedCheckOutAt" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="center" />
                 </th>
                 {kind === "FOREIGN" ? (
                   <th
                     scope="col"
-                    className="px-2 py-3 font-bold uppercase tracking-wider text-slate-700 text-xs sm:text-sm w-[9%] min-w-[110px]"
+                    className="px-2 py-3 font-bold uppercase tracking-wider text-slate-700 text-xs sm:text-sm w-[9%] min-w-[110px] text-center"
                   >
-                    <SortHeader label="Quốc tịch" field="nationality" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
+                    <SortHeader label="Quốc tịch" field="nationality" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="center" />
                   </th>
                 ) : null}
                 {kind === "FOREIGN" ? (
                   <th
                     scope="col"
-                    className="px-2 py-3 font-bold uppercase tracking-wider text-slate-700 whitespace-nowrap text-xs sm:text-sm w-[10%] min-w-[125px]"
+                    className="px-2 py-3 font-bold uppercase tracking-wider text-slate-700 whitespace-nowrap text-xs sm:text-sm w-[10%] min-w-[125px] text-center"
                   >
                     Hạn tạm trú
                   </th>
                 ) : null}
                 <th
                   scope="col"
-                  className={`px-2 py-3 font-bold uppercase tracking-wider text-slate-700 text-xs sm:text-sm ${
+                  className={`px-2 py-3 font-bold uppercase tracking-wider text-slate-700 text-xs sm:text-sm text-center ${
                     kind === "FOREIGN" ? "w-[7%] min-w-[90px]" : "w-[9%] min-w-[100px]"
                   }`}
                 >
-                  <SortHeader label="BCA" field="bcaStatus" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
+                  <SortHeader label="BCA" field="bcaStatus" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="center" />
                 </th>
                 <th
                   scope="col"
-                  className={`px-2 py-3 font-bold uppercase tracking-wider text-slate-700 whitespace-nowrap text-xs sm:text-sm text-right ${
+                  className={`px-2 py-3 font-bold uppercase tracking-wider text-slate-700 whitespace-nowrap text-xs sm:text-sm text-center ${
                     kind === "FOREIGN" ? "w-[6%] min-w-[90px]" : "w-[10%] min-w-[100px]"
                   }`}
                 >

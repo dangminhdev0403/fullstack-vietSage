@@ -95,3 +95,12 @@ The following user-approved policies supersede earlier same-day-only and prepare
 ## Historical First-Pass Register (2026-11-18 05:31 +07:00)
 
 - Preserved from commit `9d163e51`: initial fixes for `BCA-01`..`BCA-09` and baseline test results (`15` backend suites / `464` tests, `40` frontend tests, `318` OpenAPI paths, `309` service-boundary files, `945` UI-checked files).
+
+## Token recovery follow-up (2026-11-19)
+
+- Reuse valid access; acquire replacement access through `/authorization-service/oauth/token` with encrypted saved credentials when expired, missing after restart, or rejected. Recovery no longer calls refresh. Preserve the provider form field `grant-type=api_cslt`.
+- Coalesce token acquisition per hotel/connection generation. Each recovery batch makes at most three attempts, separated by abortable 10-second waits; exhausted transient failures persist a 60-second cooldown. Eligible enabled connections can recover after restart. A freshly replaced access rejected again also enters cooldown, preventing repeated checks from creating a login loop.
+- Credential rejection stops automatic recovery. Transport failures, HTTP 429/5xx and equivalent provider codes remain transient. Explicit logout aborts pending acquisition; generation, facility ownership and conditional database writes prevent late responses from restoring a removed or replaced connection.
+- Read authentication recovery runs in the background. Interactive preparation/check waits at most eight seconds for shared acquisition while recovery continues; profile reads, old-token revoke and UNKNOWN reconciliation do not extend that wait. Renewal does not itself resend ambiguous declarations.
+- Verification: 17 scoped backend suites passed, 512 tests passed, one real-PostgreSQL test intentionally skipped; backend TypeScript and service-boundary checks (309 production files) passed. Regressions cover concurrency, retry timing, restart cooldown, logout during retry, facility mismatch, pending-token request timing and repeated rejection of fresh access.
+- Independent scoped rereview found no remaining proven blocking defect. No live BCA calls, UI testing, database mutation, migration, delivery-flag change or commit was performed for this implementation. Live runtime/provider verification remains pending. Unrelated frontend edits were preserved.

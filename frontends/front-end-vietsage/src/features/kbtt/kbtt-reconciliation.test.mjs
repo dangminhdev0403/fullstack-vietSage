@@ -274,6 +274,8 @@ test("logged-out in-house view reads local guests without scheduling BCA reconci
       "vs-icon": {}, "kbtt-resource": { kbttResource: { bind: () => resource } },
       "in-house-bca-status": {}, "in-house-declaration-cells": { declarationColumnLabels: [] },
       "kbtt-declarations-page": {}, "kbtt-contract": { sanitizeErrorMessage: () => "" },
+      "kbtt-auto-submit-section": { KbttAutoSubmitSection: () => null },
+      "kbtt-schedule-info": { KbttScheduleInfo: () => null },
     });
     const view = InHouseReconciliation({ hotelId: "hotel-1", canManage: true });
     // The mount effect exits before scheduling a timer while not connected.

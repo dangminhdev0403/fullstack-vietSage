@@ -56,6 +56,10 @@ export function useKbttAutoSubmit(hotelId: string) {
 
   useEffect(() => {
     if (prevActiveRunRef.current && !hasActiveRun) {
+      void resource.queries.reconciliation.invalidateAll(queryClient);
+      void resource.queries.reconciliationLocal.invalidateAll(queryClient);
+      void resource.queries.inHouseDeclarations.invalidateAll(queryClient);
+      void resource.queries.connection.invalidateAll(queryClient);
       void resource.queries.declarations.invalidateAll(queryClient);
       void resource.queries.declarationDetail.invalidateAll(queryClient);
       void resource.queries.autoSubmitConfig.invalidateAll(queryClient);
@@ -71,10 +75,6 @@ export function useKbttAutoSubmit(hotelId: string) {
     () => resource.mutations.testAutoSubmit.options(),
     [resource],
   );
-  const telegramTestOptions = useMemo(
-    () => resource.mutations.testTelegram.options(),
-    [resource],
-  );
   const scheduleOptions = useMemo(
     () => resource.mutations.scheduleAutoSubmit.options(),
     [resource],
@@ -86,7 +86,6 @@ export function useKbttAutoSubmit(hotelId: string) {
 
   const updateMutation = useMutation(updateMutationOptions);
   const testMutation = useMutation(testMutationOptions);
-  const telegramTestMutation = useMutation(telegramTestOptions);
   const scheduleMutation = useMutation(scheduleOptions);
   const cancelScheduleMutation = useMutation(cancelScheduleOptions);
 
@@ -108,12 +107,10 @@ export function useKbttAutoSubmit(hotelId: string) {
     autoSubmit,
     updating: updateMutation.isPending,
     testing: testMutation.isPending,
-    testingTelegram: telegramTestMutation.isPending,
     scheduling: scheduleMutation.isPending,
     cancellingSchedule: cancelScheduleMutation.isPending,
     updateConfig,
     testDryRun,
-    testTelegram: () => telegramTestMutation.mutateAsync(undefined),
     scheduleAutoSubmit: (mode: "dry-run" | "live") => scheduleMutation.mutateAsync({ mode }),
     cancelScheduledAutoSubmit: () => cancelScheduleMutation.mutateAsync(undefined),
   };

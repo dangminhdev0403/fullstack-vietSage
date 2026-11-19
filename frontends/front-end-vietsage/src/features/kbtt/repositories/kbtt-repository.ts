@@ -7,7 +7,6 @@ import {
   kbttAutoSubmitEnabledSchema,
   kbttAutoSubmitRunSummarySchema,
   kbttAutoSubmitStateSchema,
-  kbttBatchSubmitSummarySchema,
   kbttCatalogListSchema,
   kbttConnectionSchema,
   kbttDailyMovementsQuerySchema,
@@ -21,7 +20,6 @@ import {
   type KbttAutoSubmitEnabled,
   type KbttAutoSubmitRunSummary,
   type KbttAutoSubmitState,
-  type KbttBatchSubmitSummary,
   type KbttCatalogItem,
   type KbttCatalogKind,
   type KbttConnection,
@@ -295,27 +293,6 @@ export const kbttRepository = {
       method: "POST",
     });
     return kbttAutoSubmitRunSummarySchema.parse(payload.data);
-  },
-  async testTelegram(hotelId: string): Promise<{ sent: boolean }> {
-    const payload = await requestInternalApiEnvelope<{ sent: boolean }>(
-      `${autoSubmitPath(hotelId)}?mode=telegram-test`,
-      { method: "POST" },
-    );
-    return payload.data;
-  },
-  async sendBatchSummary(
-    hotelId: string,
-    summary: KbttBatchSubmitSummary,
-  ): Promise<{ sent: boolean }> {
-    const validated = kbttBatchSubmitSummarySchema.parse(summary);
-    const payload = await requestInternalApiEnvelope<{ sent: boolean }>(
-      `${autoSubmitPath(hotelId)}?mode=summary`,
-      {
-        method: "POST",
-        body: validated,
-      },
-    );
-    return payload.data;
   },
   async scheduleAutoSubmit(hotelId: string, mode: "dry-run" | "live") {
     const payload = await requestInternalApiEnvelope<unknown>(

@@ -15,6 +15,7 @@ type KindRead = {
   guests: ProviderReconciliationGuest[];
   source: ReconciliationSource;
   coveredHistoryDays: ReadonlySet<string>;
+  recoverSession?: boolean;
 };
 type RemoteSnapshot = { VIETNAMESE: KindRead; FOREIGN: KindRead };
 const KINDS: ReconciliationKind[] = ["VIETNAMESE", "FOREIGN"];
@@ -119,18 +120,18 @@ export class KbttReconciliationService implements OnModuleDestroy {
     const session = this.sessions.getCachedReadSession(hotelId, connection);
     if (!session) return this.retainView(viewKey, unavailable("NEEDS_LOGIN", "Phiên BCA chưa sẵn sàng. Kiểm tra kết nối BCA để cập nhật phiên trước khi đối soát."));
     const snapshot = await this.readBoth(hotelId, session, force, undefined, historyDays);
-    if (KINDS.some((kind) => snapshot[kind].source.state !== "COMPLETE")) {
+    if (KINDS.some((kind) => snapshot[kind].recoverSession)) {
       this.lastKnown.delete(viewKey);
-      await this.sessions.recoverReadSession(hotelId, session, async (signal) => {
-        const next = await this.readBoth(hotelId, session, true, signal, historyDays);
+      await this.sessions.recoverReadSession(hotelId, session, async (signal, retrySession = session) => {
+        const next = await this.readBoth(hotelId, retrySession, true, signal, historyDays);
         if (KINDS.some((kind) => next[kind].source.state === "NEEDS_LOGIN")) {
-          await this.sessions.disconnectFailedSession(hotelId, session);
+          await this.sessions.disconnectFailedSession(hotelId, retrySession);
           return false;
         }
         return KINDS.every((kind) => next[kind].source.state === "COMPLETE");
       }, KINDS.some((kind) => snapshot[kind].source.state === "NEEDS_LOGIN"));
       return unavailable("NOT_CONNECTED", KINDS.some((kind) => snapshot[kind].source.state === "NEEDS_LOGIN")
-        ? "Phiên BCA không còn hợp lệ. Vui lòng đăng nhập lại."
+        ? "Đang khôi phục kết nối BCA. Vui lòng thử lại sau."
         : "Mất kết nối BCA. Danh sách VietSage vẫn hoạt động; hệ thống sẽ thử lại sau 10 giây.");
     }
     const current = await this.repository.find(hotelId);
@@ -156,8 +157,7 @@ export class KbttReconciliationService implements OnModuleDestroy {
     );
     // Provider room labels are not an authorization boundary. Restricted users see local scoped guests only.
     if (restrictedRooms !== undefined) items = items.filter((row) => row.source === "VIETSAGE");
-    const paused = process.env.KBTT_AUTO_SUBMIT_KILL_SWITCH === "true" || process.env.KBTT_AUTO_SUBMIT_LIVE_ENABLED !== "true";
-    if (paused || complete.size !== 2) items = items.map((row) => ({ ...row, canRetry: false }));
+    if (complete.size !== 2) items = items.map((row) => ({ ...row, canRetry: false }));
     return this.retainView(viewKey, { items, range, checkedAt: complete.size === 2 ? snapshot.VIETNAMESE.source.checkedAt : null,
       sources: { VIETNAMESE: snapshot.VIETNAMESE.source, FOREIGN: snapshot.FOREIGN.source } });
   }
@@ -228,6 +228,7 @@ export class KbttReconciliationService implements OnModuleDestroy {
               guests: [],
               source: this.failure(result.reason, session),
               coveredHistoryDays: new Set<string>(),
+              recoverSession: this.shouldRecoverSession(result.reason),
             },
       );
       const snapshot = { VIETNAMESE: reads[0], FOREIGN: reads[1] };
@@ -270,8 +271,14 @@ export class KbttReconciliationService implements OnModuleDestroy {
     ]);
     const guests = new Map<string, ProviderReconciliationGuest>();
     let issue: ReconciliationSource | null = null;
+    let recoverSession = false;
     for (const [index, response] of responses.entries()) {
-      if (response.status === "rejected") { issue ??= this.failure(response.reason, session); continue; }
+      if (response.status === "rejected") {
+        const failure = this.failure(response.reason, session);
+        if (!issue || failure.state === "NEEDS_LOGIN") issue = failure;
+        recoverSession ||= this.shouldRecoverSession(response.reason);
+        continue;
+      }
       for (const row of response.value) {
         try {
           const normalized = this.normalizeProvider(row, kind, session.CsltId, index === 0);
@@ -288,6 +295,7 @@ export class KbttReconciliationService implements OnModuleDestroy {
       guests: [...guests.values()],
       source: issue ?? { state: "COMPLETE", checkedAt: new Date().toISOString(), error: null },
       coveredHistoryDays: issue ? new Set<string>() : new Set(historyDays),
+      recoverSession,
     };
   }
 
@@ -325,6 +333,14 @@ export class KbttReconciliationService implements OnModuleDestroy {
       if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}$/.test(raw)) return plainDateAtTime(raw.slice(0, 10), raw.slice(11), VIETNAM_TIME_ZONE).toISOString();
       return Temporal.Instant.from(raw).toString();
     } catch { return null; }
+  }
+
+  private shouldRecoverSession(error: unknown): boolean {
+    if (!(error instanceof KbttProviderReadError)) return false;
+    if (error.kind === "NETWORK") return true;
+    if (error.kind !== "HTTP" && error.kind !== "PROVIDER") return false;
+    const status = error.details.httpStatus ?? Number(error.details.providerCode);
+    return [401, 403, 408, 429].includes(status) || status >= 500 && status < 600;
   }
 
   private failure(error: unknown, session: KbttSession): ReconciliationSource {

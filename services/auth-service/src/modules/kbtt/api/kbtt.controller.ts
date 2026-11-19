@@ -555,7 +555,7 @@ export class KbttController {
 
   @Post("auto-submit/telegram-test")
   @RequirePermission("hotel.kbtt.manage")
-  @ApiOperation({ summary: "Send a Telegram-only KBTT connectivity test; never contacts C06" })
+  @ApiOperation({ summary: "Deprecated compatibility endpoint; Telegram delivery is disabled" })
   testTelegram(@Req() request: RequestWithRequiredUser, @Param("hotelId") hotelId: string) {
     return this.service.testTelegram(
       request.user.userId,
@@ -568,7 +568,7 @@ export class KbttController {
   @HttpCode(200)
   @RequirePermission("hotel.kbtt.declarations.manage")
   @ApiOperation({
-    summary: "Send aggregated batch submission summary to Telegram aggregate channel",
+    summary: "Deprecated compatibility endpoint; Telegram delivery is disabled",
   })
   sendAutoSubmitSummary(
     @Req() request: RequestWithRequiredUser,
@@ -588,7 +588,7 @@ export class KbttController {
   @HttpCode(200)
   @RequirePermission("hotel.kbtt.declarations.manage")
   @ApiOperation({
-    summary: "Send aggregated batch submission summary to Telegram aggregate channel",
+    summary: "Deprecated compatibility endpoint; Telegram delivery is disabled",
   })
   sendDeclarationsBatchSummary(
     @Req() request: RequestWithRequiredUser,
@@ -606,7 +606,7 @@ export class KbttController {
 
   @Post("auto-submit/schedule")
   @RequirePermission("hotel.kbtt.manage")
-  @ApiOperation({ summary: "Schedule one KBTT auto-submit in 15 seconds" })
+  @ApiOperation({ summary: "Schedule one KBTT auto-submit in 5 seconds" })
   scheduleAutoSubmit(
     @Req() request: RequestWithRequiredUser,
     @Param("hotelId") hotelId: string,

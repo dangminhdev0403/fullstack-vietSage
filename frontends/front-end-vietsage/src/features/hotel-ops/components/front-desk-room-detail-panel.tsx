@@ -706,8 +706,10 @@ export function FrontDeskRoomDetailPanel({
 
             </div>
             <p id={descId} className="text-sm font-bold text-slate-600 mt-1">
-              {displayData.type} · {displayData.floor} · {displayData.zone}{" "}
-              {businessDate ? `· Ngày: ${businessDate}` : ""}
+              {[displayData.type, displayData.floor, displayData.zone]
+                .filter((s) => s && s !== "—" && s !== "-")
+                .join(" · ") || "Phòng nghỉ"}
+              {businessDate ? ` · Ngày: ${businessDate}` : ""}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -837,7 +839,7 @@ export function FrontDeskRoomDetailPanel({
             )}
 
           {/* Room Profile & Compatibility Spec Grid */}
-          <section className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 space-y-3">
+          <section className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 sm:p-4 space-y-2.5">
             <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
               <div className="flex items-center gap-2">
                 <VsIcon name="meeting_room" className="text-slate-700 text-lg" />
@@ -846,35 +848,45 @@ export function FrontDeskRoomDetailPanel({
                 </h3>
               </div>
               <div className="flex items-center gap-2">
+                {room.activeGuestDeviceCount !== undefined && room.activeGuestDeviceCount !== null && room.activeGuestDeviceCount > 0 && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700 border border-emerald-200">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span>{room.activeGuestDeviceCount} thiết bị GuestOS</span>
+                  </span>
+                )}
                 <span className="text-xs font-bold text-slate-500">
                   Khoảng đặt: <strong className="text-slate-800">{bookingInterval}</strong>
                 </span>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5 text-xs">
-              <div className="rounded-lg bg-white p-2.5 border border-slate-200/80 shadow-2xs">
-                <span className="text-slate-500 block font-medium">Số phòng</span>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 text-xs">
+              <div className="rounded-lg bg-white p-2 border border-slate-200/80 shadow-2xs">
+                <span className="text-slate-500 block font-medium text-xs">Số phòng</span>
                 <span className="font-bold text-slate-900 text-sm">{displayData.roomNumber}</span>
               </div>
-              <div className="rounded-lg bg-white p-2.5 border border-slate-200/80 shadow-2xs">
-                <span className="text-slate-500 block font-medium">Loại phòng</span>
+              <div className="rounded-lg bg-white p-2 border border-slate-200/80 shadow-2xs">
+                <span className="text-slate-500 block font-medium text-xs">Loại phòng</span>
                 <span className="font-bold text-slate-900 text-sm truncate">{displayData.type}</span>
               </div>
-              <div className="rounded-lg bg-white p-2.5 border border-slate-200/80 shadow-2xs">
-                <span className="text-slate-500 block font-medium">Sức chứa</span>
+              <div className="rounded-lg bg-white p-2 border border-slate-200/80 shadow-2xs">
+                <span className="text-slate-500 block font-medium text-xs">Đơn giá / đêm</span>
+                <span className="font-bold text-slate-900 text-sm truncate">
+                  {formatVnd(stay?.nightlyRateSnapshot ?? room.price)}
+                </span>
+              </div>
+              <div className="rounded-lg bg-white p-2 border border-slate-200/80 shadow-2xs">
+                <span className="text-slate-500 block font-medium text-xs">Tầng / Vị trí</span>
+                <span className="font-bold text-slate-900 text-sm truncate">
+                  {displayData.floor !== "—" ? displayData.floor : ""}{displayData.floor !== "—" && displayData.zone !== "—" ? " · " : ""}{displayData.zone !== "—" ? displayData.zone : (displayData.floor === "—" ? "—" : "")}
+                </span>
+              </div>
+              <div className="rounded-lg bg-white p-2 border border-slate-200/80 shadow-2xs">
+                <span className="text-slate-500 block font-medium text-xs">Sức chứa</span>
                 <span className="font-bold text-slate-900 text-sm">{displayData.capacity}</span>
               </div>
-              <div className="rounded-lg bg-white p-2.5 border border-slate-200/80 shadow-2xs">
-                <span className="text-slate-500 block font-medium">Tầng</span>
-                <span className="font-bold text-slate-900 text-sm">{displayData.floor}</span>
-              </div>
-              <div className="rounded-lg bg-white p-2.5 border border-slate-200/80 shadow-2xs">
-                <span className="text-slate-500 block font-medium">Phân khu</span>
-                <span className="font-bold text-slate-900 text-sm">{displayData.zone}</span>
-              </div>
-              <div className="rounded-lg bg-white p-2.5 border border-slate-200/80 shadow-2xs">
-                <span className="text-slate-500 block font-medium">Ghi chú</span>
+              <div className="rounded-lg bg-white p-2 border border-slate-200/80 shadow-2xs">
+                <span className="text-slate-500 block font-medium text-xs">Ghi chú</span>
                 <span className="font-bold text-slate-900 text-xs truncate" title={displayData.notes}>
                   {displayData.notes}
                 </span>
@@ -892,9 +904,9 @@ export function FrontDeskRoomDetailPanel({
               }
             >
               {/* Guest & Stay Snapshot */}
-              <section className="flex flex-col rounded-xl border border-slate-200 bg-slate-50/60 p-4 sm:p-5 space-y-4">
+              <section className="flex flex-col rounded-xl border border-slate-200 bg-white p-4 sm:p-5 shadow-2xs space-y-4">
                 {/* Header */}
-                <div className="flex items-center justify-between border-b border-slate-200/80 pb-2.5">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
                   <div className="flex items-center gap-2">
                     <VsIcon name="person" className="text-slate-700 text-lg" />
                     <h3 className="text-sm font-black uppercase tracking-wider text-slate-800">
@@ -916,36 +928,34 @@ export function FrontDeskRoomDetailPanel({
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-0.5">
-                    <div className="rounded-lg bg-white p-2.5 border border-slate-200/80 shadow-2xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs pt-0.5">
+                    <div className="rounded-lg bg-slate-50 p-2.5 border border-slate-100">
                       <span className="text-slate-500 block font-medium text-xs">Số điện thoại</span>
-                      <span className="font-bold text-slate-900 font-mono text-sm">
+                      <span className="font-bold text-slate-900 font-mono text-xs sm:text-sm truncate block">
                         {stay.guestPhone || "Chưa cập nhật"}
                       </span>
                     </div>
 
-                    <div className="rounded-lg bg-white p-2.5 border border-slate-200/80 shadow-2xs">
-                      <span className="text-slate-500 block font-medium text-xs">CCCD / Giấy tờ tùy thân</span>
-                      <span className="font-bold text-slate-900 font-mono text-xs">
+                    <div className="rounded-lg bg-slate-50 p-2.5 border border-slate-100">
+                      <span className="text-slate-500 block font-medium text-xs">CCCD / Định danh</span>
+                      <span className="font-bold text-slate-900 font-mono text-xs truncate block">
                         {stay.guestIdentityNumber || (
                           <span className="text-slate-400 font-normal italic">Chưa đăng ký</span>
                         )}
                       </span>
                     </div>
-                  </div>
 
-                  {stay.guestNationality && (
-                    <div className="flex items-center justify-between text-xs pt-0.5">
-                      <span className="font-medium text-slate-600">Quốc tịch:</span>
-                      <span className="font-semibold text-slate-800 bg-slate-100 px-2 py-0.5 rounded">
-                        {stay.guestNationality}
+                    <div className="rounded-lg bg-slate-50 p-2.5 border border-slate-100">
+                      <span className="text-slate-500 block font-medium text-xs">Quốc tịch</span>
+                      <span className="font-bold text-slate-900 text-xs sm:text-sm truncate block">
+                        {stay.guestNationality || "Việt Nam (VNM)"}
                       </span>
                     </div>
-                  )}
+                  </div>
                 </div>
 
                 {/* Stay Schedule & Visual Timeline */}
-                <div className="rounded-xl border border-slate-200 bg-white p-3.5 space-y-3 shadow-2xs">
+                <div className="rounded-xl border border-slate-200/80 bg-slate-50 p-3.5 space-y-2.5">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5 text-slate-700">
                       <VsIcon name="schedule" className="text-base text-slate-500" />
@@ -984,7 +994,7 @@ export function FrontDeskRoomDetailPanel({
                           {stayTimeline.isOverdueNow ? "Quá hạn" : `${stayTimeline.percent}%`}
                         </span>
                       </div>
-                      <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200/60">
+                      <div className="h-2 w-full bg-slate-200/80 rounded-full overflow-hidden p-0.5 border border-slate-200">
                         <div
                           className={`h-full rounded-full transition-all duration-300 ${
                             stayTimeline.isOverdueNow
@@ -999,10 +1009,10 @@ export function FrontDeskRoomDetailPanel({
                     </div>
                   )}
 
-                  <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-100">
+                  <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-200">
                     <div>
                       <span className="text-slate-500 block text-xs">Nhận phòng thực tế:</span>
-                      <span className="font-bold text-slate-900">
+                      <span className="font-bold text-slate-900 text-xs sm:text-sm">
                         {stay.checkedInAt
                           ? formatDateTime(stay.checkedInAt)
                           : formatDateTime(stay.plannedCheckInAt)}
@@ -1011,7 +1021,7 @@ export function FrontDeskRoomDetailPanel({
                     <div>
                       <span className="text-slate-500 block text-xs">Trả phòng dự kiến:</span>
                       <span
-                        className={`font-bold ${isOverdue ? "text-rose-700" : "text-slate-900"}`}
+                        className={`font-bold text-xs sm:text-sm ${isOverdue ? "text-rose-700" : "text-slate-900"}`}
                       >
                         {formatDateTime(stay.plannedCheckOutAt)}
                       </span>
@@ -1021,7 +1031,7 @@ export function FrontDeskRoomDetailPanel({
 
                 {/* Extra occupants (if any) */}
                 {extraOccupants.length > 0 && (
-                  <div className="rounded-xl border border-slate-200 bg-white p-3.5 space-y-2.5 shadow-2xs">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5 text-slate-700">
                         <VsIcon name="group" className="text-base text-purple-600" />
@@ -1033,11 +1043,11 @@ export function FrontDeskRoomDetailPanel({
                         Tổng {extraOccupants.length + 1} khách
                       </span>
                     </div>
-                    <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                    <div className="space-y-1.5 max-h-28 overflow-y-auto">
                       {extraOccupants.map((occ, idx) => (
                         <div
                           key={occ.id || idx}
-                          className="flex items-center justify-between text-xs bg-slate-50 p-2.5 rounded-lg border border-slate-200"
+                          className="flex items-center justify-between text-xs bg-white p-2 rounded-lg border border-slate-200"
                         >
                           <span className="font-semibold text-slate-900">{occ.fullName}</span>
                           <span className="text-slate-500 font-mono text-xs">
@@ -1048,55 +1058,6 @@ export function FrontDeskRoomDetailPanel({
                     </div>
                   </div>
                 )}
-
-                {/* Room Utility & Connectivity Info */}
-                <div className="rounded-xl border border-slate-200 bg-white p-3.5 space-y-2.5 shadow-2xs">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-slate-700">
-                      <VsIcon name="room_preferences" className="text-base text-blue-600" />
-                      <span className="text-xs font-black uppercase tracking-wider">
-                        Tiện ích & Kết nối phòng
-                      </span>
-                    </div>
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700 border border-emerald-200">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      <span>GuestOS sẵn sàng</span>
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="rounded-lg bg-slate-50 p-2.5 border border-slate-100">
-                      <span className="text-slate-500 block text-xs">Loại phòng:</span>
-                      <span className="font-bold text-slate-800">
-                        {room.type || "Tiêu chuẩn"} {room.floor ? `(Tầng ${room.floor})` : ""}
-                      </span>
-                    </div>
-                    <div className="rounded-lg bg-slate-50 p-2.5 border border-slate-100">
-                      <span className="text-slate-500 block text-xs">Đơn giá / đêm:</span>
-                      <span className="font-bold text-slate-900">
-                        {formatVnd(stay.nightlyRateSnapshot ?? room.price)}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-xs">
-                    <span className="text-slate-500 text-xs">
-                      {room.activeGuestDeviceCount !== undefined && room.activeGuestDeviceCount !== null
-                        ? `${room.activeGuestDeviceCount} thiết bị đang kết nối GuestOS`
-                        : "Khách có thể quét mã QR phòng để gọi dịch vụ"}
-                    </span>
-                    {onOpenQrPreview && (
-                      <button
-                        type="button"
-                        onClick={() => onOpenQrPreview(room)}
-                        className="inline-flex items-center gap-1 text-xs font-bold text-blue-700 hover:text-blue-900 transition cursor-pointer"
-                      >
-                        <VsIcon name="qr_code_2" className="text-sm" />
-                        <span>Mở QR phòng</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
               </section>
 
               {/* FOLIO & BILLABLE SERVICES */}
@@ -1140,26 +1101,16 @@ export function FrontDeskRoomDetailPanel({
                       </button>
                     </div>
                   ) : !folioContext?.folio ? (
-                    <div className="flex flex-1 flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/70 p-8 text-center min-h-[220px]">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400 mb-3">
-                        <VsIcon name="receipt_long" className="text-2xl" />
+                    <div className="flex flex-1 flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/60 p-6 text-center min-h-[160px]">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-400 mb-2.5">
+                        <VsIcon name="receipt_long" className="text-xl" />
                       </div>
                       <p className="text-sm font-bold text-slate-800">
                         Chưa khởi tạo hóa đơn thanh toán
                       </p>
-                      <p className="mt-1 text-xs text-slate-500 max-w-xs leading-relaxed">
+                      <p className="mt-1 text-xs text-slate-500 max-w-xs leading-relaxed text-pretty">
                         Hóa đơn lưu trú sẽ tự động được khởi tạo khi phát sinh dịch vụ hoặc khi chuyển sang quầy thanh toán.
                       </p>
-                      {canCheckoutBilling && (
-                        <button
-                          type="button"
-                          onClick={() => setIsCheckoutSettlementOpen(true)}
-                          className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition cursor-pointer min-h-[44px]"
-                        >
-                          <VsIcon name="point_of_sale" className="text-sm" />
-                          <span>Quyết toán trả phòng</span>
-                        </button>
-                      )}
                     </div>
                   ) : (
                     <div className="flex-1 flex flex-col space-y-3.5">
@@ -1393,9 +1344,9 @@ export function FrontDeskRoomDetailPanel({
           {/* RESERVED MODE CONTEXT */}
           {isReservedMode && reservation && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-stretch">
-              <section className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/60 p-4 sm:p-5 space-y-3">
+              <section className="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-4 sm:p-5 shadow-2xs space-y-3">
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between border-b border-slate-200/80 pb-2.5">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
                     <div className="flex items-center gap-2">
                       <VsIcon name="event" className="text-purple-600 text-lg" />
                       <h3 className="text-sm font-black uppercase tracking-wider text-slate-700">

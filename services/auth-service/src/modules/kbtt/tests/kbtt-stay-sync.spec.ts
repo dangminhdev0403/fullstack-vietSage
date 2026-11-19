@@ -226,16 +226,12 @@ function fixture() {
 describe("BCA stay lifecycle delivery", () => {
   const flagNames = [
     "KBTT_STAY_LIFECYCLE_ENABLED",
-    "KBTT_AUTO_SUBMIT_LIVE_ENABLED",
-    "KBTT_AUTO_SUBMIT_KILL_SWITCH",
   ] as const;
   let originalFlags: Array<string | undefined>;
 
   beforeEach(() => {
     originalFlags = flagNames.map((name) => process.env[name]);
     process.env.KBTT_STAY_LIFECYCLE_ENABLED = "true";
-    process.env.KBTT_AUTO_SUBMIT_LIVE_ENABLED = "true";
-    delete process.env.KBTT_AUTO_SUBMIT_KILL_SWITCH;
     jest.useFakeTimers().setSystemTime(new Date("2026-11-05T01:00:00Z"));
   });
 
@@ -263,8 +259,6 @@ describe("BCA stay lifecycle delivery", () => {
 
   it.each([
     ["KBTT_STAY_LIFECYCLE_ENABLED", "false"],
-    ["KBTT_AUTO_SUBMIT_LIVE_ENABLED", "false"],
-    ["KBTT_AUTO_SUBMIT_KILL_SWITCH", "true"],
   ])("performs no repository or provider work when %s=%s", async (flag, value) => {
     process.env[flag] = value;
     const f = fixture();

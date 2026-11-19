@@ -594,8 +594,6 @@ beforeEach(() => {
     .setSystemTime(new Date("2026-09-14T05:00:00.000Z"));
   (KbttService as any).activeFacilities?.clear?.();
   (KbttService as any).activeFacilityLocks?.clear?.();
-  process.env.KBTT_AUTO_SUBMIT_LIVE_ENABLED = "true";
-  process.env.KBTT_AUTO_SUBMIT_KILL_SWITCH = "false";
   process.env.KBTT_BASE_URL = "https://api-kbtt.example.test";
   process.env.KBTT_LOGIN_BASIC_AUTH_VALUE = randomBytes(24).toString("base64");
   process.env.KBTT_TOKEN_BASIC_AUTH_VALUE = randomBytes(24).toString("base64");
@@ -932,7 +930,7 @@ describe("KBTT secure manual authentication", () => {
     ).toBe("hotel.kbtt.manage");
   });
 
-  it("keeps GET passive and requires explicit login after the process loses its tokens", async () => {
+  it("keeps GET passive and recovers tokens on explicit check after restart", async () => {
     const { service, provider, rows, access, repository, cipher } = fixture();
     await service.connect("owner", "owner-role", "hotel-1", credentials);
     const ciphertext = rows.get("hotel-1")!.ciphertext;
@@ -953,8 +951,16 @@ describe("KBTT secure manual authentication", () => {
       cipher,
       provider as never,
     );
-    await expect(restarted.check("owner", "owner-role", "hotel-1")).rejects.toBeInstanceOf(HttpException);
+    // A passive GET must not hide a persisted connection after RAM tokens are lost.
+    await expect(restarted.get("owner", "owner-role", "hotel-1")).resolves.toMatchObject({
+      configured: true, status: "CONNECTED", lastErrorCode: null,
+    });
     expect(provider.login).not.toHaveBeenCalled();
+    expect(restarted.getCachedReadSession("hotel-1", rows.get("hotel-1")!)).toBeNull();
+    await expect(restarted.ensureReconciliationSession("owner", "owner-role", "hotel-1")).resolves.toEqual({ ready: true });
+    expect(restarted.getCachedReadSession("hotel-1", rows.get("hotel-1")!)).not.toBeNull();
+    await expect(restarted.check("owner", "owner-role", "hotel-1")).resolves.toMatchObject({status: "CONNECTED"});
+    expect(provider.login).toHaveBeenCalledTimes(1);
     provider.revoke.mockRejectedValue(new Error("Unavailable"));
     await expect(restarted.disconnect("owner", "owner-role", "hotel-1")).resolves.toMatchObject({
       configured: false,
@@ -964,18 +970,21 @@ describe("KBTT secure manual authentication", () => {
   });
 
   it("pauses the connection temporarily without deleting credentials when refreshing a manual check fails with network error", async () => {
+    jest.useFakeTimers();
     const { service, provider, rows } = fixture();
     await service.connect("owner", "owner-role", "hotel-1", credentials);
     const old = service.getCachedReadSession("hotel-1", rows.get("hotel-1")!)!;
     service.expireRejectedReadSession("hotel-1", old);
-    provider.refresh.mockRejectedValueOnce(
+    provider.login.mockRejectedValue(
       new HttpException(
         { code: "KBTT_PROVIDER_UNAVAILABLE", message: "Không thể kết nối BCA." },
         502,
       ),
     );
 
-    await expect(service.check("owner", "owner-role", "hotel-1")).rejects.toBeDefined();
+    const failedCheck = expect(service.check("owner", "owner-role", "hotel-1")).rejects.toBeDefined();
+    await jest.advanceTimersByTimeAsync(20_000);
+    await failedCheck;
     expect(rows.has("hotel-1")).toBe(true);
     expect(rows.get("hotel-1")).toMatchObject({
       status: "DISCONNECTED",
@@ -985,7 +994,7 @@ describe("KBTT secure manual authentication", () => {
     service.onModuleDestroy();
   });
 
-  it("ends the disconnected run after restart without automatic saved-password login", async () => {
+  it("stops a restarted delivery when saved credentials are rejected", async () => {
     const f = fixture();
     await f.service.connect("owner", "owner-role", "hotel-1", credentials);
     f.service.onModuleDestroy();
@@ -1001,18 +1010,34 @@ describe("KBTT secure manual authentication", () => {
     enableAutomaticDelivery(f);
     await restarted.executeAutoSubmitForHotel("hotel-1", new Date(), false);
 
-    expect((await restarted.get("owner", "owner-role", "hotel-1")).status).toBe("DISCONNECTED");
-    expect(f.provider.login).toHaveBeenCalledTimes(1);
+    expect((await restarted.get("owner", "owner-role", "hotel-1")).status).toBe("AUTH_FAILED");
+    expect(f.provider.login).toHaveBeenCalledTimes(2);
     expect(f.repository.finalizeAutoSubmitRun).toHaveBeenCalledWith(
       "run-auto-1",
       expect.objectContaining({ status: "FAILED" }),
     );
   });
 
-  it("keeps a one-shot dry run on the backend and executes it after 15 seconds", async () => {
+  it("keeps legacy Telegram endpoints inert even when a sender is configured", async () => {
+    const f = fixture();
+    const sender = {
+      sendKbttTestMessage: jest.fn(),
+      sendKbttAutoSubmitSummary: jest.fn(),
+    };
+    (f.service as any).telegramNotificationService = sender;
+    await expect(f.service.testTelegram("owner", "owner-role", "hotel-1")).resolves.toEqual({ sent: false });
+    await expect(f.service.sendBatchSummary("owner", "owner-role", "hotel-1", {
+      totalEligible: 1, successCount: 1, failureCount: 0,
+    })).resolves.toEqual({ sent: false });
+    expect(sender.sendKbttTestMessage).not.toHaveBeenCalled();
+    expect(sender.sendKbttAutoSubmitSummary).not.toHaveBeenCalled();
+    f.service.onModuleDestroy();
+  });
+
+  it("keeps a one-shot dry run on the backend and executes it after 5 seconds", async () => {
     jest.useFakeTimers();
     const f = fixture();
-    const scheduledFor = new Date(Date.now() + 15_000);
+    const scheduledFor = new Date(Date.now() + 5_000);
     const run = {
       id: "run-delayed-1",
       hotelId: "hotel-1",
@@ -1038,7 +1063,7 @@ describe("KBTT secure manual authentication", () => {
 
     const result = await f.service.scheduleAutoSubmit("owner", "owner-role", "hotel-1", true);
     expect(result.scheduledFor).toBe(scheduledFor.toISOString());
-    await jest.advanceTimersByTimeAsync(14_999);
+    await jest.advanceTimersByTimeAsync(4_999);
     expect(execute).not.toHaveBeenCalled();
     await jest.advanceTimersByTimeAsync(1);
     expect(execute).toHaveBeenCalledWith("hotel-1", scheduledFor, true);
@@ -1248,7 +1273,7 @@ describe("KBTT edit and submit", () => {
     const old = f.service.getCachedReadSession("hotel-1", f.rows.get("hotel-1")!)!;
     f.service.expireRejectedReadSession("hotel-1", old);
     let finishLogin!: (value: any) => void;
-    f.provider.refresh.mockImplementationOnce(() => new Promise((resolve) => { finishLogin = resolve; }));
+    f.provider.login.mockImplementationOnce(() => new Promise((resolve) => { finishLogin = resolve; }));
     const result = await f.service.submit("user-1", "role-1", "hotel-1", "occ-vn");
     await new Promise((resolve) => setImmediate(resolve));
     f.occupants.set("occ-vn", { ...primaryOccupant,
@@ -1481,23 +1506,15 @@ describe("KBTT edit and submit", () => {
     expect(f.provider.submitDeclaration).toHaveBeenCalledTimes(1);
   });
 
-  it.each([
-    ["live delivery is disabled", "false", "false"],
-    ["the kill switch is active", "true", "true"],
-  ])("records a definitive local failure without provider calls when %s", async (_name, liveEnabled, killSwitch) => {
+  it("records a definitive local failure without provider calls when the hotel switch is disabled", async () => {
     const f = fixture();
     f.occupants.set("occ-vn", primaryOccupant);
     await f.service.connect("user-1", "role-1", "hotel-1", credentials);
-    enableAutomaticDelivery(f);
     f.provider.login.mockClear();
-    f.provider.refresh.mockClear();
-    process.env.KBTT_AUTO_SUBMIT_LIVE_ENABLED = liveEnabled;
-    process.env.KBTT_AUTO_SUBMIT_KILL_SWITCH = killSwitch;
     const result = await f.service.submit("user-1", "role-1", "hotel-1", "occ-vn");
     expect(result).toMatchObject({ status: "FAILED", providerCode: "DELIVERY_PAUSED" });
     expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
     expect(f.provider.login).not.toHaveBeenCalled();
-    expect(f.provider.refresh).not.toHaveBeenCalled();
   });
 
   it("starts both guests from one check-in without establishment lease collisions or waiting on the provider reply", async () => {
@@ -1599,7 +1616,7 @@ describe("KBTT edit and submit", () => {
     const active = f.declarations.get(result.id);
     active.updatedAt = new Date(Date.now() - 10 * 60_000);
     f.declarations.set("abandoned", { ...active, id: "abandoned", occupantId: "abandoned-guest" });
-    process.env.KBTT_AUTO_SUBMIT_KILL_SWITCH = "true";
+    f.rows.get("hotel-1")!.autoSubmitEnabled = false;
     expect(f.declarations.get(result.id).status).toBe("UNKNOWN");
     expect(f.declarations.get("abandoned")).toMatchObject({ status: "UNKNOWN", version: active.version, providerCode: null });
     complete({ outcome: "SUCCESS", code: "200", message: "Thành công" });
@@ -1626,10 +1643,10 @@ describe("KBTT edit and submit", () => {
     expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
   });
 
-  it("schedules the live test action without provider or authentication calls", async () => {
+  it("schedules the live test action with the hotel auto toggle off without provider or authentication calls", async () => {
     const f = fixture();
     await f.service.connect("user-1", "role-1", "hotel-1", credentials);
-    enableAutomaticDelivery(f);
+    expect(f.rows.get("hotel-1")?.autoSubmitEnabled).toBe(false);
     f.provider.login.mockClear();
     f.provider.refresh.mockClear();
 
@@ -3026,7 +3043,7 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
       );
     });
 
-    it("sends one final Telegram summary after all guest attempts", async () => {
+    it("does not send Telegram summaries after guest attempts", async () => {
       const f = fixture();
       const sendTelegramMock = jest.fn().mockResolvedValue(true);
       (f.service as any).telegramNotificationService = {
@@ -3072,17 +3089,7 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
 
       await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
 
-      expect(sendTelegramMock).toHaveBeenCalledTimes(1);
-      expect(sendTelegramMock).toHaveBeenCalledWith(
-        "hotel-1",
-        expect.objectContaining({
-          totalEligible: 2,
-          successCount: 1,
-          failureCount: 0,
-          unknownCount: 1,
-          directSuccessCount: 1,
-        }),
-      );
+      expect(sendTelegramMock).not.toHaveBeenCalled();
     });
 
     it("processes at most 100 eligible declarations in one run even when >100 exist (test 1)", async () => {
@@ -3223,7 +3230,7 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
       f.service.onModuleDestroy();
     });
 
-    it("manual 15s batch is capped at 100 and does not create an automatic 30m continuation even when backlog remains (test 5)", async () => {
+    it("manual 5s live batch with auto disabled is capped at 100 and does not create an automatic 30m continuation even when backlog remains (test 5)", async () => {
       const f = fixture();
       await f.service.connect("owner", "owner-role", "hotel-1", credentials);
 
@@ -3238,21 +3245,21 @@ describe("KBTT Reliability Slice (2026-09-16)", () => {
       }
 
       (f.repository.claimAutoSubmitRunLease as jest.Mock).mockResolvedValueOnce({
-        id: "run-manual-15s",
+        id: "run-manual-5s",
         hotelId: "hotel-1",
         scheduledFor: new Date(),
         status: "RUNNING",
         leaseExpiresAt: new Date(Date.now() + 600_000),
-        dryRun: true,
+        dryRun: false,
         summaryJson: { trigger: "MANUAL_DELAYED" },
       });
 
-      enableAutomaticDelivery(f);
+      expect(f.rows.get("hotel-1")?.autoSubmitEnabled).toBe(false);
 
-      await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), true);
+      await f.service.executeAutoSubmitForHotel("hotel-1", new Date(), false);
 
       expect(f.repository.finalizeAutoSubmitRun).toHaveBeenCalledWith(
-        "run-manual-15s",
+        "run-manual-5s",
         expect.objectContaining({
           status: "COMPLETED",
           totalCount: 100,
@@ -3315,11 +3322,27 @@ describe("BCA connection safe accommodation profile", () => {
     await expect(f.service.connect("owner", "owner-role", "hotel-2", credentials)).rejects.toThrow();
     expect(r.get).not.toHaveBeenCalled();
   });
+  it("preserves loaded facility information while an explicit check refreshes in the background", async () => {
+    const r = reader(); const f = fixture(r.client);
+    const connected = await f.service.connect("owner", "owner-role", "hotel-1", credentials);
+    let resolveRead!: (value: any) => void;
+    r.get.mockImplementationOnce(() => new Promise(resolve => { resolveRead = resolve; }));
+    const checked = await f.service.check("owner", "owner-role", "hotel-1");
+    expect(checked.providerProfile).toEqual(connected.providerProfile);
+    expect(checked.providerProfile.state).toBe("READY");
+    resolveRead({ httpStatus: 200, envelope: { code: "200" }, data: { id: 1000227, tenCSLT: "Tên cơ sở cập nhật" } });
+    await new Promise(resolve => setImmediate(resolve));
+    expect((await f.service.get("owner", "owner-role", "hotel-1")).providerProfile.accommodation?.name).toBe("Tên cơ sở cập nhật");
+    f.service.onModuleDestroy();
+  });
+
   it("refreshes safe profile on explicit check and clears it on disconnect", async () => {
     const r = reader(); const f = fixture(r.client);
     await f.service.connect("owner", "owner-role", "hotel-1", credentials);
     r.get.mockResolvedValueOnce({ httpStatus: 200, envelope: { code: "200" }, data: { id: 1000227, tenCSLT: "Tên cơ sở cập nhật" } });
-    const checked = await f.service.check("owner", "owner-role", "hotel-1");
+    await f.service.check("owner", "owner-role", "hotel-1");
+    await new Promise(resolve => setImmediate(resolve));
+    const checked = await f.service.get("owner", "owner-role", "hotel-1");
     expect(checked.providerProfile.accommodation?.name).toBe("Tên cơ sở cập nhật");
     expect(checked.providerProfile.accommodation?.phone).toBeNull();
     expect(r.get).toHaveBeenCalledTimes(2);
@@ -3399,7 +3422,9 @@ describe("BCA delayed recovery and server logout", () => {
     const f = fixture(); await f.service.connect("user", "role", "hotel-1", credentials);
     const old = f.service.getCachedReadSession("hotel-1", f.rows.get("hotel-1")!)!;
     const retry = jest.fn();
+    f.provider.login.mockRejectedValue(kbttAuthFailed());
     await f.service.recoverReadSession("hotel-1", old, retry, true);
+    await (f.service as any).recoveries.get("hotel-1")?.task;
     expect(f.rows.has("hotel-1")).toBe(true);
     expect(f.rows.get("hotel-1")).toMatchObject({
       status: "AUTH_FAILED",
@@ -3438,13 +3463,13 @@ describe("BCA delayed recovery and server logout", () => {
     f.service.onModuleDestroy();
   });
 
-  it("does not advertise an endless pending retry after the server loses its in-memory recovery job", async () => {
+  it("preserves recoverable retry state after the server loses its in-memory recovery job", async () => {
     const f = fixture(); await f.service.connect("user", "role", "hotel-1", credentials);
     const old = f.service.getCachedReadSession("hotel-1", f.rows.get("hotel-1")!)!;
     const retry = jest.fn().mockResolvedValue(true);
     await f.service.recoverReadSession("hotel-1", old, retry);
     f.service.onModuleDestroy();
-    expect(await f.service.get("user", "role", "hotel-1")).toMatchObject({ status: "DISCONNECTED", lastErrorCode: "KBTT_SESSION_ENDED" });
+    expect(await f.service.get("user", "role", "hotel-1")).toMatchObject({ status: "DISCONNECTED", lastErrorCode: "KBTT_RETRY_PENDING" });
     await jest.advanceTimersByTimeAsync(30_000);
     expect(retry).not.toHaveBeenCalled();
   });
@@ -3470,17 +3495,108 @@ describe("front-desk BCA read-session preparation", () => {
       expect(f.provider.login).not.toHaveBeenCalled(); expect(f.provider.refresh).not.toHaveBeenCalled();
     }
   });
-  it("coalesces concurrent failed preparation instead of retrying authentication for every caller", async () => {
+  it("coalesces three login attempts, waits ten seconds and persists cooldown", async () => {
+    jest.useFakeTimers();
     const f = fixture(); await f.service.connect("user", "role", "hotel-1", credentials);
     const old = f.service.getCachedReadSession("hotel-1", f.rows.get("hotel-1")!)!;
     f.service.expireRejectedReadSession("hotel-1", old); f.provider.login.mockClear();
-    f.provider.refresh.mockRejectedValue(new Error("provider unavailable"));
-    const results = await Promise.allSettled(Array.from({ length: 4 }, () => f.service.ensureReconciliationSession("user", "role", "hotel-1")));
-    expect(results.every((result) => result.status === "rejected")).toBe(true);
-    expect(f.provider.refresh).toHaveBeenCalledTimes(1);
+    f.provider.login.mockRejectedValue(new Error("provider unavailable"));
+    const pending = Promise.allSettled(Array.from({ length: 4 }, () => f.service.ensureReconciliationSession("user", "role", "hotel-1")));
+    await jest.advanceTimersByTimeAsync(0); expect(f.provider.login).toHaveBeenCalledTimes(1);
+    await jest.advanceTimersByTimeAsync(9_999); expect(f.provider.login).toHaveBeenCalledTimes(1);
+    await jest.advanceTimersByTimeAsync(1); expect(f.provider.login).toHaveBeenCalledTimes(2);
+    await jest.advanceTimersByTimeAsync(10_000);
+    expect((await pending).every(result => result.status === "rejected")).toBe(true);
+    expect(f.provider.login).toHaveBeenCalledTimes(3);
     await expect(f.service.ensureReconciliationSession("user", "role", "hotel-1")).rejects.toBeInstanceOf(HttpException);
-    expect(f.provider.refresh).toHaveBeenCalledTimes(1);
-    expect(f.provider.login).not.toHaveBeenCalled();
+    expect(f.provider.login).toHaveBeenCalledTimes(3);
+    expect(f.rows.get("hotel-1")).toMatchObject({status:"DISCONNECTED",lastErrorCode:"KBTT_TEMP_DISCONNECTED"});
+    expect(f.provider.refresh).not.toHaveBeenCalled(); f.service.onModuleDestroy();
+  });
+  it("shares acquisition across check, preparation and lifecycle resolver", async () => {
+    const f = fixture(); await f.service.connect("user", "role", "hotel-1", credentials);
+    const connection = f.rows.get("hotel-1")!;
+    (f.service as any).sessions.clear(); f.provider.login.mockClear();
+    let release!: (value: KbttSession) => void;
+    f.provider.login.mockImplementationOnce(() => new Promise(resolve => {release = resolve;}));
+    const requests = [f.service.check("user","role","hotel-1"), f.service.ensureReconciliationSession("user","role","hotel-1"), (f.service as any).getOrRefreshSession("hotel-1",connection)];
+    await new Promise(resolve => setImmediate(resolve));
+    expect(f.provider.login).toHaveBeenCalledTimes(1);
+    release(session()); await Promise.all(requests);
+    expect(f.provider.login).toHaveBeenCalledTimes(1); expect(f.provider.refresh).not.toHaveBeenCalled();
+    f.service.onModuleDestroy();
+  });
+  it("persists exhausted token cooldown across cache loss and permits recovery only after sixty seconds", async () => {
+    jest.useFakeTimers(); const f = fixture(); await f.service.connect("user","role","hotel-1",credentials);
+    (f.service as any).sessions.clear(); f.provider.login.mockClear();
+    f.provider.login.mockRejectedValue(new Error("429 unavailable"));
+    const failure = expect((f.service as any).getOrRefreshSession("hotel-1", f.rows.get("hotel-1"))).rejects.toBeInstanceOf(HttpException);
+    await jest.advanceTimersByTimeAsync(20_000); await failure;
+    expect(f.provider.login).toHaveBeenCalledTimes(3);
+    f.service.onModuleDestroy();
+    const restarted = new KbttService(f.access as never,f.repository as never,f.cipher,f.provider as never);
+    const current = f.rows.get("hotel-1")!;
+    await expect((restarted as any).getOrRefreshSession("hotel-1",current)).rejects.toBeInstanceOf(HttpException);
+    await jest.advanceTimersByTimeAsync(59_999);
+    await expect((restarted as any).getOrRefreshSession("hotel-1",current)).rejects.toBeInstanceOf(HttpException);
+    expect(f.provider.login).toHaveBeenCalledTimes(3);
+    f.provider.login.mockResolvedValue(session()); await jest.advanceTimersByTimeAsync(1);
+    await expect((restarted as any).getOrRefreshSession("hotel-1",current)).resolves.toBeDefined();
+    expect(f.provider.login).toHaveBeenCalledTimes(4); restarted.onModuleDestroy();
+  });
+  it("aborts logout during token retry delay and never restores an explicitly removed connection", async () => {
+    jest.useFakeTimers(); const f = fixture(); await f.service.connect("user","role","hotel-1",credentials);
+    const connection = f.rows.get("hotel-1")!;
+    (f.service as any).sessions.clear(); f.provider.login.mockClear(); f.provider.login.mockRejectedValue(new Error("offline"));
+    const pending = expect((f.service as any).getOrRefreshSession("hotel-1",connection)).rejects.toBeDefined();
+    await jest.advanceTimersByTimeAsync(0); expect(f.provider.login).toHaveBeenCalledTimes(1);
+    await f.service.disconnect("user","role","hotel-1"); await pending;
+    await jest.advanceTimersByTimeAsync(60_000);
+    expect(f.provider.login).toHaveBeenCalledTimes(1); expect(f.rows.has("hotel-1")).toBe(false);
+    await expect((f.service as any).getOrRefreshSession("hotel-1",connection)).rejects.toBeDefined();
+    expect(f.provider.login).toHaveBeenCalledTimes(1); f.service.onModuleDestroy();
+  });
+  it("rejects a token minted for another facility and preserves original scope", async () => {
+    const f = fixture(); await f.service.connect("user","role","hotel-1",credentials);
+    const connection = f.rows.get("hotel-1")!; (f.service as any).sessions.clear();
+    f.provider.login.mockResolvedValueOnce(session({CsltId:"other-facility"}));
+    await expect((f.service as any).getOrRefreshSession("hotel-1",connection)).rejects.toBeInstanceOf(ConflictException);
+    expect(f.rows.get("hotel-1")?.csltId).toBe(connection.csltId);
+    expect(f.service.getCachedReadSession("hotel-1",connection)).toBeNull(); f.service.onModuleDestroy();
+  });
+  it("returns read recovery promptly while a token request is still pending", async () => {
+    const f = fixture(); await f.service.connect("user","role","hotel-1",credentials);
+    const old = f.service.getCachedReadSession("hotel-1",f.rows.get("hotel-1")!)!;
+    let release!: (value: KbttSession) => void;
+    f.provider.login.mockImplementationOnce(() => new Promise(resolve => {release = resolve;}));
+    const retry = jest.fn().mockResolvedValue(true);
+    await f.service.recoverReadSession("hotel-1",old,retry,true);
+    expect(retry).not.toHaveBeenCalled();
+    const recovery = (f.service as any).recoveries.get("hotel-1"); expect(recovery).toBeDefined();
+    await new Promise(resolve => setImmediate(resolve)); release(session()); await recovery.task;
+    expect(retry).toHaveBeenCalledWith(expect.any(AbortSignal),expect.objectContaining({CsltId:"1000227"}));
+    f.service.onModuleDestroy();
+  });
+  it("bounds an interactive preparation to eight seconds while background acquisition completes safely", async () => {
+    jest.useFakeTimers(); const f = fixture(); await f.service.connect("user","role","hotel-1",credentials);
+    (f.service as any).sessions.clear();
+    let release!: (value: KbttSession) => void;
+    f.provider.login.mockImplementationOnce(() => new Promise(resolve => {release = resolve;}));
+    const result = expect(f.service.ensureReconciliationSession("user","role","hotel-1")).rejects.toBeInstanceOf(HttpException);
+    await jest.advanceTimersByTimeAsync(8_000); await result;
+    const running = (f.service as any).tokenAcquisitions.get("hotel-1"); expect(running).toBeDefined();
+    release(session()); await running.task;
+    expect(f.service.getCachedReadSession("hotel-1",f.rows.get("hotel-1")!)).not.toBeNull();
+    f.service.onModuleDestroy();
+  });
+  it("does not repeatedly login when the replacement access is also rejected", async () => {
+    jest.useFakeTimers(); const f = fixture(); await f.service.connect("user","role","hotel-1",credentials);
+    const old = f.service.getCachedReadSession("hotel-1",f.rows.get("hotel-1")!)!; f.provider.login.mockClear();
+    const replacement = await f.service.recoverRejectedSession("hotel-1",old);
+    await expect(f.service.recoverRejectedSession("hotel-1",replacement)).rejects.toBeInstanceOf(HttpException);
+    expect(f.rows.get("hotel-1")).toMatchObject({status:"DISCONNECTED",lastErrorCode:"KBTT_TEMP_DISCONNECTED"});
+    for (let i = 0; i < 4; i++) await expect(f.service.check("user","role","hotel-1")).rejects.toBeInstanceOf(HttpException);
+    expect(f.provider.login).toHaveBeenCalledTimes(1); f.service.onModuleDestroy();
   });
   it("commits logout locally before waiting for remote token revocation", async () => {
     const f = fixture(); await f.service.connect("user", "role", "hotel-1", credentials);
@@ -3497,12 +3613,12 @@ describe("front-desk BCA read-session preparation", () => {
       expect(f.service.getCachedReadSession("hotel-1", oldConnection)).toBeNull();
     } finally { release(); await logout; }
   });
-  it("does not restore a session if logout removes the connection during refresh", async () => {
+  it("does not restore a session if logout removes the connection during access acquisition", async () => {
     const f = fixture(); await f.service.connect("user", "role", "hotel-1", credentials);
     const connection = f.rows.get("hotel-1")!;
     const old = f.service.getCachedReadSession("hotel-1", connection)!;
     f.service.expireRejectedReadSession("hotel-1", old);
-    f.provider.refresh.mockImplementationOnce(async () => { f.rows.delete("hotel-1"); return session(); });
+    f.provider.login.mockImplementationOnce(async () => { f.rows.delete("hotel-1"); return session(); });
     await expect((f.service as any).getOrRefreshSession("hotel-1", connection)).rejects.toBeInstanceOf(ConflictException);
     expect(f.service.getCachedReadSession("hotel-1", connection)).toBeNull();
     expect(f.rows.has("hotel-1")).toBe(false);
@@ -3514,27 +3630,27 @@ describe("front-desk BCA read-session preparation", () => {
     expect(f.provider.login).not.toHaveBeenCalled(); expect(f.provider.refresh).not.toHaveBeenCalled();
     expect(f.provider.revoke).not.toHaveBeenCalled(); expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
   });
-  it("requires manual login after process cache loss and never uses saved credentials automatically", async () => {
+  it("restores a saved connected account after process cache loss", async () => {
     const f = fixture(); await f.service.connect("user", "role", "hotel-1", credentials);
     f.service.onModuleDestroy(); f.provider.login.mockClear();
-    await expect(f.service.ensureReconciliationSession("user", "role", "hotel-1")).rejects.toBeInstanceOf(HttpException);
-    expect(f.provider.login).not.toHaveBeenCalled();
-    expect((await f.service.get("user", "role", "hotel-1")).status).toBe("DISCONNECTED");
+    await expect(f.service.ensureReconciliationSession("user", "role", "hotel-1")).resolves.toEqual({ready: true});
+    expect(f.provider.login).toHaveBeenCalledTimes(1);
+    expect((await f.service.get("user", "role", "hotel-1")).status).toBe("CONNECTED");
     expect(f.provider.submitDeclaration).not.toHaveBeenCalled();
   });
-  it("refreshes rejected or near-expiry tokens and does not revoke existing tokens", async () => {
+  it("obtains access through login after token rejection without refresh or revoke", async () => {
     const f = fixture(); await f.service.connect("user", "role", "hotel-1", credentials);
     const old = f.service.getCachedReadSession("hotel-1", f.rows.get("hotel-1")!)!;
     f.service.expireRejectedReadSession("hotel-1", old); f.provider.login.mockClear(); f.provider.revoke.mockClear();
     await f.service.ensureReconciliationSession("user", "role", "hotel-1");
-    expect(f.provider.refresh).toHaveBeenCalledWith(old.RefreshToken);
-    expect(f.provider.login).not.toHaveBeenCalled(); expect(f.provider.revoke).not.toHaveBeenCalled();
+    expect(f.provider.login).toHaveBeenCalledWith(credentials, expect.any(AbortSignal));
+    expect(f.provider.refresh).not.toHaveBeenCalled(); expect(f.provider.revoke).not.toHaveBeenCalled();
   });
-  it("marks AUTH_FAILED if refresh fails without falling back to saved-password login or deleting saved connection", async () => {
+  it("marks AUTH_FAILED only when credential login itself is rejected", async () => {
     const f = fixture(); await f.service.connect("user", "role", "hotel-1", credentials);
     const old = f.service.getCachedReadSession("hotel-1", f.rows.get("hotel-1")!)!;
     f.service.expireRejectedReadSession("hotel-1", old);
-    f.provider.refresh.mockRejectedValue(kbttAuthFailed()); f.provider.login.mockRejectedValue(kbttAuthFailed());
+    f.provider.login.mockRejectedValue(kbttAuthFailed()); f.provider.login.mockRejectedValue(kbttAuthFailed());
     await expect(f.service.ensureReconciliationSession("user", "role", "hotel-1")).rejects.toBeInstanceOf(HttpException);
     expect(f.rows.has("hotel-1")).toBe(true);
     expect(f.rows.get("hotel-1")).toMatchObject({
@@ -3740,7 +3856,7 @@ describe("BCA same-day 12:00/21:00 slots, 10-minute catch-up, and temporary disc
     // 21:00 slot sweep processes only the remaining same-day arrival (12:02 guest) and still skips D-2 guest
     jest.setSystemTime(new Date("2026-09-14T14:00:00.000Z"));
     // Refresh session so it stays valid at 21:00 VN
-    f.provider.refresh.mockResolvedValueOnce(
+    f.provider.login.mockResolvedValueOnce(
       session({ Exp: Math.floor(new Date("2026-09-14T14:00:00.000Z").getTime() / 1000) + 300 }),
     );
     f.provider.submitDeclaration.mockClear();
@@ -3776,7 +3892,7 @@ describe("BCA same-day 12:00/21:00 slots, 10-minute catch-up, and temporary disc
 
     // At 00:00 VN on 2026-09-15 (D+1), guest who arrived on 2026-09-14 (yesterday) is submitted with actual arrival 2026-09-14!
     jest.setSystemTime(new Date("2026-09-14T17:00:00.000Z"));
-    f.provider.refresh.mockResolvedValueOnce(
+    f.provider.login.mockResolvedValueOnce(
       session({ Exp: Math.floor(new Date("2026-09-14T17:00:00.000Z").getTime() / 1000) + 300 }),
     );
     await f.service.executeAutoSubmitForHotel(

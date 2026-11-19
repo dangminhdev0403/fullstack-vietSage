@@ -7,6 +7,8 @@ import { formatVnDateInput, toIsoDate } from "@/features/local-biometric/compone
 import { buildInlineDraft } from "../in-house-draft";
 import { kbttResource } from "../resources/kbtt-resource";
 import {
+  getVietnamCalendarDate,
+  isArrivalDayWithinBcaWindow,
   sanitizeErrorMessage,
   type KbttReconciliationRow,
   type KbttCatalogItem,
@@ -20,15 +22,40 @@ export function getReconciliationRowStatusBadge(row: KbttReconciliationRow): {
   dotColor: string;
   badgeClass: string;
 } | null {
-  const present = row.status === "MATCHED" || row.declarationStatus === "SUBMITTED";
-  const failed = row.declarationStatus === "FAILED" || row.declarationStatus === "UNKNOWN";
+  const code = row.reason ?? row.providerMessage ?? "";
+  if (row.status === "MATCHED" || row.declarationStatus === "SUBMITTED") {
+    return {
+      label: "Đã có trên BCA",
+      dotColor: "bg-emerald-600",
+      badgeClass: "border-emerald-200 bg-emerald-50 text-emerald-800",
+    };
+  }
+  const isFailedReason =
+    code === "OUT_OF_DATE_WINDOW" ||
+    code === "PRIOR_DAY_MANUAL" ||
+    code === "PRIOR_DAY_MANUAL_REQUIRED" ||
+    code === "KBTT_TEMP_DISCONNECTED" ||
+    code === "KBTT_SESSION_ENDED" ||
+    code === "RECONCILIATION_REQUIRED";
+  const arrivalDay = getVietnamCalendarDate(row.checkedInAt);
+  const outOfWindow = Boolean(
+    arrivalDay &&
+    !isArrivalDayWithinBcaWindow(arrivalDay) &&
+    row.declarationStatus !== "DRAFT" &&
+    row.declarationStatus !== "READY" &&
+    row.declarationStatus !== null
+  );
+  const failed =
+    isFailedReason ||
+    outOfWindow ||
+    row.declarationStatus === "FAILED" ||
+    row.declarationStatus === "UNKNOWN";
   return {
-    label: present ? "Đã có trên BCA" : failed ? "Gửi lỗi" : "Chưa có",
-    dotColor: present ? "bg-emerald-600" : failed ? "bg-rose-500" : "bg-amber-500",
-    badgeClass: present
-      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-      : failed ? "border-rose-200 bg-rose-50 text-rose-800"
-        : "border-amber-200 bg-amber-50 text-amber-800",
+    label: failed ? "Gửi lỗi" : "Chưa có",
+    dotColor: failed ? "bg-rose-500" : "bg-amber-500",
+    badgeClass: failed
+      ? "border-rose-200 bg-rose-50 text-rose-800"
+      : "border-amber-200 bg-amber-50 text-amber-800",
   };
 }
 
@@ -168,7 +195,7 @@ function DateInputCell({
         maxLength={10}
         value={text}
         disabled={disabled}
-        className={`${className} font-mono text-sm !pl-2.5 !pr-9`}
+        className={`${className} font-mono text-base font-semibold tracking-wide !pl-2.5 !pr-9 text-slate-900`}
         onChange={handleChange}
         onBlur={handleBlur}
         onKeyDown={(e) => {
@@ -199,6 +226,65 @@ function DateInputCell({
         <VsIcon name="calendar_today" className="h-4 w-4" />
       </button>
     </div>
+  );
+}
+
+export function formatIdentityNumber(val: string): string {
+  const raw = String(val ?? "").replace(/\s+/g, "");
+  if (!raw) return "";
+  if (/^\d+$/.test(raw)) {
+    return raw.replace(/(\d{3})(?=\d)/g, "$1 ").trim();
+  }
+  return raw.toUpperCase();
+}
+
+function IdentityInputCell({
+  label,
+  value,
+  fallback = "",
+  fullName,
+  disabled,
+  className,
+  onCommit,
+  onBlurSave,
+}: {
+  label: string;
+  value: string;
+  fallback?: string;
+  fullName: string;
+  disabled: boolean;
+  className: string;
+  onCommit: (clean: string) => void;
+  onBlurSave: () => void;
+}) {
+  const [text, setText] = useState(() => formatIdentityNumber(value || fallback));
+
+  useEffect(() => {
+    setText(formatIdentityNumber(value || fallback));
+  }, [value, fallback]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawInput = e.target.value;
+    const clean = rawInput.replace(/\s+/g, "").slice(0, 20);
+    const formatted = formatIdentityNumber(clean);
+    setText(formatted);
+    onCommit(clean);
+  };
+
+  return (
+    <input
+      aria-label={`${label} · ${fullName}`}
+      required
+      type="text"
+      value={text}
+      disabled={disabled}
+      className={className}
+      onChange={handleChange}
+      onBlur={onBlurSave}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") e.currentTarget.blur();
+      }}
+    />
   );
 }
 
@@ -234,7 +320,39 @@ export function InHouseDeclarationCells({ hotelId, row, canManage, onUpdated, re
   function input(field: string, label: string, fallback = "", type = "text", width = "w-full") {
     const dateField = type === "date" || type === "datetime-local";
     const raw = value(field);
-    if (!editable || field === "soPhong") return <span className="block text-base font-semibold text-slate-800 break-words leading-tight">{dateField ? displayDate(raw || fallback) : raw || fallback || ""}</span>;
+    const isCenter = width.includes("text-center");
+    const isMono = width.includes("font-mono");
+    const isIdentityField = field === "soGiayTo" || field === "soHoChieu";
+
+    if (isIdentityField) {
+      if (!editable) {
+        return (
+          <span className={`block text-base sm:text-lg font-bold font-mono tracking-wider text-slate-900 break-words leading-tight ${isCenter ? "text-center" : ""}`}>
+            {formatIdentityNumber(raw || fallback)}
+          </span>
+        );
+      }
+      return (
+        <IdentityInputCell
+          label={label}
+          value={raw}
+          fallback={fallback}
+          fullName={row.fullName}
+          disabled={busy}
+          className={`${controlClass} ${width} text-base font-bold font-mono tracking-wider text-slate-900`}
+          onCommit={(clean) => update(field, clean)}
+          onBlurSave={() => void saveRow()}
+        />
+      );
+    }
+
+    if (!editable || field === "soPhong") {
+      return (
+        <span className={`block text-base font-semibold text-slate-800 break-words leading-tight ${isCenter ? "text-center" : ""} ${isMono ? "font-mono" : ""}`}>
+          {dateField ? displayDate(raw || fallback) : raw || fallback || ""}
+        </span>
+      );
+    }
     if (dateField) {
       return (
         <DateInputCell
@@ -253,7 +371,7 @@ export function InHouseDeclarationCells({ hotelId, row, canManage, onUpdated, re
       );
     }
     return <input aria-label={`${label} · ${row.fullName}`} required type="text"
-      value={raw} maxLength={field === "hoTen" ? 120 : undefined} disabled={busy} className={`${controlClass} ${width} text-sm font-semibold`}
+      value={raw} maxLength={field === "hoTen" ? 120 : undefined} disabled={busy} className={`${controlClass} ${width} text-base font-semibold`}
       onBlur={() => void saveRow()}
       onChange={(event) => update(field, event.target.value)}
       onKeyDown={(e) => {
@@ -263,8 +381,9 @@ export function InHouseDeclarationCells({ hotelId, row, canManage, onUpdated, re
 
   function select(field: string, label: string, options: Array<{ value: string; label: string }>, numeric = false, customClass = "") {
     const current = value(field);
-    if (!editable) return <span className="block text-base font-medium text-slate-800 break-words leading-tight">{options.find((option) => option.value === current)?.label ?? (current || "")}</span>;
-    return <select aria-label={`${label}${field === "ngayDenCsltStr" || field === "ngayDiDuKienStr" ? " khai báo BCA" : ""} · ${row.fullName}`} required value={current} disabled={busy} className={`${customClass || controlClass}`}
+    const isCenter = customClass.includes("text-center");
+    if (!editable) return <span className={`block text-base font-medium text-slate-800 break-words leading-tight ${isCenter ? "text-center" : ""}`}>{options.find((option) => option.value === current)?.label ?? (current || "")}</span>;
+    return <select aria-label={`${label}${field === "ngayDenCsltStr" || field === "ngayDiDuKienStr" ? " khai báo BCA" : ""} · ${row.fullName}`} required value={current} disabled={busy} className={`${customClass ? `${controlClass} ${customClass}` : controlClass}`}
       onChange={(event) => update(field, numeric && event.target.value ? Number(event.target.value) : event.target.value, true)}>
       <option value="">Chọn {label.toLocaleLowerCase("vi")}</option>
       {current && !options.some((option) => option.value === current) ? <option value={current}>{current}</option> : null}
@@ -288,7 +407,7 @@ export function InHouseDeclarationCells({ hotelId, row, canManage, onUpdated, re
   }
   const failedCatalog = documents.isError ? documents : nationalities.isError ? nationalities : null;
   return <>
-    <td className={`px-2.5 py-2.5 align-middle ${foreign ? "w-[16%] min-w-[170px]" : "w-[18%] min-w-[180px]"}`}>
+    <td className={`px-2.5 py-2.5 align-middle text-left ${foreign ? "w-[16%] min-w-[170px]" : "w-[18%] min-w-[180px]"}`}>
       <div className="w-full min-w-0">
         {editable ? input("hoTen", "Họ tên", row.fullName) : <span className="text-sm font-bold text-slate-900 block break-words leading-tight" title={row.fullName}>{row.fullName}</span>}
         <div className="mt-1 flex flex-wrap items-center gap-1.5">
@@ -305,37 +424,37 @@ export function InHouseDeclarationCells({ hotelId, row, canManage, onUpdated, re
         </div>
       </div>
     </td>
-    <td className={`px-2 py-2.5 align-middle whitespace-nowrap ${foreign ? "w-[6%] min-w-[75px]" : "w-[8%] min-w-[80px]"}`}>
-      <div className="w-full">
-        {select("gioiTinh", "Giới tính", [{ value: "M", label: "Nam" }, { value: "F", label: "Nữ" }])}
+    <td className={`px-2 py-2.5 align-middle whitespace-nowrap text-center ${foreign ? "w-[6%] min-w-[75px]" : "w-[8%] min-w-[80px]"}`}>
+      <div className="w-full flex justify-center text-center">
+        {select("gioiTinh", "Giới tính", [{ value: "M", label: "Nam" }, { value: "F", label: "Nữ" }], false, "text-center")}
       </div>
     </td>
-    <td className={`px-2 py-2.5 align-middle ${foreign ? "w-[10%] min-w-[120px]" : "w-[12%] min-w-[125px]"}`}>
-      <div className="w-full flex flex-col gap-1">
+    <td className={`px-2 py-2.5 align-middle text-center ${foreign ? "w-[10%] min-w-[120px]" : "w-[12%] min-w-[125px]"}`}>
+      <div className="w-full flex flex-col items-center justify-center gap-1 text-center">
         {foreign ? select("loaiNgayThangNamSinh", "Độ chính xác ngày sinh", [{ value: "D", label: "Đủ ngày tháng năm" }, { value: "Y", label: "Chỉ biết năm" }], false, "block h-7 w-full rounded border border-slate-200 bg-slate-50/50 px-1 text-xs font-medium text-slate-700 hover:border-slate-300 focus:border-[#003B2A] focus:outline-none focus:ring-1 focus:ring-[#003B2A]") : null}
-        {input("ngayThangNamSinhStr", "Ngày sinh", "", "date", "w-full")}
+        {input("ngayThangNamSinhStr", "Ngày sinh", "", "date", "w-full text-center")}
       </div>
     </td>
-    <td className={`px-2 py-2.5 align-middle ${foreign ? "w-[14%] min-w-[140px]" : "w-[17%] min-w-[160px]"}`}>
-      <div className="w-full flex flex-col gap-1">
-        {!foreign && editable ? select("loaiGiayTo", "Loại giấy tờ", catalogOptions(documents.data), true, "block h-7 w-full rounded border border-slate-200 bg-slate-50/50 px-1.5 text-xs font-medium text-slate-700 hover:border-slate-300 focus:border-[#003B2A] focus:outline-none focus:ring-1 focus:ring-[#003B2A]") : null}
-        {input(foreign ? "soHoChieu" : "soGiayTo", foreign ? "Hộ chiếu" : "Số giấy tờ", row.identityNumber ?? "", "text", "block w-full font-mono !px-2 text-sm")}
+    <td className={`px-2 py-2.5 align-middle text-center ${foreign ? "w-[14%] min-w-[140px]" : "w-[17%] min-w-[160px]"}`}>
+      <div className="w-full flex flex-col items-center justify-center gap-1 text-center">
+        {!foreign && editable ? select("loaiGiayTo", "Loại giấy tờ", catalogOptions(documents.data), true, "block h-8 w-full rounded-lg border border-slate-200 bg-slate-50/70 px-2 text-xs font-semibold text-slate-800 hover:border-slate-300 focus:border-[#003B2A] focus:outline-none focus:ring-1 focus:ring-[#003B2A]") : null}
+        {input(foreign ? "soHoChieu" : "soGiayTo", foreign ? "Hộ chiếu" : "Số giấy tờ", row.identityNumber ?? "", "text", "block w-full font-mono !px-2 text-base text-center")}
       </div>
     </td>
-    <td className={`px-2 py-2.5 align-middle whitespace-nowrap ${foreign ? "w-[11%] min-w-[125px]" : "w-[13%] min-w-[130px]"}`}>
-      <div className="w-full">
-        {input("ngayDenCsltStr", "Nhận phòng", row.checkedInAt ?? "", "datetime-local", "w-full")}
+    <td className={`px-2 py-2.5 align-middle whitespace-nowrap text-center ${foreign ? "w-[11%] min-w-[125px]" : "w-[13%] min-w-[130px]"}`}>
+      <div className="w-full flex justify-center text-center">
+        {input("ngayDenCsltStr", "Nhận phòng", row.checkedInAt ?? "", "datetime-local", "w-full text-center")}
       </div>
     </td>
-    <td className={`px-2 py-2.5 align-middle whitespace-nowrap ${foreign ? "w-[11%] min-w-[125px]" : "w-[13%] min-w-[130px]"}`}>
-      <div className="w-full">
-        {input("ngayDiDuKienStr", "Dự kiến trả", row.plannedCheckOutAt ?? "", "datetime-local", "w-full")}
+    <td className={`px-2 py-2.5 align-middle whitespace-nowrap text-center ${foreign ? "w-[11%] min-w-[125px]" : "w-[13%] min-w-[130px]"}`}>
+      <div className="w-full flex justify-center text-center">
+        {input("ngayDiDuKienStr", "Dự kiến trả", row.plannedCheckOutAt ?? "", "datetime-local", "w-full text-center")}
       </div>
     </td>
-    {foreign ? <td className="px-2 py-2.5 align-middle w-[9%] min-w-[110px]"><div className="w-full">{select("quocTich", "Quốc tịch", catalogOptions(nationalities.data))}</div></td> : null}
-    {foreign ? <td className="px-2 py-2.5 align-middle whitespace-nowrap w-[10%] min-w-[125px]"><div className="w-full">{input("thoiHanTamTruStr", "Hạn tạm trú", "", "datetime-local", "w-full")}</div></td> : null}
-    <td className={`px-2 py-2.5 align-middle whitespace-nowrap ${foreign ? "w-[7%] min-w-[90px]" : "w-[9%] min-w-[100px]"}`}>
-      <div className="flex flex-col items-start gap-1">
+    {foreign ? <td className="px-2 py-2.5 align-middle text-center w-[9%] min-w-[110px]"><div className="w-full flex justify-center text-center">{select("quocTich", "Quốc tịch", catalogOptions(nationalities.data), false, "text-center")}</div></td> : null}
+    {foreign ? <td className="px-2 py-2.5 align-middle whitespace-nowrap text-center w-[10%] min-w-[125px]"><div className="w-full flex justify-center text-center">{input("thoiHanTamTruStr", "Hạn tạm trú", "", "datetime-local", "w-full text-center")}</div></td> : null}
+    <td className={`px-2 py-2.5 align-middle whitespace-nowrap text-center ${foreign ? "w-[7%] min-w-[90px]" : "w-[9%] min-w-[100px]"}`}>
+      <div className="flex flex-col items-center justify-center gap-1 text-center">
         {(() => {
           const badge = getReconciliationRowStatusBadge(row);
           if (!badge) return null;
@@ -348,8 +467,8 @@ export function InHouseDeclarationCells({ hotelId, row, canManage, onUpdated, re
         })()}
       </div>
     </td>
-    <td className={`px-2 py-2.5 align-middle whitespace-nowrap text-right ${foreign ? "w-[6%] min-w-[90px]" : "w-[10%] min-w-[100px]"}`}>
-      <div className="flex flex-col items-end gap-1">
+    <td className={`px-2 py-2.5 align-middle whitespace-nowrap text-center ${foreign ? "w-[6%] min-w-[90px]" : "w-[10%] min-w-[100px]"}`}>
+      <div className="flex flex-col items-center justify-center gap-1 text-center">
         {busy ? <span role="status" className="inline-flex items-center gap-1 text-xs font-medium text-emerald-800"><span className="h-1.5 w-1.5 rounded-full bg-emerald-700 animate-pulse" />Đang lưu…</span> : null}
         {renderActions(dirty || busy)}
         {editable && failedCatalog ? <div role="alert" className="max-w-xs text-xs text-amber-800">Không tải được danh mục.<button type="button" className="ml-1 font-bold underline hover:text-amber-950" onClick={() => void failedCatalog.refetch()}>Thử lại</button></div> : null}

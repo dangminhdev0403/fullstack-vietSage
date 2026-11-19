@@ -697,6 +697,22 @@ export class KbttRepository {
     }
   }
 
+  async findHotelsForTokenRecovery(now: Date = new Date()) {
+    try {
+      return await this.prisma.kbttHotelConnection.findMany({
+        where: {
+          autoSubmitEnabled: true,
+          status: "DISCONNECTED",
+          lastErrorCode: "KBTT_TEMP_DISCONNECTED",
+          lastCheckedAt: { lte: new Date(now.getTime() - 60_000) },
+        },
+        select: { hotelId: true },
+        orderBy: [{ lastCheckedAt: "asc" }, { hotelId: "asc" }],
+        take: 100,
+      });
+    } catch { throw kbttUnavailable(); }
+  }
+
   async findDueHotelsForAutoSubmit(_currentHHmm?: string) {
     return this.findHotelsForDailyAutoSubmitSweep();
   }

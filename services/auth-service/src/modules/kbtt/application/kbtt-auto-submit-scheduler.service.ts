@@ -31,12 +31,7 @@ export class KbttAutoSubmitSchedulerService {
     timeZone: "Asia/Ho_Chi_Minh",
   })
   async handleCron() {
-    if (process.env.KBTT_AUTO_SUBMIT_KILL_SWITCH === "true") {
-      this.logger.warn("KBTT auto-submit kill switch is ACTIVE. Skipping scheduled run.");
-      return;
-    }
-
-    const isDryRun = process.env.KBTT_AUTO_SUBMIT_LIVE_ENABLED !== "true";
+    const isDryRun = false;
     const now = new Date();
     const currentHHmm = formatLocalDateTime(now, VIETNAM_TIME_ZONE).slice(11, 16);
 
