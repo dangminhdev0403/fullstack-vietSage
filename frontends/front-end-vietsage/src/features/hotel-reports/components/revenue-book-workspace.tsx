@@ -27,6 +27,7 @@ import type {
   RevenueBookQuery,
 } from "../types/revenue-book-contract";
 import { RevenueBookDialog } from "./revenue-book-dialog";
+import { RevenueBookSpreadsheet } from "./revenue-book-spreadsheet";
 import {
   RevenueEntryDialog,
   REVENUE_METHODS,
@@ -83,6 +84,7 @@ export function RevenueBookWorkspace({ hotelId }: { hotelId: string }) {
     setTo(null);
   }
   const [filter, setFilter] = useState("");
+  const [viewMode, setViewMode] = useState<"grid" | "compact">("grid");
   const [sorting, setSorting] = useState<SortingState>([
     { id: "date", desc: true },
   ]);
@@ -164,6 +166,20 @@ export function RevenueBookWorkspace({ hotelId }: { hotelId: string }) {
     getPaginationRowModel: getPaginationRowModel(),
     initialState: { pagination: { pageSize: 20 } },
   });
+
+  function handleAddQuickMinibar(entry: RevenueBookEntry, date: string) {
+    setEditor({
+      mode: "create",
+      entry: {
+        category: "MINIBAR",
+        roomId: entry.roomId,
+        roomNumber: entry.roomNumber,
+        date: date || entry.date,
+        description: `Minibar phòng ${entry.roomNumber ?? ""}`.trim(),
+      } as unknown as RevenueBookEntry,
+    });
+  }
+
   function applyRange(event: FormEvent) {
     event.preventDefault();
     const nextFrom = from ?? book?.from ?? queryInput.from ?? "";
@@ -325,132 +341,235 @@ export function RevenueBookWorkspace({ hotelId }: { hotelId: string }) {
       )}
       {book && !query.isError && (
         <>
-          <dl className="grid gap-4 border-y border-[var(--outline-variant)] py-4 sm:grid-cols-3">
-            {[
-              ["Phát sinh trong kỳ", book.summary.revenueTotal],
-              ["Đã thu trong kỳ", book.summary.collectedTotal],
-              ["Số dư cuối kỳ", book.summary.closingBalance],
-            ].map(([label, value]) => (
-              <div key={label}>
-                <dt className="text-sm text-[var(--on-surface-variant)]">
-                  {label}
-                </dt>
-                <dd className="mt-1 text-xl font-semibold tabular-nums">
-                  {money(Number(value), currency)}
-                </dd>
+          {/* Executive Stat Cards */}
+          <div className="grid gap-4 sm:grid-cols-3">
+            {/* Card 1: Doanh thu phát sinh */}
+            <div className="rounded-2xl border border-sky-100 bg-linear-to-br from-sky-50/60 to-white p-4.5 shadow-xs transition-shadow hover:shadow-sm">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs font-semibold uppercase tracking-wider text-sky-800">
+                  Phát sinh trong kỳ
+                </span>
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-100 text-sky-700">
+                  <VsIcon name="trending_up" className="text-xl" />
+                </span>
               </div>
-            ))}
-          </dl>
-          {book.summary.closingBalance < 0 && (
-            <p className="text-sm text-[var(--on-surface-variant)] text-pretty">
-              Số dư âm là tiền khách trả trước hoặc còn dư.
-            </p>
-          )}
-          <label className="block max-w-md space-y-1">
-            <span className="block text-sm font-medium">
-              Tìm nội dung, phòng hoặc chứng từ
-            </span>
-            <input
-              type="search"
-              value={filter}
-              onChange={(event) => setFilter(event.target.value)}
-              className={revenueInputClass}
-            />
-          </label>
-          <div
-            aria-busy={query.isFetching}
-            className="overflow-x-auto rounded-xl border border-[var(--outline-variant)]"
-          >
-            <table className="w-full min-w-[760px] text-left text-base">
-              <thead className="bg-[var(--surface-container-low)]">
-                <tr>
-                  {table.getHeaderGroups()[0].headers.map((header) => (
-                    <th
-                      key={header.id}
-                      scope="col"
-                      className={`px-4 py-3 ${["revenueTotal", "collected", "closingBalance"].includes(header.id) ? "text-right" : ""}`}
-                    >
-                      <button
-                        type="button"
-                        onClick={header.column.getToggleSortingHandler()}
-                        className="inline-flex min-h-11 items-center gap-1 whitespace-nowrap text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
-                        aria-label={`Sắp xếp theo ${String(header.column.columnDef.header)}`}
-                      >
-                        {flexRender(
-                          header.column.columnDef.header,
-                          header.getContext(),
-                        )}
-                        <span aria-hidden="true">
-                          {header.column.getIsSorted() === "desc"
-                            ? " ↓"
-                            : header.column.getIsSorted() === "asc"
-                              ? " ↑"
-                              : ""}
-                        </span>
-                      </button>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--outline-variant)]">
-                {table.getRowModel().rows.map((row) => (
-                  <tr
-                    key={row.id}
-                    className="hover:bg-[var(--surface-container-low)]"
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <td
-                        key={cell.id}
-                        className={`px-4 py-3 align-top ${["revenueTotal", "collected", "closingBalance"].includes(cell.column.id) ? "whitespace-nowrap text-right tabular-nums" : cell.column.id === "date" ? "whitespace-nowrap" : ""}`}
-                      >
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext(),
-                        )}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-                {!table.getRowModel().rows.length && (
-                  <tr>
-                    <td
-                      colSpan={columns.length}
-                      className="px-4 py-10 text-center text-[var(--on-surface-variant)]"
-                    >
-                      {filter
-                        ? "Không có khoản phù hợp."
-                        : "Chưa có phát sinh trong kỳ này."}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+              <div className="mt-2 text-2xl font-bold tracking-tight text-slate-900 tabular-nums">
+                {money(book.summary.revenueTotal, currency)}
+              </div>
+              <p className="mt-1 text-xs text-slate-500 text-pretty">
+                Tổng doanh thu dịch vụ & tiền phòng
+              </p>
+            </div>
+
+            {/* Card 2: Đã thu trong kỳ */}
+            <div className="rounded-2xl border border-emerald-100 bg-linear-to-br from-emerald-50/60 to-white p-4.5 shadow-xs transition-shadow hover:shadow-sm">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs font-semibold uppercase tracking-wider text-emerald-800">
+                  Đã thu trong kỳ
+                </span>
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+                  <VsIcon name="payments" className="text-xl" />
+                </span>
+              </div>
+              <div className="mt-2 text-2xl font-bold tracking-tight text-emerald-700 tabular-nums">
+                {money(book.summary.collectedTotal, currency)}
+              </div>
+              <p className="mt-1 text-xs text-slate-500 text-pretty">
+                Tiền mặt, chuyển khoản & các nguồn thu khác
+              </p>
+            </div>
+
+            {/* Card 3: Số dư cuối kỳ */}
+            <div
+              className={`rounded-2xl border p-4.5 shadow-xs transition-shadow hover:shadow-sm ${
+                book.summary.closingBalance < 0
+                  ? "border-amber-200 bg-linear-to-br from-amber-50/60 to-white"
+                  : "border-slate-200 bg-linear-to-br from-slate-50/60 to-white"
+              }`}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <span
+                  className={`text-xs font-semibold uppercase tracking-wider ${
+                    book.summary.closingBalance < 0 ? "text-amber-800" : "text-slate-700"
+                  }`}
+                >
+                  Số dư công nợ cuối kỳ
+                </span>
+                <span
+                  className={`flex h-9 w-9 items-center justify-center rounded-xl ${
+                    book.summary.closingBalance < 0
+                      ? "bg-amber-100 text-amber-700"
+                      : "bg-slate-100 text-slate-700"
+                  }`}
+                >
+                  <VsIcon name="account_balance_wallet" className="text-xl" />
+                </span>
+              </div>
+              <div
+                className={`mt-2 text-2xl font-bold tracking-tight tabular-nums ${
+                  book.summary.closingBalance < 0 ? "text-amber-900" : "text-slate-900"
+                }`}
+              >
+                {money(book.summary.closingBalance, currency)}
+              </div>
+              <p className="mt-1 text-xs text-slate-500 text-pretty">
+                {book.summary.closingBalance < 0
+                  ? "Khách trả trước hoặc còn dư tiền đặt cọc"
+                  : "Tổng công nợ còn phải thu của khách"}
+              </p>
+            </div>
           </div>
-          <footer className="flex flex-wrap items-center justify-between gap-3 text-sm text-[var(--on-surface-variant)]">
-            <span>
-              {table.getFilteredRowModel().rows.length} khoản · Trang{" "}
-              {table.getState().pagination.pageIndex + 1}/
-              {Math.max(1, table.getPageCount())}
-            </span>
-            <div className="flex gap-2">
+
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <label className="block w-full max-w-sm space-y-1">
+              <span className="block text-sm font-medium">
+                Tìm nội dung, phòng hoặc chứng từ
+              </span>
+              <input
+                type="search"
+                value={filter}
+                onChange={(event) => setFilter(event.target.value)}
+                className={revenueInputClass}
+                placeholder="Nhập số phòng, tên khách, chứng từ..."
+              />
+            </label>
+            <div className="inline-flex rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)] p-1">
               <button
                 type="button"
-                onClick={() => table.previousPage()}
-                disabled={!table.getCanPreviousPage()}
-                className={revenueButtonClass}
+                onClick={() => setViewMode("grid")}
+                className={`inline-flex min-h-10 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors cursor-pointer ${
+                  viewMode === "grid"
+                    ? "bg-white text-[var(--primary)] shadow-sm font-semibold"
+                    : "text-[var(--on-surface-variant)] hover:text-black"
+                }`}
               >
-                Trước
+                <VsIcon name="table_chart" className="text-lg" />
+                Bảng tính Sổ doanh thu
               </button>
               <button
                 type="button"
-                onClick={() => table.nextPage()}
-                disabled={!table.getCanNextPage()}
-                className={revenueButtonClass}
+                onClick={() => setViewMode("compact")}
+                className={`inline-flex min-h-10 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors cursor-pointer ${
+                  viewMode === "compact"
+                    ? "bg-white text-[var(--primary)] shadow-sm font-semibold"
+                    : "text-[var(--on-surface-variant)] hover:text-black"
+                }`}
               >
-                Sau
+                <VsIcon name="table_rows" className="text-lg" />
+                Bản tóm tắt theo khoản
               </button>
             </div>
-          </footer>
+          </div>
+
+          {viewMode === "grid" ? (
+            <RevenueBookSpreadsheet
+              book={book}
+              currency={currency}
+              filter={filter}
+              canManage={Boolean(book.canManage)}
+              onSelectEntry={(id) => setSelectedId(id)}
+              onAddQuickMinibar={handleAddQuickMinibar}
+              onCollect={(entry) => setEditor({ mode: "collect", entry })}
+              onEdit={(entry) => setEditor({ mode: "edit", entry })}
+            />
+          ) : (
+            <>
+              <div
+                aria-busy={query.isFetching}
+                className="overflow-x-auto rounded-xl border border-[var(--outline-variant)]"
+              >
+                <table className="w-full min-w-[760px] text-left text-base">
+                  <thead className="bg-[var(--surface-container-low)]">
+                    <tr>
+                      {table.getHeaderGroups()[0].headers.map((header) => (
+                        <th
+                          key={header.id}
+                          scope="col"
+                          className={`px-4 py-3 ${["revenueTotal", "collected", "closingBalance"].includes(header.id) ? "text-right" : ""}`}
+                        >
+                          <button
+                            type="button"
+                            onClick={header.column.getToggleSortingHandler()}
+                            className="inline-flex min-h-11 items-center gap-1 whitespace-nowrap text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
+                            aria-label={`Sắp xếp theo ${String(header.column.columnDef.header)}`}
+                          >
+                            {flexRender(
+                              header.column.columnDef.header,
+                              header.getContext(),
+                            )}
+                            <span aria-hidden="true">
+                              {header.column.getIsSorted() === "desc"
+                                ? " ↓"
+                                : header.column.getIsSorted() === "asc"
+                                  ? " ↑"
+                                  : ""}
+                            </span>
+                          </button>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--outline-variant)]">
+                    {table.getRowModel().rows.map((row) => (
+                      <tr
+                        key={row.id}
+                        className="hover:bg-[var(--surface-container-low)]"
+                      >
+                        {row.getVisibleCells().map((cell) => (
+                          <td
+                            key={cell.id}
+                            className={`px-4 py-3 align-top ${["revenueTotal", "collected", "closingBalance"].includes(cell.column.id) ? "whitespace-nowrap text-right tabular-nums" : cell.column.id === "date" ? "whitespace-nowrap" : ""}`}
+                          >
+                            {flexRender(
+                              cell.column.columnDef.cell,
+                              cell.getContext(),
+                            )}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                    {!table.getRowModel().rows.length && (
+                      <tr>
+                        <td
+                          colSpan={columns.length}
+                          className="px-4 py-10 text-center text-[var(--on-surface-variant)]"
+                        >
+                          {filter
+                            ? "Không có khoản phù hợp."
+                            : "Chưa có phát sinh trong kỳ này."}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <footer className="flex flex-wrap items-center justify-between gap-3 text-sm text-[var(--on-surface-variant)]">
+                <span>
+                  {table.getFilteredRowModel().rows.length} khoản · Trang{" "}
+                  {table.getState().pagination.pageIndex + 1}/
+                  {Math.max(1, table.getPageCount())}
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => table.previousPage()}
+                    disabled={!table.getCanPreviousPage()}
+                    className={revenueButtonClass}
+                  >
+                    Trước
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => table.nextPage()}
+                    disabled={!table.getCanNextPage()}
+                    className={revenueButtonClass}
+                  >
+                    Sau
+                  </button>
+                </div>
+              </footer>
+            </>
+          )}
           <dl className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-[var(--on-surface-variant)]">
             <div>
               <dt className="inline">Số dư đầu kỳ: </dt>

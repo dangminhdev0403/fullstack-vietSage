@@ -872,7 +872,7 @@ export function FrontDeskRoomDetailPanel({
               <div className="rounded-lg bg-white p-2 border border-slate-200/80 shadow-2xs">
                 <span className="text-slate-500 block font-medium text-xs">Đơn giá / đêm</span>
                 <span className="font-bold text-slate-900 text-sm truncate">
-                  {formatVnd(stay?.nightlyRateSnapshot ?? room.price)}
+                  {formatVnd(effectiveNightlyRate ?? stay?.nightlyRateSnapshot ?? room.price)}
                 </span>
               </div>
               <div className="rounded-lg bg-white p-2 border border-slate-200/80 shadow-2xs">
@@ -887,7 +887,7 @@ export function FrontDeskRoomDetailPanel({
               </div>
               <div className="rounded-lg bg-white p-2 border border-slate-200/80 shadow-2xs">
                 <span className="text-slate-500 block font-medium text-xs">Ghi chú</span>
-                <span className="font-bold text-slate-900 text-xs truncate" title={displayData.notes}>
+                <span className="font-bold text-slate-900 text-sm truncate" title={displayData.notes}>
                   {displayData.notes}
                 </span>
               </div>
@@ -1342,14 +1342,27 @@ export function FrontDeskRoomDetailPanel({
           )}
 
           {/* RESERVED MODE CONTEXT */}
-          {isReservedMode && reservation && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-stretch">
-              <section className="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-4 sm:p-5 shadow-2xs space-y-3">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+          {isReservedMode && reservation && (() => {
+            const statusInfo = formatReservationStatus(reservation.status);
+            const nights = calculateNights(
+              reservation.plannedCheckInAt,
+              reservation.plannedCheckOutAt,
+            );
+            const totalProjected =
+              reservation.totalAmount != null && Number(reservation.totalAmount) > 0
+                ? Number(reservation.totalAmount)
+                : reservation.roomSubtotal != null && Number(reservation.roomSubtotal) > 0
+                  ? Number(reservation.roomSubtotal)
+                  : Number(effectiveNightlyRate || 0) * nights;
+
+            return (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-stretch">
+                {/* Left Box: Thông tin đặt trước */}
+                <section className="flex flex-col rounded-xl border border-slate-200 bg-white p-4 sm:p-5 shadow-2xs space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-2.5 min-h-[38px]">
                     <div className="flex items-center gap-2">
                       <VsIcon name="event" className="text-purple-600 text-lg" />
-                      <h3 className="text-sm font-black uppercase tracking-wider text-slate-700">
+                      <h3 className="text-sm font-black uppercase tracking-wider text-slate-800">
                         Thông tin Đặt trước
                       </h3>
                     </div>
@@ -1363,113 +1376,97 @@ export function FrontDeskRoomDetailPanel({
                       <span>Sửa</span>
                     </button>
                   </div>
-                  <div className="space-y-2.5 text-sm">
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-600">Khách đặt phòng:</span>
-                      <span className="font-extrabold text-slate-900 text-base">
-                        {reservation.guestDisplayName || "Chưa rõ"}
+
+                  <div className="flex-1 flex flex-col justify-between space-y-3 text-sm">
+                    <div className="space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-600 font-medium">Khách đặt phòng:</span>
+                        <span className="font-extrabold text-slate-900 text-base">
+                          {reservation.guestDisplayName || "Chưa rõ"}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-600 font-medium">Số điện thoại:</span>
+                        <span className={`font-mono text-xs sm:text-sm font-bold ${reservation.guestPhone ? "text-slate-900" : "text-slate-400 font-normal italic"}`}>
+                          {reservation.guestPhone || "Chưa cập nhật"}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-600 font-medium">Số lượng khách:</span>
+                        <span className="font-bold text-slate-900 text-xs sm:text-sm">
+                          {reservation.guestCount ? `${reservation.guestCount} khách` : "1 khách"}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-600 font-medium">Phòng chỉ định:</span>
+                        <span className="font-bold text-slate-900 text-xs sm:text-sm">
+                          Phòng {roomNumberDisplay} {room.floor ? `(Tầng ${room.floor})` : ""}{room.type ? ` · ${room.type}` : ""}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2.5 border-t border-slate-200/70 text-sm">
+                      <span className="text-slate-600 font-medium">Trạng thái đặt phòng:</span>
+                      <span className={`font-bold px-2.5 py-0.5 rounded text-xs whitespace-nowrap ${statusInfo.className}`}>
+                        {statusInfo.label}
                       </span>
                     </div>
-                    {reservation.guestPhone && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-600">Số điện thoại:</span>
-                        <span className="font-medium text-slate-900">{reservation.guestPhone}</span>
-                      </div>
-                    )}
-                    {(() => {
-                      const statusInfo = formatReservationStatus(reservation.status);
-                      return (
-                        <div className="flex items-center justify-between">
-                          <span className="text-slate-600">Trạng thái:</span>
-                          <span className={`font-bold px-2.5 py-0.5 rounded text-xs ${statusInfo.className}`}>
-                            {statusInfo.label}
-                          </span>
-                        </div>
-                      );
-                    })()}
                   </div>
-                </div>
+                </section>
 
-                <div className="rounded-xl border border-purple-200 bg-purple-50/60 p-3 space-y-2 text-xs text-purple-950">
-                  <div className="flex items-center gap-1.5 font-bold">
-                    <VsIcon name="hotel" className="text-base text-purple-700" />
-                    <span>Bố trí phòng dự kiến</span>
-                  </div>
-                  <div className="flex items-center justify-between text-slate-700">
-                    <span>Phòng chỉ định:</span>
-                    <span className="font-bold text-slate-900">
-                      Phòng {roomNumberDisplay} {room.floor ? `(Tầng ${room.floor})` : ""}
+                {/* Right Box: Lịch lưu trú & Chi phí dự kiến */}
+                <section className="flex flex-col rounded-xl border border-slate-200 bg-white p-4 sm:p-5 shadow-2xs space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-2.5 min-h-[38px]">
+                    <div className="flex items-center gap-2">
+                      <VsIcon name="calendar_month" className="text-slate-600 text-lg" />
+                      <h3 className="text-sm font-black uppercase tracking-wider text-slate-800">
+                        Lịch lưu trú & Chi phí dự kiến
+                      </h3>
+                    </div>
+                    <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-700 border border-slate-200 whitespace-nowrap">
+                      <span>{nights} đêm</span>
                     </span>
                   </div>
-                  <div className="flex items-center justify-between text-slate-700">
-                    <span>Loại phòng:</span>
-                    <span className="font-bold text-slate-900">{room.type || "Tiêu chuẩn"}</span>
-                  </div>
-                </div>
-              </section>
 
-              <section className="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-4 sm:p-5 shadow-2xs space-y-3">
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 border-b border-slate-100 pb-2.5">
-                    <VsIcon name="calendar_month" className="text-slate-500 text-lg" />
-                    <h3 className="text-sm font-black uppercase tracking-wider text-slate-700">
-                      Lịch lưu trú & Chi phí dự kiến
-                    </h3>
-                  </div>
-                  <div className="space-y-2.5 text-sm">
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-600">Thời gian nhận phòng:</span>
-                      <span className="font-bold text-slate-900">
-                        {formatDateTime(reservation.plannedCheckInAt)}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-600">Thời gian trả phòng:</span>
-                      <span className="font-bold text-slate-900">
-                        {formatDateTime(reservation.plannedCheckOutAt)}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-600">Số đêm:</span>
-                      <span className="font-medium text-slate-900">
-                        {calculateNights(
-                          reservation.plannedCheckInAt,
-                          reservation.plannedCheckOutAt,
-                        )}{" "}
-                        đêm
-                      </span>
-                    </div>
-                    {effectiveNightlyRate != null && (
+                  <div className="flex-1 flex flex-col justify-between space-y-3 text-sm">
+                    <div className="space-y-2.5">
                       <div className="flex items-center justify-between">
-                        <span className="text-slate-600">Giá phòng mỗi đêm:</span>
-                        <span className="font-bold text-slate-900">
-                          {formatVnd(effectiveNightlyRate)} / đêm
+                        <span className="text-slate-600 font-medium">Thời gian nhận phòng:</span>
+                        <span className="font-bold text-slate-900 text-xs sm:text-sm">
+                          {formatDateTime(reservation.plannedCheckInAt)}
                         </span>
                       </div>
-                    )}
-                    {effectiveNightlyRate != null && (
-                      <div className="flex items-center justify-between pt-2.5 border-t border-slate-200/70 text-base font-black text-slate-900">
-                        <span>Dự kiến tiền phòng:</span>
-                        <span className="text-emerald-700 text-lg font-black">
-                          {formatVnd(
-                            reservation.totalAmount != null && Number(reservation.totalAmount) > 0
-                              ? Number(reservation.totalAmount)
-                              : reservation.roomSubtotal != null && Number(reservation.roomSubtotal) > 0
-                                ? Number(reservation.roomSubtotal)
-                                : Number(effectiveNightlyRate) *
-                                  calculateNights(
-                                    reservation.plannedCheckInAt,
-                                    reservation.plannedCheckOutAt,
-                                  ),
-                          )}
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-600 font-medium">Thời gian trả phòng:</span>
+                        <span className="font-bold text-slate-900 text-xs sm:text-sm">
+                          {formatDateTime(reservation.plannedCheckOutAt)}
                         </span>
                       </div>
-                    )}
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-600 font-medium">Số đêm lưu trú:</span>
+                        <span className="font-bold text-slate-900 text-xs sm:text-sm">
+                          {nights} đêm
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-600 font-medium">Giá phòng mỗi đêm:</span>
+                        <span className="font-bold text-slate-900 text-xs sm:text-sm">
+                          {effectiveNightlyRate != null ? `${formatVnd(effectiveNightlyRate)} / đêm` : "—"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2.5 border-t border-slate-200/70 text-base font-black text-slate-900">
+                      <span className="text-sm font-bold text-slate-700">Dự kiến tiền phòng:</span>
+                      <span className="text-emerald-700 text-lg font-black">
+                        {formatVnd(totalProjected)}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              </section>
-            </div>
-          )}
+                </section>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Bottom Actions Bar (Horizontal for Desktop, touch target >= 44px) */}

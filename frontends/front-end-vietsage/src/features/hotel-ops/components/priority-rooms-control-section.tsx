@@ -101,53 +101,34 @@ function PriorityRowActions({
   onPrimaryAction: (item: PriorityRoomAlertItem, triggerEl: HTMLElement | null) => void;
 }) {
   const canPrimary = canExecutePrimaryAction(item, permissions);
-  const directMutation = isDirectMutationAction(item);
   const buttonHeight = fullWidthOnMobile ? "min-h-[44px] flex-1" : "min-h-[38px]";
 
-  if (!directMutation) {
+  if (canPrimary) {
     return (
       <button
         type="button"
         onClick={(e) => {
           e.stopPropagation();
-          onInspectItem(item, e.currentTarget);
+          onPrimaryAction(item, e.currentTarget);
         }}
-        className={`inline-flex ${buttonHeight} items-center justify-center rounded-xl border px-3.5 py-1.5 text-xs font-bold shadow-2xs transition cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/25 ${
-          canPrimary
-            ? getPrimaryActionButtonClass(item)
-            : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-        }`}
+        className={`inline-flex ${buttonHeight} items-center justify-center rounded-xl border px-3.5 py-1.5 text-xs font-bold shadow-2xs transition cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/25 ${getPrimaryActionButtonClass(item)}`}
       >
-        {canPrimary ? item.actionLabel : "Chi tiết"}
+        {item.actionLabel}
       </button>
     );
   }
 
   return (
-    <>
-      {canPrimary ? (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onPrimaryAction(item, e.currentTarget);
-          }}
-          className={`inline-flex ${buttonHeight} items-center justify-center rounded-xl border px-3.5 py-1.5 text-xs font-bold shadow-2xs transition cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/25 ${getPrimaryActionButtonClass(item)}`}
-        >
-          {item.actionLabel}
-        </button>
-      ) : null}
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          onInspectItem(item, e.currentTarget);
-        }}
-        className={`inline-flex ${buttonHeight} items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-950 transition cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/20`}
-      >
-        Chi tiết
-      </button>
-    </>
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onInspectItem(item, e.currentTarget);
+      }}
+      className={`inline-flex ${buttonHeight} items-center justify-center rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-700 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-950 transition cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/20`}
+    >
+      {item.actionLabel || "Chi tiết"}
+    </button>
   );
 }
 
@@ -336,7 +317,13 @@ export function PriorityRoomsControlSection({
                   return (
                     <tr
                       key={item.id}
-                      onClick={() => onInspectItem(item, null)}
+                      onClick={() => {
+                        if (canExecutePrimaryAction(item, permissions)) {
+                          onPrimaryAction(item, null);
+                        } else {
+                          onInspectItem(item, null);
+                        }
+                      }}
                       className="transition-colors hover:bg-slate-50/90 cursor-pointer"
                     >
                       <td className="px-4 py-2.5 align-middle">
@@ -414,7 +401,13 @@ export function PriorityRoomsControlSection({
               return (
                 <div
                   key={item.id}
-                  onClick={() => onInspectItem(item, null)}
+                  onClick={() => {
+                    if (canExecutePrimaryAction(item, permissions)) {
+                      onPrimaryAction(item, null);
+                    } else {
+                      onInspectItem(item, null);
+                    }
+                  }}
                   className="space-y-2 px-4 py-3 transition-colors hover:bg-slate-50/80 cursor-pointer"
                 >
                   <div className="flex items-center justify-between gap-2">

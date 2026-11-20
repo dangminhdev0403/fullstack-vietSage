@@ -5054,12 +5054,15 @@ export function StaffRoomsClient({
     item: PriorityRoomAlertItem,
     triggerEl: HTMLElement | null,
   ) {
+    if (canCheckInStay && (item.actionKind === "check-in" || item.bucket === "due")) {
+      await handlePrimaryPriorityAction(item, triggerEl);
+      return;
+    }
     if (
       (item.arrival || item.reservationId) &&
       (!item.room ||
         item.actionKind === "assign-room" ||
-        item.id.startsWith("res-overdue-") ||
-        item.bucket === "due")
+        item.id.startsWith("res-overdue-"))
     ) {
       const resolvedArrival = await resolvePriorityArrival(item);
       if (resolvedArrival) {
@@ -5102,26 +5105,44 @@ export function StaffRoomsClient({
         return;
       }
     }
-    if (item.actionKind === "check-in") {
+    if (item.actionKind === "check-in" || item.bucket === "due") {
       const resolvedArrival = await resolvePriorityArrival(item);
-      if (resolvedArrival) {
-        if (resolvedArrival.groupCode) {
-          openGroupCheckIn(resolvedArrival.groupCode);
+      const resolvedRoom =
+        item.room ??
+        (resolvedArrival?.roomId
+          ? (rooms.find((r) => r.id === resolvedArrival.roomId) ??
+            (await resolvePriorityRoom(item)))
+          : null);
+
+      if (item.groupCode || resolvedArrival?.groupCode) {
+        const groupCode = item.groupCode || resolvedArrival?.groupCode;
+        if (resolvedRoom && resolvedArrival) {
+          setIsArrivalsOpen(false);
+          openUnifiedCheckInModal({
+            room: resolvedRoom,
+            reservationId: resolvedArrival.id,
+            reservationCode: resolvedArrival.reservationCode,
+            groupCode,
+            guestDisplayName: resolvedArrival.guestDisplayName,
+            guestPhone: resolvedArrival.guestPhone || null,
+            plannedCheckInAt: resolvedArrival.plannedCheckInAt,
+            plannedCheckOutAt: resolvedArrival.plannedCheckOutAt,
+            updatedAt: resolvedArrival.updatedAt,
+          });
           return;
         }
-        const resolvedRoom =
-          item.room ??
-          (resolvedArrival.roomId
-            ? (rooms.find((r) => r.id === resolvedArrival.roomId) ??
-              (await resolvePriorityRoom(item)))
-            : null);
+        openGroupCheckIn(groupCode);
+        return;
+      }
+
+      if (resolvedArrival) {
         if (resolvedRoom) {
           setIsArrivalsOpen(false);
           openUnifiedCheckInModal({
             room: resolvedRoom,
             reservationId: resolvedArrival.id,
             reservationCode: resolvedArrival.reservationCode,
-            groupCode: resolvedArrival.groupCode || null,
+            groupCode: null,
             guestDisplayName: resolvedArrival.guestDisplayName,
             guestPhone: resolvedArrival.guestPhone || null,
             plannedCheckInAt: resolvedArrival.plannedCheckInAt,
@@ -5138,10 +5159,10 @@ export function StaffRoomsClient({
         return;
       }
       if (item.fallbackReservation) {
-        const resolvedRoom = item.room ?? (await resolvePriorityRoom(item));
-        if (resolvedRoom) {
+        const fallbackRoom = item.room ?? (await resolvePriorityRoom(item));
+        if (fallbackRoom) {
           openUnifiedCheckInModal({
-            room: resolvedRoom,
+            room: fallbackRoom,
             reservationId: item.fallbackReservation.id,
             guestDisplayName: item.fallbackReservation.guestDisplayName,
             guestPhone: item.fallbackReservation.guestPhone ?? null,

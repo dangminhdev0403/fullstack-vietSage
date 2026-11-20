@@ -24,7 +24,7 @@ function account(overrides: Partial<RevenueBookEntry> = {}): RevenueBookEntry {
 
 function book(entries: RevenueBookEntry[] = [account()]): RevenueBook {
   return {
-    hotelId: "hotel-1", hotelName: "Khách sạn A21", timeZone: "Asia/Ho_Chi_Minh", currency: "VND", from: "2026-10-01", to: "2026-10-31",
+    hotelId: "hotel-1", hotelName: "Khách sạn VietSage", timeZone: "Asia/Ho_Chi_Minh", currency: "VND", from: "2026-10-01", to: "2026-10-31",
     entries, rooms: [{ id: "room-1", number: "101" }], canManage: true,
     summary: {
       roomRevenue: 1000, minibarRevenue: 0, laundryRevenue: 0, otherRevenue: 0, revenueTotal: 1000,
@@ -76,7 +76,7 @@ function rowsOf(report: RevenueBook): Record<string, string | number>[] {
   });
 }
 
-test("builds a real OOXML ZIP workbook with numeric money, merged A21 headers and print layout", () => {
+test("builds a real OOXML ZIP workbook with numeric money, merged revenue ledger headers and print layout", () => {
   const parts = unzip(buildRevenueBookWorkbook(book()));
   assert.equal(parts.size, 6);
   assert.match(parts.get("[Content_Types].xml")!, /spreadsheetml\.sheet\.main\+xml/);
@@ -84,12 +84,12 @@ test("builds a real OOXML ZIP workbook with numeric money, merged A21 headers an
   assert.match(parts.get("xl/workbook.xml")!, /name="Sổ doanh thu"/);
   const sheet = parts.get("xl/worksheets/sheet1.xml")!;
   assert.match(sheet, /mergeCell ref="F6:J6"/);
-  assert.match(sheet, /pane ySplit="8"/);
+  assert.match(sheet, /pane ySplit="9"/);
   assert.match(sheet, /orientation="landscape"/);
-  assert.match(sheet, /Còn nợ cuối kỳ/);
+  assert.match(sheet, /Còn nợ/);
   assert.match(sheet, /Thanh toán khác/);
-  assert.match(sheet, /<c r="F9" s="3"><v>500<\/v>/);
-  assert.match(sheet, /<c r="A9" s="6"><v>1<\/v>/, "Sequence numbers are not formatted as money");
+  assert.match(sheet, /<c r="F10" s="3"><v>500<\/v>/);
+  assert.match(sheet, /<c r="A10" s="6"><v>1<\/v>/, "Sequence numbers are not formatted as money");
 });
 
 test("allocates revenue and receipts to their actual dates without duplicating multi-day stay revenue", () => {
