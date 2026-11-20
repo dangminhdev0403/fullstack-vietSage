@@ -174,7 +174,7 @@ export function RoomSearchSelect({
                 <VsIcon name="close" className="text-sm" />
               </span>
               <span
-                title="Lễ tân phụ trách phòng này. Bỏ chọn để áp dụng cho toàn khách sạn (Global)."
+                title="Lễ tân phụ trách phòng này. Bỏ chọn để áp dụng cho toàn khách sạn."
                 className="inline-flex h-6 w-6 items-center justify-center text-slate-400"
               >
                 <VsIcon name="info" className="text-sm" />
@@ -226,7 +226,7 @@ export function RoomSearchSelect({
             </div>
           </div>
 
-          {/* Option: Áp dụng cho toàn khách sạn (Global) */}
+          {/* Option: Áp dụng cho toàn khách sạn */}
           <div className="p-1 border-b border-slate-100 bg-slate-50/60">
             <button
               type="button"
@@ -335,7 +335,7 @@ export function RoomSearchSelect({
 
           {/* Footer Guidance */}
           <div className="p-2 border-t border-slate-100 bg-slate-50 text-xs text-slate-500 flex items-center justify-between">
-            <span>Chọn phòng riêng hoặc áp dụng chung toàn khách sạn (Global)</span>
+            <span>Chọn phòng riêng hoặc áp dụng chung toàn khách sạn</span>
             <span className="text-slate-500 font-medium">Toàn KS / Theo phòng</span>
           </div>
         </div>

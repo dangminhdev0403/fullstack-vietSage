@@ -1359,7 +1359,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                       onChange={(e) => setEditForm({ ...editForm, roomId: e.target.value })}
                       className="min-h-11 w-full rounded-lg border border-[var(--outline-variant)] bg-white px-3 text-base focus:border-[var(--primary)] focus:outline-none"
                     >
-                      <option value="">Áp dụng cho toàn khách sạn (Global)</option>
+                      <option value="">Áp dụng cho toàn khách sạn</option>
                       {availableRoomsForEdit.map((r) => {
                         const isCurrent = userRoomAssignmentMap.get(editingUser.id)?.roomId === r.id;
                         return (
@@ -1370,7 +1370,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                       })}
                     </select>
                     <p className="mt-1 text-sm text-[var(--on-surface-variant)]">
-                      Chọn phòng riêng để phân công, hoặc chọn &ldquo;Áp dụng cho toàn khách sạn (Global)&rdquo; nếu lễ tân phụ trách chung toàn khách sạn.
+                      Chọn phòng riêng để phân công, hoặc chọn &ldquo;Áp dụng cho toàn khách sạn&rdquo; nếu lễ tân phụ trách chung toàn khách sạn.
                     </p>
                   </div>
                 ) : (

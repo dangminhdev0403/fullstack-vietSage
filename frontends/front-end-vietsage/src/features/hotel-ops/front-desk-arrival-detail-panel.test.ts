@@ -491,7 +491,7 @@ test("confirmed late check-in targets only the selected group member with stale 
 });
 
 for (const [select, operation, reason] of [
-  ["NO_SHOW", "no-show", "Khách không đến (No-show): Không liên lạc được"],
+  ["NO_SHOW", "no-show", "Khách không đến: Không liên lạc được"],
   ["GUEST_CANCELLED", "cancel", "Khách báo hủy: Không liên lạc được"],
 ]) {
   test(`unified cancellation routes ${select} with optional reason and deposit retention`, async () => {

@@ -217,7 +217,8 @@ export type GroupCheckInModalProps = {
   isOpen: boolean;
   onClose: () => void;
   hotelId: string;
-  groupCode: string;
+  groupCode?: string | null;
+  isWalkIn?: boolean;
   rooms?: GroupRoomItem[];
   initialArrivals?: import("@/features/hotel-ops/types/hotel-ops-contract").HotelArrival[];
   enabledFeatures?: readonly string[];
@@ -226,7 +227,12 @@ export type GroupCheckInModalProps = {
 };
 
 export function GroupCheckInModal(props: GroupCheckInModalProps) {
-  return props.isOpen ? <GroupCheckInForm key={`${props.hotelId}:${props.groupCode}`} {...props} /> : null;
+  return props.isOpen ? (
+    <GroupCheckInForm
+      key={`${props.hotelId}:${props.groupCode || (props.isWalkIn ? "walkin" : "")}`}
+      {...props}
+    />
+  ) : null;
 }
 
 function GroupCheckInForm({
@@ -234,6 +240,7 @@ function GroupCheckInForm({
   onClose,
   hotelId,
   groupCode,
+  isWalkIn = false,
   rooms,
   initialArrivals = [],
   enabledFeatures = [],
@@ -246,6 +253,13 @@ function GroupCheckInForm({
   const titleId = useId();
   const descId = useId();
 
+  const isDirectWalkIn = Boolean(
+    isWalkIn ||
+      groupCode?.startsWith("GRP-WI-") ||
+      groupCode?.startsWith("WI-") ||
+      (!groupCode && (!rooms || rooms.length === 0)),
+  );
+
   const isScannerEnabled = hasHotelFeature(enabledFeatures, FRONTDESK_HN2N_CCCD_SCANNER);
   const kbtt = useMemo(() => kbttResource.bind({ hotelId }), [hotelId]);
   const nationalitiesQuery = useQuery({
@@ -254,7 +268,12 @@ function GroupCheckInForm({
   });
   const nationalities = nationalitiesQuery.data ?? [];
 
-  const shouldFetchGroupArrivals = Boolean(isOpen && groupCode?.trim() && (!rooms || rooms.length === 0));
+  const shouldFetchGroupArrivals = Boolean(
+    isOpen &&
+      !isDirectWalkIn &&
+      groupCode?.trim() &&
+      (!rooms || rooms.length === 0),
+  );
   const { data: fetchedArrivals = [], isLoading: isLoadingArrivals } = useQuery({
     ...staffRoomsResource.bind({ hotelId }).queries.groupArrivals.options(groupCode),
     enabled: shouldFetchGroupArrivals,
@@ -357,7 +376,9 @@ function GroupCheckInForm({
   const [isSwappingRoom, setIsSwappingRoom] = useState<boolean>(false);
 
   // Add Room to Group Modal State
-  const [isAddRoomModalOpen, setIsAddRoomModalOpen] = useState<boolean>(false);
+  const [isAddRoomModalOpen, setIsAddRoomModalOpen] = useState<boolean>(() => {
+    return Boolean(isDirectWalkIn && (!rooms || rooms.length === 0));
+  });
   const [selectedAddRoomIds, setSelectedAddRoomIds] = useState<Set<string>>(new Set());
   const [addRoomSearch, setAddRoomSearch] = useState<string>("");
   const [addRoomFloorFilter, setAddRoomFloorFilter] = useState<string>("all");
@@ -555,12 +576,168 @@ function GroupCheckInForm({
       });
     }
 
-    const nextIndex = roomsState.length;
+    const nextIndex = roomsState.length === 0 ? 0 : roomsState.length;
     setRoomsState((prev) => [...prev, ...newItems]);
     setActiveRoomIndex(nextIndex);
     setSelectedAddRoomIds(new Set());
     setIsAddRoomModalOpen(false);
   };
+
+  const renderAddRoomModal = () => (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="add-room-title"
+      className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs"
+    >
+      <div className="relative w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl bg-white shadow-2xl border border-slate-200">
+        {/* Modal Header */}
+        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+          <div>
+            <h3 id="add-room-title" className="text-base font-bold text-slate-900 text-balance">
+              Thêm phòng vào đợt nhận phòng đoàn
+            </h3>
+            <p className="text-xs text-slate-500 text-pretty mt-0.5">
+              Chọn các phòng trống khả dụng từ danh sách bên dưới để bổ sung vào đoàn
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setIsAddRoomModalOpen(false);
+              setSelectedAddRoomIds(new Set());
+            }}
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition cursor-pointer min-h-[36px] min-w-[36px]"
+          >
+            <VsIcon name="close" className="text-lg" />
+          </button>
+        </div>
+
+        {/* Filter controls */}
+        <div className="px-6 py-3 border-b border-slate-100 bg-slate-50/70 flex flex-wrap items-center gap-2.5">
+          <div className="relative flex-1 min-w-[160px]">
+            <VsIcon name="search" className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm" />
+            <input
+              type="text"
+              placeholder="Tìm số phòng, loại phòng..."
+              value={addRoomSearch}
+              onChange={(e) => setAddRoomSearch(e.target.value)}
+              className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:border-purple-600 focus:ring-1 focus:ring-purple-600 outline-none"
+            />
+          </div>
+          <select
+            value={addRoomFloorFilter}
+            onChange={(e) => setAddRoomFloorFilter(e.target.value)}
+            className="py-1.5 px-2.5 text-xs rounded-lg border border-slate-200 bg-white text-slate-700"
+          >
+            <option value="all">Tất cả tầng</option>
+            {addRoomFloors.map((f) => (
+              <option key={f} value={f}>
+                Tầng {f}
+              </option>
+            ))}
+          </select>
+          <select
+            value={addRoomTypeFilter}
+            onChange={(e) => setAddRoomTypeFilter(e.target.value)}
+            className="py-1.5 px-2.5 text-xs rounded-lg border border-slate-200 bg-white text-slate-700"
+          >
+            <option value="all">Tất cả loại phòng</option>
+            {addRoomTypes.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Room list */}
+        <div className="flex-1 overflow-y-auto p-6 min-h-[200px] max-h-[50vh]">
+          {candidateRoomsToAdd.length === 0 ? (
+            <div className="py-12 text-center text-slate-400 text-xs sm:text-sm">
+              Không tìm thấy phòng trống nào phù hợp với bộ lọc hiện tại.
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+              {candidateRoomsToAdd.map((room) => {
+                const isSelected = selectedAddRoomIds.has(room.id);
+                const roomTypeLabel = room.type || room.roomTypeName || "Tiêu chuẩn";
+                return (
+                  <button
+                    key={room.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedAddRoomIds((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(room.id)) {
+                          next.delete(room.id);
+                        } else {
+                          next.add(room.id);
+                        }
+                        return next;
+                      });
+                    }}
+                    className={`p-3 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between gap-1.5 ${
+                      isSelected
+                        ? "bg-purple-50/90 border-purple-500 ring-2 ring-purple-300 shadow-xs"
+                        : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="font-extrabold text-sm text-slate-900">
+                        Phòng {room.roomNumber}
+                      </span>
+                      <span
+                        className={`w-4 h-4 rounded-md border flex items-center justify-center text-xs ${
+                          isSelected
+                            ? "bg-purple-600 border-purple-600 text-white"
+                            : "border-slate-300 bg-white"
+                        }`}
+                      >
+                        {isSelected && <VsIcon name="check" className="text-xs" />}
+                      </span>
+                    </div>
+                    <div className="text-xs text-slate-500 space-y-0.5">
+                      <p className="font-semibold text-purple-900 truncate">{roomTypeLabel}</p>
+                      <p>Tầng {room.floor || "-"} · Sẵn sàng</p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Modal Footer */}
+        <div className="flex items-center justify-between border-t border-slate-200 px-6 py-3.5 bg-slate-50/60">
+          <span className="text-xs font-bold text-slate-700">
+            Đã chọn: <strong className="text-purple-700">{selectedAddRoomIds.size} phòng</strong>
+          </span>
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => {
+                setIsAddRoomModalOpen(false);
+                setSelectedAddRoomIds(new Set());
+              }}
+              className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs sm:text-sm font-bold text-slate-700 hover:bg-slate-50 transition cursor-pointer min-h-[40px]"
+            >
+              Hủy bỏ
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirmAddRooms}
+              disabled={selectedAddRoomIds.size === 0}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-purple-700 hover:bg-purple-800 px-5 py-2 text-xs sm:text-sm font-bold text-white shadow-xs transition cursor-pointer disabled:opacity-50 min-h-[40px]"
+            >
+              <VsIcon name="add" className="text-base" />
+              <span>Xác nhận thêm {selectedAddRoomIds.size} phòng</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   const handleRemoveActiveRoom = async () => {
     if (!activeRoom || roomsState.length <= 1) return;
@@ -1132,6 +1309,7 @@ function GroupCheckInForm({
     ).length;
     const isSingleRoom =
       roomsState.length === 1 &&
+      !isDirectWalkIn &&
       (!rooms?.[0]?.groupCode ||
         rooms?.[0]?.groupCode.startsWith("WI-") ||
         rooms?.[0]?.groupCode.startsWith("RES-"));
@@ -1140,7 +1318,9 @@ function GroupCheckInForm({
       icon: "question",
       title: isSingleRoom
         ? `Nhận phòng ${roomsState[0]?.roomNumber || ""}?`
-        : "Nhận phòng đoàn?",
+        : isDirectWalkIn
+          ? `Nhận phòng đoàn (${roomsState.length} phòng)?`
+          : "Nhận phòng đoàn?",
       details: isSingleRoom
         ? [
             { label: "Phòng", value: roomsState[0]?.roomNumber || "" },
@@ -1154,7 +1334,7 @@ function GroupCheckInForm({
             },
           ]
         : [
-            { label: "Đoàn", value: groupCode },
+            ...(isDirectWalkIn ? [] : [{ label: "Đoàn", value: groupCode || "" }]),
             {
               label: "Nhận phòng",
               value: `${roomsState.length} phòng · ${totalGuestsCount} khách`,
@@ -1181,8 +1361,14 @@ function GroupCheckInForm({
     let failCount = 0;
     const failedRooms: Array<{ reservationId: string; reason: string }> = [];
 
-    const effectiveGroupCode =
-      isSingleRoom || groupCode?.startsWith("WI-") ? undefined : groupCode;
+    const nowIso = new Date().toISOString();
+    const vnYmd = toVietnamYmd(nowIso) || "";
+    const dateStr = vnYmd.replace(/-/g, "").slice(2);
+    const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+    const generatedGroupCode = `GRP-WI-${dateStr}-${randomSuffix}`;
+    const effectiveGroupCode = isSingleRoom
+      ? undefined
+      : groupCode?.trim() || generatedGroupCode;
 
     for (let i = 0; i < roomsState.length; i++) {
       const room = roomsState[i];
@@ -1296,6 +1482,7 @@ function GroupCheckInForm({
     if (failCount === 0) {
       const isSingleRoom =
         roomsState.length === 1 &&
+        !isDirectWalkIn &&
         (!rooms?.[0]?.groupCode ||
           rooms?.[0]?.groupCode.startsWith("WI-") ||
           rooms?.[0]?.groupCode.startsWith("RES-"));
@@ -1305,7 +1492,9 @@ function GroupCheckInForm({
         isSingleRoom ? "Đã nhận phòng" : "Đã nhận phòng đoàn",
         isSingleRoom
           ? `Phòng ${roomsState[0]?.roomNumber || ""} · ${roomsState[0]?.guests[0]?.fullName || "Khách lưu trú"}`
-          : `${successCount} phòng · Đoàn #${groupCode}`,
+          : isDirectWalkIn
+            ? `Đã nhận phòng thành công cho ${successCount} phòng trong đoàn.`
+            : `${successCount} phòng · Đoàn #${groupCode}`,
         { timer: false },
       );
     } else {
@@ -1365,6 +1554,92 @@ function GroupCheckInForm({
   }
 
   if (roomsState.length === 0) {
+    if (isDirectWalkIn) {
+      return (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          aria-describedby={descId}
+          className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150"
+        >
+          <div
+            ref={dialogRef}
+            className="w-full max-w-2xl flex flex-col rounded-2xl bg-white shadow-2xl overflow-hidden border border-slate-200"
+          >
+            {/* Header */}
+            <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50/80 px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-100 text-purple-700">
+                  <VsIcon name="groups" className="text-xl" />
+                </div>
+                <div>
+                  <h2
+                    id={titleId}
+                    className="text-base sm:text-lg font-bold text-slate-900 text-balance"
+                  >
+                    Nhận phòng đoàn ngay
+                  </h2>
+                  <p id={descId} className="text-xs text-slate-600 text-pretty">
+                    Làm thủ tục nhận phòng trực tiếp cho đoàn khách vừa đến (chưa đặt trước)
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Đóng"
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-200 hover:text-slate-700 transition cursor-pointer min-h-[36px] min-w-[36px]"
+              >
+                <VsIcon name="close" className="text-lg" />
+              </button>
+            </header>
+
+            {/* Empty state content */}
+            <div className="flex flex-col items-center justify-center py-12 px-6 text-center space-y-4">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-purple-100 text-purple-700 mx-auto">
+                <VsIcon name="login" className="text-3xl" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-slate-900 text-balance">
+                  Chưa có phòng nào trong đợt nhận phòng này
+                </h3>
+                <p className="text-xs text-slate-500 max-w-md text-pretty">
+                  Bấm &quot;Chọn phòng nhận ngay&quot; để chọn các phòng trống khả dụng và tiến hành quét CCCD / nhận phòng cho đoàn.
+                </p>
+              </div>
+              <div className="flex items-center justify-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs sm:text-sm font-bold text-slate-700 hover:bg-slate-50 transition cursor-pointer min-h-[40px]"
+                >
+                  Hủy / Đóng
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedAddRoomIds(new Set());
+                    setAddRoomSearch("");
+                    setAddRoomFloorFilter("all");
+                    setAddRoomTypeFilter("all");
+                    setIsAddRoomModalOpen(true);
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-purple-700 hover:bg-purple-800 px-5 py-2 text-xs sm:text-sm font-bold text-white shadow-xs transition cursor-pointer min-h-[40px]"
+                >
+                  <VsIcon name="add" className="text-base" />
+                  <span>+ Chọn phòng nhận ngay</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Render add-room modal if open */}
+            {isAddRoomModalOpen && renderAddRoomModal()}
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div
         role="dialog"
@@ -1426,12 +1701,16 @@ function GroupCheckInForm({
               >
                 {roomsState.length === 1
                   ? `Check-in phòng ${activeRoom?.roomNumber || roomsState[0]?.roomNumber}${activeRoom?.roomType ? ` · ${activeRoom.roomType}` : ""}`
-                  : `Check-in đoàn: #${groupCode}`}
+                  : isDirectWalkIn
+                    ? `Nhận phòng đoàn trực tiếp (${roomsState.length} phòng)`
+                    : `Check-in đoàn: #${groupCode}`}
               </h2>
               <p id={descId} className="text-xs text-slate-600 text-pretty">
                 {roomsState.length === 1
                   ? "Xác thực căn cước / hộ chiếu khách lưu trú và hoàn tất nhận phòng"
-                  : "Xác thực căn cước / hộ chiếu cho từng phòng trước khi hoàn tất nhận phòng"}
+                  : isDirectWalkIn
+                    ? "Xác thực căn cước / hộ chiếu cho từng phòng trong đoàn khách vãng lai vừa đến"
+                    : "Xác thực căn cước / hộ chiếu cho từng phòng trước khi hoàn tất nhận phòng"}
               </p>
             </div>
           </div>
@@ -1589,7 +1868,9 @@ function GroupCheckInForm({
               </div>
               <h3 className="text-base font-bold text-slate-800 text-balance mb-2">
                 {roomsState.length === 0
-                  ? `Đợt nhận phòng đoàn ${groupCode ? `(#${groupCode})` : ""}`
+                  ? isDirectWalkIn
+                    ? "Đợt nhận phòng đoàn trực tiếp"
+                    : `Đợt nhận phòng đoàn ${groupCode ? `(#${groupCode})` : ""}`
                   : "Không có phòng nào đủ điều kiện nhận phòng ngay"}
               </h3>
               <p className="text-xs text-slate-600 max-w-md text-pretty mb-6">
@@ -2344,161 +2625,7 @@ function GroupCheckInForm({
       )}
 
       {/* ADD ROOM TO GROUP MODAL */}
-      {isAddRoomModalOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="add-room-title"
-          className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs"
-        >
-          <div className="relative w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl bg-white shadow-2xl border border-slate-200">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-              <div>
-                <h3 id="add-room-title" className="text-base font-bold text-slate-900 text-balance">
-                  Thêm phòng vào đợt nhận phòng đoàn
-                </h3>
-                <p className="text-xs text-slate-500 text-pretty mt-0.5">
-                  Chọn các phòng trống khả dụng từ danh sách bên dưới để bổ sung vào đoàn
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsAddRoomModalOpen(false);
-                  setSelectedAddRoomIds(new Set());
-                }}
-                className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition cursor-pointer min-h-[36px] min-w-[36px]"
-              >
-                <VsIcon name="close" className="text-lg" />
-              </button>
-            </div>
-
-            {/* Filter controls */}
-            <div className="px-6 py-3 border-b border-slate-100 bg-slate-50/70 flex flex-wrap items-center gap-2.5">
-              <div className="relative flex-1 min-w-[160px]">
-                <VsIcon name="search" className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm" />
-                <input
-                  type="text"
-                  placeholder="Tìm số phòng, loại phòng..."
-                  value={addRoomSearch}
-                  onChange={(e) => setAddRoomSearch(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:border-purple-600 focus:ring-1 focus:ring-purple-600 outline-none"
-                />
-              </div>
-              <select
-                value={addRoomFloorFilter}
-                onChange={(e) => setAddRoomFloorFilter(e.target.value)}
-                className="py-1.5 px-2.5 text-xs rounded-lg border border-slate-200 bg-white text-slate-700"
-              >
-                <option value="all">Tất cả tầng</option>
-                {addRoomFloors.map((f) => (
-                  <option key={f} value={f}>
-                    Tầng {f}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={addRoomTypeFilter}
-                onChange={(e) => setAddRoomTypeFilter(e.target.value)}
-                className="py-1.5 px-2.5 text-xs rounded-lg border border-slate-200 bg-white text-slate-700"
-              >
-                <option value="all">Tất cả loại phòng</option>
-                {addRoomTypes.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Room list */}
-            <div className="flex-1 overflow-y-auto p-6 min-h-[200px] max-h-[50vh]">
-              {candidateRoomsToAdd.length === 0 ? (
-                <div className="py-12 text-center text-slate-400 text-xs sm:text-sm">
-                  Không tìm thấy phòng trống nào phù hợp với bộ lọc hiện tại.
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                  {candidateRoomsToAdd.map((room) => {
-                    const isSelected = selectedAddRoomIds.has(room.id);
-                    const roomTypeLabel = room.type || room.roomTypeName || "Tiêu chuẩn";
-                    return (
-                      <button
-                        key={room.id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedAddRoomIds((prev) => {
-                            const next = new Set(prev);
-                            if (next.has(room.id)) {
-                              next.delete(room.id);
-                            } else {
-                              next.add(room.id);
-                            }
-                            return next;
-                          });
-                        }}
-                        className={`p-3 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between gap-1.5 ${
-                          isSelected
-                            ? "bg-purple-50/90 border-purple-500 ring-2 ring-purple-300 shadow-xs"
-                            : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-1">
-                          <span className="font-extrabold text-sm text-slate-900">
-                            Phòng {room.roomNumber}
-                          </span>
-                          <span
-                            className={`w-4 h-4 rounded-md border flex items-center justify-center text-xs ${
-                              isSelected
-                                ? "bg-purple-600 border-purple-600 text-white"
-                                : "border-slate-300 bg-white"
-                            }`}
-                          >
-                            {isSelected && <VsIcon name="check" className="text-xs" />}
-                          </span>
-                        </div>
-                        <div className="text-xs text-slate-500 space-y-0.5">
-                          <p className="font-semibold text-purple-900 truncate">{roomTypeLabel}</p>
-                          <p>Tầng {room.floor || "-"} · Sẵn sàng</p>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Modal Footer */}
-            <div className="flex items-center justify-between border-t border-slate-200 px-6 py-3.5 bg-slate-50/60">
-              <span className="text-xs font-bold text-slate-700">
-                Đã chọn: <strong className="text-purple-700">{selectedAddRoomIds.size} phòng</strong>
-              </span>
-              <div className="flex items-center gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsAddRoomModalOpen(false);
-                    setSelectedAddRoomIds(new Set());
-                  }}
-                  className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs sm:text-sm font-bold text-slate-700 hover:bg-slate-50 transition cursor-pointer min-h-[40px]"
-                >
-                  Hủy bỏ
-                </button>
-                <button
-                  type="button"
-                  onClick={handleConfirmAddRooms}
-                  disabled={selectedAddRoomIds.size === 0}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-purple-700 hover:bg-purple-800 px-5 py-2 text-xs sm:text-sm font-bold text-white shadow-xs transition cursor-pointer disabled:opacity-50 min-h-[40px]"
-                >
-                  <VsIcon name="add" className="text-base" />
-                  <span>Xác nhận thêm {selectedAddRoomIds.size} phòng</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {isAddRoomModalOpen && renderAddRoomModal()}
 
       {deviceSetupOpen ? (
         <DeviceConnectionModal

@@ -720,7 +720,7 @@ export function FrontDeskRoomDetailPanel({
                 className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-rose-700 hover:bg-rose-800 text-white px-3.5 text-xs sm:text-sm font-black shadow-xs transition active:scale-[0.98] cursor-pointer min-h-[40px] shrink-0 whitespace-nowrap"
               >
                 <VsIcon name="payments" className="text-base" />
-                <span>Trả phòng (Check-out)</span>
+                <span>Trả phòng</span>
               </button>
             )}
             {isReservedMode && reservation && (
@@ -1573,7 +1573,7 @@ export function FrontDeskRoomDetailPanel({
                         ? "Đang nhận phòng..."
                         : isToday
                           ? "Nhận phòng ngay"
-                          : "Nhận phòng sớm (Check-in)"}
+                          : "Nhận phòng sớm"}
                     </span>
                   </button>
                 ) : (

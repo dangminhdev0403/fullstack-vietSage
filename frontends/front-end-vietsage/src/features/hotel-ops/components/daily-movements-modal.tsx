@@ -299,7 +299,7 @@ export function DailyMovementsModal({
       if (!canCheckOutStay && !canCheckoutBilling) return;
 
       const res = await showConfirmDialog({
-        title: `Trả phòng (Check-out) Phòng ${room.roomNumber || room.id}?`,
+        title: `Trả phòng Phòng ${room.roomNumber || room.id}?`,
         details: [
           { label: "Khách", value: stay.guestDisplayName },
           { label: "Hạn trả", value: formatDateTimeVi(stay.plannedCheckOutAt) },
@@ -369,7 +369,7 @@ export function DailyMovementsModal({
                   Danh sách khách đến / khách đi trong ngày
                 </h2>
                 <p className="text-xs text-slate-500 text-pretty">
-                  Theo dõi và thực hiện nhận phòng (IN), trả phòng (OUT), gán/tráo phòng hoặc chỉnh sửa thông tin đặt phòng trực tiếp.
+                  Theo dõi và thực hiện nhận phòng, trả phòng, gán/tráo phòng hoặc chỉnh sửa thông tin đặt phòng trực tiếp.
                 </p>
               </div>
 
@@ -509,7 +509,7 @@ export function DailyMovementsModal({
                     <option value="all">Tất cả tình trạng</option>
                     <option value="due_today">Chờ trả phòng hôm nay</option>
                     <option value="overdue">Quá hạn trả phòng</option>
-                    <option value="checked_out">Đã trả phòng (OUT)</option>
+                    <option value="checked_out">Đã trả phòng</option>
                   </select>
                 )}
               </div>
@@ -621,7 +621,7 @@ export function DailyMovementsModal({
                                       type="button"
                                       onClick={() => void handleQuickCheckIn(arrival)}
                                       className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white px-3 text-xs font-bold shadow-2xs transition cursor-pointer whitespace-nowrap min-h-[32px]"
-                                      title="Làm thủ tục nhận phòng (Check-in IN) nhanh"
+                                      title="Làm thủ tục nhận phòng nhanh"
                                     >
                                       <VsIcon name="login" className="text-sm" />
                                       <span>Nhận phòng</span>
@@ -875,10 +875,10 @@ export function DailyMovementsModal({
                                       type="button"
                                       onClick={() => void handleQuickCheckOut(room, stay)}
                                       className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-rose-700 hover:bg-rose-800 text-white px-3 text-xs font-bold shadow-2xs transition cursor-pointer whitespace-nowrap min-h-[32px]"
-                                      title="Thực hiện trả phòng (Check-out OUT) nhanh"
+                                      title="Thực hiện trả phòng nhanh"
                                     >
                                       <VsIcon name="logout" className="text-sm" />
-                                      <span>Trả phòng (OUT)</span>
+                                      <span>Trả phòng</span>
                                     </button>
                                   ) : null}
                                 </div>

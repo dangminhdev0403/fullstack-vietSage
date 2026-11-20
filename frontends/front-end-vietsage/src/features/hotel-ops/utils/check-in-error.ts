@@ -132,7 +132,7 @@ export function formatFriendlyCheckInError(error: unknown): string {
   }
 
   if (normalized.includes("NO_SHOW")) {
-    return "Đơn đặt phòng này đã được ghi nhận vắng mặt (No-show). Không thể nhận phòng. Vui lòng kiểm tra lại trạng thái hoặc tạo đơn mới.";
+    return "Đơn đặt phòng này đã được ghi nhận vắng mặt. Không thể nhận phòng. Vui lòng kiểm tra lại trạng thái hoặc tạo đơn mới.";
   }
 
   if (normalized.includes("IDEMPOTENT")) {

@@ -299,7 +299,7 @@ export function GroupArrivalsListModal({
                     className="inline-flex items-center gap-1.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white px-4 py-2 text-xs sm:text-sm font-bold shadow-xs transition cursor-pointer min-h-[40px] whitespace-nowrap"
                   >
                     <VsIcon name="login" className="text-base" />
-                    <span>+ Nhận phòng đoàn ngay (Walk-in)</span>
+                    <span>+ Nhận phòng đoàn ngay</span>
                   </button>
                 )}
                 {onCreateBulkReservation && (

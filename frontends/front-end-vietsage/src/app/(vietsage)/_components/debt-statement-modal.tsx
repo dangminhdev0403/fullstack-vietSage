@@ -397,7 +397,7 @@ export function DebtStatementModal({
                         colSpan={3}
                         className="px-5 py-2.5 text-right text-xs font-bold text-emerald-600 dark:text-emerald-400"
                       >
-                        Đã thanh toán (Settled):
+                        Đã thanh toán:
                       </td>
                       <td className="px-5 py-2.5 text-right font-mono font-extrabold text-emerald-600 dark:text-emerald-400">
                         -
@@ -460,7 +460,7 @@ export function DebtStatementModal({
                     </div>
                     <div>
                       <span className="text-slate-500 block">
-                        Nội dung chuyển khoản (Memo):
+                        Nội dung chuyển khoản:
                       </span>
                       <div className="flex items-center gap-2 mt-0.5">
                         <span className="font-mono font-black text-slate-900 dark:text-white bg-white dark:bg-slate-900 px-2 py-1 rounded border border-slate-300 dark:border-slate-700">

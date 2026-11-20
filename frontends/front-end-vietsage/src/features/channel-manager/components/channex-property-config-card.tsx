@@ -199,7 +199,7 @@ export function ChannexPropertyConfigCard({
                 Lưu ý:
               </span>
               <span className="leading-relaxed text-pretty">
-                Hạng phòng ({config.unpricedRoomTypes.join(", ")}) chưa có giá cơ sở trong PMS. Hệ thống sẽ tự động gán giá sàn an toàn và kích hoạt khóa bán (Stop Sell Lock) 365 ngày để bảo vệ doanh thu khách sạn.
+                Hạng phòng ({config.unpricedRoomTypes.join(", ")}) chưa có giá cơ sở trong PMS. Hệ thống sẽ tự động gán giá sàn an toàn và kích hoạt khóa bán 365 ngày để bảo vệ doanh thu khách sạn.
               </span>
             </div>
           )}

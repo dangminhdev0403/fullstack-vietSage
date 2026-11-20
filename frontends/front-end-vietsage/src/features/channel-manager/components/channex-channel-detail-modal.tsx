@@ -558,7 +558,7 @@ function ChannelDetailBody({
             <div className="flex items-center gap-2">
               <span className="text-lg">🔄</span>
               <h4 className="text-base font-bold text-[var(--on-surface)]">
-                Đồng bộ lại toàn bộ (Full Sync)
+                Đồng bộ lại toàn bộ
               </h4>
             </div>
             <p className="text-sm text-[var(--on-surface-variant)]">

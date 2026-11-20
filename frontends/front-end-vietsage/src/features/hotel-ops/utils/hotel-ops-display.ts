@@ -187,7 +187,7 @@ export function getArrivalStatusDisplay(
 
   if (arrival.status === "NO_SHOW") {
     return {
-      label: "Vắng mặt (No-show)",
+      label: "Vắng mặt",
       badgeClass: "bg-slate-100 text-slate-700 border-slate-300",
       dotClass: "bg-slate-500",
     };

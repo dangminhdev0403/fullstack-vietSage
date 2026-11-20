@@ -1316,6 +1316,7 @@ export function StaffRoomsClient({
   const [isGroupCheckInOpen, setIsGroupCheckInOpen] = useState(false);
   const [groupCheckInCode, setGroupCheckInCode] = useState<string | null>(null);
   const [groupCheckInRooms, setGroupCheckInRooms] = useState<GroupRoomItem[]>([]);
+  const [isGroupCheckInWalkIn, setIsGroupCheckInWalkIn] = useState(false);
 
   // Pre-booked Group Selection List Modal State (Hiển thị danh sách đoàn đặt trước + phân trang)
   const [isGroupListModalOpen, setIsGroupListModalOpen] = useState(false);
@@ -2141,6 +2142,7 @@ export function StaffRoomsClient({
         );
       }
 
+      setIsGroupCheckInWalkIn(false);
       setGroupCheckInCode(resolvedGroupCode);
       setGroupCheckInRooms(roomsToUse);
       setIsGroupCheckInOpen(true);
@@ -3889,7 +3891,7 @@ export function StaffRoomsClient({
             ${canCheckInStay ? `
             <button id="swal-btn-check-in-group" type="button" style="display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:10px 16px;border-radius:12px;background:#7e22ce;color:#ffffff;font-weight:700;font-size:13px;cursor:pointer;border:none;box-shadow:0 1px 3px rgba(0,0,0,0.1);transition:background 0.15s ease;">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-              <span>Làm thủ tục nhận phòng ngay (Check-in)</span>
+              <span>Làm thủ tục nhận phòng ngay</span>
             </button>
             ` : ""}
             <button id="swal-btn-print-bulk-voucher" type="button" style="display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:10px 16px;border-radius:12px;background:#1e3a8a;color:#ffffff;font-weight:700;font-size:13px;cursor:pointer;border:none;box-shadow:0 1px 3px rgba(0,0,0,0.1);transition:background 0.15s ease;">
@@ -4844,7 +4846,7 @@ export function StaffRoomsClient({
       openRoomContextPanel(room);
       void showWarningAlert(
         `Chuyển phòng cho khách phòng ${roomNum}`,
-        "Vui lòng thực hiện thủ tục chuyển phòng (Room Move) cho khách đang lưu trú sang phòng trống phù hợp.",
+        "Vui lòng thực hiện thủ tục chuyển phòng cho khách đang lưu trú sang phòng trống phù hợp.",
       );
     }
   }
@@ -6673,7 +6675,7 @@ export function StaffRoomsClient({
                       ? "bg-white text-purple-800 shadow-xs font-black border border-slate-200"
                       : "border-transparent text-slate-600 hover:text-slate-900 hover:bg-white/60"
                   }`}
-                  title="Xem dạng Kế hoạch phòng trực quan theo trục thời gian (Tape Chart)"
+                  title="Xem dạng Kế hoạch phòng trực quan theo trục thời gian"
                 >
                   <VsIcon name="calendar_view_week" className="text-sm" />
                   <span className="whitespace-nowrap">Kế hoạch phòng</span>
@@ -7345,7 +7347,7 @@ export function StaffRoomsClient({
                 </h3>
                 <p className="mt-1 text-xs text-amber-800 max-w-md mx-auto">
                   Khách sạn này áp dụng mô hình phân quyền độc quyền phòng. Vui
-                  lòng liên hệ Chủ khách sạn (Owner) để được gán phòng phụ
+                  lòng liên hệ Chủ khách sạn để được gán phòng phụ
                   trách.
                 </p>
               </div>
@@ -8550,6 +8552,7 @@ export function StaffRoomsClient({
               onMouseDown={(e) => {
                 if (e.target === e.currentTarget && !isBulkSubmitting) {
                   setIsBulkModalOpen(false);
+                  setBulkCheckInImmediately(false);
                 }
               }}
             >
@@ -8566,21 +8569,28 @@ export function StaffRoomsClient({
                           id="bulk-reservation-title"
                           className="vs-display text-lg sm:text-xl font-bold text-slate-900 text-balance"
                         >
-                          Đặt trước nhanh / Theo đoàn
+                          {bulkCheckInImmediately
+                            ? "Nhận phòng đoàn ngay"
+                            : "Đặt trước nhanh / Theo đoàn"}
                         </h2>
                         <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 whitespace-nowrap">
                           Tối đa 50 phòng
                         </span>
                       </div>
                       <p className="text-xs text-slate-500 text-pretty">
-                        Tự động gán theo loại phòng hoặc chọn từng phòng cụ thể và tùy chỉnh giá cho đoàn khách.
+                        {bulkCheckInImmediately
+                          ? "Chọn các phòng và tiến hành làm thủ tục nhận phòng ngay cho đoàn khách vừa đến."
+                          : "Tự động gán theo loại phòng hoặc chọn từng phòng cụ thể và tùy chỉnh giá cho đoàn khách."}
                       </p>
                     </div>
                   </div>
                   <button
                     type="button"
                     onClick={() => {
-                      if (!isBulkSubmitting) setIsBulkModalOpen(false);
+                      if (!isBulkSubmitting) {
+                        setIsBulkModalOpen(false);
+                        setBulkCheckInImmediately(false);
+                      }
                     }}
                     disabled={isBulkSubmitting}
                     className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
@@ -9698,7 +9708,12 @@ export function StaffRoomsClient({
                     <div className="flex items-center gap-2.5">
                       <button
                         type="button"
-                        onClick={() => setIsBulkModalOpen(false)}
+                        onClick={() => {
+                          if (!isBulkSubmitting) {
+                            setIsBulkModalOpen(false);
+                            setBulkCheckInImmediately(false);
+                          }
+                        }}
                         disabled={isBulkSubmitting}
                         className="px-4 py-2 rounded-xl border border-slate-300 text-sm font-bold text-slate-700 hover:bg-slate-100 transition min-h-[42px] cursor-pointer"
                       >
@@ -9719,12 +9734,25 @@ export function StaffRoomsClient({
                             : bulkSelectedRoomIds.size < 1 ||
                               bulkSelectedRoomIds.size > 50)
                         }
-                        className="px-5 py-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-sm font-bold text-white shadow-sm hover:shadow transition min-h-[42px] cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                        className={
+                          bulkCheckInImmediately
+                            ? "px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-sm font-bold text-white shadow-sm hover:shadow transition min-h-[42px] cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                            : "px-5 py-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-sm font-bold text-white shadow-sm hover:shadow transition min-h-[42px] cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                        }
                       >
                         {isBulkSubmitting ? (
                           <>
                             <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                             <span>Đang xử lý...</span>
+                          </>
+                        ) : bulkCheckInImmediately ? (
+                          <>
+                            <VsIcon name="how_to_reg" className="text-base" />
+                            <span>
+                              Nhận phòng đoàn ngay (
+                              {bulkMode === "auto" ? bulkTotalAutoCount : bulkSelectedRoomIds.size}{" "}
+                              phòng)
+                            </span>
                           </>
                         ) : bulkMode === "auto" ? (
                           <span>
@@ -9738,7 +9766,7 @@ export function StaffRoomsClient({
                           </span>
                         )}
                       </button>
-                      {canCheckInStay ? (
+                      {canCheckInStay && !bulkCheckInImmediately ? (
                         <button
                           type="button"
                           onClick={(e) => submitBulkReservations(e, true)}
@@ -9943,10 +9971,10 @@ export function StaffRoomsClient({
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
                           <span className="text-base font-black text-emerald-950 group-hover:text-emerald-900">
-                            Nhận phòng ngay (Check-in)
+                            Nhận phòng ngay
                           </span>
                           <span className="rounded-lg bg-emerald-700 text-white px-2.5 py-0.5 text-xs font-bold">
-                            Check-in
+                            Nhận ngay
                           </span>
                         </div>
                         <p className="mt-1 text-xs sm:text-sm text-slate-600 leading-relaxed">
@@ -9974,7 +10002,7 @@ export function StaffRoomsClient({
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
                           <span className="text-base font-black text-blue-950 group-hover:text-blue-900">
-                            Đặt phòng trước (Reservation)
+                            Đặt phòng trước
                           </span>
                           <span className="rounded-lg bg-blue-700 text-white px-2.5 py-0.5 text-xs font-bold">
                             Đặt trước
@@ -10299,27 +10327,26 @@ export function StaffRoomsClient({
         }}
         onDirectWalkInGroup={() => {
           setIsGroupListModalOpen(false);
-          const dateStr = todayYmd.replace(/-/g, "").slice(2);
-          const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
-          const newGroupCode = `GRP-WI-${dateStr}-${randomSuffix}`;
-          setGroupCheckInCode(newGroupCode);
+          setGroupCheckInCode(null);
           setGroupCheckInRooms([]);
+          setIsGroupCheckInWalkIn(true);
           setIsGroupCheckInOpen(true);
         }}
         onCreateBulkReservation={() => {
           setIsGroupListModalOpen(false);
-          openBulkReservationModal({ checkInImmediately: true });
+          openBulkReservationModal({ checkInImmediately: false });
         }}
       />
 
       {/* Dedicated Group Check-in with CCCD/Passport Verification Modal */}
-      {isGroupCheckInOpen && groupCheckInCode && (
+      {isGroupCheckInOpen && (groupCheckInCode || isGroupCheckInWalkIn) && (
         <GroupCheckInModal
           isOpen={isGroupCheckInOpen}
           onClose={() => {
             setIsGroupCheckInOpen(false);
             setGroupCheckInCode(null);
             setGroupCheckInRooms([]);
+            setIsGroupCheckInWalkIn(false);
             if (returnToDailyMovements) {
               setReturnToDailyMovements(false);
               setIsDailyMovementsOpen(true);
@@ -10327,6 +10354,7 @@ export function StaffRoomsClient({
           }}
           hotelId={hotelId}
           groupCode={groupCheckInCode}
+          isWalkIn={isGroupCheckInWalkIn}
           rooms={groupCheckInRooms}
           initialArrivals={groupArrivalsList}
           enabledFeatures={enabledFeatures}

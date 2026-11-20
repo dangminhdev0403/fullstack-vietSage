@@ -135,7 +135,7 @@ function formatReservationStatusMeta(status?: string | null): {
       };
     case "NO_SHOW":
       return {
-        label: "Vắng mặt (No-show)",
+        label: "Vắng mặt",
         badgeClass: "text-slate-700 bg-slate-100 border-slate-300",
       };
     default:
@@ -1361,7 +1361,7 @@ export function EditReservationModal({
                   className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-rose-700 hover:bg-rose-800 px-3.5 py-1.5 text-sm font-black text-white shadow-xs transition active:scale-[0.98] cursor-pointer disabled:opacity-50 whitespace-normal text-left"
                 >
                   <VsIcon name="payments" className="text-sm" />
-                  <span>Trả phòng (Check-out)</span>
+                  <span>Trả phòng</span>
                 </button>
               )}
             </div>
@@ -1385,7 +1385,7 @@ export function EditReservationModal({
                       )
                     </>
                   ) : null}{" "}
-                  chưa làm thủ tục trả phòng (Check-out).
+                  chưa làm thủ tục trả phòng.
                 </span>
               </div>
 
@@ -1404,7 +1404,7 @@ export function EditReservationModal({
                     title="Mở quyết toán & trả phòng cho khách đang ở để giải phóng phòng này"
                   >
                     <VsIcon name="payments" className="text-sm" />
-                    <span>Trả phòng (Check-out) khách cũ P.{selectedRoomNumber} ngay</span>
+                    <span>Trả phòng khách cũ P.{selectedRoomNumber} ngay</span>
                   </button>
                 )}
 

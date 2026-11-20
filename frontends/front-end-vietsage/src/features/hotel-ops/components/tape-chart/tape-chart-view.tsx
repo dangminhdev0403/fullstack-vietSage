@@ -1890,7 +1890,7 @@ const BookingDetailPanel = memo(function BookingDetailPanel({
             className="w-full sm:w-auto min-h-11 px-5 inline-flex items-center justify-center gap-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white font-bold text-base shadow-xs transition cursor-pointer"
           >
             <VsIcon name="logout" className="text-base" />
-            <span>Trả phòng (Check-out)</span>
+            <span>Trả phòng</span>
           </button>
         </div>
       )}
@@ -4697,7 +4697,7 @@ export function TapeChartView({
                       ? "bg-white text-emerald-950 font-black shadow-2xs"
                       : "font-semibold text-slate-600 hover:text-slate-900"
                   }`}
-                  title="Chế độ sơ đồ Tape Chart (Gantt)"
+                  title="Chế độ sơ đồ Tape Chart"
                 >
                   <VsIcon name="view_timeline" className="text-sm" />
                   <span>Tape Chart</span>
@@ -4710,7 +4710,7 @@ export function TapeChartView({
                       ? "bg-white text-emerald-950 font-black shadow-2xs"
                       : "font-semibold text-slate-600 hover:text-slate-900"
                   }`}
-                  title="Chế độ lưới phòng (Grid cards)"
+                  title="Chế độ lưới phòng"
                 >
                   <VsIcon name="grid_view" className="text-sm" />
                   <span>Lưới phòng</span>
@@ -5641,19 +5641,19 @@ export function TapeChartView({
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   <div className="flex items-center gap-2 p-1.5 rounded bg-sky-50 text-sky-950 font-bold border border-sky-200">
                     <span className="size-2 rounded-full bg-sky-600" />
-                    <span>Đang ở (Stay)</span>
+                    <span>Đang ở</span>
                   </div>
                   <div className="flex items-center gap-2 p-1.5 rounded bg-purple-50 text-purple-950 font-bold border border-purple-200">
                     <span className="size-2 rounded-full bg-purple-600" />
-                    <span>Đặt trước (Reservation)</span>
+                    <span>Đặt trước</span>
                   </div>
                   <div className="flex items-center gap-2 p-1.5 rounded bg-amber-50 text-amber-950 font-bold border border-amber-200">
                     <span className="size-2 rounded-full bg-amber-500" />
-                    <span>Chờ dọn (Cleaning)</span>
+                    <span>Chờ dọn</span>
                   </div>
                   <div className="flex items-center gap-2 p-1.5 rounded bg-rose-50 text-rose-950 font-bold border border-rose-200">
                     <span className="size-2 rounded-full bg-rose-600" />
-                    <span>Quá hạn trả (Overdue)</span>
+                    <span>Quá hạn trả</span>
                   </div>
                   <div className="flex items-center gap-2 p-1.5 rounded bg-slate-100 text-slate-800 font-bold border border-slate-300">
                     <span className="size-2 rounded-full bg-slate-500" />

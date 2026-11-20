@@ -115,7 +115,7 @@ export default async function StaffRoomsPage({
           </h2>
           <p className="mt-2 text-sm text-amber-800 max-w-md mx-auto">
             Khách sạn này áp dụng mô hình phân quyền độc quyền phòng. Vui lòng
-            liên hệ Chủ khách sạn (Owner) để được gán phòng phụ trách trước khi
+            liên hệ Chủ khách sạn để được gán phòng phụ trách trước khi
             thao tác sơ đồ phòng và lưu trú.
           </p>
         </section>

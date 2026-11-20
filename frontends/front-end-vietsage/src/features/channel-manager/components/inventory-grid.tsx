@@ -1496,7 +1496,7 @@ export function InventoryGrid({
                                 >
                                   {isAutoStopSell && (
                                     <div
-                                      title="Tự động đóng bán (Stop Sell Lock) do phòng đang dùng giá sàn tạm để bảo vệ doanh thu"
+                                      title="Tự động đóng bán do phòng đang dùng giá sàn tạm để bảo vệ doanh thu"
                                       className="mb-1.5 whitespace-nowrap text-xs font-bold inline-flex items-center gap-1 text-amber-900 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded-md"
                                     >
                                       <VsIcon
@@ -1550,7 +1550,7 @@ export function InventoryGrid({
                                 >
                                   {isAutoStopSell && (
                                     <div
-                                      title="Tự động đóng bán (Stop Sell Lock) do phòng đang dùng giá sàn tạm để bảo vệ doanh thu"
+                                      title="Tự động đóng bán do phòng đang dùng giá sàn tạm để bảo vệ doanh thu"
                                       className="mb-1.5 whitespace-nowrap text-xs font-bold inline-flex items-center gap-1 text-amber-900 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded-md"
                                     >
                                       <VsIcon
@@ -1614,7 +1614,7 @@ export function InventoryGrid({
                               >
                                 {isAutoStopSell && (
                                   <div
-                                    title="Tự động đóng bán (Stop Sell Lock) do phòng đang dùng giá sàn tạm để bảo vệ doanh thu. Đặt giá thật hoặc nhấp Mở bán để mở phòng."
+                                    title="Tự động đóng bán do phòng đang dùng giá sàn tạm để bảo vệ doanh thu. Đặt giá thật hoặc nhấp Mở bán để mở phòng."
                                     className="mb-1.5 whitespace-nowrap text-xs font-bold inline-flex items-center gap-1 text-amber-900 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded-md"
                                   >
                                     <VsIcon

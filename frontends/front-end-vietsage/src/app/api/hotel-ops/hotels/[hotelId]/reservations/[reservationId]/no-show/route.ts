@@ -19,7 +19,7 @@ export async function POST(request: Request, context: Params) {
       hotelOpsService.markNoShowReservation(hotelId, reservationId, body, accessToken),
     );
     if (data instanceof Response) return data;
-    return successResponse(data, 200, "Đã ghi nhận khách vắng mặt (No-show)");
+    return successResponse(data, 200, "Đã ghi nhận khách vắng mặt");
   } catch (error) {
     return error instanceof HttpError ? hotelOpsHttpErrorResponse(error) : unknownServerErrorResponse();
   }

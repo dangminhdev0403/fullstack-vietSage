@@ -62,7 +62,7 @@ function showRunCompletionAlert(run: {
       <div class="rounded-2xl border border-slate-200/90 bg-slate-50/80 p-4 sm:p-5 text-sm sm:text-base text-slate-700 space-y-3.5 shadow-2xs">
         <div class="flex items-center justify-between gap-3">
           <span class="font-medium text-slate-600">Chế độ gửi:</span>
-          <span class="font-bold text-slate-900">${run.dryRun ? "Chạy thử (Dry-run)" : "Gửi thật lên BCA"}</span>
+          <span class="font-bold text-slate-900">${run.dryRun ? "Chạy thử" : "Gửi thật lên BCA"}</span>
         </div>
         <div class="flex items-center justify-between gap-3">
           <span class="font-medium text-slate-600">Trạng thái:</span>

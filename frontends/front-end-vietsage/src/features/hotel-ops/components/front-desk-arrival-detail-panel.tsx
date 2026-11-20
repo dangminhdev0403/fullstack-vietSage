@@ -540,7 +540,7 @@ export function FrontDeskArrivalDetailPanel({
       input: "select",
       inputLabel: "Lý do hủy",
       inputOptions: {
-        NO_SHOW: "Khách không đến (No-show)",
+        NO_SHOW: "Khách không đến",
         GUEST_CANCELLED: "Khách báo hủy",
       },
       inputPlaceholder: "Chọn lý do hủy",
@@ -560,7 +560,7 @@ export function FrontDeskArrivalDetailPanel({
         }
         const details = SwalVietSage.getPopup()
           ?.querySelector<HTMLTextAreaElement>("[data-cancel-reason]")?.value.trim();
-        const label = reasonKind === "NO_SHOW" ? "Khách không đến (No-show)" : "Khách báo hủy";
+        const label = reasonKind === "NO_SHOW" ? "Khách không đến" : "Khách báo hủy";
         const reason = details ? `${label}: ${details}` : label;
         if (reason.length > 500) {
           SwalVietSage.showValidationMessage("Lý do hủy tối đa 500 ký tự.");
@@ -726,7 +726,7 @@ export function FrontDeskArrivalDetailPanel({
                   </span>
                 ) : arrival.status === "NO_SHOW" ? (
                   <span className="rounded-lg bg-slate-100 text-slate-800 border border-slate-300 px-3 py-1 text-sm font-black uppercase tracking-wider whitespace-nowrap">
-                    Vắng mặt (No-show)
+                    Vắng mặt
                   </span>
                 ) : arrival.status === "CHECKED_IN" ? (
                   <span className="rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-300 px-3 py-1 text-sm font-black uppercase tracking-wider whitespace-nowrap">
@@ -1062,7 +1062,7 @@ export function FrontDeskArrivalDetailPanel({
                         </h4>
                         <p className="text-xs text-slate-600 mt-0.5 text-pretty">
                           {isAssignedRoomOccupiedConflict
-                            ? `Phòng đang có khách lưu trú${assignedRoomConflictStay?.guestName ? ` (${assignedRoomConflictStay.guestName})` : ""} chưa làm thủ tục trả phòng (Check-out).`
+                            ? `Phòng đang có khách lưu trú${assignedRoomConflictStay?.guestName ? ` (${assignedRoomConflictStay.guestName})` : ""} chưa làm thủ tục trả phòng.`
                             : isAssignedRoomCleaningConflict
                               ? "Phòng khách cũ vừa trả, đang ở trạng thái chờ buồng phòng dọn sạch."
                               : `Sức chứa: ${assignedRoomLive?.maxOccupancy ? `${assignedRoomLive.maxOccupancy} khách` : "—"}.`}
@@ -1121,7 +1121,7 @@ export function FrontDeskArrivalDetailPanel({
                           className="inline-flex items-center gap-1.5 rounded-xl bg-rose-700 hover:bg-rose-800 px-3.5 py-2 text-xs font-black text-white shadow-xs transition cursor-pointer whitespace-nowrap"
                         >
                           <VsIcon name="payments" className="text-sm" />
-                          <span>Trả phòng (Check-out) P.{arrival.room?.roomNumber || ""} ngay</span>
+                          <span>Trả phòng P.{arrival.room?.roomNumber || ""} ngay</span>
                         </button>
                       )}
 
@@ -1590,7 +1590,7 @@ export function FrontDeskArrivalDetailPanel({
               ) : arrival.status === "NO_SHOW" ? (
                 <div className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl bg-slate-100 px-4 py-2 text-slate-800 text-sm font-bold border border-slate-300 whitespace-nowrap">
                   <VsIcon name="person_off" className="text-base text-slate-600" />
-                  <span>Vắng mặt (No-show)</span>
+                  <span>Vắng mặt</span>
                 </div>
               ) : arrival.status === "CHECKED_IN" ? (
                 <div className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl bg-emerald-50 px-4 py-2 text-emerald-800 text-sm font-bold border border-emerald-300 whitespace-nowrap">
@@ -1611,7 +1611,7 @@ export function FrontDeskArrivalDetailPanel({
                         ? "Đang nhận phòng..."
                         : isToday
                           ? "Nhận phòng ngay"
-                          : "Nhận phòng sớm (Check-in)"}
+                          : "Nhận phòng sớm"}
                     </span>
                   </button>
                 ) : (
