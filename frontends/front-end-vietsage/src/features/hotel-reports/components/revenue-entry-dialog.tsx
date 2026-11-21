@@ -15,9 +15,8 @@ import type {
 } from "../types/revenue-book-contract";
 import { RevenueBookDialog } from "./revenue-book-dialog";
 
-export const REVENUE_CATEGORIES: Record<RevenueCategory, string> = {
+export const REVENUE_CATEGORIES: Partial<Record<RevenueCategory, string>> = {
   ROOM: "Tiền phòng",
-  MINIBAR: "Minibar / Nước uống",
   LAUNDRY: "Giặt ủi",
   OTHER: "Dịch vụ khác",
 };

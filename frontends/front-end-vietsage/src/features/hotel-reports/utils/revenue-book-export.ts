@@ -82,13 +82,22 @@ export function buildActivities(book: RevenueBook): Activity[] {
   return activities.sort((left, right) => left.date.localeCompare(right.date) || (left.entry.roomNumber ?? "").localeCompare(right.entry.roomNumber ?? "", "vi", { numeric: true }) || left.entry.id.localeCompare(right.entry.id));
 }
 
-function sheetXml(book: RevenueBook): string {
+function sheetXml(
+  book: RevenueBook,
+  overrides?: {
+    descriptionsByRow?: Record<string, string>;
+    notesByRow?: Record<string, string>;
+    deletedRowKeys?: string[];
+    valuesByCell?: Record<string, number>;
+    textOverrides?: Record<string, string>;
+  },
+): string {
   const rows: string[] = [];
   const merges = [
-    "A1:S1", "A2:S2", "A3:S3", "A4:P4", "R4:S4", "A5:P5", "R5:S5",
-    "F6:J6", "K6:N6",
-    "L7:N7",
-    "M8:N8",
+    "A1:R1", "A2:R2", "A3:R3", "A4:O4", "Q4:R4", "A5:O5", "Q5:R5",
+    "F6:I6", "J6:M6",
+    "K7:M7",
+    "L8:M8",
   ];
   let rowNumber = 0;
   const addRow = (values: Cell[], total = false, height?: number) => {
@@ -104,41 +113,41 @@ function sheetXml(book: RevenueBook): string {
   title(book.hotelName.toLocaleUpperCase("vi-VN"));
   title(periodTitle(book.from, book.to), 30);
   title(`Từ ${dateLabel(book.from)} đến ${dateLabel(book.to)} · ${book.currency}`, 22);
-  addRow(["Công nợ đầu kỳ", ...Array<null>(15).fill(null), book.summary.openingBalance, book.currency], true);
-  addRow(["Điều chỉnh công nợ không qua thu tiền", ...Array<null>(15).fill(null), book.summary.balanceAdjustment, "", ""], true);
+  addRow(["Công nợ đầu kỳ", ...Array<null>(14).fill(null), book.summary.openingBalance, book.currency], true);
+  addRow(["Điều chỉnh công nợ không qua thu tiền", ...Array<null>(14).fill(null), book.summary.balanceAdjustment, "", ""], true);
   const headers: Cell[][] = [
     [
       "TT", "Ngày/Tháng", "Số phòng", "Số chứng từ (Hóa đơn/Phiếu thu)", "Diễn giải",
-      "Doanh thu", null, null, null, null,
+      "Doanh thu", null, null, null,
       "Khách hàng thanh toán", null, null, null,
       "Tổng tiền thanh toán", "Thanh toán khác", "Còn nợ", "Khai báo", "Ghi chú",
     ],
     [
       null, null, null, null, null,
-      "Doanh thu Tiền phòng", "Doanh thu Minibar/Nước uống", "Doanh thu Giặt ủi", "Doanh thu Dịch vụ khác", "Tổng doanh thu hằng ngày",
+      "Doanh thu Tiền phòng", "Doanh thu Giặt ủi", "Doanh thu Dịch vụ khác", "Tổng doanh thu hằng ngày",
       "Ngày tháng thanh toán", "Số tiền", null, null,
       null, null, null, null, null,
     ],
     [
       null, null, null, null, null,
-      null, null, null, null, null,
+      null, null, null, null,
       null, "Tiền mặt", "Chuyển khoản", null,
       null, null, null, null, null,
     ],
     [
       null, null, null, null, null,
-      null, null, null, null, null,
+      null, null, null, null,
       null, null, "Giờ CK", "Số tiền",
       null, null, null, null, null,
     ],
   ];
   for (const values of headers) {
     rowNumber++;
-    rows.push(`<row r="${rowNumber}" ht="30" customHeight="1">${Array.from({ length: 19 }, (_, index) => `<c r="${columns[index]}${rowNumber}" s="2" t="inlineStr"><is><t>${escapeXml(String(values[index] ?? ""))}</t></is></c>`).join("")}</row>`);
+    rows.push(`<row r="${rowNumber}" ht="30" customHeight="1">${Array.from({ length: 18 }, (_, index) => `<c r="${columns[index]}${rowNumber}" s="2" t="inlineStr"><is><t>${escapeXml(String(values[index] ?? ""))}</t></is></c>`).join("")}</row>`);
   }
-  for (const column of ["A", "B", "C", "D", "E", "O", "P", "Q", "R", "S"]) merges.push(`${column}6:${column}9`);
-  for (const column of ["F", "G", "H", "I", "J", "K"]) merges.push(`${column}7:${column}9`);
-  merges.push("L8:L9");
+  for (const column of ["A", "B", "C", "D", "E", "N", "O", "P", "Q", "R"]) merges.push(`${column}6:${column}9`);
+  for (const column of ["F", "G", "H", "I", "J"]) merges.push(`${column}7:${column}9`);
+  merges.push("K8:K9");
 
   let date = "";
   let dayRevenue = emptyRevenue();
@@ -148,7 +157,7 @@ function sheetXml(book: RevenueBook): string {
   let sequence = 0;
   const subtotal = () => {
     if (!date) return;
-    const r = addRow([`Cộng ngày ${dateLabel(date)}`, null, null, null, null, dayRevenue.roomRevenue, dayRevenue.minibarRevenue, dayRevenue.laundryRevenue, dayRevenue.otherRevenue, dayRevenue.revenueTotal, null, dayCash, null, dayBank, addMoney(addMoney(dayCash, dayBank), dayOther), dayOther], true);
+    const r = addRow([`Cộng ngày ${dateLabel(date)}`, null, null, null, null, dayRevenue.roomRevenue, dayRevenue.laundryRevenue, dayRevenue.otherRevenue, dayRevenue.revenueTotal, null, dayCash, null, dayBank, addMoney(addMoney(dayCash, dayBank), dayOther), dayOther], true);
     merges.push(`A${r}:E${r}`);
   };
   for (const activity of buildActivities(book)) {
@@ -164,25 +173,51 @@ function sheetXml(book: RevenueBook): string {
     const bank = collection?.method === "BANK_TRANSFER" ? paid : 0;
     const other = collection && collection.method !== "CASH" && collection.method !== "BANK_TRANSFER" ? paid : 0;
     const local = collection ? localParts(collection.receivedAt, book.timeZone) : null;
-    const notes = [entry.notes, !activity.date ? "Số dư chuyển sang" : null, entry.voidedAt ? "Đã hủy khoản phát sinh" : null, collection?.reference ? `Tham chiếu: ${collection.reference}` : null].filter(Boolean).join("; ");
+    const rowKey = `${entry.id}_${activity.date}_${collection?.id ?? "rev"}`;
+    if (overrides?.deletedRowKeys?.includes(rowKey)) {
+      continue;
+    }
+    const customDesc = overrides?.descriptionsByRow?.[`${book.hotelId}:${rowKey}`];
+    const customNote = overrides?.notesByRow?.[`${book.hotelId}:${rowKey}`];
+    const effectiveRoom = overrides?.textOverrides?.[`${book.hotelId}:roomNumber:${rowKey}`] ?? entry.roomNumber;
+    const effectiveDoc = overrides?.textOverrides?.[`${book.hotelId}:docNumber:${rowKey}`] ?? entry.documentNumber;
+    const effectivePaymentDate = overrides?.textOverrides?.[`${book.hotelId}:paymentDate:${rowKey}`] ?? (local ? dateLabel(local.date) : null);
+    const effectiveBankTime = overrides?.textOverrides?.[`${book.hotelId}:bankTime:${rowKey}`] ?? (bank ? local?.time : null);
+
+    const roomRev = overrides?.valuesByCell?.[`${book.hotelId}:room:${rowKey}`] ?? revenue?.roomRevenue ?? 0;
+    const laundryRev = overrides?.valuesByCell?.[`${book.hotelId}:laundry:${rowKey}`] ?? revenue?.laundryRevenue ?? 0;
+    const otherRev = overrides?.valuesByCell?.[`${book.hotelId}:other:${rowKey}`] ?? revenue?.otherRevenue ?? 0;
+    const totalRev = addMoney(addMoney(roomRev, laundryRev), otherRev);
+
+    const cashPaid = overrides?.valuesByCell?.[`${book.hotelId}:cash:${rowKey}`] ?? cash;
+    const bankPaid = overrides?.valuesByCell?.[`${book.hotelId}:bank:${rowKey}`] ?? bank;
+    const otherPaid = overrides?.valuesByCell?.[`${book.hotelId}:otherPayment:${rowKey}`] ?? other;
+    const totalPaid = addMoney(addMoney(cashPaid, bankPaid), otherPaid);
+
+    const notes = [customNote ?? entry.notes, !activity.date ? "Số dư chuyển sang" : null, entry.voidedAt ? "Đã hủy khoản phát sinh" : null, collection?.reference ? `Tham chiếu: ${collection.reference}` : null].filter(Boolean).join("; ");
     addRow([
-      ++sequence, activity.date ? dateLabel(activity.date) : null, entry.roomNumber, entry.documentNumber, entry.description,
-      revenue?.roomRevenue, revenue?.minibarRevenue, revenue?.laundryRevenue, revenue?.otherRevenue, revenue?.revenueTotal,
-      local ? dateLabel(local.date) : null, collection ? cash : null, bank ? local?.time : null, collection ? bank : null,
-      collection ? paid : null, collection ? other : null, activity.closing,
+      ++sequence, activity.date ? dateLabel(activity.date) : null, effectiveRoom, effectiveDoc, customDesc ?? entry.description,
+      revenue ? roomRev : null, revenue ? laundryRev : null, revenue ? otherRev : null, revenue ? totalRev : null,
+      effectivePaymentDate, collection || cashPaid > 0 ? cashPaid : null, effectiveBankTime, collection || bankPaid > 0 ? bankPaid : null,
+      collection || totalPaid > 0 ? totalPaid : null, collection || otherPaid > 0 ? otherPaid : null, activity.closing,
       entry.declarationStatus ? declarationLabels[entry.declarationStatus] ?? "Chưa xác định" : null, notes,
     ]);
-    if (revenue) for (const key of Object.keys(dayRevenue) as Array<keyof Revenue>) dayRevenue[key] = addMoney(dayRevenue[key], revenue[key]);
-    dayCash = addMoney(dayCash, cash);
-    dayBank = addMoney(dayBank, bank);
-    dayOther = addMoney(dayOther, other);
+    if (revenue) {
+      dayRevenue.roomRevenue = addMoney(dayRevenue.roomRevenue, roomRev);
+      dayRevenue.laundryRevenue = addMoney(dayRevenue.laundryRevenue, laundryRev);
+      dayRevenue.otherRevenue = addMoney(dayRevenue.otherRevenue, otherRev);
+      dayRevenue.revenueTotal = addMoney(dayRevenue.revenueTotal, totalRev);
+    }
+    dayCash = addMoney(dayCash, cashPaid);
+    dayBank = addMoney(dayBank, bankPaid);
+    dayOther = addMoney(dayOther, otherPaid);
   }
   subtotal();
   const s = book.summary;
-  const totalRow = addRow(["TỔNG KỲ", null, null, null, null, s.roomRevenue, s.minibarRevenue, s.laundryRevenue, s.otherRevenue, s.revenueTotal, null, s.cashTotal, null, s.bankTransferTotal, s.collectedTotal, s.otherCollectedTotal, s.closingBalance], true, 28);
+  const totalRow = addRow(["TỔNG KỲ", null, null, null, null, s.roomRevenue, s.laundryRevenue, s.otherRevenue, s.revenueTotal, null, s.cashTotal, null, s.bankTransferTotal, s.collectedTotal, s.otherCollectedTotal, s.closingBalance], true, 28);
   merges.push(`A${totalRow}:E${totalRow}`);
-  const widths = [6, 14, 12, 26, 38, 18, 18, 18, 18, 20, 18, 18, 12, 18, 20, 18, 20, 18, 38];
-  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><dimension ref="A1:S${rowNumber}"/><sheetViews><sheetView workbookViewId="0"><pane ySplit="9" topLeftCell="A10" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><sheetFormatPr defaultRowHeight="24"/><cols>${widths.map((width, index) => `<col min="${index + 1}" max="${index + 1}" width="${width}" customWidth="1"/>`).join("")}</cols><sheetData>${rows.join("")}</sheetData><mergeCells count="${merges.length}">${merges.map((ref) => `<mergeCell ref="${ref}"/>`).join("")}</mergeCells><printOptions horizontalCentered="1"/><pageMargins left="0.25" right="0.25" top="0.4" bottom="0.4" header="0.2" footer="0.2"/><pageSetup paperSize="8" orientation="landscape" fitToWidth="1" fitToHeight="0"/></worksheet>`;
+  const widths = [6, 14, 12, 26, 38, 18, 18, 18, 20, 18, 18, 12, 18, 20, 18, 20, 18, 38];
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><dimension ref="A1:R${rowNumber}"/><sheetViews><sheetView workbookViewId="0"><pane ySplit="9" topLeftCell="A10" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><sheetFormatPr defaultRowHeight="24"/><cols>${widths.map((width, index) => `<col min="${index + 1}" max="${index + 1}" width="${width}" customWidth="1"/>`).join("")}</cols><sheetData>${rows.join("")}</sheetData><mergeCells count="${merges.length}">${merges.map((ref) => `<mergeCell ref="${ref}"/>`).join("")}</mergeCells><printOptions horizontalCentered="1"/><pageMargins left="0.25" right="0.25" top="0.4" bottom="0.4" header="0.2" footer="0.2"/><pageSetup paperSize="8" orientation="landscape" fitToWidth="1" fitToHeight="0"/></worksheet>`;
 }
 
 const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="1"><numFmt numFmtId="164" formatCode="#,##0.00;[Red]-#,##0.00"/></numFmts><fonts count="3"><font><sz val="12"/><name val="Times New Roman"/></font><font><b/><sz val="16"/><name val="Times New Roman"/></font><font><b/><sz val="12"/><name val="Times New Roman"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFE2E8F0"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"><color rgb="FFCBD5E1"/></left><right style="thin"><color rgb="FFCBD5E1"/></right><top style="thin"><color rgb="FFCBD5E1"/></top><bottom style="thin"><color rgb="FFCBD5E1"/></bottom><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="7"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="0" fontId="2" fillId="2" borderId="1" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf numFmtId="164" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyAlignment="1"><alignment horizontal="right" vertical="top"/></xf><xf numFmtId="0" fontId="2" fillId="2" borderId="1" xfId="0" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf><xf numFmtId="164" fontId="2" fillId="2" borderId="1" xfId="0" applyNumberFormat="1" applyAlignment="1"><alignment horizontal="right" vertical="center"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
@@ -230,19 +265,37 @@ function zip(parts: Record<string, string>): Uint8Array {
   return result;
 }
 
-export function buildRevenueBookWorkbook(book: RevenueBook): Uint8Array {
+export function buildRevenueBookWorkbook(
+  book: RevenueBook,
+  overrides?: {
+    descriptionsByRow?: Record<string, string>;
+    notesByRow?: Record<string, string>;
+    deletedRowKeys?: string[];
+    valuesByCell?: Record<string, number>;
+    textOverrides?: Record<string, string>;
+  },
+): Uint8Array {
   return zip({
     "[Content_Types].xml": '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>',
     "_rels/.rels": '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>',
     "xl/workbook.xml": '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Sổ doanh thu" sheetId="1" r:id="rId1"/></sheets><definedNames><definedName name="_xlnm.Print_Titles" localSheetId="0">\'Sổ doanh thu\'!$1:$9</definedName></definedNames></workbook>',
     "xl/_rels/workbook.xml.rels": '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>',
     "xl/styles.xml": styles,
-    "xl/worksheets/sheet1.xml": sheetXml(book),
+    "xl/worksheets/sheet1.xml": sheetXml(book, overrides),
   });
 }
 
-export function exportRevenueBook(book: RevenueBook): void {
-  const bytes = new Uint8Array(buildRevenueBookWorkbook(book));
+export function exportRevenueBook(
+  book: RevenueBook,
+  overrides?: {
+    descriptionsByRow?: Record<string, string>;
+    notesByRow?: Record<string, string>;
+    deletedRowKeys?: string[];
+    valuesByCell?: Record<string, number>;
+    textOverrides?: Record<string, string>;
+  },
+): void {
+  const bytes = new Uint8Array(buildRevenueBookWorkbook(book, overrides));
   const url = URL.createObjectURL(new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
   const anchor = document.createElement("a");
   anchor.href = url;

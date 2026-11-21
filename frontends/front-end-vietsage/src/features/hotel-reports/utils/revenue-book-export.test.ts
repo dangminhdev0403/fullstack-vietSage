@@ -83,7 +83,7 @@ test("builds a real OOXML ZIP workbook with numeric money, merged revenue ledger
   assert.match(parts.get("_rels/.rels")!, /Target="xl\/workbook.xml"/);
   assert.match(parts.get("xl/workbook.xml")!, /name="Sổ doanh thu"/);
   const sheet = parts.get("xl/worksheets/sheet1.xml")!;
-  assert.match(sheet, /mergeCell ref="F6:J6"/);
+  assert.match(sheet, /mergeCell ref="F6:I6"/);
   assert.match(sheet, /pane ySplit="9"/);
   assert.match(sheet, /orientation="landscape"/);
   assert.match(sheet, /Còn nợ/);
@@ -96,19 +96,19 @@ test("allocates revenue and receipts to their actual dates without duplicating m
   const rows = rowsOf(book());
   const details = rows.filter((row) => typeof row.A === "number");
   assert.equal(details.length, 3);
-  assert.equal(details.reduce((sum, row) => sum + Number(row.J ?? 0), 0), 1000);
-  assert.equal(details.reduce((sum, row) => sum + Number(row.O ?? 0), 0), 500);
-  assert.equal(details.filter((row) => row.Q !== undefined).length, 1, "Closing account balance appears once");
-  assert.deepEqual(details.map((row) => [row.B, row.J ?? 0, row.O ?? 0]), [
+  assert.equal(details.reduce((sum, row) => sum + Number(row.I ?? 0), 0), 1000);
+  assert.equal(details.reduce((sum, row) => sum + Number(row.N ?? 0), 0), 500);
+  assert.equal(details.filter((row) => row.P !== undefined).length, 1, "Closing account balance appears once");
+  assert.deepEqual(details.map((row) => [row.B, row.I ?? 0, row.N ?? 0]), [
     ["01/10/2026", 500, 0], ["02/10/2026", 500, 300], ["03/10/2026", 0, 200],
   ]);
-  assert.equal(details[1].K, "02/10/2026");
-  assert.equal(details[1].M, "00:30", "Transfer time uses hotel time, crossing UTC midnight");
+  assert.equal(details[1].J, "02/10/2026");
+  assert.equal(details[1].L, "00:30", "Transfer time uses hotel time, crossing UTC midnight");
   const daily = rows.filter((row) => String(row.A).startsWith("Cộng ngày"));
-  assert.deepEqual(daily.map((row) => [row.A, row.J, row.O]), [
+  assert.deepEqual(daily.map((row) => [row.A, row.I, row.N]), [
     ["Cộng ngày 01/10/2026", 500, 0], ["Cộng ngày 02/10/2026", 500, 300], ["Cộng ngày 03/10/2026", 0, 200],
   ]);
-  assert.equal(rows.find((row) => row.A === "TỔNG KỲ")!.Q, 500);
+  assert.equal(rows.find((row) => row.A === "TỔNG KỲ")!.P, 500);
 });
 
 test("multiple same-day receipts retain one revenue row and exact cent totals", () => {
@@ -122,16 +122,16 @@ test("multiple same-day receipts retain one revenue row and exact cent totals", 
   const rows = rowsOf(book([entry]));
   const details = rows.filter((row) => typeof row.A === "number");
   assert.equal(details.length, 2);
-  assert.equal(details.filter((row) => row.J !== undefined).length, 1);
-  assert.equal(details[1].P, 0.2, "Card payment remains an explicit other payment");
-  assert.equal(rows.find((row) => String(row.A).startsWith("Cộng ngày"))!.O, 0.3);
+  assert.equal(details.filter((row) => row.I !== undefined).length, 1);
+  assert.equal(details[1].O, 0.2, "Card payment remains an explicit other payment");
+  assert.equal(rows.find((row) => String(row.A).startsWith("Cộng ngày"))!.N, 0.3);
 });
 
 test("declaration status uses Vietnamese labels with a safe unknown fallback and blank null", () => {
   for (const [status, label] of [["SUBMITTED", "Đã khai báo"], ["READY", "Chờ gửi"], ["FUTURE_STATUS", "Chưa xác định"], [null, undefined]] as const) {
     const details = rowsOf(book([account({ declarationStatus: status })])).filter((row) => typeof row.A === "number");
     assert.ok(details.length > 0);
-    assert.ok(details.every((row) => row.R === label), `Status ${status} should display ${label}`);
+    assert.ok(details.every((row) => row.Q === label), `Status ${status} should display ${label}`);
   }
 });
 
@@ -144,11 +144,11 @@ test("old-debt collections do not become revenue and carry-only accounts keep an
   report.summary = { ...report.summary, revenueTotal: 0, roomRevenue: 0, collectedTotal: 60, cashTotal: 60, bankTransferTotal: 0, openingBalance: 150, closingBalance: 90 };
   const rows = rowsOf(report);
   const details = rows.filter((row) => typeof row.A === "number");
-  assert.equal(details.reduce((sum, row) => sum + Number(row.J ?? 0), 0), 0);
-  assert.equal(details.find((row) => row.O === 60)!.B, "05/10/2026");
-  assert.equal(details.find((row) => row.Q === 50)!.B, undefined);
-  assert.equal(rows.find((row) => row.A === "Công nợ đầu kỳ")!.Q, 150);
-  assert.equal(rows.find((row) => row.A === "TỔNG KỲ")!.Q, 90);
+  assert.equal(details.reduce((sum, row) => sum + Number(row.I ?? 0), 0), 0);
+  assert.equal(details.find((row) => row.N === 60)!.B, "05/10/2026");
+  assert.equal(details.find((row) => row.P === 50)!.B, undefined);
+  assert.equal(rows.find((row) => row.A === "Công nợ đầu kỳ")!.P, 150);
+  assert.equal(rows.find((row) => row.A === "TỔNG KỲ")!.P, 90);
 });
 
 test("untrusted names remain escaped inline strings and cannot inject formulas or XML", () => {
@@ -166,7 +166,7 @@ test("exports empty periods and credits using authoritative summary balances", (
   report.summary = { roomRevenue: 0, minibarRevenue: 0, laundryRevenue: 0, otherRevenue: 0, revenueTotal: 0, collectedTotal: 0, cashTotal: 0, bankTransferTotal: 0, otherCollectedTotal: 0, openingBalance: -500, closingBalance: -500, balanceAdjustment: 0 };
   const rows = rowsOf(report);
   assert.equal(rows.filter((row) => typeof row.A === "number").length, 0);
-  assert.equal(rows.find((row) => row.A === "TỔNG KỲ")!.Q, -500);
+  assert.equal(rows.find((row) => row.A === "TỔNG KỲ")!.P, -500);
 });
 
 test("rejects invalid numeric money instead of emitting a broken workbook", () => {

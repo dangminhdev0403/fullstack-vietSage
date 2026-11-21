@@ -3,16 +3,6 @@
 import Link from "next/link";
 import { useMemo, useState, type FormEvent } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import {
-  flexRender,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  useReactTable,
-  type ColumnDef,
-  type SortingState,
-} from "@tanstack/react-table";
 import { HttpError } from "@/core/http/http-error";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import {
@@ -43,9 +33,6 @@ function money(amount: number, currency = "VND") {
     minimumFractionDigits: currency === "VND" ? 0 : 2,
     maximumFractionDigits: 2,
   }).format(amount);
-}
-function dateLabel(value: string) {
-  return value.split("-").reverse().join("/");
 }
 function errorMessage(error: unknown) {
   if (error instanceof HttpError && error.status >= 500)
@@ -84,10 +71,6 @@ export function RevenueBookWorkspace({ hotelId }: { hotelId: string }) {
     setTo(null);
   }
   const [filter, setFilter] = useState("");
-  const [viewMode, setViewMode] = useState<"grid" | "compact">("grid");
-  const [sorting, setSorting] = useState<SortingState>([
-    { id: "date", desc: true },
-  ]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editor, setEditor] = useState<{
     mode: "create" | "edit" | "collect";
@@ -96,89 +79,7 @@ export function RevenueBookWorkspace({ hotelId }: { hotelId: string }) {
   const [exporting, setExporting] = useState(false);
   const [rangeError, setRangeError] = useState("");
   const selected = book?.entries.find((entry) => entry.id === selectedId);
-  const entries = useMemo(() => book?.entries ?? [], [book]);
   const currency = book?.currency ?? "VND";
-  const columns = useMemo<ColumnDef<RevenueBookEntry>[]>(
-    () => [
-      {
-        accessorKey: "date",
-        header: "Ngày",
-        cell: ({ getValue }) => dateLabel(getValue<string>()),
-      },
-      {
-        accessorKey: "roomNumber",
-        header: "Phòng",
-        cell: ({ getValue }) => getValue<string | null>() || "—",
-      },
-      {
-        accessorKey: "description",
-        header: "Khoản phát sinh",
-        cell: ({ row }) => (
-          <button
-            type="button"
-            onClick={() => setSelectedId(row.original.id)}
-            className="min-h-11 text-left font-medium text-[var(--primary)] underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
-          >
-            <span className="block max-w-sm break-words">
-              {row.original.description}
-            </span>
-            {row.original.source === "MANUAL" && (
-              <span className="block text-sm font-normal text-[var(--on-surface-variant)]">
-                {row.original.voidedAt ? "Đã hủy" : "Bổ sung"}
-              </span>
-            )}
-          </button>
-        ),
-      },
-      {
-        accessorKey: "revenueTotal",
-        header: "Phát sinh trong kỳ",
-        cell: ({ getValue }) => money(getValue<number>(), currency),
-      },
-      {
-        id: "collected",
-        accessorFn: (entry) =>
-          entry.collections.reduce((sum, payment) => sum + payment.amount, 0),
-        header: "Đã thu trong kỳ",
-        cell: ({ getValue }) => money(getValue<number>(), currency),
-      },
-      {
-        accessorKey: "closingBalance",
-        header: "Số dư cuối kỳ",
-        cell: ({ getValue }) => money(getValue<number>(), currency),
-      },
-    ],
-    [currency],
-  );
-  const table = useReactTable({
-    data: entries,
-    columns,
-    state: { sorting, globalFilter: filter },
-    onSortingChange: setSorting,
-    onGlobalFilterChange: setFilter,
-    globalFilterFn: (row, _column, value: string) =>
-      `${row.original.description} ${row.original.roomNumber ?? ""} ${row.original.documentNumber ?? ""}`
-        .toLocaleLowerCase("vi")
-        .includes(value.toLocaleLowerCase("vi")),
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize: 20 } },
-  });
-
-  function handleAddQuickMinibar(entry: RevenueBookEntry, date: string) {
-    setEditor({
-      mode: "create",
-      entry: {
-        category: "MINIBAR",
-        roomId: entry.roomId,
-        roomNumber: entry.roomNumber,
-        date: date || entry.date,
-        description: `Minibar phòng ${entry.roomNumber ?? ""}`.trim(),
-      } as unknown as RevenueBookEntry,
-    });
-  }
 
   function applyRange(event: FormEvent) {
     event.preventDefault();
@@ -202,7 +103,23 @@ export function RevenueBookWorkspace({ hotelId }: { hotelId: string }) {
       setExporting(true);
       const { exportRevenueBook } =
         await import("../utils/revenue-book-export");
-      exportRevenueBook(book);
+      const { useRevenueBookCustomStore } =
+        await import("../store/revenue-book-custom-store");
+      const {
+        descriptionsByRow,
+        notesByRow,
+        deletedRowsByHotel,
+        valuesByCell,
+        textOverrides,
+      } = useRevenueBookCustomStore.getState();
+      const deletedRowKeys = deletedRowsByHotel[book.hotelId] ?? [];
+      exportRevenueBook(book, {
+        descriptionsByRow,
+        notesByRow,
+        deletedRowKeys,
+        valuesByCell,
+        textOverrides,
+      });
     } catch (error) {
       await showErrorAlert("Không thể xuất Excel", errorMessage(error));
     } finally {
@@ -433,143 +350,17 @@ export function RevenueBookWorkspace({ hotelId }: { hotelId: string }) {
                 placeholder="Nhập số phòng, tên khách, chứng từ..."
               />
             </label>
-            <div className="inline-flex rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)] p-1">
-              <button
-                type="button"
-                onClick={() => setViewMode("grid")}
-                className={`inline-flex min-h-10 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors cursor-pointer ${
-                  viewMode === "grid"
-                    ? "bg-white text-[var(--primary)] shadow-sm font-semibold"
-                    : "text-[var(--on-surface-variant)] hover:text-black"
-                }`}
-              >
-                <VsIcon name="table_chart" className="text-lg" />
-                Bảng tính Sổ doanh thu
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode("compact")}
-                className={`inline-flex min-h-10 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors cursor-pointer ${
-                  viewMode === "compact"
-                    ? "bg-white text-[var(--primary)] shadow-sm font-semibold"
-                    : "text-[var(--on-surface-variant)] hover:text-black"
-                }`}
-              >
-                <VsIcon name="table_rows" className="text-lg" />
-                Bản tóm tắt theo khoản
-              </button>
-            </div>
           </div>
 
-          {viewMode === "grid" ? (
-            <RevenueBookSpreadsheet
-              book={book}
-              currency={currency}
-              filter={filter}
-              canManage={Boolean(book.canManage)}
-              onSelectEntry={(id) => setSelectedId(id)}
-              onAddQuickMinibar={handleAddQuickMinibar}
-              onCollect={(entry) => setEditor({ mode: "collect", entry })}
-              onEdit={(entry) => setEditor({ mode: "edit", entry })}
-            />
-          ) : (
-            <>
-              <div
-                aria-busy={query.isFetching}
-                className="overflow-x-auto rounded-xl border border-[var(--outline-variant)]"
-              >
-                <table className="w-full min-w-[760px] text-left text-base">
-                  <thead className="bg-[var(--surface-container-low)]">
-                    <tr>
-                      {table.getHeaderGroups()[0].headers.map((header) => (
-                        <th
-                          key={header.id}
-                          scope="col"
-                          className={`px-4 py-3 ${["revenueTotal", "collected", "closingBalance"].includes(header.id) ? "text-right" : ""}`}
-                        >
-                          <button
-                            type="button"
-                            onClick={header.column.getToggleSortingHandler()}
-                            className="inline-flex min-h-11 items-center gap-1 whitespace-nowrap text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
-                            aria-label={`Sắp xếp theo ${String(header.column.columnDef.header)}`}
-                          >
-                            {flexRender(
-                              header.column.columnDef.header,
-                              header.getContext(),
-                            )}
-                            <span aria-hidden="true">
-                              {header.column.getIsSorted() === "desc"
-                                ? " ↓"
-                                : header.column.getIsSorted() === "asc"
-                                  ? " ↑"
-                                  : ""}
-                            </span>
-                          </button>
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[var(--outline-variant)]">
-                    {table.getRowModel().rows.map((row) => (
-                      <tr
-                        key={row.id}
-                        className="hover:bg-[var(--surface-container-low)]"
-                      >
-                        {row.getVisibleCells().map((cell) => (
-                          <td
-                            key={cell.id}
-                            className={`px-4 py-3 align-top ${["revenueTotal", "collected", "closingBalance"].includes(cell.column.id) ? "whitespace-nowrap text-right tabular-nums" : cell.column.id === "date" ? "whitespace-nowrap" : ""}`}
-                          >
-                            {flexRender(
-                              cell.column.columnDef.cell,
-                              cell.getContext(),
-                            )}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                    {!table.getRowModel().rows.length && (
-                      <tr>
-                        <td
-                          colSpan={columns.length}
-                          className="px-4 py-10 text-center text-[var(--on-surface-variant)]"
-                        >
-                          {filter
-                            ? "Không có khoản phù hợp."
-                            : "Chưa có phát sinh trong kỳ này."}
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-              <footer className="flex flex-wrap items-center justify-between gap-3 text-sm text-[var(--on-surface-variant)]">
-                <span>
-                  {table.getFilteredRowModel().rows.length} khoản · Trang{" "}
-                  {table.getState().pagination.pageIndex + 1}/
-                  {Math.max(1, table.getPageCount())}
-                </span>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => table.previousPage()}
-                    disabled={!table.getCanPreviousPage()}
-                    className={revenueButtonClass}
-                  >
-                    Trước
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => table.nextPage()}
-                    disabled={!table.getCanNextPage()}
-                    className={revenueButtonClass}
-                  >
-                    Sau
-                  </button>
-                </div>
-              </footer>
-            </>
-          )}
+          <RevenueBookSpreadsheet
+            book={book}
+            currency={currency}
+            filter={filter}
+            canManage={Boolean(book.canManage)}
+            onSelectEntry={(id) => setSelectedId(id)}
+            onCollect={(entry) => setEditor({ mode: "collect", entry })}
+            onEdit={(entry) => setEditor({ mode: "edit", entry })}
+          />
           <dl className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-[var(--on-surface-variant)]">
             <div>
               <dt className="inline">Số dư đầu kỳ: </dt>
@@ -652,7 +443,6 @@ function RevenueEntryDetail({
     ["Nguồn", sourceLabels[entry.source]],
     ["Số dư đầu kỳ", money(entry.openingBalance, book.currency)],
     ["Tiền phòng", money(entry.roomRevenue, book.currency)],
-    ["Minibar / Nước uống", money(entry.minibarRevenue, book.currency)],
     ["Giặt ủi", money(entry.laundryRevenue, book.currency)],
     ["Dịch vụ khác", money(entry.otherRevenue, book.currency)],
     [
