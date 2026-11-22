@@ -820,7 +820,7 @@ export function StaffManagementClient({ scope, canManage, initialHotelId = null,
                   disabled={mutations.createUser.isPending}
                   error={formErrors.roomId}
                   required={false}
-                  placeholder="Phòng phụ trách (Tùy chọn)"
+                  placeholder="Phòng phụ trách"
                 />
                 {formErrors.roomId ? (
                   <span className="mt-1 text-xs font-medium text-red-600 flex items-center gap-1">

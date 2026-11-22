@@ -36,7 +36,7 @@ export function RoomSearchSelect({
   disabled = false,
   error,
   required: _required = false,
-  placeholder: _placeholder = "Phòng phụ trách (Tùy chọn)",
+  placeholder: _placeholder = "Phòng phụ trách",
 }: RoomSearchSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");

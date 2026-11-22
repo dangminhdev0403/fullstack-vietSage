@@ -39,7 +39,7 @@ export function HousekeepingScopeEditor({ value, rooms, onChange, disabled }: {
       ) : null}
       {value.mode === "ROOMS" ? (
         <>
-          <label className="block space-y-1"><span>Chọn phòng ({value.roomIds.length})</span><input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm số phòng" className="min-h-11 w-full rounded-lg border border-[var(--outline-variant)] bg-[var(--surface)] px-3" /></label>
+          <label className="block space-y-1"><span>Chọn phòng</span><input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm số phòng" className="min-h-11 w-full rounded-lg border border-[var(--outline-variant)] bg-[var(--surface)] px-3" /></label>
           <div className="max-h-44 overflow-y-auto overscroll-contain">
             {visibleRooms.map((room) => <label key={room.id} className="flex min-h-11 items-center gap-3"><input type="checkbox" checked={value.roomIds.includes(room.id)} onChange={() => onChange({ ...value, roomIds: toggle(value.roomIds, room.id), label: null })} className="size-5 accent-[var(--primary)]" /><span>Phòng {room.roomNumber}{room.floor ? ` · Tầng ${room.floor}` : ""}</span></label>)}
             {!visibleRooms.length ? <p role="status">Không có phòng phù hợp.</p> : null}
