@@ -265,7 +265,7 @@ export function D3PermissionCatalogBrowser({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Tìm kiếm theo mã quyền (vd: hotel.stays.check-in) hoặc tên quyền..."
+              placeholder="Tìm kiếm theo mã quyền hoặc tên quyền..."
               className="w-full rounded-xl border border-gray-200 bg-gray-50/60 py-2.5 pl-10 pr-9 text-xs text-gray-900 placeholder-gray-400 focus:border-emerald-600 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-600"
             />
             {searchQuery && (

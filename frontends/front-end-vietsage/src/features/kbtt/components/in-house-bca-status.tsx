@@ -79,7 +79,7 @@ export function getBcaSummaryInfo(rows: KbttDeclarationListItem[]): BcaSummaryIn
 
   if (reviewCount > 0) {
     return {
-      label: `Cần xử lý (${reviewCount})`,
+      label: "Cần xử lý",
       dotColor: "bg-rose-500",
       badgeClass: "border-rose-200 bg-rose-50 text-rose-800",
       key: "REVIEW",

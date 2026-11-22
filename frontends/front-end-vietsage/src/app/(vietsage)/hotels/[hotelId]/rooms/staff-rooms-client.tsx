@@ -5396,7 +5396,7 @@ export function StaffRoomsClient({
             <li>Khoản tiền cọc ${depositPaidAmount > 0 ? `(${escapeHtml(formatMoney({ price: depositPaidAmount, currency: "VND" }))}) ` : ""}<strong class="text-emerald-800">vẫn được tính</strong> và bảo toàn trong báo cáo doanh thu / sổ thu chi (không hoàn cọc).</li>
           </ul>
         </div>
-        <label for="priority-cancel-reason" class="mt-3 block text-left text-sm font-semibold text-pretty text-slate-800">Chi tiết lý do (tùy chọn)</label>
+        <label for="priority-cancel-reason" class="mt-3 block text-left text-sm font-semibold text-pretty text-slate-800">Chi tiết lý do</label>
         <textarea id="priority-cancel-reason" data-cancel-reason maxlength="470" class="mt-1 w-full rounded-lg border border-slate-300 p-2.5 text-sm text-pretty focus:border-slate-500 focus:outline-none" rows="2" placeholder="Nhập ghi chú hoặc lý do hủy..."></textarea>
       </div>
     `;
@@ -8410,7 +8410,7 @@ export function StaffRoomsClient({
                         <div>
                           <div className="flex items-center justify-between mb-1.5">
                             <label className="block text-sm font-semibold text-slate-800">
-                              Chọn phòng (Tùy chọn)
+                              Chọn phòng
                             </label>
                             {initialReservationRoom ? (
                               <button
@@ -8577,7 +8577,7 @@ export function StaffRoomsClient({
                         </span>
                       </div>
                       <span className="text-xs text-slate-500 font-medium">
-                        (Mặc định trả phòng 12:00)
+                        Trả phòng 12:00
                       </span>
                     </div>
 
@@ -8641,10 +8641,10 @@ export function StaffRoomsClient({
                         }}
                         className="w-full h-10 rounded-xl border border-slate-300 bg-white px-3 text-xs sm:text-sm font-semibold text-slate-900 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 outline-none cursor-pointer"
                       >
-                        <option value="DIRECT">Trực tiếp / Vãng lai (Khách lẻ)</option>
-                        <option value="TA">Đại lý du lịch / Lữ hành (TA)</option>
-                        <option value="OTA">Kênh trực tuyến (OTA)</option>
-                        <option value="CORPORATE">Doanh nghiệp / Công ty (CO)</option>
+                        <option value="DIRECT">Khách trực tiếp / Vãng lai</option>
+                        <option value="TA">Đại lý du lịch / Lữ hành</option>
+                        <option value="OTA">Kênh trực tuyến OTA</option>
+                        <option value="CORPORATE">Doanh nghiệp / Công ty</option>
                         <option value="OTHER">Nguồn khác</option>
                       </select>
                     </div>
@@ -8936,7 +8936,7 @@ export function StaffRoomsClient({
                           required
                           value={bulkLeadName}
                           onChange={(e) => setBulkLeadName(e.target.value)}
-                          placeholder="VD: Nguyễn Văn A (Đoàn lữ hành Saigontourist)"
+                          placeholder="VD: Nguyễn Văn A..."
                           className="w-full rounded-xl border border-slate-300 px-3 py-1.5 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:border-purple-600 focus:ring-1 focus:ring-purple-600 outline-none transition"
                         />
                       </div>
@@ -8987,7 +8987,7 @@ export function StaffRoomsClient({
                       {/* Channel / Source */}
                       <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[280px]">
                         <label className="text-xs font-bold text-slate-700 whitespace-nowrap">
-                          Nguồn đặt phòng (Kênh bán) <span className="text-red-500">*</span>:
+                          Nguồn đặt phòng <span className="text-red-500">*</span>:
                         </label>
                         <select
                           value={bulkSourceCategory}
@@ -9000,10 +9000,10 @@ export function StaffRoomsClient({
                           }}
                           className="h-8.5 rounded-lg border border-slate-300 bg-white px-2.5 text-xs font-semibold text-slate-900 focus:border-purple-600 focus:ring-1 focus:ring-purple-600 outline-none cursor-pointer flex-1 min-w-[190px] max-w-xs"
                         >
-                          <option value="DIRECT">Trực tiếp / Vãng lai (Khách lẻ)</option>
-                          <option value="TA">Đại lý du lịch / Lữ hành (TA)</option>
-                          <option value="OTA">Kênh trực tuyến (OTA)</option>
-                          <option value="CORPORATE">Doanh nghiệp / Công ty (CO)</option>
+                          <option value="DIRECT">Khách trực tiếp / Vãng lai</option>
+                          <option value="TA">Đại lý du lịch / Lữ hành</option>
+                          <option value="OTA">Kênh trực tuyến OTA</option>
+                          <option value="CORPORATE">Doanh nghiệp / Công ty</option>
                           <option value="OTHER">Nguồn khác</option>
                         </select>
 

@@ -1070,13 +1070,13 @@ export function LocalMateGuidesView() {
 
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-wider text-[#485951] mb-1">
-                      Email liên hệ (Không bắt buộc)
+                      Email liên hệ
                     </label>
                     <input
                       type="email"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      placeholder="guide@gmail.com (Nếu có)"
+                      placeholder="guide@gmail.com"
                       className="h-10 w-full rounded-xl border border-[#25483F]/15 bg-[#FBF9F5] px-3.5 text-sm font-semibold text-[#142823] focus:bg-white focus:border-[#173F35]"
                     />
                   </div>

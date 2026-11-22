@@ -535,7 +535,7 @@ export function FrontDeskArrivalDetailPanel({
       icon: "warning",
       title: "Hủy đặt phòng",
       html: `${reservationResolutionSummaryHtml()}
-        <label for="${escapeHtml(titleId)}-cancel-reason" class="mt-3 block text-left text-sm font-semibold text-pretty">Chi tiết lý do (tùy chọn)</label>
+        <label for="${escapeHtml(titleId)}-cancel-reason" class="mt-3 block text-left text-sm font-semibold text-pretty">Chi tiết lý do</label>
         <textarea id="${escapeHtml(titleId)}-cancel-reason" data-cancel-reason maxlength="470" class="mt-1 w-full rounded-lg border border-slate-300 p-3 text-base text-pretty" rows="2"></textarea>`,
       input: "select",
       inputLabel: "Lý do hủy",

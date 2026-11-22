@@ -964,7 +964,7 @@ export function GroupOperationsDrawer({
                   type="text"
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
-                  placeholder="Nhập mã đoàn (VD: OTA-Booking.com, GRP-01)..."
+                  placeholder="Nhập mã đoàn..."
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 text-sm font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 transition"
                 />
               </div>

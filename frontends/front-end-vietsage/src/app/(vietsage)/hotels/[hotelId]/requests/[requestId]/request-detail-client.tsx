@@ -62,14 +62,14 @@ type RequestDetailClientProps = {
 
 const defaultLabels: RequestDetailLabels = {
   statusActions: "Thao tác trạng thái",
-  optionalTransitionNote: "Ghi chú cập nhật trạng thái (không bắt buộc)",
+  optionalTransitionNote: "Ghi chú cập nhật trạng thái",
   terminalState: "Yêu cầu này đã ở trạng thái kết thúc.",
   timeline: "Lịch sử xử lý",
   noTimeline: "Chưa có sự kiện xử lý nào.",
   assignment: "Phân công nhân sự",
   assignedUserId: "Nhân sự phụ trách",
   assignedUserIdPlaceholder: "Chọn nhân sự xử lý",
-  optionalAssignmentNote: "Ghi chú phân công (không bắt buộc)",
+  optionalAssignmentNote: "Ghi chú phân công",
   saveAssignment: "Lưu phân công",
   internalNote: "Ghi chú nội bộ",
   internalNotePlaceholder: "Thêm ghi chú nội bộ cho ca trực...",

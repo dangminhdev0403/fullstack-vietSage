@@ -1315,7 +1315,7 @@ export function LocalMateKnowledgeView() {
                             }));
                           }
                         }}
-                        placeholder="Dán link Google Maps (VD: https://www.google.com/maps/place/.../@21.0333,104.8833... hoặc 21.0333, 104.8833)"
+                        placeholder="Dán link hoặc tọa độ Google Maps..."
                         className="h-10 w-full rounded-xl border border-stone-200 bg-white pl-9.5 pr-24 text-xs sm:text-sm text-stone-800 placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/10 transition-colors"
                       />
                       <button

@@ -956,7 +956,7 @@ export function RoomMessagesClient({ hotelId, canReply }: Readonly<{ hotelId: st
                       onChange={handleInput}
                       aria-describedby="staff-message-limit"
                       aria-invalid={body.length > 1000}
-                      placeholder="Nhập nội dung trả lời khách (Enter để gửi)..."
+                      placeholder="Nhập nội dung trả lời khách..."
                       className="h-12 w-full rounded-xl border border-[var(--outline-variant)] bg-white px-4 text-sm outline-none transition focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]"
                     />
                     <p

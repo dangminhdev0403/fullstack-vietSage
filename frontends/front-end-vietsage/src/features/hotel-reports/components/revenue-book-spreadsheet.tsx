@@ -971,7 +971,7 @@ export function RevenueBookSpreadsheet({
             }`}
             title="Cột Khai báo tạm trú công an BCA (mặc định ẩn vì là nghiệp vụ tạm trú, không phải số liệu doanh thu)"
           >
-            <span>Khai báo (BCA)</span>
+            <span>Khai báo tạm trú</span>
           </button>
         </div>
 
@@ -1032,7 +1032,7 @@ export function RevenueBookSpreadsheet({
                   title="Xóa vĩnh viễn tất cả các cột doanh thu tự thêm khỏi bảng tính"
                 >
                   <VsIcon name="delete_forever" className="text-sm text-rose-600" />
-                  <span>Xóa tất cả ({customColumns.length} cột)</span>
+                  <span>Xóa tất cả</span>
                 </button>
               )}
             </div>

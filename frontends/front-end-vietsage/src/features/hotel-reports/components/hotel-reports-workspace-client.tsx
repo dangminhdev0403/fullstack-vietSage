@@ -73,7 +73,7 @@ const SUB_TABS: Array<{
     id: "sources",
     label: "Kênh đặt phòng",
     icon: "hub",
-    description: "Phân bổ doanh thu OTA (Booking, Agoda, Airbnb) và trực tiếp.",
+    description: "Phân bổ doanh thu OTA và trực tiếp.",
   },
   {
     id: "staff",

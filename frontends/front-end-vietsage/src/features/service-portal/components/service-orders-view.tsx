@@ -402,7 +402,7 @@ export function ServiceOrdersView({ data }: Readonly<{ data: ServicePortalData }
               void SwalVietSage.fire({
                 title: "🔑 Kiểm tra mã dịch vụ",
                 input: "text",
-                inputPlaceholder: "Nhập mã dịch vụ (ví dụ: VS-85CE77 hoặc EDE749189F68)",
+                inputPlaceholder: "Nhập mã dịch vụ...",
                 showCancelButton: true,
                 confirmButtonText: "Xác nhận",
                 cancelButtonText: "Đóng",

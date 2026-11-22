@@ -46,7 +46,7 @@ export function VietSageBookingTab({
                 </span>
               </div>
               <p className="text-xs text-[#69726b]">
-                Kênh bán phòng trực tuyến tự vận hành dành riêng cho {hotelName} ({hotelCode}). Hỗ trợ đồng bộ tự động loại phòng, giá sàn và quỹ phòng tức thời.
+                Kênh bán phòng trực tuyến tự vận hành dành riêng cho {hotelName}. Hỗ trợ đồng bộ tự động loại phòng, giá sàn và quỹ phòng tức thời.
               </p>
             </div>
           </div>

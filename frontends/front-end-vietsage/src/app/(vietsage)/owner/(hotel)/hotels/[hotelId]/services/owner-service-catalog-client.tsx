@@ -1599,14 +1599,14 @@ export function OwnerServiceCatalogClient({
             {/* Advanced Options Disclosure */}
             <details className="mt-5 rounded-2xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)]/50 p-4 group">
               <summary className="cursor-pointer select-none text-sm font-semibold text-[var(--primary)] flex items-center justify-between">
-                <span>Tùy chọn nâng cao (Mô tả, Telegram, Đa ngôn ngữ, Thứ tự)</span>
+                <span>Tùy chọn nâng cao</span>
                 <span className="text-xs text-[var(--on-surface-variant)] group-open:hidden">Mở rộng ▼</span>
                 <span className="text-xs text-[var(--on-surface-variant)] hidden group-open:inline">Thu gọn ▲</span>
               </summary>
               <div className="mt-4 space-y-4 pt-3 border-t border-[var(--outline-variant)]">
                 <label className="block space-y-1.5">
                   <span className="text-xs font-semibold uppercase tracking-wider text-[var(--on-surface-variant)]">
-                    ID group Telegram (tùy chọn)
+                    ID group Telegram
                   </span>
                   <input
                     value={categoryForm.id_group}
@@ -1896,7 +1896,7 @@ export function OwnerServiceCatalogClient({
             {/* Advanced Options Disclosure */}
             <details className="mt-5 rounded-2xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)]/50 p-4 group">
               <summary className="cursor-pointer select-none text-sm font-semibold text-[var(--primary)] flex items-center justify-between">
-                <span>Tùy chọn nâng cao (Số lượng, Mô tả, Đa ngôn ngữ, Thứ tự)</span>
+                <span>Tùy chọn nâng cao</span>
                 <span className="text-xs text-[var(--on-surface-variant)] group-open:hidden">Mở rộng ▼</span>
                 <span className="text-xs text-[var(--on-surface-variant)] hidden group-open:inline">Thu gọn ▲</span>
               </summary>

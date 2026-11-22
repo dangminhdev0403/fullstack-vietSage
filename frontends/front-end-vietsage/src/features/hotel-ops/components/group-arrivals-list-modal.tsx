@@ -209,7 +209,7 @@ export function GroupArrivalsListModal({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-                placeholder="Tìm mã đoàn (#GRP), tên đoàn, SĐT..."
+                placeholder="Tìm mã đoàn, tên đoàn, SĐT..."
                 className="w-full h-10 rounded-xl border border-slate-300 bg-slate-50/50 pl-9 pr-4 text-xs sm:text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-purple-600 focus:ring-2 focus:ring-purple-100 outline-none transition shadow-2xs"
               />
               {searchQuery && (
