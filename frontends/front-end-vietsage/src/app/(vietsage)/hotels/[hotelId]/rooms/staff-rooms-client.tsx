@@ -1542,6 +1542,7 @@ export function StaffRoomsClient({
             inputMode: "AMOUNT",
             amount: reservationDepositNumeric,
             receivedAmount: reservationDepositNumeric,
+            paymentMethod: "CASH",
           });
         } catch (depositErr) {
           console.error("Lỗi ghi nhận tiền cọc đặt phòng:", depositErr);
@@ -4004,6 +4005,7 @@ export function StaffRoomsClient({
             inputMode: "AMOUNT",
             amount: bulkDepositNumeric,
             receivedAmount: bulkDepositNumeric,
+            paymentMethod: "CASH",
           });
         } catch (depositErr) {
           console.error("Lỗi ghi nhận tiền cọc đoàn:", depositErr);
@@ -5365,8 +5367,8 @@ export function StaffRoomsClient({
     // Load booking payments to see actual deposit amount
     let depositPaidAmount = 0;
     try {
-      const payments = await staffRoomsRepository.getBookingPayments(hotelId, reservationId);
-      depositPaidAmount = (payments || []).reduce((sum, p) => {
+      const paymentRes = await staffRoomsRepository.listBookingPayments(hotelId, { reservationId });
+      depositPaidAmount = (paymentRes?.items || []).reduce((sum: number, p: any) => {
         const val = Number(
           ("receivedAmount" in p && p.receivedAmount != null ? p.receivedAmount : undefined) ??
             p.amount ??
@@ -5382,12 +5384,12 @@ export function StaffRoomsClient({
       <div class="space-y-2 text-left text-sm text-pretty">
         <div><span class="font-semibold text-slate-600">Đặt phòng:</span> <span class="font-bold text-slate-900">${escapeHtml(guestName)}${reservationCode ? ` · #${escapeHtml(reservationCode)}` : ""}</span></div>
         <div><span class="font-semibold text-slate-600">Phòng:</span> <span class="font-bold text-slate-900">${escapeHtml(roomNumber ? `P.${roomNumber}` : "Chưa gán phòng")}</span> <span class="text-xs text-emerald-700 font-semibold">(sẽ được đưa về trạng thái TRỐNG)</span></div>
-        ${depositPaidAmount > 0 ? `<div><span class="font-semibold text-slate-600">Tiền cọc thực nhận:</span> <span class="font-bold text-emerald-700">${escapeHtml(formatMoney(depositPaidAmount))}</span></div>` : ""}
+        ${depositPaidAmount > 0 ? `<div><span class="font-semibold text-slate-600">Tiền cọc thực nhận:</span> <span class="font-bold text-emerald-700">${escapeHtml(formatMoney({ price: depositPaidAmount, currency: "VND" }))}</span></div>` : ""}
         <div class="mt-2 rounded-lg bg-amber-50 p-2.5 text-xs text-amber-900 border border-amber-200">
           <p class="font-semibold">Quy tắc hủy đặt phòng:</p>
           <ul class="list-disc list-inside mt-1 space-y-0.5">
             <li>Trạng thái phòng ${escapeHtml(roomNumber ? `P.${roomNumber}` : "")} sẽ được đưa về <strong class="text-emerald-800">TRỐNG</strong> sẵn sàng đón khách khác.</li>
-            <li>Khoản tiền cọc ${depositPaidAmount > 0 ? `(${escapeHtml(formatMoney(depositPaidAmount))}) ` : ""}<strong class="text-emerald-800">vẫn được tính</strong> và bảo toàn trong báo cáo doanh thu / sổ thu chi (không hoàn cọc).</li>
+            <li>Khoản tiền cọc ${depositPaidAmount > 0 ? `(${escapeHtml(formatMoney({ price: depositPaidAmount, currency: "VND" }))}) ` : ""}<strong class="text-emerald-800">vẫn được tính</strong> và bảo toàn trong báo cáo doanh thu / sổ thu chi (không hoàn cọc).</li>
           </ul>
         </div>
         <label for="priority-cancel-reason" class="mt-3 block text-left text-sm font-semibold text-pretty text-slate-800">Chi tiết lý do (tùy chọn)</label>

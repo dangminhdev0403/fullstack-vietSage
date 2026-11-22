@@ -169,6 +169,10 @@ export function PriorityRoomsControlSection({
   onPrimaryAction,
   onCancelReservation,
 }: PriorityRoomsControlSectionProps) {
+  const permissions = useMemo(
+    () => ({ canCheckInStay, canManageRooms, canManageReservations }),
+    [canCheckInStay, canManageRooms, canManageReservations],
+  );
   const [selectedBucket, setSelectedBucket] = useState<FilterBucket>("all");
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [showAll, setShowAll] = useState(false);

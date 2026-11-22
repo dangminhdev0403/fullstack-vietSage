@@ -275,7 +275,7 @@ function GroupCheckInForm({
       (!rooms || rooms.length === 0),
   );
   const { data: fetchedArrivals = [], isLoading: isLoadingArrivals } = useQuery({
-    ...staffRoomsResource.bind({ hotelId }).queries.groupArrivals.options(groupCode),
+    ...staffRoomsResource.bind({ hotelId }).queries.groupArrivals.options(groupCode || ""),
     enabled: shouldFetchGroupArrivals,
     staleTime: 5_000,
   });
@@ -964,7 +964,7 @@ function GroupCheckInForm({
     setRefreshError("");
     try {
       const latest = await queryClient.fetchQuery({
-        ...staffRoomsResource.bind({ hotelId }).queries.groupArrivals.options(groupCode),
+        ...staffRoomsResource.bind({ hotelId }).queries.groupArrivals.options(groupCode || ""),
         staleTime: 0,
       });
       const roomResult = await allRoomsQuery.refetch();
@@ -1070,7 +1070,7 @@ function GroupCheckInForm({
       : {
           reservationId: activeRoom.reservationId,
           reservationCode: activeRoom.reservationCode,
-          groupCode: groupCode,
+          groupCode: groupCode || "",
           roomId: activeRoom.roomId,
           roomNumber: activeRoom.roomNumber,
           floor: null,
