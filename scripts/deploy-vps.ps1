@@ -104,7 +104,7 @@ echo "=========================================================="
 
 try {
     # Send script safely via stdin to bash -s with arguments
-    $remoteScript | ssh -o StrictHostKeyChecking=accept-new "$VPS_USER@$VPS_HOST" "bash -s -- `"$buildTarget`" `"$recreateTarget`" `"$skipDb`""
+    $remoteScript | ssh -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=15 -o ServerAliveCountMax=30 -o TCPKeepAlive=yes "$VPS_USER@$VPS_HOST" "bash -s -- `"$buildTarget`" `"$recreateTarget`" `"$skipDb`""
 
     if ($LASTEXITCODE -eq 0) {
         Write-Host "`n>>> Deployment completed 100% successfully! <<<" -ForegroundColor Green
