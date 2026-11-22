@@ -1913,6 +1913,19 @@ export class ReservationsRepository {
         include: { room: true },
       });
 
+      if (reservation.roomId && tx.room?.updateMany) {
+        await tx.room.updateMany({
+          where: {
+            id: reservation.roomId,
+            hotelId: input.hotelId,
+            status: RoomStatus.RESERVED,
+          },
+          data: {
+            status: RoomStatus.AVAILABLE,
+          },
+        });
+      }
+
       await tx.auditLog.create({
         data: {
           actorId: input.actorUserId,
@@ -1997,6 +2010,19 @@ export class ReservationsRepository {
         },
         include: { room: true },
       });
+
+      if (reservation.roomId && tx.room?.updateMany) {
+        await tx.room.updateMany({
+          where: {
+            id: reservation.roomId,
+            hotelId: input.hotelId,
+            status: RoomStatus.RESERVED,
+          },
+          data: {
+            status: RoomStatus.AVAILABLE,
+          },
+        });
+      }
 
       await tx.auditLog.create({
         data: {

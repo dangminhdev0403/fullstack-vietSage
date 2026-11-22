@@ -10,6 +10,7 @@ import {
   showSuccessAlert,
   showWarningAlert,
   SwalVietSage,
+  SWAL_DANGER_BTN_CLASS,
 } from "@/libs/swal";
 
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
@@ -273,7 +274,9 @@ export function StaffBillingWorkspaceClient({
   const [groupSurchargeNote, setGroupSurchargeNote] = useState<string>("");
   const [groupCashGivenInput, setGroupCashGivenInput] = useState<string>("");
   const [groupTableSearch, setGroupTableSearch] = useState<string>("");
-  const [groupTableStatusFilter, setGroupTableStatusFilter] = useState<"ALL" | "PENDING" | "OPEN">("ALL");
+  const [groupTableStatusFilter, setGroupTableStatusFilter] = useState<
+    "ALL" | "PENDING" | "OPEN" | "CLOSED"
+  >("ALL");
   const [bankCopied, setBankCopied] = useState<boolean>(false);
   const [previewFolioId, setPreviewFolioId] = useState<string | null>(null);
   const previewQuery = useQuery({
@@ -800,7 +803,8 @@ export function StaffBillingWorkspaceClient({
       const matchesStatus =
         groupTableStatusFilter === "ALL" ||
         (groupTableStatusFilter === "PENDING" && folio.status === "CHECKOUT_PENDING") ||
-        (groupTableStatusFilter === "OPEN" && folio.status === "OPEN");
+        (groupTableStatusFilter === "OPEN" && folio.status === "OPEN") ||
+        (groupTableStatusFilter === "CLOSED" && folio.status === "CLOSED");
 
       return matchesSearch && matchesStatus;
     });
@@ -959,12 +963,42 @@ export function StaffBillingWorkspaceClient({
     const isZeroBalance = computedTotal <= 0;
     const confirmation = await showConfirmDialog({
       icon: "question",
-      title: isZeroBalance ? "Trả phòng?" : "Xác nhận thanh toán?",
+      title: isZeroBalance ? "Xác nhận trả phòng" : "Xác nhận thanh toán & Trả phòng",
+      details: [
+        { label: "Phòng", value: displayRoom(selectedFolio) },
+        { label: "Khách lưu trú", value: displayGuest(selectedFolio) },
+        { label: "Tiền phòng", value: formatMoney(roomChargeTotal, currency) },
+        ...(hotelServiceChargeTotal > 0
+          ? [{ label: "Dịch vụ khách sạn", value: formatMoney(hotelServiceChargeTotal, currency) }]
+          : []),
+        ...(externalServiceCollectionTotal > 0
+          ? [{ label: "Thu hộ đối tác", value: formatMoney(externalServiceCollectionTotal, currency) }]
+          : []),
+        ...(manualChargeTotal > 0
+          ? [{ label: "Phụ thu đã thêm", value: `+${formatMoney(manualChargeTotal, currency)}` }]
+          : []),
+        ...(existingDiscountTotal > 0
+          ? [{ label: "Giảm giá đã áp dụng", value: `-${formatMoney(existingDiscountTotal, currency)}` }]
+          : []),
+        ...(surchargeParsed.amount > 0
+          ? [{
+              label: `Phụ thu (${surchargeNote || "Phụ thu"})`,
+              value: `+${formatMoney(surchargeParsed.amount, currency)}`,
+            }]
+          : []),
+        ...(discountParsed.amount > 0
+          ? [{
+              label: `Giảm giá (${discountNote || "Giảm giá"})`,
+              value: `-${formatMoney(discountParsed.amount, currency)}`,
+            }]
+          : []),
+        { label: "Tổng thanh toán", value: formatMoney(computedTotal, currency) },
+      ],
       text: isZeroBalance
-        ? "Không còn số dư. Phòng sẽ chuyển sang chờ dọn."
-        : `Tổng tiền: ${formatMoney(computedTotal, currency)}.`,
-      confirmText: isZeroBalance ? "Trả phòng" : "Thanh toán",
-      cancelText: "Hủy",
+        ? "Không còn số dư phải thu. Phòng sẽ chuyển sang trạng thái chờ dọn dẹp."
+        : undefined,
+      confirmText: isZeroBalance ? "Trả phòng" : "Thanh toán ngay",
+      cancelText: "Hủy bỏ",
     });
     if (!confirmation.isConfirmed) return;
 
@@ -1159,12 +1193,30 @@ export function StaffBillingWorkspaceClient({
     const roomNames = foliosToSettle.map((f) => displayRoom(f)).join(", ");
     const confirm = await showConfirmDialog({
       icon: "question",
-      title: `Thanh toán đoàn ${foliosToSettle.length} phòng?`,
+      title: `Thanh toán đoàn (${foliosToSettle.length} phòng)`,
       details: [
-        { label: "Phòng", value: roomNames },
-        { label: "Tổng tiền", value: formatMoney(computedGroupTotal, currency) },
+        { label: "Trưởng đoàn", value: activeGroup?.leadGuestName || "Khách đoàn" },
+        { label: "Mã đoàn", value: activeGroup?.groupCode || "-" },
+        { label: "Danh sách phòng", value: roomNames },
+        { label: "Tiền phòng cả đoàn", value: formatMoney(groupRoomChargeTotal, currency) },
+        ...(groupServiceTotal > 0
+          ? [{ label: "Dịch vụ cả đoàn", value: formatMoney(groupServiceTotal, currency) }]
+          : []),
+        ...(groupSurchargeParsed.amount > 0
+          ? [{
+              label: `Phụ thu (${groupSurchargeNote || "Phụ thu đoàn"})`,
+              value: `+${formatMoney(groupSurchargeParsed.amount, currency)}`,
+            }]
+          : []),
+        ...(groupDiscountParsed.amount > 0
+          ? [{
+              label: `Giảm giá (${groupDiscountNote || "Giảm giá đoàn"})`,
+              value: `-${formatMoney(groupDiscountParsed.amount, currency)}`,
+            }]
+          : []),
+        { label: "Tổng thanh toán đoàn", value: formatMoney(computedGroupTotal, currency) },
       ],
-      confirmText: `Thanh toán ${foliosToSettle.length} phòng`,
+      confirmText: `Thanh toán (${foliosToSettle.length} phòng)`,
       cancelText: "Hủy bỏ",
       reverseButtons: false,
     });
@@ -1268,8 +1320,13 @@ export function StaffBillingWorkspaceClient({
       if (firstInvoiceId) {
         const confirmResult = await showConfirmDialog({
           icon: "question",
-          title: "Đã thanh toán đoàn",
-          text: `${successCount} phòng đã trả.`,
+          title: "Thanh toán đoàn thành công",
+          details: [
+            { label: "Đoàn khách", value: activeGroup?.leadGuestName || "Khách đoàn" },
+            { label: "Số phòng hoàn tất", value: `${successCount} phòng` },
+            { label: "Trạng thái", value: "Đã trả phòng & Chờ dọn dẹp" },
+          ],
+          text: "Bạn có muốn xem và in hóa đơn đoàn ngay bây giờ không?",
           confirmText: "Xem hóa đơn",
           cancelText: "Đóng",
           reverseButtons: false,
@@ -1282,8 +1339,8 @@ export function StaffBillingWorkspaceClient({
         }
       } else {
         await showSuccessAlert(
-          "Đã thanh toán đoàn",
-          `${successCount} phòng đã trả.`,
+          "Thanh toán đoàn thành công",
+          `Đã hoàn tất thanh toán & trả phòng cho ${successCount} phòng trong đoàn. Phòng đã chuyển sang trạng thái chờ dọn.`,
         );
       }
       setSelectedGroupFolioIds(new Set());
@@ -1438,18 +1495,43 @@ export function StaffBillingWorkspaceClient({
                   <div
                     key={grp.id}
                     onClick={() => selectGroup(grp)}
-                    className={`w-full p-3 text-left transition-all cursor-pointer ${
+                    className={`w-full p-3.5 text-left transition-all cursor-pointer ${
                       isSelected
                         ? "bg-amber-50/90 border-l-4 border-l-amber-600 shadow-2xs"
                         : "hover:bg-[var(--surface-container-low)]"
                     }`}
                   >
-                    <div className="flex items-start justify-between gap-2">
+                    {/* Hàng 1: Badge số phòng & Badge trạng thái đoàn */}
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <span className="rounded-lg bg-amber-800 px-2 py-0.5 text-xs font-black text-amber-100 shadow-xs flex items-center gap-1 whitespace-nowrap">
+                        <VsIcon name="groups" className="text-xs" />
+                        <span>{grp.roomCount} phòng</span>
+                      </span>
+                      {grp.pendingCount > 0 ? (
+                        <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs font-extrabold text-amber-800 whitespace-nowrap animate-pulse flex items-center gap-1">
+                          <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
+                          <span>{grp.pendingCount} chờ trả</span>
+                        </span>
+                      ) : grp.openCount > 0 ? (
+                        <span className="rounded-full border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-xs font-extrabold text-emerald-800 whitespace-nowrap flex items-center gap-1">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                          <span>{grp.openCount} đang mở</span>
+                        </span>
+                      ) : (
+                        <span className="rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-xs font-extrabold text-slate-700 whitespace-nowrap flex items-center gap-1">
+                          <span className="h-1.5 w-1.5 rounded-full bg-slate-400"></span>
+                          <span>Đã đóng ({grp.closedCount})</span>
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Hàng 2: Trưởng đoàn / Mã đoàn & Tổng tiền */}
+                    <div className="flex items-center justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <p className="font-extrabold text-sm text-[var(--primary)] truncate">
                           {grp.leadGuestName}
                         </p>
-                        <p className="text-xs text-[var(--on-surface-variant)] truncate font-mono mt-0.5">
+                        <p className="text-xs text-[var(--on-surface-variant)] truncate font-mono font-bold mt-0.5">
                           {grp.groupCode}
                         </p>
                       </div>
@@ -1457,15 +1539,6 @@ export function StaffBillingWorkspaceClient({
                         <p className="text-sm font-black text-[var(--primary)]">
                           {formatMoney(grp.totalAmount, grp.currency)}
                         </p>
-                        {grp.pendingCount > 0 ? (
-                          <span className="inline-block text-xs font-bold text-amber-700 whitespace-nowrap">
-                            {grp.pendingCount} chờ trả phòng
-                          </span>
-                        ) : (
-                          <span className="inline-block text-xs font-medium text-emerald-700 whitespace-nowrap">
-                            {grp.openCount} đang mở
-                          </span>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -1590,7 +1663,7 @@ export function StaffBillingWorkspaceClient({
                 <button
                   type="button"
                   onClick={() => setGroupTableStatusFilter("ALL")}
-                  className={`rounded-lg px-2 py-0.5 text-xs font-black transition cursor-pointer whitespace-nowrap ${
+                  className={`rounded-lg px-2.5 py-1 text-xs font-black transition cursor-pointer whitespace-nowrap ${
                     groupTableStatusFilter === "ALL"
                       ? "bg-primary text-on-primary shadow-xs"
                       : "bg-[var(--surface-container-low)] text-[var(--on-surface-variant)] hover:bg-gray-200"
@@ -1601,7 +1674,7 @@ export function StaffBillingWorkspaceClient({
                 <button
                   type="button"
                   onClick={() => setGroupTableStatusFilter("PENDING")}
-                  className={`rounded-lg px-2 py-0.5 text-xs font-black transition cursor-pointer whitespace-nowrap ${
+                  className={`rounded-lg px-2.5 py-1 text-xs font-black transition cursor-pointer whitespace-nowrap ${
                     groupTableStatusFilter === "PENDING"
                       ? "bg-amber-700 text-white shadow-xs"
                       : "bg-amber-50 text-amber-900 border border-amber-200/80 hover:bg-amber-100"
@@ -1612,13 +1685,24 @@ export function StaffBillingWorkspaceClient({
                 <button
                   type="button"
                   onClick={() => setGroupTableStatusFilter("OPEN")}
-                  className={`rounded-lg px-2 py-0.5 text-xs font-black transition cursor-pointer whitespace-nowrap ${
+                  className={`rounded-lg px-2.5 py-1 text-xs font-black transition cursor-pointer whitespace-nowrap ${
                     groupTableStatusFilter === "OPEN"
                       ? "bg-emerald-700 text-white shadow-xs"
                       : "bg-emerald-50 text-emerald-900 border border-emerald-200/80 hover:bg-emerald-100"
                   }`}
                 >
                   Đang mở ({activeGroup?.openCount ?? 0})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGroupTableStatusFilter("CLOSED")}
+                  className={`rounded-lg px-2.5 py-1 text-xs font-black transition cursor-pointer whitespace-nowrap ${
+                    groupTableStatusFilter === "CLOSED"
+                      ? "bg-slate-700 text-white shadow-xs"
+                      : "bg-slate-100 text-slate-700 border border-slate-200/80 hover:bg-slate-200"
+                  }`}
+                >
+                  Đã đóng ({activeGroup?.closedCount ?? 0})
                 </button>
               </div>
             </div>
@@ -1691,48 +1775,59 @@ export function StaffBillingWorkspaceClient({
                       return (
                         <tr
                           key={folio.id}
-                          className={`hover:bg-amber-50/40 transition ${
-                            isChecked ? "bg-amber-50/20" : "opacity-60 bg-gray-50/50"
+                          className={`transition ${
+                            isChecked
+                              ? "bg-amber-50/35 hover:bg-amber-50/50"
+                              : isClosed
+                                ? "bg-slate-50/60 hover:bg-slate-100/60"
+                                : "hover:bg-amber-50/20"
                           }`}
                         >
-                          <td className="py-2 px-3 text-center">
+                          <td className="py-2.5 px-3 text-center">
                             <input
                               type="checkbox"
                               checked={isChecked}
                               disabled={isClosed}
                               onChange={() => toggleGroupFolio(folio.id)}
-                              className="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
+                              className="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500 cursor-pointer disabled:opacity-40"
                             />
                           </td>
-                          <td className="py-2 px-3">
+                          <td className="py-2.5 px-3">
                             <span className="rounded-lg bg-[var(--primary)] px-2 py-0.5 text-xs font-black text-white shadow-xs">
                               {displayRoom(folio)}
                             </span>
                           </td>
-                          <td className="py-2 px-2.5">
+                          <td className="py-2.5 px-2.5">
                             <p className="font-semibold text-xs text-[var(--primary)] truncate">
                               {guestName}
                             </p>
                           </td>
-                          <td className="py-2 px-2.5">
+                          <td className="py-2.5 px-2.5">
                             <span
-                              className={`rounded-full border px-2 py-0.2 text-xs font-extrabold whitespace-nowrap ${badge.colorClass}`}
+                              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-extrabold whitespace-nowrap ${badge.colorClass}`}
                             >
-                              {badge.label}
+                              {folio.status === "OPEN" ? (
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                              ) : folio.status === "CHECKOUT_PENDING" ? (
+                                <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                              ) : folio.status === "CLOSED" ? (
+                                <span className="h-1.5 w-1.5 rounded-full bg-slate-400"></span>
+                              ) : null}
+                              <span>{badge.label}</span>
                             </span>
                           </td>
-                          <td className="py-2 px-3 text-right font-black text-xs text-[var(--primary)]">
+                          <td className="py-2.5 px-3 text-right font-black text-xs text-[var(--primary)]">
                             <div>{formatMoney(totalAmt, folio.currency ?? "VND")}</div>
                           </td>
-                          <td className="py-2 px-2 text-center">
+                          <td className="py-2.5 px-2 text-center">
                             <button
                               type="button"
                               onClick={() => setPreviewFolioId(folio.id)}
-                              title="Soi chi tiết phí phòng"
-                              className="inline-flex items-center justify-center rounded-lg bg-white border border-[var(--outline-variant)] px-2 py-0.5 text-xs font-bold text-[var(--primary)] hover:bg-[var(--surface-container-low)] shadow-2xs transition cursor-pointer whitespace-nowrap"
+                              title="Xem chi tiết các khoản phí phòng"
+                              className="inline-flex items-center justify-center gap-1 rounded-lg bg-white border border-[var(--outline-variant)] px-2.5 py-1 text-xs font-bold text-[var(--primary)] hover:bg-[var(--surface-container-low)] hover:border-amber-400 shadow-2xs transition cursor-pointer whitespace-nowrap"
                             >
-                              <VsIcon name="visibility" className="text-xs mr-0.5" />
-                              <span>Soi</span>
+                              <VsIcon name="visibility" className="text-xs" />
+                              <span>Chi tiết</span>
                             </button>
                           </td>
                         </tr>
@@ -2026,12 +2121,15 @@ export function StaffBillingWorkspaceClient({
                                 const res = await SwalVietSage.fire({
                                   icon: "warning",
                                   title: "Hủy khoản thu này?",
-                                  text: item.nameSnapshot,
+                                  html: `<div class="p-3 my-2 rounded-xl bg-amber-50 border border-amber-200 text-left"><p class="text-xs font-bold text-amber-800">Khoản mục:</p><p class="text-sm font-extrabold text-amber-950 mt-0.5">${escapeHtml(item.nameSnapshot)}</p><p class="text-xs font-black text-amber-900 mt-1">${formatMoney(toNumber(item.totalSnapshot), currency)}</p></div>`,
                                   input: "text",
-                                  inputPlaceholder: "Lý do hủy (không bắt buộc)",
+                                  inputPlaceholder: "Nhập lý do hủy (không bắt buộc)...",
                                   showCancelButton: true,
                                   confirmButtonText: "Hủy khoản thu",
                                   cancelButtonText: "Quay lại",
+                                  customClass: {
+                                    confirmButton: SWAL_DANGER_BTN_CLASS,
+                                  },
                                 });
                                 if (!res.isConfirmed) return;
                                 try {
@@ -2063,7 +2161,7 @@ export function StaffBillingWorkspaceClient({
                                   );
                                   await showSuccessAlert(
                                     "Đã hủy khoản thu",
-                                    "",
+                                    `Đã hủy "${item.nameSnapshot}" khỏi hóa đơn lưu trú.`,
                                   );
                                 } catch (err) {
                                   void showErrorAlert("Không thể hủy khoản mục", err);
@@ -2120,170 +2218,253 @@ export function StaffBillingWorkspaceClient({
         {checkoutMode === "GROUP" ? (
           <div className="flex-1 min-h-0 flex flex-col rounded-2xl border border-[#d4af37]/50 bg-gradient-to-br from-[#2a1b08] via-[#38240b] to-[#1a1004] text-white shadow-2xl overflow-hidden">
             {/* Header cố định ở đầu thẻ */}
-            <div className="shrink-0 border-b border-[#d4af37]/30 bg-[#1c1204]/80 px-4 py-3">
+            <div className="shrink-0 border-b border-[#d4af37]/30 bg-[#1c1204]/80 p-4">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs font-black uppercase tracking-wider text-[#fce8b3]">
                     Tổng tiền đoàn
                   </p>
                 </div>
-                <span className="rounded-full bg-[#f59e0b]/30 px-2.5 py-0.5 text-xs font-black text-[#ffe270] border border-[#f59e0b]/60 shadow-xs whitespace-nowrap">
+                <span className="rounded-full bg-[#f59e0b]/30 px-3 py-1 text-xs font-black text-[#ffe270] border border-[#f59e0b]/60 shadow-xs whitespace-nowrap">
                   {currency}
                 </span>
               </div>
-              <p className="vs-display text-2xl sm:text-3xl font-black text-[#ffe270] tracking-tight drop-shadow-md break-words mt-0.5">
+              <p className="vs-display text-2xl sm:text-3xl font-black text-[#ffe270] tracking-tight drop-shadow-md break-words mt-1">
                 {formatMoney(computedGroupTotal, currency)}
               </p>
             </div>
 
             {/* Thân thẻ cuộn mượt bên trong */}
-            <div className="flex-1 min-h-0 overflow-y-auto p-3.5 space-y-3">
-              <dl className="space-y-2 text-xs text-[#fff3d1]">
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3.5">
+              <dl className="space-y-2.5 text-xs sm:text-sm text-[#fff3d1]">
                 {/* Tổng tiền phòng */}
                 <div className="flex justify-between items-center">
-                  <dt className="text-amber-100 font-bold">
-                    Tiền phòng cả đoàn
+                  <dt className="text-amber-100 font-bold text-xs sm:text-sm flex items-center gap-1">
+                    <span>🏨 Tiền phòng cả đoàn</span>
                   </dt>
-                  <dd className="font-black text-white">
+                  <dd className="font-black text-sm sm:text-base text-white">
                     {formatMoney(groupRoomChargeTotal, currency)}
                   </dd>
                 </div>
 
-                {/* Dịch vụ (chỉ hiện khi có phát sinh) */}
-                {groupServiceTotal > 0 ? (
-                  <div className="flex justify-between items-center">
-                    <dt className="text-amber-100 font-bold">
-                      Dịch vụ &amp; Minibar
-                    </dt>
-                    <dd className="font-black text-white">
-                      {formatMoney(groupServiceTotal, currency)}
-                    </dd>
-                  </div>
-                ) : null}
+                {/* Dịch vụ cả đoàn */}
+                <div className="flex justify-between items-center">
+                  <dt className="text-amber-100 font-bold text-xs sm:text-sm flex items-center gap-1">
+                    <span>🔔 Dịch vụ cả đoàn</span>
+                  </dt>
+                  <dd className="font-black text-sm sm:text-base text-white">
+                    {formatMoney(groupServiceTotal, currency)}
+                  </dd>
+                </div>
 
                 {/* Tạm tính */}
-                <div className="flex justify-between items-center border-t border-[#d4af37]/20 pt-1.5">
-                  <dt className="text-amber-200 font-extrabold">
+                <div className="flex justify-between items-center border-t border-[#d4af37]/20 pt-2">
+                  <dt className="text-amber-200 font-extrabold text-xs sm:text-sm">
                     Tổng tạm tính
                   </dt>
-                  <dd className="font-black text-[#ffe270]">
+                  <dd className="font-black text-sm sm:text-base text-[#ffe270]">
                     {formatMoney(groupSubtotal, currency)}
                   </dd>
                 </div>
 
-                {/* Phụ thu cả đoàn */}
-                <div className="space-y-1 border-t border-[#d4af37]/25 pt-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <dt className="text-amber-100 font-bold truncate">
-                      Phụ thu đoàn
-                    </dt>
-                    <dd className="flex-1 max-w-[120px] shrink-0">
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        value={groupSurchargeInput}
-                        onChange={(e) =>
-                          setGroupSurchargeInput(
-                            formatNumberOrPercentInput(e.target.value),
-                          )
-                        }
-                        placeholder="0 hoặc 10%"
-                        className="h-7.5 w-full rounded-lg border border-[#d4af37]/70 bg-[#1c1204] px-2 py-0.5 text-right text-xs font-black text-[#ffe270] placeholder-[#ffe270]/60 outline-none focus:border-[#fbbf24]"
-                      />
-                    </dd>
-                  </div>
-                  {groupSurchargeParsed.isPercentage && groupSurchargeParsed.amount > 0 ? (
-                    <p className="text-xs font-bold text-right text-[#ffe270]">
-                      +{formatMoney(groupSurchargeParsed.amount, currency)}
-                    </p>
-                  ) : null}
-                  {canManage ? (
-                    <div className="flex flex-nowrap gap-1 justify-end pt-0.5">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setGroupSurchargeInput("5%");
-                          if (!groupSurchargeNote) setGroupSurchargeNote("Phụ thu đoàn 5%");
-                        }}
-                        className="rounded bg-[#d4af37]/30 px-1.5 py-0.2 text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 cursor-pointer"
-                      >
-                        +5%
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setGroupSurchargeInput("10%");
-                          if (!groupSurchargeNote) setGroupSurchargeNote("Phụ thu đoàn 10%");
-                        }}
-                        className="rounded bg-[#d4af37]/30 px-1.5 py-0.2 text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 cursor-pointer"
-                      >
-                        +10%
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setGroupSurchargeInput(formatNumberInput("200000"));
-                          if (!groupSurchargeNote) setGroupSurchargeNote("Phụ thu đoàn");
-                        }}
-                        className="rounded bg-[#d4af37]/30 px-1.5 py-0.2 text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 cursor-pointer"
-                      >
-                        +200k
-                      </button>
-                    </div>
-                  ) : null}
+                {/* Thuế GTGT */}
+                <div className="flex justify-between items-center">
+                  <dt className="text-amber-100 font-bold text-xs sm:text-sm">
+                    Thuế GTGT
+                  </dt>
+                  <dd className="font-black text-sm sm:text-base text-white">
+                    {formatMoney(0, currency)}
+                  </dd>
                 </div>
 
-                {/* Giảm giá cả đoàn */}
-                <div className="space-y-1 border-t border-[#d4af37]/25 pt-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <dt className="text-amber-100 font-bold truncate">
-                      Giảm giá đoàn
-                    </dt>
-                    <dd className="flex-1 max-w-[120px] shrink-0">
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        value={groupDiscountInput}
-                        onChange={(e) =>
-                          setGroupDiscountInput(
-                            formatNumberOrPercentInput(e.target.value),
-                          )
-                        }
-                        placeholder="0 hoặc 10%"
-                        className="h-7.5 w-full rounded-lg border border-[#d4af37]/70 bg-[#1c1204] px-2 py-0.5 text-right text-xs font-black text-[#fef08a] placeholder-[#fef08a]/60 outline-none focus:border-[#fbbf24]"
-                      />
-                    </dd>
-                  </div>
-                  {groupDiscountParsed.isPercentage && groupDiscountParsed.amount > 0 ? (
-                    <p className="text-xs font-bold text-right text-[#fef08a]">
-                      -{formatMoney(groupDiscountParsed.amount, currency)}
-                    </p>
-                  ) : null}
-                  {canManage ? (
-                    <div className="flex flex-nowrap gap-1 justify-end pt-0.5">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setGroupDiscountInput("5%");
-                          setGroupDiscountNote("Chiết khấu đoàn 5%");
-                        }}
-                        className="rounded bg-[#d4af37]/30 px-1.5 py-0.2 text-xs font-bold text-[#fef08a] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 cursor-pointer"
-                      >
-                        -5%
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setGroupDiscountInput("10%");
-                          setGroupDiscountNote("Chiết khấu đoàn 10%");
-                        }}
-                        className="rounded bg-[#d4af37]/30 px-1.5 py-0.2 text-xs font-bold text-[#fef08a] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 cursor-pointer"
-                      >
-                        -10%
-                      </button>
+                {/* Trạng thái đã đóng cả đoàn */}
+                {(selectedGroupFolios.length > 0 &&
+                  selectedGroupFolios.every((f) => f.status === "CLOSED")) ||
+                (activeGroup &&
+                  activeGroup.folios.length > 0 &&
+                  activeGroup.folios.every((f) => f.status === "CLOSED")) ? (
+                  <div className="rounded-xl border border-emerald-500/40 bg-emerald-950/60 p-3 text-center space-y-1">
+                    <div className="flex items-center justify-center gap-1.5 text-xs font-black text-emerald-400">
+                      <VsIcon name="check_circle" className="text-base" />
+                      <span>Các phòng trong đoàn đã hoàn tất thanh toán &amp; đóng</span>
                     </div>
-                  ) : null}
-                </div>
+                    <p className="text-xs text-emerald-300/80">
+                      Hóa đơn đã được phát hành. Bấm nút bên dưới để xem hoặc in lại hóa đơn.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Phụ thu cả đoàn */}
+                    <div className="space-y-1.5 border-t border-[#d4af37]/25 pt-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <dt className="text-amber-100 font-extrabold text-xs sm:text-sm min-w-0 truncate">
+                          Phụ thu đoàn (Tăng giá)
+                        </dt>
+                        <dd className="flex-1 min-w-0 max-w-[150px] shrink-0">
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={groupSurchargeInput}
+                            onChange={(e) =>
+                              setGroupSurchargeInput(
+                                formatNumberOrPercentInput(e.target.value),
+                              )
+                            }
+                            placeholder="0 hoặc 10%"
+                            className="h-9 w-full min-w-0 rounded-xl border border-[#d4af37]/70 bg-[#1c1204] px-2.5 py-1 text-right text-sm font-black text-[#ffe270] placeholder-[#ffe270]/60 outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24] shadow-inner"
+                          />
+                        </dd>
+                      </div>
+
+                      {canManage ? (
+                        <input
+                          type="text"
+                          value={groupSurchargeNote}
+                          onChange={(e) => setGroupSurchargeNote(e.target.value)}
+                          placeholder="Lý do phụ thu đoàn (nhận phòng sớm, phụ thu xe, sự kiện...)"
+                          className="h-8 w-full rounded-xl border border-[#d4af37]/40 bg-[#1c1204]/90 px-2.5 py-1 text-xs font-medium text-[#ffe270] placeholder-[#ffe270]/60 outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24]"
+                        />
+                      ) : null}
+
+                      {groupSurchargeParsed.isPercentage && groupSurchargeParsed.amount > 0 ? (
+                        <p className="text-xs font-bold text-right text-[#ffe270]">
+                          ⚡ Quy đổi {groupSurchargeParsed.percentage}% Tạm tính: +
+                          {formatMoney(groupSurchargeParsed.amount, currency)}
+                        </p>
+                      ) : null}
+
+                      {canManage ? (
+                        <div className="flex flex-nowrap gap-1 justify-end overflow-x-auto no-scrollbar pt-0.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setGroupSurchargeInput("5%");
+                              if (!groupSurchargeNote) setGroupSurchargeNote("Phụ thu đoàn 5%");
+                            }}
+                            className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap cursor-pointer"
+                          >
+                            +5%
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setGroupSurchargeInput("10%");
+                              if (!groupSurchargeNote) setGroupSurchargeNote("Phụ thu đoàn 10%");
+                            }}
+                            className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap cursor-pointer"
+                          >
+                            +10%
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setGroupSurchargeInput(formatNumberInput("50000"));
+                              if (!groupSurchargeNote) setGroupSurchargeNote("Phụ thu nhận phòng sớm");
+                            }}
+                            className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap cursor-pointer"
+                          >
+                            +50k Sớm
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setGroupSurchargeInput(formatNumberInput("100000"));
+                              if (!groupSurchargeNote) setGroupSurchargeNote("Phụ thu trả phòng muộn");
+                            }}
+                            className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap cursor-pointer"
+                          >
+                            +100k Muộn
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setGroupSurchargeInput(formatNumberInput("200000"));
+                              if (!groupSurchargeNote) setGroupSurchargeNote("Phụ thu đoàn");
+                            }}
+                            className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-xs font-bold text-[#ffe270] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap cursor-pointer"
+                          >
+                            +200k
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+
+                    {/* Giảm giá cả đoàn */}
+                    <div className="space-y-1.5 border-t border-[#d4af37]/25 pt-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <dt className="text-amber-100 font-extrabold text-xs sm:text-sm min-w-0 truncate">
+                          Giảm giá đoàn
+                        </dt>
+                        <dd className="flex-1 min-w-0 max-w-[150px] shrink-0">
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={groupDiscountInput}
+                            onChange={(e) =>
+                              setGroupDiscountInput(
+                                formatNumberOrPercentInput(e.target.value),
+                              )
+                            }
+                            placeholder="0 hoặc 10%"
+                            className="h-9 w-full min-w-0 rounded-xl border border-[#d4af37]/70 bg-[#1c1204] px-2.5 py-1 text-right text-sm font-black text-[#fef08a] placeholder-[#fef08a]/60 outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24] shadow-inner"
+                          />
+                        </dd>
+                      </div>
+
+                      {canManage ? (
+                        <input
+                          type="text"
+                          value={groupDiscountNote}
+                          onChange={(e) => setGroupDiscountNote(e.target.value)}
+                          placeholder="Lý do giảm giá đoàn (ưu đãi đoàn lớn, đối tác lữ hành...)"
+                          className="h-8 w-full rounded-xl border border-[#d4af37]/40 bg-[#1c1204]/90 px-2.5 py-1 text-xs font-medium text-[#fef08a] placeholder-[#fef08a]/60 outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24]"
+                        />
+                      ) : null}
+
+                      {groupDiscountParsed.isPercentage && groupDiscountParsed.amount > 0 ? (
+                        <p className="text-xs font-bold text-right text-[#fef08a]">
+                          ⚡ Quy đổi {groupDiscountParsed.percentage}% Tạm tính: -
+                          {formatMoney(groupDiscountParsed.amount, currency)}
+                        </p>
+                      ) : null}
+
+                      {canManage ? (
+                        <div className="flex flex-nowrap gap-1 justify-end overflow-x-auto no-scrollbar pt-0.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setGroupDiscountInput("5%");
+                              setGroupDiscountNote("Chiết khấu đoàn 5%");
+                            }}
+                            className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-xs font-bold text-[#fef08a] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap cursor-pointer"
+                          >
+                            -5% VIP
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setGroupDiscountInput("10%");
+                              setGroupDiscountNote("Chiết khấu đoàn 10%");
+                            }}
+                            className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-xs font-bold text-[#fef08a] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap cursor-pointer"
+                          >
+                            -10% VIP
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setGroupDiscountInput("15%");
+                              setGroupDiscountNote("Ưu đãi voucher đoàn -15%");
+                            }}
+                            className="rounded-lg bg-[#d4af37]/30 px-2 py-0.5 text-xs font-bold text-[#fef08a] hover:bg-[#d4af37]/50 border border-[#d4af37]/50 transition shrink-0 whitespace-nowrap cursor-pointer"
+                          >
+                            -15% Voucher
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                  </>
+                )}
               </dl>
             </div>
 
@@ -2303,19 +2484,22 @@ export function StaffBillingWorkspaceClient({
                       .map((f) => getFolioInvoiceId(f))
                       .find(Boolean);
                     if (!closedInvoiceId) {
-                      void SwalVietSage.fire({
-                        icon: "warning",
-                        title: "Chưa tìm thấy hóa đơn",
-                        text: "Đoàn đã trả phòng nhưng chưa có mã hóa đơn.",
-                        confirmButtonText: "Đã hiểu",
-                      });
+                      await showWarningAlert(
+                        "Chưa tìm thấy hóa đơn",
+                        "Đoàn đã hoàn tất trả phòng nhưng chưa có mã hóa đơn lưu trữ.",
+                      );
                       return;
                     }
                     const result = await showConfirmDialog({
                       icon: "question",
                       title: "Xem hóa đơn đoàn?",
+                      details: [
+                        { label: "Trưởng đoàn", value: activeGroup?.leadGuestName || "Khách đoàn" },
+                        { label: "Mã hóa đơn", value: closedInvoiceId },
+                      ],
+                      text: "Chuyển sang trang xem & in hóa đơn chi tiết của đoàn.",
                       confirmText: "Xem hóa đơn",
-                      cancelText: "Hủy",
+                      cancelText: "Hủy bỏ",
                     });
                     if (result.isConfirmed) {
                       router.push(
@@ -2323,9 +2507,9 @@ export function StaffBillingWorkspaceClient({
                       );
                     }
                   }}
-                  className="w-full inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#fbbf24] via-[#f59e0b] to-[#d97706] px-4 text-sm font-black text-[#1c1204] shadow-lg shadow-amber-950/60 transition hover:from-[#f59e0b] hover:to-[#b45309] active:scale-[0.99] cursor-pointer"
+                  className="w-full inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#fbbf24] via-[#f59e0b] to-[#d97706] px-4 text-sm sm:text-base font-black text-[#1c1204] shadow-lg shadow-amber-950/60 transition hover:from-[#f59e0b] hover:to-[#b45309] active:scale-[0.99] cursor-pointer"
                 >
-                  <VsIcon name="description" className="text-lg" />
+                  <VsIcon name="description" className="text-xl" />
                   <span>Xem &amp; In hóa đơn đoàn</span>
                 </button>
               ) : (
@@ -2337,15 +2521,15 @@ export function StaffBillingWorkspaceClient({
                     !canManage ||
                     saving
                   }
-                  className="w-full inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#fbbf24] via-[#f59e0b] to-[#d97706] px-4 text-sm font-black text-[#1c1204] shadow-lg shadow-amber-950/60 transition hover:from-[#f59e0b] hover:to-[#b45309] active:scale-[0.99] disabled:opacity-50 cursor-pointer"
+                  className="w-full inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#fbbf24] via-[#f59e0b] to-[#d97706] px-4 text-sm sm:text-base font-black text-[#1c1204] shadow-lg shadow-amber-950/60 transition hover:from-[#f59e0b] hover:to-[#b45309] active:scale-[0.99] disabled:opacity-50 cursor-pointer"
                 >
                   <VsIcon
                     name={saving ? "sync" : "payments"}
-                    className={`text-lg ${saving ? "animate-spin" : ""}`}
+                    className={`text-xl ${saving ? "animate-spin" : ""}`}
                   />
                   {saving
                     ? "Đang xử lý trả phòng..."
-                    : `Thanh toán (${selectedGroupFolios.filter((f) => f.status !== "CLOSED").length} phòng)`}
+                    : `Thanh toán & Trả phòng (${selectedGroupFolios.filter((f) => f.status !== "CLOSED").length} phòng)`}
                 </button>
               )}
             </div>
@@ -2751,19 +2935,22 @@ export function StaffBillingWorkspaceClient({
                   onClick={async () => {
                     const invoiceId = getFolioInvoiceId(selectedFolio);
                     if (!invoiceId) {
-                      void SwalVietSage.fire({
-                        icon: "warning",
-                        title: "Chưa tìm thấy hóa đơn",
-                        text: "Phòng đã trả nhưng chưa có mã hóa đơn.",
-                        confirmButtonText: "Đã hiểu",
-                      });
+                      await showWarningAlert(
+                        "Chưa tìm thấy hóa đơn",
+                        "Phòng đã hoàn tất trả phòng nhưng chưa có mã hóa đơn lưu trữ.",
+                      );
                       return;
                     }
                     const result = await showConfirmDialog({
                       icon: "question",
-                      title: "Xem hóa đơn?",
+                      title: "Xem hóa đơn lưu trú?",
+                      details: [
+                        { label: "Phòng", value: displayRoom(selectedFolio) },
+                        { label: "Mã hóa đơn", value: invoiceId },
+                      ],
+                      text: "Chuyển sang trang xem & in hóa đơn chi tiết.",
                       confirmText: "Xem hóa đơn",
-                      cancelText: "Hủy",
+                      cancelText: "Hủy bỏ",
                     });
                     if (result.isConfirmed) {
                       router.push(

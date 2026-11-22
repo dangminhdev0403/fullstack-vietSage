@@ -44,6 +44,7 @@ export type PriorityRoomsControlSectionProps = {
   canManageReservations: boolean;
   onInspectItem: (item: PriorityRoomAlertItem, triggerEl: HTMLElement | null) => void;
   onPrimaryAction: (item: PriorityRoomAlertItem, triggerEl: HTMLElement | null) => void;
+  onCancelReservation?: (item: PriorityRoomAlertItem, triggerEl: HTMLElement | null) => void;
 };
 
 function getPrimaryActionButtonClass(item: PriorityRoomAlertItem): string {
@@ -89,6 +90,7 @@ function PriorityRowActions({
   fullWidthOnMobile,
   onInspectItem,
   onPrimaryAction,
+  onCancelReservation,
 }: {
   item: PriorityRoomAlertItem;
   permissions: {
@@ -99,36 +101,56 @@ function PriorityRowActions({
   fullWidthOnMobile?: boolean;
   onInspectItem: (item: PriorityRoomAlertItem, triggerEl: HTMLElement | null) => void;
   onPrimaryAction: (item: PriorityRoomAlertItem, triggerEl: HTMLElement | null) => void;
+  onCancelReservation?: (item: PriorityRoomAlertItem, triggerEl: HTMLElement | null) => void;
 }) {
   const canPrimary = canExecutePrimaryAction(item, permissions);
   const buttonHeight = fullWidthOnMobile ? "min-h-[44px] flex-1" : "min-h-[38px]";
+  const isCancellable = Boolean(
+    permissions.canManageReservations &&
+      (item.reservationId || item.arrival || item.fallbackReservation) &&
+      !item.stayId,
+  );
 
-  if (canPrimary) {
-    return (
+  return (
+    <>
+      {canPrimary ? (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onPrimaryAction(item, e.currentTarget);
+          }}
+          className={`inline-flex ${buttonHeight} items-center justify-center rounded-xl border px-3.5 py-1.5 text-xs font-bold shadow-2xs transition cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/25 ${getPrimaryActionButtonClass(item)}`}
+        >
+          {item.actionLabel}
+        </button>
+      ) : null}
+
+      {isCancellable && onCancelReservation ? (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onCancelReservation(item, e.currentTarget);
+          }}
+          className={`inline-flex ${buttonHeight} items-center justify-center rounded-xl border border-rose-300 bg-white px-3.5 py-1.5 text-xs font-bold text-rose-700 hover:border-rose-400 hover:bg-rose-50 hover:text-rose-800 transition cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/20`}
+          title="Hủy đặt phòng (Đưa phòng về trạng thái trống & vẫn tính cọc)"
+        >
+          Hủy đặt phòng
+        </button>
+      ) : null}
+
       <button
         type="button"
         onClick={(e) => {
           e.stopPropagation();
-          onPrimaryAction(item, e.currentTarget);
+          onInspectItem(item, e.currentTarget);
         }}
-        className={`inline-flex ${buttonHeight} items-center justify-center rounded-xl border px-3.5 py-1.5 text-xs font-bold shadow-2xs transition cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/25 ${getPrimaryActionButtonClass(item)}`}
+        className={`inline-flex ${buttonHeight} items-center justify-center rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-700 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-950 transition cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/20`}
       >
-        {item.actionLabel}
+        Chi tiết
       </button>
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={(e) => {
-        e.stopPropagation();
-        onInspectItem(item, e.currentTarget);
-      }}
-      className={`inline-flex ${buttonHeight} items-center justify-center rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-700 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-950 transition cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/20`}
-    >
-      {item.actionLabel || "Chi tiết"}
-    </button>
+    </>
   );
 }
 
@@ -145,6 +167,7 @@ export function PriorityRoomsControlSection({
   canManageReservations,
   onInspectItem,
   onPrimaryAction,
+  onCancelReservation,
 }: PriorityRoomsControlSectionProps) {
   const [selectedBucket, setSelectedBucket] = useState<FilterBucket>("all");
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -385,6 +408,7 @@ export function PriorityRoomsControlSection({
                             permissions={{ canCheckInStay, canManageRooms, canManageReservations }}
                             onInspectItem={onInspectItem}
                             onPrimaryAction={onPrimaryAction}
+                            onCancelReservation={onCancelReservation}
                           />
                         </div>
                       </td>
@@ -465,6 +489,7 @@ export function PriorityRoomsControlSection({
                       fullWidthOnMobile
                       onInspectItem={onInspectItem}
                       onPrimaryAction={onPrimaryAction}
+                      onCancelReservation={onCancelReservation}
                     />
                   </div>
                 </div>

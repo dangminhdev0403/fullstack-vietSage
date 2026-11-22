@@ -356,11 +356,11 @@ export function FrontDeskArrivalDetailPanel({
 
   function reservationResolutionSummaryHtml() {
     return `<dl class="space-y-2 text-left text-sm text-pretty">
-      <div><dt class="font-semibold">Đặt phòng</dt><dd class="break-words">${escapeHtml(activeArrival.guestDisplayName)} · #${escapeHtml(activeArrival.reservationCode)}</dd></div>
-      <div><dt class="font-semibold">Phòng</dt><dd>${escapeHtml(activeArrival.room?.roomNumber || "Chưa gán phòng")}</dd></div>
-      <div><dt class="font-semibold">Lịch lưu trú</dt><dd>${escapeHtml(formatDateTime(activeArrival.plannedCheckInAt))} → ${escapeHtml(formatDateTime(activeArrival.plannedCheckOutAt))}</dd></div>
-      ${depositPaidAmount > 0 ? `<div><dt class="font-semibold">Cọc thực nhận</dt><dd>${escapeHtml(formatVnd(depositPaidAmount))}</dd></div>` : ""}
-    </dl><p class="mt-3 text-left text-sm text-pretty">Hủy đặt phòng sẽ bỏ giữ phòng.${depositPaidAmount > 0 ? " Tiền cọc được bảo toàn trong báo cáo doanh thu/cọc; không tự hoàn cọc." : ""}</p>`;
+      <div><dt class="font-semibold text-slate-600">Đặt phòng</dt><dd class="break-words font-bold text-slate-900">${escapeHtml(activeArrival.guestDisplayName)} · #${escapeHtml(activeArrival.reservationCode)}</dd></div>
+      <div><dt class="font-semibold text-slate-600">Phòng</dt><dd class="font-bold text-slate-900">${escapeHtml(activeArrival.room?.roomNumber ? `P.${activeArrival.room.roomNumber}` : "Chưa gán phòng")} <span class="text-xs text-emerald-700 font-semibold">(sẽ được đưa về trạng thái TRỐNG)</span></dd></div>
+      <div><dt class="font-semibold text-slate-600">Lịch lưu trú</dt><dd class="text-slate-800">${escapeHtml(formatDateTime(activeArrival.plannedCheckInAt))} → ${escapeHtml(formatDateTime(activeArrival.plannedCheckOutAt))}</dd></div>
+      ${depositPaidAmount > 0 ? `<div><dt class="font-semibold text-slate-600">Cọc thực nhận</dt><dd class="font-bold text-emerald-700">${escapeHtml(formatVnd(depositPaidAmount))}</dd></div>` : ""}
+    </dl><div class="mt-2.5 rounded-lg bg-amber-50 p-2.5 text-xs text-amber-900 border border-amber-200 text-left text-pretty"><p class="font-semibold">Quy tắc hủy đặt phòng:</p><ul class="list-disc list-inside mt-1 space-y-0.5"><li>Trạng thái phòng ${escapeHtml(activeArrival.room?.roomNumber ? `P.${activeArrival.room.roomNumber} ` : "")}sẽ được đưa về <strong class="text-emerald-800">TRỐNG</strong> sẵn sàng đón khách khác.</li><li>Khoản tiền cọc ${depositPaidAmount > 0 ? `(${escapeHtml(formatVnd(depositPaidAmount))}) ` : ""}<strong class="text-emerald-800">vẫn được tính</strong> và bảo toàn trong báo cáo doanh thu / sổ thu chi (không hoàn cọc).</li></ul></div>`;
   }
 
   async function requireCurrentStaySchedule() {
@@ -579,7 +579,10 @@ export function FrontDeskArrivalDetailPanel({
         await staffRoomsRepository.cancelReservation(hotelId, arrival.id, { reason });
       }
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
-      await showSuccessAlert("Đã hủy đặt phòng", "Đã bỏ giữ phòng cho đơn được chọn.");
+      await showSuccessAlert(
+        "Đã hủy đặt phòng",
+        `Đã hủy đặt phòng #${activeArrival.reservationCode}. Phòng ${activeArrival.room?.roomNumber ? `P.${activeArrival.room.roomNumber} ` : ""}đã được đưa về trạng thái TRỐNG và tiền cọc được bảo toàn trong doanh thu.`,
+      );
       onClose();
     } catch (err) {
       await showErrorAlert("Không thể hủy đặt phòng", formatFriendlyHotelOpsError(err));

@@ -2077,7 +2077,7 @@ describe("ReservationsRepository transactional lifecycle", () => {
         reservationGroup: forbiddenWrites(),
         reservationChargeLine: forbiddenWrites(),
         guestStay: { ...forbiddenWrites(), findUnique: jest.fn().mockResolvedValue(activeStay) },
-        room: forbiddenWrites(),
+        room: { ...forbiddenWrites(), updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
         folio: forbiddenWrites(),
         folioItem: forbiddenWrites(),
         payment: forbiddenWrites(),
@@ -2108,8 +2108,12 @@ describe("ReservationsRepository transactional lifecycle", () => {
       expect(payments[0].receivedAt).toEqual(receivedAt);
       expect(reservations.slice(1)).toEqual(otherMembersBefore);
       expect(activeStay).toMatchObject({ status: GuestStayStatus.ACTIVE, checkedOutAt: null });
+      expect(tx.room.updateMany).toHaveBeenCalledWith({
+        where: { id: "room-1", hotelId: "hotel-1", status: RoomStatus.RESERVED },
+        data: { status: RoomStatus.AVAILABLE },
+      });
       for (const delegate of [tx.bookingPayment, tx.bookingPaymentAllocation, tx.reservationGroup,
-        tx.reservationChargeLine, tx.guestStay, tx.room, tx.folio, tx.folioItem, tx.payment]) {
+        tx.reservationChargeLine, tx.guestStay, tx.folio, tx.folioItem, tx.payment]) {
         for (const operation of Object.values(delegate)) expect(operation).not.toHaveBeenCalled();
       }
     });

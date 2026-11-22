@@ -3,6 +3,8 @@
 import { createPortal } from "react-dom";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
+  SWAL_CANCEL_BTN_CLASS,
+  SWAL_DANGER_BTN_CLASS,
   SwalVietSage,
   escapeHtml,
   formatEarlyCheckInConfirmHtml,
@@ -930,6 +932,7 @@ export function StaffRoomsClient({
   const [reservationNightlyRates, setReservationNightlyRates] = useState<Record<string, number>>({});
   const [reservationPrebookedServices, setReservationPrebookedServices] = useState<PrebookedServiceItem[]>([]);
   const [reservationCustomPercent, setReservationCustomPercent] = useState<string>("10");
+  const [reservationDepositAmount, setReservationDepositAmount] = useState<string>("");
 
   // Reassign reservation conflict state (when guest extends stay into an upcoming reservation)
   const [reassignReservation, setReassignReservation] =
@@ -972,6 +975,7 @@ export function StaffRoomsClient({
   const [bulkIsCustomNightlyRates, setBulkIsCustomNightlyRates] = useState(false);
   const [bulkNightlyRates, setBulkNightlyRates] = useState<Record<string, number>>({});
   const [bulkPrebookedServices, setBulkPrebookedServices] = useState<PrebookedServiceItem[]>([]);
+  const [bulkDepositAmount, setBulkDepositAmount] = useState<string>("");
 
   // Booking Source Partners Query
   const bookingPartnersQuery = useQuery({
@@ -980,6 +984,9 @@ export function StaffRoomsClient({
   });
   const createBookingPartnerMutation = useMutation(
     staffRoomsResource.bind({ hotelId }).mutations.createBookingPartner.options(),
+  );
+  const createBookingPaymentMutation = useMutation(
+    staffRoomsResource.bind({ hotelId }).mutations.createBookingPayment.options(),
   );
 
   const bookingPartnersList = useMemo<BookingSourcePartnerItem[]>(
@@ -1067,6 +1074,7 @@ export function StaffRoomsClient({
     setBulkUniformPrice("");
     setBulkRoomCustomPrices({});
     setBulkRoomTypeCustomPrices({});
+    setBulkDepositAmount("");
     setIsBulkModalOpen(true);
   }
 
@@ -1380,6 +1388,7 @@ export function StaffRoomsClient({
       setReservationCheckIn(`${businessDate}T14:00`);
       setReservationCheckOut(`${addDaysYmd(businessDate, 1)}T12:00`);
     }
+    setReservationDepositAmount("");
     setIsReservationOpen(true);
   }
 
@@ -1525,6 +1534,20 @@ export function StaffRoomsClient({
         payload,
       );
 
+      if (reservationDepositNumeric > 0 && createdReservation?.id) {
+        try {
+          await createBookingPaymentMutation.mutateAsync({
+            reservationId: createdReservation.id,
+            intent: "DEPOSIT",
+            inputMode: "AMOUNT",
+            amount: reservationDepositNumeric,
+            receivedAmount: reservationDepositNumeric,
+          });
+        } catch (depositErr) {
+          console.error("Lỗi ghi nhận tiền cọc đặt phòng:", depositErr);
+        }
+      }
+
       setIsReservationOpen(false);
       setReservationGuestName("");
       setReservationGuestPhone("");
@@ -1537,6 +1560,7 @@ export function StaffRoomsClient({
       setReservationNightlyRates({});
       setReservationIsCustomNightlyRates(false);
       setReservationPrebookedServices([]);
+      setReservationDepositAmount("");
 
       const createdGuestName = createdReservation?.guestDisplayName || reservationGuestName;
       const reservationCode =
@@ -2961,6 +2985,32 @@ export function StaffRoomsClient({
     [reservationEstimatedRoomsTotal, reservationEstimatedServicesTotal],
   );
 
+  const bulkDepositNumeric = useMemo(() => {
+    if (!bulkDepositAmount) return 0;
+    const digits = bulkDepositAmount.replace(/\D/g, "");
+    return digits ? Number(digits) : 0;
+  }, [bulkDepositAmount]);
+
+  const reservationDepositNumeric = useMemo(() => {
+    if (!reservationDepositAmount) return 0;
+    const digits = reservationDepositAmount.replace(/\D/g, "");
+    return digits ? Number(digits) : 0;
+  }, [reservationDepositAmount]);
+
+  function handleApplyBulkDepositPercent(percent: number) {
+    if (bulkEstimatedTotalPrice <= 0) return;
+    const calc = Math.round((bulkEstimatedTotalPrice * percent) / 100);
+    const rounded = Math.round(calc / 1000) * 1000;
+    setBulkDepositAmount(String(rounded));
+  }
+
+  function handleApplyReservationDepositPercent(percent: number) {
+    if (reservationEstimatedTotalPrice <= 0) return;
+    const calc = Math.round((reservationEstimatedTotalPrice * percent) / 100);
+    const rounded = Math.round(calc / 1000) * 1000;
+    setReservationDepositAmount(String(rounded));
+  }
+
   const reservationBaseRate = useMemo(() => {
     if (selectedReservationRoom?.price && Number(selectedReservationRoom.price) > 0) {
       return Number(selectedReservationRoom.price);
@@ -3621,6 +3671,112 @@ export function StaffRoomsClient({
     );
   }
 
+  function renderBulkDepositSection() {
+    return (
+      <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+        <label
+          htmlFor="bulk-deposit-amount"
+          className="text-xs font-bold text-slate-700 whitespace-nowrap"
+        >
+          Tiền đặt cọc (₫):
+        </label>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative flex items-center w-40 sm:w-48">
+            <input
+              id="bulk-deposit-amount"
+              type="text"
+              inputMode="numeric"
+              value={formatPriceInput(bulkDepositAmount)}
+              onChange={(e) => {
+                const digits = e.target.value.replace(/\D/g, "");
+                setBulkDepositAmount(digits);
+              }}
+              placeholder="0"
+              className="w-full text-xs sm:text-sm font-bold text-slate-900 bg-white border border-slate-300 rounded-lg pl-3 pr-8 py-1.5 focus:border-purple-600 focus:ring-1 focus:ring-purple-600 outline-none"
+            />
+            <span className="absolute right-2.5 text-xs font-semibold text-slate-400 pointer-events-none">
+              ₫
+            </span>
+          </div>
+          <div className="inline-flex items-center gap-1">
+            {[20, 50, 100].map((pct) => (
+              <button
+                key={pct}
+                type="button"
+                onClick={() => handleApplyBulkDepositPercent(pct)}
+                className="px-2 py-1 text-xs font-bold text-purple-700 hover:bg-purple-100/70 bg-white rounded-lg border border-purple-200 transition cursor-pointer whitespace-nowrap"
+              >
+                {pct}%
+              </button>
+            ))}
+            {bulkDepositNumeric > 0 && (
+              <button
+                type="button"
+                onClick={() => setBulkDepositAmount("")}
+                className="px-2 py-1 text-xs text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition cursor-pointer whitespace-nowrap"
+              >
+                Xóa
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  function renderReservationDepositSection() {
+    return (
+      <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+        <label
+          htmlFor="reservation-deposit-amount"
+          className="text-xs font-bold text-slate-700 whitespace-nowrap"
+        >
+          Tiền đặt cọc (₫):
+        </label>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative flex items-center w-40 sm:w-48">
+            <input
+              id="reservation-deposit-amount"
+              type="text"
+              inputMode="numeric"
+              value={formatPriceInput(reservationDepositAmount)}
+              onChange={(e) => {
+                const digits = e.target.value.replace(/\D/g, "");
+                setReservationDepositAmount(digits);
+              }}
+              placeholder="0"
+              className="w-full text-xs sm:text-sm font-bold text-slate-900 bg-white border border-slate-300 rounded-lg pl-3 pr-8 py-1.5 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 outline-none"
+            />
+            <span className="absolute right-2.5 text-xs font-semibold text-slate-400 pointer-events-none">
+              ₫
+            </span>
+          </div>
+          <div className="inline-flex items-center gap-1">
+            {[20, 50, 100].map((pct) => (
+              <button
+                key={pct}
+                type="button"
+                onClick={() => handleApplyReservationDepositPercent(pct)}
+                className="px-2 py-1 text-xs font-bold text-emerald-700 hover:bg-emerald-100/70 bg-white rounded-lg border border-emerald-200 transition cursor-pointer whitespace-nowrap"
+              >
+                {pct}%
+              </button>
+            ))}
+            {reservationDepositNumeric > 0 && (
+              <button
+                type="button"
+                onClick={() => setReservationDepositAmount("")}
+                className="px-2 py-1 text-xs text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition cursor-pointer whitespace-nowrap"
+              >
+                Xóa
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   async function submitBulkReservations(
     e?: React.FormEvent,
     checkInImmediately = false,
@@ -3840,6 +3996,20 @@ export function StaffRoomsClient({
 
       const result = await bulkReservationsMutation.mutateAsync(payload);
 
+      if (bulkDepositNumeric > 0 && result.groupCode) {
+        try {
+          await createBookingPaymentMutation.mutateAsync({
+            groupCode: result.groupCode,
+            intent: "DEPOSIT",
+            inputMode: "AMOUNT",
+            amount: bulkDepositNumeric,
+            receivedAmount: bulkDepositNumeric,
+          });
+        } catch (depositErr) {
+          console.error("Lỗi ghi nhận tiền cọc đoàn:", depositErr);
+        }
+      }
+
       setIsBulkModalOpen(false);
       setBulkSelectedRoomIds(new Set());
       setBulkConflictRoomIds(new Set());
@@ -3855,6 +4025,7 @@ export function StaffRoomsClient({
       setBulkNightlyRates({});
       setBulkIsCustomNightlyRates(false);
       setBulkPrebookedServices([]);
+      setBulkDepositAmount("");
 
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
       await refetch();
@@ -5062,6 +5233,8 @@ export function StaffRoomsClient({
       (item.arrival || item.reservationId) &&
       (!item.room ||
         item.actionKind === "assign-room" ||
+        item.actionKind === "resolve-overdue" ||
+        item.bucket === "overdue" ||
         item.id.startsWith("res-overdue-"))
     ) {
       const resolvedArrival = await resolvePriorityArrival(item);
@@ -5173,6 +5346,111 @@ export function StaffRoomsClient({
       }
     }
     await handleInspectPriorityItem(item, triggerEl);
+  }
+
+  async function handleCancelPriorityReservation(
+    item: PriorityRoomAlertItem,
+    _triggerEl: HTMLElement | null,
+  ) {
+    if (!canManageReservations) return;
+    const reservationId = item.reservationId || item.arrival?.id || item.fallbackReservation?.id;
+    if (!reservationId) return;
+
+    // Load arrival details to get guest name, room, and deposit
+    const arrival = item.arrival ?? (await resolvePriorityArrival(item));
+    const guestName = arrival?.guestDisplayName || item.guestName || "Khách đặt trước";
+    const reservationCode = arrival?.reservationCode || item.code || "";
+    const roomNumber = arrival?.room?.roomNumber || item.roomNumber || "";
+
+    // Load booking payments to see actual deposit amount
+    let depositPaidAmount = 0;
+    try {
+      const payments = await staffRoomsRepository.getBookingPayments(hotelId, reservationId);
+      depositPaidAmount = (payments || []).reduce((sum, p) => {
+        const val = Number(
+          ("receivedAmount" in p && p.receivedAmount != null ? p.receivedAmount : undefined) ??
+            p.amount ??
+            0,
+        );
+        return sum + val;
+      }, 0);
+    } catch {
+      // If payment query fails, proceed with 0
+    }
+
+    const summaryHtml = `
+      <div class="space-y-2 text-left text-sm text-pretty">
+        <div><span class="font-semibold text-slate-600">Đặt phòng:</span> <span class="font-bold text-slate-900">${escapeHtml(guestName)}${reservationCode ? ` · #${escapeHtml(reservationCode)}` : ""}</span></div>
+        <div><span class="font-semibold text-slate-600">Phòng:</span> <span class="font-bold text-slate-900">${escapeHtml(roomNumber ? `P.${roomNumber}` : "Chưa gán phòng")}</span> <span class="text-xs text-emerald-700 font-semibold">(sẽ được đưa về trạng thái TRỐNG)</span></div>
+        ${depositPaidAmount > 0 ? `<div><span class="font-semibold text-slate-600">Tiền cọc thực nhận:</span> <span class="font-bold text-emerald-700">${escapeHtml(formatMoney(depositPaidAmount))}</span></div>` : ""}
+        <div class="mt-2 rounded-lg bg-amber-50 p-2.5 text-xs text-amber-900 border border-amber-200">
+          <p class="font-semibold">Quy tắc hủy đặt phòng:</p>
+          <ul class="list-disc list-inside mt-1 space-y-0.5">
+            <li>Trạng thái phòng ${escapeHtml(roomNumber ? `P.${roomNumber}` : "")} sẽ được đưa về <strong class="text-emerald-800">TRỐNG</strong> sẵn sàng đón khách khác.</li>
+            <li>Khoản tiền cọc ${depositPaidAmount > 0 ? `(${escapeHtml(formatMoney(depositPaidAmount))}) ` : ""}<strong class="text-emerald-800">vẫn được tính</strong> và bảo toàn trong báo cáo doanh thu / sổ thu chi (không hoàn cọc).</li>
+          </ul>
+        </div>
+        <label for="priority-cancel-reason" class="mt-3 block text-left text-sm font-semibold text-pretty text-slate-800">Chi tiết lý do (tùy chọn)</label>
+        <textarea id="priority-cancel-reason" data-cancel-reason maxlength="470" class="mt-1 w-full rounded-lg border border-slate-300 p-2.5 text-sm text-pretty focus:border-slate-500 focus:outline-none" rows="2" placeholder="Nhập ghi chú hoặc lý do hủy..."></textarea>
+      </div>
+    `;
+
+    const confirm = await SwalVietSage.fire({
+      icon: "warning",
+      title: "Hủy đặt phòng & Trả phòng trống",
+      html: summaryHtml,
+      input: "select",
+      inputLabel: "Lý do hủy",
+      inputOptions: {
+        NO_SHOW: "Khách không đến (No-show)",
+        GUEST_CANCELLED: "Khách báo hủy",
+      },
+      inputValue: item.bucket === "overdue" ? "NO_SHOW" : "GUEST_CANCELLED",
+      inputPlaceholder: "Chọn lý do hủy",
+      position: "center",
+      showCancelButton: true,
+      confirmButtonText: "Hủy đặt phòng & Về trống",
+      cancelButtonText: "Giữ đặt phòng",
+      reverseButtons: false,
+      customClass: {
+        confirmButton: `${SWAL_DANGER_BTN_CLASS} whitespace-nowrap`,
+        cancelButton: `${SWAL_CANCEL_BTN_CLASS} whitespace-nowrap`,
+      },
+      preConfirm: (reasonKind: string) => {
+        if (reasonKind !== "NO_SHOW" && reasonKind !== "GUEST_CANCELLED") {
+          SwalVietSage.showValidationMessage("Chọn lý do hủy đặt phòng.");
+          return false;
+        }
+        const details = SwalVietSage.getPopup()
+          ?.querySelector<HTMLTextAreaElement>("[data-cancel-reason]")?.value.trim();
+        const label = reasonKind === "NO_SHOW" ? "Khách không đến" : "Khách báo hủy";
+        const reason = details ? `${label}: ${details}` : label;
+        if (reason.length > 500) {
+          SwalVietSage.showValidationMessage("Lý do hủy tối đa 500 ký tự.");
+          return false;
+        }
+        return { reasonKind, reason };
+      },
+    });
+
+    if (!confirm.isConfirmed || !confirm.value) return;
+
+    try {
+      const { reasonKind, reason } = confirm.value;
+      if (reasonKind === "NO_SHOW") {
+        await staffRoomsRepository.markNoShowReservation(hotelId, reservationId, { reason });
+      } else {
+        await staffRoomsRepository.cancelReservation(hotelId, reservationId, { reason });
+      }
+      await invalidateHotelRealtimeQueries(queryClient, hotelId);
+      await refetch();
+      await showSuccessAlert(
+        "Đã hủy đặt phòng",
+        `Đã hủy đặt phòng ${reservationCode ? `#${reservationCode}` : ""}. Phòng ${roomNumber ? `P.${roomNumber} ` : ""}đã được đưa về trạng thái TRỐNG và tiền cọc được bảo toàn trong doanh thu.`,
+      );
+    } catch (err) {
+      await showErrorAlert("Không thể hủy đặt phòng", formatFriendlyHotelOpsError(err));
+    }
   }
 
   const handledFlowCheckInRef = useRef(false);
@@ -6879,6 +7157,7 @@ export function StaffRoomsClient({
           canManageReservations={canManageReservations}
           onInspectItem={handleInspectPriorityItem}
           onPrimaryAction={handlePrimaryPriorityAction}
+          onCancelReservation={handleCancelPriorityReservation}
         />
       ) : null}
 
@@ -8455,6 +8734,9 @@ export function StaffRoomsClient({
                   {/* Prebooked Services & Surcharges */}
                   {renderReservationPrebookedServicesSection()}
 
+                  {/* Tiền đặt cọc giữ phòng */}
+                  {renderReservationDepositSection()}
+
                   {/* Conflict Alert & Alternative Rooms Recommendation */}
                   {reservationConflict ? (
                     <div className="rounded-2xl border-2 border-rose-300 bg-rose-50/90 p-4 sm:p-5 text-left transition-all shadow-xs">
@@ -8521,6 +8803,11 @@ export function StaffRoomsClient({
                       <span className="font-bold text-emerald-900 bg-emerald-100/90 px-2.5 py-1 rounded-lg border border-emerald-300">
                         Tổng tạm tính: {formatMoney({ price: reservationEstimatedTotalPrice, currency: "VND" })}
                       </span>
+                      {reservationDepositNumeric > 0 ? (
+                        <span className="font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
+                          Tiền cọc: {formatMoney({ price: reservationDepositNumeric, currency: "VND" })}
+                        </span>
+                      ) : null}
                     </div>
 
                     <div className="flex items-center gap-2.5">
@@ -9202,10 +9489,11 @@ export function StaffRoomsClient({
                         </div>
                       )}
 
-                      {/* Nightly Rates & Prebooked Services at bottom of auto mode */}
+                      {/* Nightly Rates, Prebooked Services & Deposit at bottom of auto mode */}
                       <div className="mt-3.5 space-y-3 pb-2">
                         {renderBulkNightlyRatesSection()}
                         {renderBulkPrebookedServicesSection()}
+                        {renderBulkDepositSection()}
                       </div>
                     </div>
                   ) : (
@@ -9664,10 +9952,11 @@ export function StaffRoomsClient({
                           </div>
                         )}
 
-                        {/* Nightly Rates & Prebooked Services at bottom of manual mode */}
+                        {/* Nightly Rates, Prebooked Services & Deposit at bottom of manual mode */}
                         <div className="mt-3.5 space-y-3 pb-2">
                           {renderBulkNightlyRatesSection()}
                           {renderBulkPrebookedServicesSection()}
+                          {renderBulkDepositSection()}
                         </div>
                       </div>
                     </div>
@@ -9699,6 +9988,11 @@ export function StaffRoomsClient({
                                   currency: "VND",
                                 })}
                               </span>
+                              {bulkDepositNumeric > 0 ? (
+                                <span className="font-bold text-purple-900 bg-purple-50 px-2.5 py-1 rounded-lg border border-purple-200">
+                                  Tiền cọc: {formatMoney({ price: bulkDepositNumeric, currency: "VND" })}
+                                </span>
+                              ) : null}
                             </div>
                           ) : (
                             <span>Vui lòng chọn số lượng phòng để tiếp tục.</span>
@@ -9721,6 +10015,11 @@ export function StaffRoomsClient({
                               currency: "VND",
                             })}
                           </span>
+                          {bulkDepositNumeric > 0 ? (
+                            <span className="font-bold text-purple-900 bg-purple-50 px-2.5 py-1 rounded-lg border border-purple-200">
+                              Tiền cọc: {formatMoney({ price: bulkDepositNumeric, currency: "VND" })}
+                            </span>
+                          ) : null}
                         </div>
                       ) : (
                         <span>Vui lòng chọn tối thiểu 1 phòng để tiếp tục.</span>

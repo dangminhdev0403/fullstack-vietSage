@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo, useState, type FormEvent } from "react";
+import { Fragment, useEffect, useMemo, useState, type FormEvent } from "react";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { showConfirmDialog, showSuccessAlert } from "@/libs/swal";
 import type { RevenueBook, RevenueBookEntry } from "../types/revenue-book-contract";
@@ -12,7 +12,6 @@ import {
 } from "./revenue-entry-dialog";
 import {
   EMPTY_CUSTOM_COLUMNS,
-  EMPTY_DELETED_ROWS,
   useRevenueBookCustomStore,
   type CustomRevenueColumn,
 } from "../store/revenue-book-custom-store";
@@ -119,18 +118,12 @@ export function RevenueBookSpreadsheet({
   const setNote = useRevenueBookCustomStore((s) => s.setNote);
   const setDescription = useRevenueBookCustomStore((s) => s.setDescription);
   const setTextOverride = useRevenueBookCustomStore((s) => s.setTextOverride);
-  const deletedRowKeys = useRevenueBookCustomStore(
-    (s) => s.deletedRowsByHotel[book.hotelId] ?? EMPTY_DELETED_ROWS,
-  );
-  const deleteRow = useRevenueBookCustomStore((s) => s.deleteRow);
-  const deleteRows = useRevenueBookCustomStore((s) => s.deleteRows);
-  const restoreRow = useRevenueBookCustomStore((s) => s.restoreRow);
   const restoreAllRows = useRevenueBookCustomStore((s) => s.restoreAllRows);
-  const clearAllCustomValues = useRevenueBookCustomStore((s) => s.clearAllCustomValues);
-  const clearAllCustomDescriptions = useRevenueBookCustomStore(
-    (s) => s.clearAllCustomDescriptions,
-  );
-  const clearAllCustomNotes = useRevenueBookCustomStore((s) => s.clearAllCustomNotes);
+
+  // Restore any previously hidden rows so everything is visible
+  useEffect(() => {
+    restoreAllRows(book.hotelId);
+  }, [book.hotelId, restoreAllRows]);
 
   // Modal states
   const [isAddingColumn, setIsAddingColumn] = useState(false);
@@ -138,11 +131,6 @@ export function RevenueBookSpreadsheet({
   const [columnError, setColumnError] = useState("");
   const [editingColumn, setEditingColumn] = useState<CustomRevenueColumn | null>(null);
   const [renameValue, setRenameValue] = useState("");
-
-  // Data management modal states
-  const [isManagingData, setIsManagingData] = useState(false);
-  const [dataManageTab, setDataManageTab] = useState<"rows" | "deleted" | "reset">("rows");
-  const [selectedRowKeysToDelete, setSelectedRowKeysToDelete] = useState<string[]>([]);
 
   // Cell editing state
   const [activeCell, setActiveCell] = useState<{
@@ -153,22 +141,7 @@ export function RevenueBookSpreadsheet({
   const [tempCellInput, setTempCellInput] = useState("");
 
   const allActivities = useMemo(() => buildActivities(book), [book]);
-
-  const activeActivities = useMemo(() => {
-    if (deletedRowKeys.length === 0) return allActivities;
-    return allActivities.filter((act) => {
-      const rowKey = `${act.entry.id}_${act.date}_${act.collection?.id ?? "rev"}`;
-      return !deletedRowKeys.includes(rowKey);
-    });
-  }, [allActivities, deletedRowKeys]);
-
-  const deletedActivities = useMemo(() => {
-    if (deletedRowKeys.length === 0) return [];
-    return allActivities.filter((act) => {
-      const rowKey = `${act.entry.id}_${act.date}_${act.collection?.id ?? "rev"}`;
-      return deletedRowKeys.includes(rowKey);
-    });
-  }, [allActivities, deletedRowKeys]);
+  const activeActivities = allActivities;
 
   const filteredActivities = useMemo(() => {
     if (!filter.trim()) return activeActivities;
@@ -548,30 +521,6 @@ export function RevenueBookSpreadsheet({
     setActiveCell(null);
   }
 
-  async function handleDeleteRow(rowKey: string, description: string) {
-    if (!canManage) return;
-    const confirmation = await showConfirmDialog({
-      title: "Xóa dòng khỏi sổ doanh thu",
-      confirmText: "Xóa dòng",
-      cancelText: "Giữ lại",
-      confirmVariant: "danger",
-      details: [
-        { label: "Nội dung", value: description },
-        {
-          label: "Lưu ý",
-          value:
-            "Dòng này sẽ được loại bỏ khỏi bảng tính và số liệu tổng kỳ. Bạn có thể khôi phục lại bất kỳ lúc nào tại mục 'Xóa / Dọn data'.",
-        },
-      ],
-    });
-    if (!confirmation.isConfirmed) return;
-    deleteRow(book.hotelId, rowKey);
-    void showSuccessAlert(
-      "Đã xóa dòng",
-      `Dòng "${description}" đã được loại khỏi bảng tính.`,
-    );
-  }
-
   // Editable money cell renderer (Dùng cho cả Doanh thu và Thanh toán)
   function renderEditableMoneyCell({
     columnId,
@@ -877,19 +826,6 @@ export function RevenueBookSpreadsheet({
           >
             <VsIcon name="visibility" className="text-sm" />
           </button>
-          {canManage && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                void handleDeleteRow(rowKey, currentDescription || baseDescription);
-              }}
-              className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-all cursor-pointer"
-              title="Xóa dòng này khỏi sổ doanh thu"
-            >
-              <VsIcon name="delete" className="text-sm" />
-            </button>
-          )}
         </div>
       </div>
     );
@@ -1039,39 +975,8 @@ export function RevenueBookSpreadsheet({
           </button>
         </div>
 
-        {/* Actions: Clean up, Restore, and Save */}
+        {/* Actions: Save */}
         <div className="flex items-center gap-2">
-          {deletedRowKeys.length > 0 && (
-            <button
-              type="button"
-              onClick={() => {
-                setDataManageTab("deleted");
-                setIsManagingData(true);
-              }}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-900 hover:bg-amber-100 shadow-xs cursor-pointer"
-              title="Xem và khôi phục các dòng đã xóa"
-            >
-              <VsIcon name="history" className="text-base text-amber-700" />
-              <span>Đã xóa {deletedRowKeys.length} dòng</span>
-            </button>
-          )}
-
-          {canManage && (
-            <button
-              type="button"
-              onClick={() => {
-                setDataManageTab("rows");
-                setSelectedRowKeysToDelete([]);
-                setIsManagingData(true);
-              }}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-white px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50 shadow-xs cursor-pointer"
-              title="Mở giao diện xóa và dọn dẹp các dòng không cần thiết"
-            >
-              <VsIcon name="delete_sweep" className="text-base text-rose-600" />
-              <span>Xóa / Dọn data</span>
-            </button>
-          )}
-
           <button
             type="button"
             onClick={() => void handleManualSave()}
@@ -1920,402 +1825,6 @@ export function RevenueBookSpreadsheet({
               </div>
             </div>
           </form>
-        </RevenueBookDialog>
-      )}
-
-      {/* Data Cleanup & Management Modal (Box Ngang Centered) */}
-      {isManagingData && (
-        <RevenueBookDialog
-          title="Xóa và dọn dẹp dữ liệu sổ doanh thu"
-          onClose={() => setIsManagingData(false)}
-        >
-          <div className="space-y-4">
-            {/* Tabs */}
-            <div className="flex border-b border-slate-200">
-              <button
-                type="button"
-                onClick={() => setDataManageTab("rows")}
-                className={`border-b-2 px-4 py-2 text-xs font-semibold transition-colors cursor-pointer ${
-                  dataManageTab === "rows"
-                    ? "border-rose-600 text-rose-700"
-                    : "border-transparent text-slate-500 hover:text-slate-800"
-                }`}
-              >
-                Xóa nhanh dòng trong kỳ
-              </button>
-              <button
-                type="button"
-                onClick={() => setDataManageTab("deleted")}
-                className={`border-b-2 px-4 py-2 text-xs font-semibold transition-colors cursor-pointer ${
-                  dataManageTab === "deleted"
-                    ? "border-rose-600 text-rose-700"
-                    : "border-transparent text-slate-500 hover:text-slate-800"
-                }`}
-              >
-                Dòng đã xóa ({deletedRowKeys.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setDataManageTab("reset")}
-                className={`border-b-2 px-4 py-2 text-xs font-semibold transition-colors cursor-pointer ${
-                  dataManageTab === "reset"
-                    ? "border-rose-600 text-rose-700"
-                    : "border-transparent text-slate-500 hover:text-slate-800"
-                }`}
-              >
-                Đặt lại số liệu tùy chỉnh
-              </button>
-            </div>
-
-            {/* Tab 1: Rows list with checkboxes for bulk deletion */}
-            {dataManageTab === "rows" && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between text-xs">
-                  <p className="text-slate-600">
-                    Chọn các dòng không cần thiết (giao dịch thử nghiệm, khoản hủy...) để xóa khỏi sổ doanh thu:
-                  </p>
-                  {selectedRowKeysToDelete.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        const count = selectedRowKeysToDelete.length;
-                        const confirmation = await showConfirmDialog({
-                          title: `Xóa ${count} dòng đã chọn`,
-                          confirmText: `Xóa ${count} dòng`,
-                          cancelText: "Hủy",
-                          confirmVariant: "danger",
-                          details: [
-                            { label: "Số lượng dòng", value: `${count} dòng` },
-                            {
-                              label: "Lưu ý",
-                              value:
-                                "Các dòng này sẽ được loại khỏi bảng tính và số liệu tổng kỳ. Bạn có thể khôi phục lại bất kỳ lúc nào.",
-                            },
-                          ],
-                        });
-                        if (!confirmation.isConfirmed) return;
-                        deleteRows(book.hotelId, selectedRowKeysToDelete);
-                        setSelectedRowKeysToDelete([]);
-                        void showSuccessAlert(
-                          "Đã xóa thành công",
-                          `Đã loại bỏ ${count} dòng khỏi sổ doanh thu.`,
-                        );
-                      }}
-                      className="inline-flex items-center gap-1 rounded-xl bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-700 shadow-xs cursor-pointer"
-                    >
-                      <VsIcon name="delete" className="text-sm" />
-                      <span>Xóa {selectedRowKeysToDelete.length} dòng đã chọn</span>
-                    </button>
-                  )}
-                </div>
-
-                <div className="max-h-[50vh] overflow-y-auto rounded-xl border border-slate-200">
-                  <table className="w-full text-left text-xs divide-y divide-slate-200">
-                    <thead className="bg-slate-50 sticky top-0 text-slate-700 font-semibold">
-                      <tr>
-                        <th className="p-2 w-10 text-center">
-                          <input
-                            type="checkbox"
-                            checked={
-                              activeActivities.length > 0 &&
-                              selectedRowKeysToDelete.length === activeActivities.length
-                            }
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedRowKeysToDelete(
-                                  activeActivities.map(
-                                    (a) =>
-                                      `${a.entry.id}_${a.date}_${a.collection?.id ?? "rev"}`,
-                                  ),
-                                );
-                              } else {
-                                setSelectedRowKeysToDelete([]);
-                              }
-                            }}
-                            className="rounded border-slate-300 text-rose-600 focus:ring-rose-500 cursor-pointer"
-                          />
-                        </th>
-                        <th className="p-2">Ngày</th>
-                        <th className="p-2">Phòng</th>
-                        <th className="p-2">Diễn giải</th>
-                        <th className="p-2 text-right">Doanh thu</th>
-                        <th className="p-2 text-right">Đã thanh toán</th>
-                        <th className="p-2 text-center w-16">Thao tác</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 bg-white">
-                      {activeActivities.length === 0 ? (
-                        <tr>
-                          <td colSpan={7} className="p-6 text-center text-slate-400">
-                            Không có dòng nào trong kỳ.
-                          </td>
-                        </tr>
-                      ) : (
-                        activeActivities.map((act) => {
-                          const rowKey = `${act.entry.id}_${act.date}_${act.collection?.id ?? "rev"}`;
-                          const isSelected = selectedRowKeysToDelete.includes(rowKey);
-                          const desc =
-                            descriptionsByRow[`${book.hotelId}:${rowKey}`] ??
-                            act.entry.description;
-                          const revTotal = act.revenue?.revenueTotal ?? 0;
-                          const paidTotal = act.collection?.amount ?? 0;
-
-                          return (
-                            <tr
-                              key={rowKey}
-                              className={`hover:bg-slate-50 transition-colors ${
-                                isSelected ? "bg-rose-50/40" : ""
-                              }`}
-                            >
-                              <td className="p-2 text-center">
-                                <input
-                                  type="checkbox"
-                                  checked={isSelected}
-                                  onChange={(e) => {
-                                    if (e.target.checked) {
-                                      setSelectedRowKeysToDelete((prev) => [
-                                        ...prev,
-                                        rowKey,
-                                      ]);
-                                    } else {
-                                      setSelectedRowKeysToDelete((prev) =>
-                                        prev.filter((k) => k !== rowKey),
-                                      );
-                                    }
-                                  }}
-                                  className="rounded border-slate-300 text-rose-600 focus:ring-rose-500 cursor-pointer"
-                                />
-                              </td>
-                              <td className="p-2 font-mono">{act.date ? dateLabel(act.date) : "—"}</td>
-                              <td className="p-2 font-medium">
-                                {act.entry.roomNumber ? `P.${act.entry.roomNumber}` : "—"}
-                              </td>
-                              <td className="p-2 font-medium text-slate-900 max-w-xs truncate" title={desc}>
-                                {desc}
-                              </td>
-                              <td className="p-2 text-right tabular-nums">
-                                {revTotal > 0 ? money(revTotal, currency) : "—"}
-                              </td>
-                              <td className="p-2 text-right tabular-nums text-emerald-800">
-                                {paidTotal > 0 ? money(paidTotal, currency) : "—"}
-                              </td>
-                              <td className="p-2 text-center">
-                                <button
-                                  type="button"
-                                  onClick={() => void handleDeleteRow(rowKey, desc)}
-                                  className="rounded p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                                  title="Xóa dòng này"
-                                >
-                                  <VsIcon name="delete" className="text-base" />
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {/* Tab 2: Deleted rows list with restore buttons */}
-            {dataManageTab === "deleted" && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between text-xs">
-                  <p className="text-slate-600">
-                    Danh sách các dòng đã được loại bỏ khỏi sổ doanh thu:
-                  </p>
-                  {deletedRowKeys.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        const confirmation = await showConfirmDialog({
-                          title: "Khôi phục tất cả dòng đã xóa",
-                          confirmText: "Khôi phục tất cả",
-                          cancelText: "Hủy",
-                          details: [
-                            {
-                              label: "Số lượng dòng",
-                              value: `${deletedRowKeys.length} dòng`,
-                            },
-                          ],
-                        });
-                        if (!confirmation.isConfirmed) return;
-                        restoreAllRows(book.hotelId);
-                        void showSuccessAlert(
-                          "Đã khôi phục tất cả",
-                          "Toàn bộ các dòng đã được đưa trở lại bảng tính.",
-                        );
-                      }}
-                      className="inline-flex items-center gap-1 rounded-xl border border-sky-300 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-800 hover:bg-sky-100 shadow-xs cursor-pointer"
-                    >
-                      <VsIcon name="restore" className="text-sm" />
-                      <span>Khôi phục tất cả ({deletedRowKeys.length})</span>
-                    </button>
-                  )}
-                </div>
-
-                <div className="max-h-[50vh] overflow-y-auto rounded-xl border border-slate-200">
-                  <table className="w-full text-left text-xs divide-y divide-slate-200">
-                    <thead className="bg-slate-50 sticky top-0 text-slate-700 font-semibold">
-                      <tr>
-                        <th className="p-2">Ngày</th>
-                        <th className="p-2">Phòng</th>
-                        <th className="p-2">Diễn giải</th>
-                        <th className="p-2 text-right">Doanh thu</th>
-                        <th className="p-2 text-right">Đã thanh toán</th>
-                        <th className="p-2 text-center w-24">Khôi phục</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 bg-white">
-                      {deletedActivities.length === 0 ? (
-                        <tr>
-                          <td colSpan={6} className="p-8 text-center text-slate-400">
-                            Chưa có dòng nào bị xóa trong kỳ này.
-                          </td>
-                        </tr>
-                      ) : (
-                        deletedActivities.map((act) => {
-                          const rowKey = `${act.entry.id}_${act.date}_${act.collection?.id ?? "rev"}`;
-                          const desc =
-                            descriptionsByRow[`${book.hotelId}:${rowKey}`] ??
-                            act.entry.description;
-                          const revTotal = act.revenue?.revenueTotal ?? 0;
-                          const paidTotal = act.collection?.amount ?? 0;
-
-                          return (
-                            <tr key={rowKey} className="hover:bg-slate-50 transition-colors">
-                              <td className="p-2 font-mono text-slate-500">
-                                {act.date ? dateLabel(act.date) : "—"}
-                              </td>
-                              <td className="p-2 font-medium">
-                                {act.entry.roomNumber ? `P.${act.entry.roomNumber}` : "—"}
-                              </td>
-                              <td className="p-2 font-medium text-slate-700 max-w-xs truncate" title={desc}>
-                                {desc}
-                              </td>
-                              <td className="p-2 text-right tabular-nums text-slate-500">
-                                {revTotal > 0 ? money(revTotal, currency) : "—"}
-                              </td>
-                              <td className="p-2 text-right tabular-nums text-slate-500">
-                                {paidTotal > 0 ? money(paidTotal, currency) : "—"}
-                              </td>
-                              <td className="p-2 text-center">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    restoreRow(book.hotelId, rowKey);
-                                    void showSuccessAlert(
-                                      "Đã khôi phục",
-                                      `Đã đưa dòng "${desc}" trở lại sổ doanh thu.`,
-                                    );
-                                  }}
-                                  className="inline-flex items-center gap-1 rounded-lg bg-sky-50 px-2 py-1 text-xs font-semibold text-sky-800 hover:bg-sky-100 transition-colors cursor-pointer"
-                                >
-                                  <VsIcon name="restore" className="text-xs" />
-                                  <span>Khôi phục</span>
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {/* Tab 3: Reset Overrides */}
-            {dataManageTab === "reset" && (
-              <div className="space-y-3 py-2">
-                <p className="text-xs text-slate-600">
-                  Xóa các số liệu tùy chỉnh đã nhập trực tiếp trên bảng tính để quay về số liệu gốc ban đầu của hệ thống:
-                </p>
-
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 space-y-2">
-                    <span className="block text-xs font-bold text-slate-900">
-                      Số tiền đã nhập / sửa
-                    </span>
-                    <p className="text-xs text-slate-500 text-pretty">
-                      Xóa tất cả các số tiền đã nhập đè lên các ô doanh thu.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        const conf = await showConfirmDialog({
-                          title: "Đặt lại tất cả số tiền doanh thu",
-                          confirmText: "Đặt lại về gốc",
-                          cancelText: "Hủy",
-                          confirmVariant: "danger",
-                        });
-                        if (!conf.isConfirmed) return;
-                        clearAllCustomValues(book.hotelId);
-                        void showSuccessAlert("Đã đặt lại", "Toàn bộ số tiền doanh thu đã về giá gốc.");
-                      }}
-                      className="w-full rounded-lg border border-slate-300 bg-white py-1.5 text-xs font-semibold text-slate-800 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-300 transition-colors cursor-pointer"
-                    >
-                      Đặt lại số tiền về gốc
-                    </button>
-                  </div>
-
-                  <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 space-y-2">
-                    <span className="block text-xs font-bold text-slate-900">
-                      Diễn giải đã sửa
-                    </span>
-                    <p className="text-xs text-slate-500 text-pretty">
-                      Xóa tất cả diễn giải đã chỉnh sửa và hoàn về diễn giải mặc định.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        const conf = await showConfirmDialog({
-                          title: "Đặt lại toàn bộ diễn giải",
-                          confirmText: "Đặt lại về mặc định",
-                          cancelText: "Hủy",
-                          confirmVariant: "danger",
-                        });
-                        if (!conf.isConfirmed) return;
-                        clearAllCustomDescriptions(book.hotelId);
-                        void showSuccessAlert("Đã đặt lại", "Toàn bộ diễn giải đã về mặc định.");
-                      }}
-                      className="w-full rounded-lg border border-slate-300 bg-white py-1.5 text-xs font-semibold text-slate-800 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-300 transition-colors cursor-pointer"
-                    >
-                      Đặt lại diễn giải về mặc định
-                    </button>
-                  </div>
-
-                  <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 space-y-2">
-                    <span className="block text-xs font-bold text-slate-900">
-                      Ghi chú đã nhập
-                    </span>
-                    <p className="text-xs text-slate-500 text-pretty">
-                      Xóa tất cả ghi chú tùy chỉnh đã thêm trên từng dòng.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        const conf = await showConfirmDialog({
-                          title: "Xóa toàn bộ ghi chú tùy chỉnh",
-                          confirmText: "Xóa tất cả",
-                          cancelText: "Hủy",
-                          confirmVariant: "danger",
-                        });
-                        if (!conf.isConfirmed) return;
-                        clearAllCustomNotes(book.hotelId);
-                        void showSuccessAlert("Đã xóa", "Toàn bộ ghi chú tùy chỉnh đã được làm sạch.");
-                      }}
-                      className="w-full rounded-lg border border-slate-300 bg-white py-1.5 text-xs font-semibold text-slate-800 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-300 transition-colors cursor-pointer"
-                    >
-                      Xóa tất cả ghi chú
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
         </RevenueBookDialog>
       )}
     </div>

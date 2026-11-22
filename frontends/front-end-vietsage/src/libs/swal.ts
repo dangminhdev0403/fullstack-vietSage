@@ -22,7 +22,7 @@ export function preventOrphans(text: string): string {
    SHARED SWEETALERT2 STYLING TOKENS (HOSPITALITY LUXURY STANDARD)
    ===================================================================== */
 export const SWAL_BASE_POPUP_CLASS =
-  "relative rounded-[28px] sm:rounded-[32px] bg-white p-6 sm:p-8 md:p-9 shadow-2xl border border-gray-100 max-h-[90vh] flex flex-col my-auto overflow-hidden";
+  "relative rounded-[28px] sm:rounded-[32px] bg-white p-6 sm:p-8 md:p-9 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.18)] border border-[#ebd9b8]/60 max-h-[90vh] flex flex-col my-auto overflow-hidden";
 
 export const SWAL_POPUP_STANDARD =
   `${SWAL_BASE_POPUP_CLASS} w-[94vw] sm:w-[90vw] max-w-[480px]`;
@@ -34,7 +34,7 @@ export const SWAL_POPUP_LARGE =
   `${SWAL_BASE_POPUP_CLASS} w-[94vw] sm:w-[90vw] md:max-w-2xl`;
 
 export const SWAL_TITLE_CLASS =
-  "text-xl sm:text-2xl md:text-[26px] font-bold text-gray-800 text-center mb-2 mt-0.5 tracking-tight shrink-0 text-balance leading-snug max-w-[36ch] mx-auto";
+  "text-xl sm:text-2xl md:text-[26px] font-black text-gray-900 text-center mb-2 mt-0.5 tracking-tight shrink-0 text-balance leading-snug max-w-[36ch] mx-auto";
 
 export const SWAL_HTML_CONTAINER_CLASS =
   "text-sm sm:text-base font-normal text-gray-600 text-center leading-relaxed max-h-[58vh] overflow-y-auto pr-1 focus:outline-none custom-scrollbar w-full max-w-[52ch] mx-auto !m-0 !mt-1.5 !mb-1 text-pretty [text-wrap:pretty]";
@@ -43,13 +43,13 @@ export const SWAL_HTML_CONTAINER_LEFT_CLASS =
   "text-sm sm:text-base font-normal text-gray-600 !text-left leading-relaxed max-h-[58vh] overflow-y-auto pr-1 focus:outline-none custom-scrollbar w-full max-w-none !m-0 !mt-2.5 !mb-1 text-pretty [text-wrap:pretty]";
 
 export const SWAL_CONFIRM_BTN_CLASS =
-  "inline-flex h-11 min-h-[44px] sm:h-12 sm:min-h-[48px] items-center justify-center gap-2 rounded-xl sm:rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] px-7 sm:px-8 text-sm sm:text-base font-bold text-white shadow-md shadow-emerald-600/25 transition-all duration-150 cursor-pointer mx-1.5 min-w-[120px] select-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0";
+  "inline-flex h-11 min-h-[44px] sm:h-12 sm:min-h-[48px] items-center justify-center gap-2 rounded-xl sm:rounded-2xl bg-gradient-to-r from-emerald-600 via-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 active:scale-[0.98] px-7 sm:px-8 text-sm sm:text-base font-black text-white shadow-md shadow-emerald-700/25 transition-all duration-150 cursor-pointer mx-1.5 min-w-[120px] select-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0";
 
 export const SWAL_DANGER_BTN_CLASS =
-  "inline-flex h-11 min-h-[44px] sm:h-12 sm:min-h-[48px] items-center justify-center gap-2 rounded-xl sm:rounded-2xl bg-[#dc2626] hover:bg-[#b91c1c] active:scale-[0.98] px-7 sm:px-8 text-sm sm:text-base font-bold text-white shadow-md shadow-red-500/25 transition-all duration-150 cursor-pointer mx-1.5 min-w-[120px] select-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0";
+  "inline-flex h-11 min-h-[44px] sm:h-12 sm:min-h-[48px] items-center justify-center gap-2 rounded-xl sm:rounded-2xl bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 active:scale-[0.98] px-7 sm:px-8 text-sm sm:text-base font-black text-white shadow-md shadow-red-500/25 transition-all duration-150 cursor-pointer mx-1.5 min-w-[120px] select-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0";
 
 export const SWAL_CANCEL_BTN_CLASS =
-  "inline-flex h-11 min-h-[44px] sm:h-12 sm:min-h-[48px] items-center justify-center gap-2 rounded-xl sm:rounded-2xl border border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300 active:scale-[0.98] px-6 sm:px-7 text-sm sm:text-base font-bold text-gray-700 hover:text-gray-900 shadow-2xs transition-all duration-150 cursor-pointer mx-1.5 min-w-[100px] select-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0";
+  "inline-flex h-11 min-h-[44px] sm:h-12 sm:min-h-[48px] items-center justify-center gap-2 rounded-xl sm:rounded-2xl border border-gray-200 bg-gray-50/90 hover:bg-gray-100 hover:border-gray-300 active:scale-[0.98] px-6 sm:px-7 text-sm sm:text-base font-bold text-gray-700 hover:text-gray-900 shadow-2xs transition-all duration-150 cursor-pointer mx-1.5 min-w-[100px] select-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0";
 
 export const SWAL_ACTIONS_CLASS =
   "flex flex-wrap sm:flex-nowrap items-center justify-center gap-3 pt-4 sm:pt-5 shrink-0 border-t border-gray-100 w-full mt-4";
