@@ -344,7 +344,7 @@ function ChannelDetailBody({
                         }}
                         className="min-h-10 w-full rounded-xl border border-[var(--outline-variant)] bg-white px-3 text-sm font-medium text-[var(--on-surface)] focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
                       >
-                        <option value="">-- Không ánh xạ (Bỏ qua) --</option>
+                        <option value="">-- Không ánh xạ --</option>
                         {remoteRates
                           .filter(
                             (remoteRate) =>
@@ -723,22 +723,17 @@ export function ChannexChannelDetailModal({
                   {channel?.title ?? "Quản lý kết nối kênh OTA"}
                 </h2>
                 {channel && (
-                  <>
-                    <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-700 border border-slate-300 uppercase">
-                      {channel.code}
+                  channel.isActive ? (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      Đang mở bán
                     </span>
-                    {channel.isActive ? (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        Đang mở bán
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-900">
-                        <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                        Tạm dừng
-                      </span>
-                    )}
-                  </>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-900">
+                      <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                      Tạm dừng
+                    </span>
+                  )
                 )}
               </div>
               <p className="mt-0.5 text-sm text-[var(--on-surface-variant)]">

@@ -1302,7 +1302,7 @@ export function MarketplaceAdminClient() {
                 type="url"
                 value={spreadsheetUrl}
                 onChange={(e) => handleSpreadsheetUrlChange(e.target.value)}
-                placeholder="Dán URL Google Sheets (https://docs.google.com/spreadsheets/d/...)"
+                placeholder="Dán URL Google Sheets..."
                 className="flex-1 rounded-xl border border-[#e2d7c5] bg-[#faf6ef] px-4 py-3 text-sm font-semibold text-[#17201b] outline-none focus:border-[#24473d] focus:bg-white"
               />
               <button
@@ -1787,7 +1787,7 @@ export function MarketplaceAdminClient() {
 
                 <details className="sm:col-span-2 rounded-2xl border border-[#e8dfd1] bg-[#faf6ef]/50 p-4 group">
                   <summary className="cursor-pointer text-sm font-semibold text-[#24473d] flex items-center justify-between select-none">
-                    <span>Tùy chọn nâng cao (Cấu hình Google Sheets / Excel Online)</span>
+                    <span>Cấu hình Google Sheets / Excel Online</span>
                     <span className="text-xs text-[#69726b] group-open:hidden">Mở rộng ▼</span>
                     <span className="text-xs text-[#69726b] hidden group-open:inline">Thu gọn ▲</span>
                   </summary>
@@ -1796,7 +1796,7 @@ export function MarketplaceAdminClient() {
                       htmlFor="modal-tenant-sheet-url"
                       className={labelClass}
                     >
-                      URL Google Sheets / Excel Online (Cấu hình đồng bộ dịch vụ đối tác)
+                      URL Google Sheets / Excel Online
                     </label>
                     <input
                       id="modal-tenant-sheet-url"
@@ -2143,7 +2143,7 @@ export function MarketplaceAdminClient() {
 
               <details className="rounded-2xl border border-[#e8dfd1] bg-[#faf6ef]/50 p-4 group">
                 <summary className="cursor-pointer text-sm font-semibold text-[#24473d] flex items-center justify-between select-none">
-                  <span>Tùy chọn nâng cao (Tên đa ngôn ngữ khác: EN, ZH, KO, RU, HI)</span>
+                  <span>Tên đa ngôn ngữ</span>
                   <span className="text-xs text-[#69726b] group-open:hidden">Mở rộng ▼</span>
                   <span className="text-xs text-[#69726b] hidden group-open:inline">Thu gọn ▲</span>
                 </summary>
@@ -2290,7 +2290,7 @@ export function MarketplaceAdminClient() {
 
               <details className="rounded-2xl border border-[#e8dfd1] bg-[#faf6ef]/50 p-4 group">
                 <summary className="cursor-pointer text-sm font-semibold text-[#24473d] flex items-center justify-between select-none">
-                  <span>Tùy chọn nâng cao (Tên đa ngôn ngữ khác: EN, ZH, KO, RU, HI)</span>
+                  <span>Tên đa ngôn ngữ</span>
                   <span className="text-xs text-[#69726b] group-open:hidden">Mở rộng ▼</span>
                   <span className="text-xs text-[#69726b] hidden group-open:inline">Thu gọn ▲</span>
                 </summary>

@@ -806,7 +806,7 @@ export function StaffRoomsClient({
   const [selectedRoom, setSelectedRoom] = useState<HotelRoomSummary | null>(
     () =>
       initialFlow === "check-in" && canManageStays && !isHousekeeping
-        ? (initialRoomsPage.items.find(isAvailable) ?? null)
+        ? (initialRoomsPage?.items?.find(isAvailable) ?? null)
         : null,
   );
   const [roomQrPreview, setRoomQrPreview] = useState<RoomQrPreview | null>(
@@ -1914,12 +1914,12 @@ export function StaffRoomsClient({
         (isHousekeeping ? todayYmd : initialBusinessDate || todayYmd)
         ? {
             ...initialRoomsPage,
-            items: initialRoomsPage.items.slice(0, 100),
-            total: initialRoomsPage.total ?? initialRoomsPage.items.length,
+            items: (initialRoomsPage?.items ?? []).slice(0, 100),
+            total: initialRoomsPage?.total ?? (initialRoomsPage?.items ?? []).length,
             totalPages: Math.max(
               1,
               Math.ceil(
-                (initialRoomsPage.total ?? initialRoomsPage.items.length) / 100,
+                (initialRoomsPage?.total ?? (initialRoomsPage?.items ?? []).length) / 100,
               ),
             ),
             limit: 100,
@@ -2233,13 +2233,17 @@ export function StaffRoomsClient({
     return list;
   }, [rooms, activeMovementsTargetYmd]);
   const floors = useMemo(() => {
-    const rawFloors = roomsPage?.floors ?? initialRoomsPage.floors ?? [];
-    return [...new Set(rawFloors)].sort((a, b) => a.localeCompare(b));
-  }, [roomsPage?.floors, initialRoomsPage.floors]);
+    const rawFloors = roomsPage?.floors ?? initialRoomsPage?.floors ?? [];
+    return [...new Set(rawFloors)]
+      .filter((f): f is string => typeof f === "string")
+      .sort((a, b) => a.localeCompare(b));
+  }, [roomsPage?.floors, initialRoomsPage?.floors]);
 
   const types = useMemo(() => {
-    const rawTypes = roomsPage?.types ?? initialRoomsPage.types ?? [];
-    return [...new Set(rawTypes)].sort((a, b) => a.localeCompare(b));
+    const rawTypes = roomsPage?.types ?? initialRoomsPage?.types ?? [];
+    return [...new Set(rawTypes)]
+      .filter((t): t is string => typeof t === "string")
+      .sort((a, b) => a.localeCompare(b));
   }, [roomsPage?.types, initialRoomsPage.types]);
 
   const zones = useMemo(() => {
@@ -7150,8 +7154,9 @@ export function StaffRoomsClient({
         <PriorityRoomsControlSection
           items={priorityControlItems}
           targetDateLabel={(() => {
-            const [y, m, d] = activeMovementsTargetYmd.split("-");
-            return y && m && d ? `${d}/${m}/${y}` : activeMovementsTargetYmd;
+            const dateStr = activeMovementsTargetYmd || todayYmd || "";
+            const parts = dateStr.split("-");
+            return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : dateStr;
           })()}
           isFutureDate={isFutureDate}
           canCheckInStay={canCheckInStay}

@@ -15,6 +15,12 @@ type BucketStyle = {
   iconName: string;
 };
 
+const DEFAULT_BUCKET_STYLE: BucketStyle = {
+  pillClass: "border-slate-200 bg-slate-50 text-slate-800",
+  dotClass: "bg-slate-600",
+  iconName: "info",
+};
+
 const BUCKET_STYLES: Record<PriorityRoomBucket, BucketStyle> = {
   overdue: {
     pillClass: "border-rose-200 bg-rose-50 text-rose-800",
@@ -48,35 +54,40 @@ export type PriorityRoomsControlSectionProps = {
 };
 
 function getPrimaryActionButtonClass(item: PriorityRoomAlertItem): string {
-  switch (item.bucket) {
+  switch (item?.bucket) {
     case "overdue":
       return "border-rose-300 bg-rose-600 text-white hover:bg-rose-700";
     case "urgent":
       return "border-amber-300 bg-amber-600 text-white hover:bg-amber-700";
     case "due":
       return "border-purple-300 bg-purple-700 text-white hover:bg-purple-800";
+    default:
+      return "border-slate-300 bg-slate-600 text-white hover:bg-slate-700";
   }
 }
 
 function canExecutePrimaryAction(
   item: PriorityRoomAlertItem,
-  permissions: {
+  permissions?: {
     canCheckInStay: boolean;
     canManageRooms: boolean;
     canManageReservations: boolean;
   },
 ): boolean {
+  if (!item || !permissions) return false;
   switch (item.actionKind) {
     case "check-in":
-      return permissions.canCheckInStay;
+      return Boolean(permissions.canCheckInStay);
     case "mark-ready":
-      return permissions.canManageRooms;
+      return Boolean(permissions.canManageRooms);
     case "assign-room":
     case "resolve-overdue":
-      return permissions.canManageReservations || permissions.canCheckInStay;
+      return Boolean(permissions.canManageReservations || permissions.canCheckInStay);
     case "manage-stay":
     case "resolve-room":
       return true;
+    default:
+      return false;
   }
 }
 
@@ -327,7 +338,7 @@ export function PriorityRoomsControlSection({
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {visibleItems.map((item) => {
-                  const style = BUCKET_STYLES[item.bucket];
+                  const style = (item?.bucket && BUCKET_STYLES[item.bucket]) || DEFAULT_BUCKET_STYLE;
                   return (
                     <tr
                       key={item.id}
@@ -405,7 +416,7 @@ export function PriorityRoomsControlSection({
 
           <div className="divide-y divide-slate-100 md:hidden">
             {visibleItems.map((item) => {
-              const style = BUCKET_STYLES[item.bucket];
+              const style = (item?.bucket && BUCKET_STYLES[item.bucket]) || DEFAULT_BUCKET_STYLE;
               return (
                 <div
                   key={item.id}

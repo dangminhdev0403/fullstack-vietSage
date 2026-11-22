@@ -582,12 +582,12 @@ export function RoomTypeRoomsModal({
                   htmlFor="new-room-floor-input"
                   className="mb-1 block text-xs font-semibold text-slate-700"
                 >
-                  Tầng (Tùy chọn)
+                  Tầng
                 </label>
                 <input
                   id="new-room-floor-input"
                   type="text"
-                  placeholder="VD: Tầng 1, Tầng 2"
+                  placeholder="Tầng 1, Tầng 2"
                   value={floor}
                   onChange={(e) => setFloor(e.target.value)}
                   disabled={createRoomMutation.isPending}

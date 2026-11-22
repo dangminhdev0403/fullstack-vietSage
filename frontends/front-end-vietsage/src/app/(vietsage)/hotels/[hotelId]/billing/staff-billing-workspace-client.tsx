@@ -1405,7 +1405,7 @@ export function StaffBillingWorkspaceClient({
               }`}
             >
               <VsIcon name="groups" className="text-sm" />
-              <span>Theo đoàn ({billingGroups.length})</span>
+              <span>Theo đoàn</span>
             </button>
             <button
               type="button"
@@ -1422,7 +1422,7 @@ export function StaffBillingWorkspaceClient({
               }`}
             >
               <VsIcon name="hotel" className="text-sm" />
-              <span>Phòng lẻ ({soloFolios.length})</span>
+              <span>Phòng lẻ</span>
             </button>
           </div>
 
@@ -2123,7 +2123,7 @@ export function StaffBillingWorkspaceClient({
                                   title: "Hủy khoản thu này?",
                                   html: `<div class="p-3 my-2 rounded-xl bg-amber-50 border border-amber-200 text-left"><p class="text-xs font-bold text-amber-800">Khoản mục:</p><p class="text-sm font-extrabold text-amber-950 mt-0.5">${escapeHtml(item.nameSnapshot)}</p><p class="text-xs font-black text-amber-900 mt-1">${formatMoney(toNumber(item.totalSnapshot), currency)}</p></div>`,
                                   input: "text",
-                                  inputPlaceholder: "Nhập lý do hủy (không bắt buộc)...",
+                                  inputPlaceholder: "Nhập lý do hủy...",
                                   showCancelButton: true,
                                   confirmButtonText: "Hủy khoản thu",
                                   cancelButtonText: "Quay lại",
@@ -2321,7 +2321,7 @@ export function StaffBillingWorkspaceClient({
                           type="text"
                           value={groupSurchargeNote}
                           onChange={(e) => setGroupSurchargeNote(e.target.value)}
-                          placeholder="Lý do phụ thu đoàn (nhận phòng sớm, phụ thu xe, sự kiện...)"
+                          placeholder="Lý do phụ thu đoàn..."
                           className="h-8 w-full rounded-xl border border-[#d4af37]/40 bg-[#1c1204]/90 px-2.5 py-1 text-xs font-medium text-[#ffe270] placeholder-[#ffe270]/60 outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24]"
                         />
                       ) : null}
@@ -2416,7 +2416,7 @@ export function StaffBillingWorkspaceClient({
                           type="text"
                           value={groupDiscountNote}
                           onChange={(e) => setGroupDiscountNote(e.target.value)}
-                          placeholder="Lý do giảm giá đoàn (ưu đãi đoàn lớn, đối tác lữ hành...)"
+                          placeholder="Lý do giảm giá đoàn..."
                           className="h-8 w-full rounded-xl border border-[#d4af37]/40 bg-[#1c1204]/90 px-2.5 py-1 text-xs font-medium text-[#fef08a] placeholder-[#fef08a]/60 outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24]"
                         />
                       ) : null}
@@ -2789,7 +2789,7 @@ export function StaffBillingWorkspaceClient({
                           type="text"
                           value={surchargeNote}
                           onChange={(e) => setSurchargeNote(e.target.value)}
-                          placeholder="Lý do phụ thu (nhận phòng sớm, phụ thu người ở...)"
+                          placeholder="Lý do phụ thu..."
                           className="h-8 w-full rounded-xl border border-[#d4af37]/40 bg-[#1c1204]/90 px-2.5 py-1 text-xs font-medium text-[#ffe270] placeholder-[#ffe270]/60 outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24]"
                         />
                       ) : null}
@@ -2874,7 +2874,7 @@ export function StaffBillingWorkspaceClient({
                           type="text"
                           value={discountNote}
                           onChange={(e) => setDiscountNote(e.target.value)}
-                          placeholder="Lý do giảm giá (khách thân thiết, ưu đãi đặc biệt...)"
+                          placeholder="Lý do giảm giá..."
                           className="h-8 w-full rounded-xl border border-[#d4af37]/40 bg-[#1c1204]/90 px-2.5 py-1 text-xs font-medium text-[#fef08a] placeholder-[#fef08a]/60 outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24]"
                         />
                       ) : null}

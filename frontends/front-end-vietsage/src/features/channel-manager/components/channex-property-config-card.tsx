@@ -98,7 +98,7 @@ export function ChannexPropertyConfigCard({
       <header className="flex flex-col gap-4 border-b border-[var(--outline-variant)] pb-5 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="text-sm font-bold uppercase tracking-wider text-[var(--secondary)]">
-            Thiết lập Channex
+            Thiết lập kênh bán phòng
           </p>
           <h2 className="mt-1 text-2xl font-bold text-[var(--on-surface)]">
             {hotelName}
@@ -119,7 +119,7 @@ export function ChannexPropertyConfigCard({
           {isLoadingConfig
             ? "Đang kiểm tra..."
             : isConfigured
-              ? "Đã liên kết Channex"
+              ? "Đã liên kết"
               : "Chưa liên kết"}
         </span>
       </header>

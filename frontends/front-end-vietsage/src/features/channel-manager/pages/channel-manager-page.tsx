@@ -286,7 +286,7 @@ function ChannelManagerContent({
                 <div className="flex items-center gap-2.5 text-blue-900">
                   <VsIcon name="concierge" className="text-lg text-blue-800" />
                   <span>
-                    Khách sạn có <strong>{simulatedBookings.length} đơn đặt phòng OTA</strong> (bao gồm {activeBookingsCount} đơn đang chiếm phòng thực tế).
+                    Khách sạn có <strong>{simulatedBookings.length} đơn đặt phòng OTA</strong>.
                   </span>
                 </div>
                 <button
@@ -306,7 +306,7 @@ function ChannelManagerContent({
                 <div className="flex items-center gap-2.5 text-amber-950">
                   <VsIcon name="hub" className="text-lg text-[#735c00] shrink-0" />
                   <span className="text-pretty">
-                    Cần kết nối thêm sàn OTA hoặc xem/chỉnh sửa <strong>ánh xạ (mapping) từng loại phòng</strong> giữa VietSage và các kênh?
+                    Cần kết nối thêm sàn OTA hoặc xem/chỉnh sửa <strong>ánh xạ từng loại phòng</strong> giữa VietSage và các kênh?
                   </span>
                 </div>
                 <button

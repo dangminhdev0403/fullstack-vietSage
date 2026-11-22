@@ -57,13 +57,19 @@ export default async function StaffRoomsPage({
   );
   const userPersona = resolveWorkspacePersona(context.activeRole.baseRoleCode ?? context.activeRole.code);
   const isHousekeeping = userPersona === "housekeeping";
+  const isPrivileged = userPersona === "owner" || userPersona === "manager";
   const canViewRooms =
+    isPrivileged ||
     context.permissions.includes("hotel.rooms.view") ||
+    context.permissions.includes("hotel.rooms.manage") ||
     context.permissions.includes("hotel.rooms.status.manage") ||
-    context.permissions.includes("hotel.rooms.ready.confirm");
+    context.permissions.includes("hotel.rooms.ready.confirm") ||
+    context.permissions.includes("hotel.all");
   const canViewReservations =
+    isPrivileged ||
     context.permissions.includes("hotel.reservations.view") ||
-    context.permissions.includes("hotel.reservations.manage");
+    context.permissions.includes("hotel.reservations.manage") ||
+    context.permissions.includes("hotel.all");
   if (
     !canUseHotelId(context, hotelId) ||
     (!canViewRooms && !canViewReservations)
@@ -71,12 +77,20 @@ export default async function StaffRoomsPage({
     notFound();
   }
 
-  let roomsPage: Awaited<ReturnType<typeof hotelOpsService.listRooms>>;
+  let roomsPage: Awaited<ReturnType<typeof hotelOpsService.listRooms>> = {
+    items: [],
+    total: 0,
+    page: 1,
+    limit: 100,
+    totalPages: 1,
+    floors: [],
+    roomTypes: [],
+  };
 
   try {
     const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
     const effectiveInitialStatus = initialStatus;
-    roomsPage = await authorizedApi("list staff rooms", (accessToken) =>
+    const res = await authorizedApi("list staff rooms", (accessToken) =>
       hotelOpsService.listRooms(hotelId, {
         query: {
           page: 1,
@@ -91,6 +105,9 @@ export default async function StaffRoomsPage({
         accessToken,
       }),
     );
+    if (res && Array.isArray(res.items)) {
+      roomsPage = res;
+    }
   } catch (error) {
     console.error("[STAFF_ROOMS_PAGE_ERROR]", {
       hotelId,

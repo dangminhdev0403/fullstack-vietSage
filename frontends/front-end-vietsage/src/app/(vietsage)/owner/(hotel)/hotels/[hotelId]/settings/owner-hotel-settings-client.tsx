@@ -74,7 +74,7 @@ const SETTINGS_TABS: Array<{
     id: "integrations",
     label: "Tích hợp hệ thống",
     icon: "hub",
-    description: "Cấu hình khai báo lưu trú KBTT Công an và phân phối đa kênh OTA.",
+    description: "Cấu hình khai báo lưu trú và phân phối đa kênh OTA.",
   },
   {
     id: "confirmation-template",
@@ -213,7 +213,7 @@ export function OwnerHotelSettingsClient({
                 }`}
               >
                 <VsIcon name="security" className="text-base" />
-                <span>Khai báo lưu trú KBTT</span>
+                <span>Khai báo lưu trú</span>
               </button>
               <button
                 type="button"

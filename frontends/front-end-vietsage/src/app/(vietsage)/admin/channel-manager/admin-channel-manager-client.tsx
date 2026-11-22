@@ -295,7 +295,7 @@ export function AdminChannelManagerClient({
             { id: "OVERVIEW" as const, label: "Tổng quan & Checklist", icon: "fact_check" },
             { id: "VIETSAGE_BOOKING" as const, label: "Kênh VietSage OTA", icon: "shopping_bag" },
             { id: "CHANNELS" as const, label: "Kênh OTA & Ghép phòng", icon: "hub" },
-            { id: "CONFIG" as const, label: "Cấu hình Channex", icon: "settings" },
+            { id: "CONFIG" as const, label: "Cấu hình kết nối", icon: "settings" },
             { id: "REPAIR" as const, label: "Khắc phục sự cố & Đối soát", icon: "build" },
           ].map((tab) => {
             const isActive = drillDownTab === tab.id;
@@ -328,7 +328,7 @@ export function AdminChannelManagerClient({
             >
               <div className="rounded-2xl border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] p-6 shadow-xs">
                 <h3 className="text-lg font-bold text-gray-900">
-                  Tiến độ chuẩn hóa kết nối Channex
+                  Tiến độ chuẩn hóa kết nối
                 </h3>
                 <p className="mt-1 text-sm text-[var(--on-surface-variant)]">
                   Bảng kiểm tra tình trạng kết nối, ánh xạ dữ liệu và vận hành hạm đội trước khi mở bán phòng.
@@ -347,7 +347,7 @@ export function AdminChannelManagerClient({
                       </div>
                       <div>
                         <h4 className="text-sm font-bold text-gray-900">
-                          1. Khách sạn liên kết trên Channex
+                          1. Khách sạn liên kết
                         </h4>
                         <p className="text-xs text-[var(--on-surface-variant)]">
                           {selectedHotel.propertyConfigured
@@ -690,7 +690,7 @@ export function AdminChannelManagerClient({
               {summary?.configuredHotels ?? 0}
             </p>
             <p className="mt-0.5 text-xs font-medium text-teal-700/80">
-              Đã liên kết Channex
+              Đã liên kết kênh
             </p>
           </div>
         </div>
@@ -780,7 +780,7 @@ export function AdminChannelManagerClient({
               {summary?.unconfiguredHotels ?? 0}
             </p>
             <p className="mt-0.5 text-xs font-medium text-slate-600">
-              Chưa kết nối Channex
+              Chưa liên kết kênh
             </p>
           </div>
         </button>

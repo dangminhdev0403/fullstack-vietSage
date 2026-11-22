@@ -948,7 +948,7 @@ export function OtaBookingsTab({
                 }`}
               >
                 <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                <span>Giữ phòng ({stats.confirmed})</span>
+                <span>Giữ phòng</span>
               </button>
 
               <button
@@ -961,7 +961,7 @@ export function OtaBookingsTab({
                 }`}
               >
                 <span className="h-2 w-2 rounded-full bg-rose-400" />
-                <span>Đã hủy ({stats.cancelled})</span>
+                <span>Đã hủy</span>
               </button>
 
               {stats.checkedIn > 0 && (
@@ -975,7 +975,7 @@ export function OtaBookingsTab({
                   }`}
                 >
                   <span className="h-2 w-2 rounded-full bg-blue-500" />
-                  <span>Đã nhận phòng ({stats.checkedIn})</span>
+                  <span>Đã nhận phòng</span>
                 </button>
               )}
             </div>
@@ -1101,7 +1101,7 @@ export function OtaBookingsTab({
                               {channel.name}
                             </div>
                             <div className="flex items-center gap-1 font-mono text-xs font-semibold text-slate-600">
-                              <span>#{cleanCode}</span>
+                              <span>{cleanCode}</span>
                               <button
                                 type="button"
                                 aria-label={`Sao chép mã đơn ${b.reservationCode}`}

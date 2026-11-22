@@ -181,12 +181,12 @@ export function ChannexHubTab({
               {propertyMapping ? (
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                  Property Channex đã liên kết
+                  Đã liên kết
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-900">
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                  Chưa liên kết Property Channex
+                  Chưa liên kết
                 </span>
               )}
             </div>
@@ -448,7 +448,7 @@ export function ChannexHubTab({
                       ) : (
                         <p className="text-xs text-slate-500 italic flex items-center gap-1.5">
                           <VsIcon name="check_circle" className="text-sm text-emerald-600" />
-                          Ủy quyền nhanh một chạm qua Channex Hub
+                          Ủy quyền nhanh một chạm
                         </p>
                       )}
                     </div>

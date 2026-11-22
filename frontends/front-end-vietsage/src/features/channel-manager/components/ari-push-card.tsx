@@ -45,7 +45,7 @@ function addDaysToDateString(dateStr: string, days: number): string {
 const PRESET_OPTIONS = [
   { id: "today", label: "Hôm nay", days: 0 },
   { id: "7d", label: "7 ngày tới", days: 6 },
-  { id: "14d", label: "14 ngày (theo bảng)", days: 13 },
+  { id: "14d", label: "14 ngày", days: 13 },
   { id: "30d", label: "30 ngày tới", days: 29 },
 ] as const;
 
@@ -366,10 +366,7 @@ export function AriPushCard({
                 htmlFor={endDateInputId}
                 className="block text-xs font-bold uppercase tracking-wider text-[#3d4942]"
               >
-                Đến ngày{" "}
-                <span className="font-normal lowercase text-[#6a786f]">
-                  (tùy chọn)
-                </span>
+                Đến ngày
               </label>
               {endDate && (
                 <button

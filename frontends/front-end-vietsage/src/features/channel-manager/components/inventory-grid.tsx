@@ -957,7 +957,7 @@ export function InventoryGrid({
                                   >
                                     {value === 0 ? (
                                       <span className="inline-flex items-center gap-1 font-black text-xs text-rose-700">
-                                        <span>⛔</span> Hết phòng (0)
+                                        <span>⛔</span> Hết phòng
                                       </span>
                                     ) : (
                                       <span className="flex items-center justify-center gap-1">
@@ -1066,7 +1066,7 @@ export function InventoryGrid({
                                       </span>
                                     ) : value === 0 ? (
                                       <span className="inline-flex items-center gap-1 font-black text-xs text-rose-700">
-                                        <span>⛔</span> Hết phòng (0)
+                                        <span>⛔</span> Hết phòng
                                       </span>
                                     ) : (
                                       <span className="flex items-center justify-center gap-1">

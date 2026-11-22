@@ -649,7 +649,7 @@ export function BulkUpdateModal({
                             name="link_off"
                             className="text-xs text-amber-700"
                           />
-                          <span>Chưa liên kết OTA ({explanation})</span>
+                          <span>Chưa liên kết OTA</span>
                         </div>
                       </div>
                       <div className="w-5 h-5 rounded-md flex items-center justify-center border border-slate-200 bg-slate-100 text-slate-400">
@@ -1229,7 +1229,7 @@ export function BulkUpdateModal({
               <input
                 type="number"
                 min="1"
-                placeholder="Để trống nếu không đổi (Mặc định 1 đêm)"
+                placeholder="Để trống nếu không đổi"
                 value={minStay}
                 onChange={(e) => setMinStay(e.target.value)}
                 className="w-full h-11 px-4 rounded-2xl border border-slate-200 bg-white text-slate-900 text-base font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
