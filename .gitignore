@@ -75,3 +75,9 @@ __pycache__/
 .agents/mcp_config.json
 .agents/hooks.json
 .agents/agentsroom-hook.cmd
+
+# Local deploy scripts containing server host/IP
+scripts/deploy-vps.ps1
+scripts/deploy-vps.bat
+!scripts/deploy-vps.ps1.example
+!scripts/deploy-vps.bat.example

@@ -1,4 +1,5 @@
-# Automated deployment script for VietSage VPS (72.62.69.172)
+# Automated deployment script for VietSage VPS (Template Example)
+# Copy this file to deploy-vps.ps1 and update your VPS IP / Host
 param(
     [switch]$FrontendOnly,
     [switch]$AuthOnly
@@ -7,8 +8,8 @@ param(
 $ErrorActionPreference = "Stop"
 $OutputEncoding = [System.Text.UTF8Encoding]::new($false)
 
-$VPS_HOST = "72.62.69.172"
-$VPS_USER = "root"
+$VPS_HOST = if ($env:VPS_HOST) { $env:VPS_HOST } else { "YOUR_VPS_IP_OR_DOMAIN" }
+$VPS_USER = if ($env:VPS_USER) { $env:VPS_USER } else { "root" }
 
 Write-Host "==========================================================" -ForegroundColor Cyan
 Write-Host ">>> Connecting via SSH to $VPS_USER@$VPS_HOST and deploying..." -ForegroundColor Cyan
