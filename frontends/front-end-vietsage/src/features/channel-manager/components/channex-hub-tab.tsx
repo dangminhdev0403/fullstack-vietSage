@@ -232,7 +232,7 @@ export function ChannexHubTab({
               type="search"
               value={channelSearch}
               onChange={(event) => setChannelSearch(event.target.value)}
-              placeholder="Tìm kiếm nền tảng (Booking.com, Agoda, Airbnb, Expedia...)"
+              placeholder="Tìm kiếm nền tảng..."
               className="min-h-10 w-full rounded-xl border border-[var(--outline-variant)] bg-white pl-9 pr-9 text-sm text-[var(--on-surface)] placeholder:text-[var(--on-surface-variant)]/70 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 transition shadow-2xs"
             />
             {channelSearch && (
@@ -356,46 +356,21 @@ export function ChannexHubTab({
                   }`}
                 >
                   <div className="space-y-4">
-                    {/* Header Row: Logo, Title, Code & Badges */}
-                    <div className="flex items-start gap-3.5">
+                    {/* Header Row: Logo & Title */}
+                    <div className="flex items-center gap-3.5">
                       <ChannelLogo
                         code={provider.code}
                         title={provider.title}
                         size="md"
-                        className="rounded-2xl shadow-xs"
+                        className="rounded-2xl shadow-xs shrink-0"
                       />
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-start justify-between gap-1.5">
-                          <h3
-                            className="truncate text-base font-extrabold text-slate-900 group-hover:text-emerald-800 transition"
-                            title={provider.title}
-                          >
-                            {provider.title}
-                          </h3>
-                          <span
-                            className={`shrink-0 rounded-md border px-2 py-0.5 text-xs font-bold uppercase tracking-wider ${
-                              provider.kind === "ota"
-                                ? "border-sky-200 bg-sky-50 text-sky-800"
-                                : provider.kind === "meta"
-                                  ? "border-purple-200 bg-purple-50 text-purple-800"
-                                  : "border-amber-200 bg-amber-50 text-amber-900"
-                            }`}
-                          >
-                            {provider.kind === "ota" ? "OTA" : provider.kind === "meta" ? "Metasearch" : "CM"}
-                          </span>
-                        </div>
-
-                        <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                          <span className="font-mono text-xs font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
-                            #{provider.code}
-                          </span>
-                          {provider.nativeSupported && (
-                            <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 border border-emerald-200/80 px-1.5 py-0.5 text-xs font-bold text-emerald-800">
-                              <VsIcon name="bolt" className="text-xs text-emerald-600" />
-                              Native API
-                            </span>
-                          )}
-                        </div>
+                        <h3
+                          className="text-base font-extrabold text-slate-900 group-hover:text-emerald-800 transition line-clamp-2"
+                          title={provider.title}
+                        >
+                          {provider.title}
+                        </h3>
                       </div>
                     </div>
 
@@ -406,7 +381,7 @@ export function ChannexHubTab({
                           <div className="flex items-center justify-between">
                             <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800">
                               <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                              <span>Đã kết nối ({providerConnections.length} kênh)</span>
+                              <span>Đã kết nối</span>
                             </span>
                           </div>
                           {providerConnections.length > 0 && (

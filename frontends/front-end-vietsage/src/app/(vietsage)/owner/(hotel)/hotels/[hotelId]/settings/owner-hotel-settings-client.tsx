@@ -74,7 +74,7 @@ const SETTINGS_TABS: Array<{
     id: "integrations",
     label: "Tích hợp hệ thống",
     icon: "hub",
-    description: "Cấu hình khai báo lưu trú KBTT Công an và phân phối đa kênh OTA (Channex).",
+    description: "Cấu hình khai báo lưu trú KBTT Công an và phân phối đa kênh OTA.",
   },
   {
     id: "confirmation-template",
@@ -226,7 +226,7 @@ export function OwnerHotelSettingsClient({
                 }`}
               >
                 <VsIcon name="hub" className="text-base" />
-                <span>Kênh bán phòng OTA (Channex)</span>
+                <span>Kênh bán phòng OTA</span>
               </button>
             </div>
 
