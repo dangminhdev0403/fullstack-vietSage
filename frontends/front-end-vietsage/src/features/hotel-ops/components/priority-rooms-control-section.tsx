@@ -58,10 +58,6 @@ function getPrimaryActionButtonClass(item: PriorityRoomAlertItem): string {
   }
 }
 
-function isDirectMutationAction(item: PriorityRoomAlertItem): boolean {
-  return item.actionKind === "check-in" || item.actionKind === "mark-ready";
-}
-
 function canExecutePrimaryAction(
   item: PriorityRoomAlertItem,
   permissions: {
@@ -88,7 +84,6 @@ function PriorityRowActions({
   item,
   permissions,
   fullWidthOnMobile,
-  onInspectItem,
   onPrimaryAction,
   onCancelReservation,
 }: {
@@ -99,17 +94,20 @@ function PriorityRowActions({
     canManageReservations: boolean;
   };
   fullWidthOnMobile?: boolean;
-  onInspectItem: (item: PriorityRoomAlertItem, triggerEl: HTMLElement | null) => void;
   onPrimaryAction: (item: PriorityRoomAlertItem, triggerEl: HTMLElement | null) => void;
   onCancelReservation?: (item: PriorityRoomAlertItem, triggerEl: HTMLElement | null) => void;
 }) {
   const canPrimary = canExecutePrimaryAction(item, permissions);
-  const buttonHeight = fullWidthOnMobile ? "min-h-[44px] flex-1" : "min-h-[38px]";
+  const buttonHeight = fullWidthOnMobile ? "min-h-[42px] flex-1" : "min-h-[34px]";
   const isCancellable = Boolean(
     permissions.canManageReservations &&
       (item.reservationId || item.arrival || item.fallbackReservation) &&
       !item.stayId,
   );
+
+  if (!canPrimary && !isCancellable) {
+    return null;
+  }
 
   return (
     <>
@@ -120,7 +118,7 @@ function PriorityRowActions({
             e.stopPropagation();
             onPrimaryAction(item, e.currentTarget);
           }}
-          className={`inline-flex ${buttonHeight} items-center justify-center rounded-xl border px-3.5 py-1.5 text-xs font-bold shadow-2xs transition cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/25 ${getPrimaryActionButtonClass(item)}`}
+          className={`inline-flex ${buttonHeight} items-center justify-center rounded-xl border px-3 py-1.5 text-xs font-bold shadow-2xs transition cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/25 ${getPrimaryActionButtonClass(item)}`}
         >
           {item.actionLabel}
         </button>
@@ -133,23 +131,12 @@ function PriorityRowActions({
             e.stopPropagation();
             onCancelReservation(item, e.currentTarget);
           }}
-          className={`inline-flex ${buttonHeight} items-center justify-center rounded-xl border border-rose-300 bg-white px-3.5 py-1.5 text-xs font-bold text-rose-700 hover:border-rose-400 hover:bg-rose-50 hover:text-rose-800 transition cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/20`}
+          className={`inline-flex ${buttonHeight} items-center justify-center rounded-xl border border-rose-300 bg-white px-3 py-1.5 text-xs font-bold text-rose-700 hover:border-rose-400 hover:bg-rose-50 hover:text-rose-800 transition cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/20`}
           title="Hủy đặt phòng (Đưa phòng về trạng thái trống & vẫn tính cọc)"
         >
           Hủy đặt phòng
         </button>
       ) : null}
-
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          onInspectItem(item, e.currentTarget);
-        }}
-        className={`inline-flex ${buttonHeight} items-center justify-center rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-700 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-950 transition cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/20`}
-      >
-        Chi tiết
-      </button>
     </>
   );
 }
@@ -331,11 +318,11 @@ export function PriorityRoomsControlSection({
             <table className="w-full border-collapse text-left">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/70 text-xs font-bold uppercase tracking-wide text-slate-600">
-                  <th className="px-4 py-2.5 whitespace-nowrap">Phòng</th>
-                  <th className="px-4 py-2.5 whitespace-nowrap">Khách hàng</th>
-                  <th className="px-4 py-2.5 whitespace-nowrap">Trạng thái</th>
-                  <th className="px-4 py-2.5 whitespace-nowrap">Lịch lưu trú</th>
-                  <th className="px-4 py-2.5 text-right whitespace-nowrap">Thao tác</th>
+                  <th className="w-[16%] min-w-[130px] px-4 py-3 whitespace-nowrap">Phòng</th>
+                  <th className="w-[22%] min-w-[160px] px-4 py-3 whitespace-nowrap">Khách hàng</th>
+                  <th className="w-[18%] min-w-[150px] px-4 py-3 whitespace-nowrap">Trạng thái</th>
+                  <th className="w-[22%] min-w-[170px] px-4 py-3 whitespace-nowrap">Lịch lưu trú</th>
+                  <th className="w-[22%] min-w-[190px] px-4 py-3 text-right whitespace-nowrap">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -344,16 +331,10 @@ export function PriorityRoomsControlSection({
                   return (
                     <tr
                       key={item.id}
-                      onClick={() => {
-                        if (canExecutePrimaryAction(item, permissions)) {
-                          onPrimaryAction(item, null);
-                        } else {
-                          onInspectItem(item, null);
-                        }
-                      }}
+                      onClick={() => onInspectItem(item, null)}
                       className="transition-colors hover:bg-slate-50/90 cursor-pointer"
                     >
-                      <td className="px-4 py-2.5 align-middle">
+                      <td className="px-4 py-3 align-middle">
                         <div className="flex flex-col gap-0.5">
                           <span
                             className={`inline-flex w-fit items-center rounded-lg border px-2.5 py-0.5 text-xs font-bold whitespace-nowrap ${
@@ -372,7 +353,7 @@ export function PriorityRoomsControlSection({
                         </div>
                       </td>
 
-                      <td className="px-4 py-2.5 align-middle">
+                      <td className="px-4 py-3 align-middle">
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span className="text-xs font-bold text-slate-900">
                             {item.guestName}
@@ -389,7 +370,7 @@ export function PriorityRoomsControlSection({
                         </div>
                       </td>
 
-                      <td className="px-4 py-2.5 align-middle">
+                      <td className="px-4 py-3 align-middle">
                         <span
                           className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-bold whitespace-nowrap ${style.pillClass}`}
                         >
@@ -399,18 +380,17 @@ export function PriorityRoomsControlSection({
                         </span>
                       </td>
 
-                      <td className="px-4 py-2.5 align-middle">
+                      <td className="px-4 py-3 align-middle">
                         <span className="text-xs font-semibold text-slate-700 whitespace-nowrap">
                           {item.scheduleText}
                         </span>
                       </td>
 
-                      <td className="px-4 py-2.5 align-middle text-right">
+                      <td className="px-4 py-3 align-middle text-right">
                         <div className="inline-flex items-center justify-end gap-2">
                           <PriorityRowActions
                             item={item}
                             permissions={{ canCheckInStay, canManageRooms, canManageReservations }}
-                            onInspectItem={onInspectItem}
                             onPrimaryAction={onPrimaryAction}
                             onCancelReservation={onCancelReservation}
                           />
@@ -429,13 +409,7 @@ export function PriorityRoomsControlSection({
               return (
                 <div
                   key={item.id}
-                  onClick={() => {
-                    if (canExecutePrimaryAction(item, permissions)) {
-                      onPrimaryAction(item, null);
-                    } else {
-                      onInspectItem(item, null);
-                    }
-                  }}
+                  onClick={() => onInspectItem(item, null)}
                   className="space-y-2 px-4 py-3 transition-colors hover:bg-slate-50/80 cursor-pointer"
                 >
                   <div className="flex items-center justify-between gap-2">
@@ -491,7 +465,6 @@ export function PriorityRoomsControlSection({
                       item={item}
                       permissions={{ canCheckInStay, canManageRooms, canManageReservations }}
                       fullWidthOnMobile
-                      onInspectItem={onInspectItem}
                       onPrimaryAction={onPrimaryAction}
                       onCancelReservation={onCancelReservation}
                     />
