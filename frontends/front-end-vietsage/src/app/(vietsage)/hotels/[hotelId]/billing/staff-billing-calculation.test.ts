@@ -157,14 +157,14 @@ test("Billing parseFormattedNumber and calculation regression tests", async (t) 
       "src/app/(vietsage)/hotels/[hotelId]/billing/staff-billing-workspace-client.tsx",
     );
     const code = fs.readFileSync(clientFile, "utf-8");
-    assert.ok(code.includes("isCashSettlementAllowed"), "Workspace client must export and enforce isCashSettlementAllowed");
+    assert.ok(code.includes("isCashSettlementAllowed"), "Workspace client must export isCashSettlementAllowed");
     assert.ok(
-      code.includes("if (!isCashSettlementAllowed(cashGivenInput, computedTotal))"),
-      "Workspace client pre-submit guard must use isCashSettlementAllowed",
+      code.includes("resolvePaymentSplit(paymentSplit, computedTotal, currency)"),
+      "Workspace client pre-submit guard must validate payment split against computedTotal",
     );
     assert.ok(
-      code.includes("!isCashSettlementAllowed(cashGivenInput, computedTotal)"),
-      "Workspace client must disable button or block checkout when cash is insufficient",
+      code.includes("if (splitCheck && !splitCheck.ok)"),
+      "Workspace client must block checkout when payment split validation fails",
     );
   });
 

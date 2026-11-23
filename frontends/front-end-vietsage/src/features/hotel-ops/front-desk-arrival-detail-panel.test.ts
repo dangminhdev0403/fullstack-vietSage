@@ -4,6 +4,8 @@ import test from "node:test";
 import vm from "node:vm";
 import ts from "typescript";
 import type { HotelArrival } from "./types/hotel-ops-contract.ts";
+// @ts-expect-error Node's strip-types runner requires the explicit TypeScript extension.
+import { createPaymentSplitState, resolvePaymentSplit } from "../billing/utils/payment-split.ts";
 
 const panelSource = readFileSync(
   new URL("./components/front-desk-arrival-detail-panel.tsx", import.meta.url),
@@ -336,6 +338,7 @@ function renderArrivalPanel(options: {
     if (id.endsWith("/swal")) return swal;
     if (id.endsWith("/hotel-ops-display")) return { getArrivalStatusDisplay: () => ({ label: "Đã xác nhận" }) };
     if (id.endsWith("/check-in-error")) return { formatFriendlyCheckInError: (err: Error) => err.message, formatFriendlyHotelOpsError: (err: Error) => err.message };
+    if (id.endsWith("/payment-split")) return { createPaymentSplitState, resolvePaymentSplit };
     return new Proxy({}, { get: (_target, name) => name });
   }, mod, mod.exports);
   function render() {
@@ -378,7 +381,7 @@ test("overdue header and footer open centered resolution with escaped identity a
   assert.equal(panel.dialogs[0].position, "center");
   assert.match(String(panel.dialogs[0].html), /Nguyễn &lt;An&gt;/);
   assert.match(String(panel.dialogs[0].html), /350\.000/);
-  assert.match(String(panel.dialogs[0].html), /bảo toàn trong báo cáo doanh thu\/cọc/);
+  assert.match(String(panel.dialogs[0].html), /bảo toàn trong báo cáo doanh thu \/ sổ thu chi/);
   assert.equal(panel.calls.length, 0, "dismissing resolution must not mutate reservations");
 });
 

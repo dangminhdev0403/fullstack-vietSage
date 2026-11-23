@@ -84,7 +84,7 @@ export default async function StaffRoomsPage({
     limit: 100,
     totalPages: 1,
     floors: [],
-    roomTypes: [],
+    types: [],
   };
 
   try {
