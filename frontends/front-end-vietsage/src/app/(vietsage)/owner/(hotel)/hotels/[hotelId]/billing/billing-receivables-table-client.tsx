@@ -7,6 +7,12 @@ import { staffRoomsRepository, type ReceivableItem } from "@/features/hotel-ops/
 import { useBillingReceivables } from "@/features/billing/hooks/use-billing-receivables";
 import { formatDateTime, formatMoney } from "@/features/billing/utils/money";
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
+import { PaymentMethodSplitInput } from "@/features/billing/components/payment-method-split-input";
+import {
+  createPaymentSplitState,
+  resolvePaymentSplit,
+  type PaymentSplitState,
+} from "@/features/billing/utils/payment-split";
 import { showErrorAlert, showSuccessAlert, showWarningAlert } from "@/libs/swal";
 
 type BillingReceivablesTableClientProps = {
@@ -317,7 +323,9 @@ function CollectReceivableModal({
   const outstanding = Number(receivable.outstandingAmount ?? receivable.balanceAmount ?? (orig - paid));
 
   const [collectedAmount, setCollectedAmount] = useState<string>(String(outstanding));
-  const [paymentMethod, setPaymentMethod] = useState<"CASH" | "BANK_TRANSFER" | "CARD">("BANK_TRANSFER");
+  const [paymentSplit, setPaymentSplit] = useState<PaymentSplitState>(() =>
+    createPaymentSplitState("BANK_TRANSFER"),
+  );
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -332,19 +340,25 @@ function CollectReceivableModal({
       await showWarningAlert("Số tiền vượt quá", "Số tiền thu không được lớn hơn số tiền nợ còn lại.");
       return;
     }
+    const splitCheck = resolvePaymentSplit(paymentSplit, num, "VND");
+    if (!splitCheck.ok) {
+      await showWarningAlert("Kiểm tra phân bổ thanh toán", splitCheck.error);
+      return;
+    }
 
     setIsSubmitting(true);
     try {
       await staffRoomsRepository.collectReceivable(hotelId, receivable.id, {
         amount: num,
         collectedAmount: num,
-        paymentMethod,
+        paymentMethod: splitCheck.method === "OTHER" ? "MANUAL" : splitCheck.method,
+        ...(splitCheck.splits ? { splits: splitCheck.splits } : {}),
         notes: notes.trim() || undefined,
       });
 
       await showSuccessAlert(
         "Thu công nợ thành công",
-        `Đã ghi nhận thu ${formatMoney(num, "VND")} từ đối tượng ${receivable.debtorName}.`,
+        `Đã ghi nhận thu ${formatMoney(num, "VND")} (${splitCheck.summaryLabel}) từ ${receivable.debtorName}.`,
       );
       await onSuccess();
     } catch (err) {
@@ -398,7 +412,7 @@ function CollectReceivableModal({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
+            <div className="sm:col-span-2">
               <label className="block text-xs font-bold text-slate-700 mb-1">
                 Số tiền thu đợt này (VND) <span className="text-rose-600">*</span>
               </label>
@@ -422,19 +436,17 @@ function CollectReceivableModal({
               </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Nguồn tiền thu <span className="text-rose-600">*</span>
-              </label>
-              <select
-                value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value as "CASH" | "BANK_TRANSFER" | "CARD")}
-                className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-900 focus:border-blue-700 focus:outline-hidden"
-              >
-                <option value="BANK_TRANSFER">🏦 Chuyển khoản ngân hàng (CK)</option>
-                <option value="CASH">💵 Tiền mặt (TM)</option>
-                <option value="CARD">💳 Quẹt thẻ (POS)</option>
-              </select>
+            <div className="sm:col-span-2">
+              <PaymentMethodSplitInput
+                label="Nguồn tiền thu"
+                required
+                value={paymentSplit}
+                onChange={setPaymentSplit}
+                totalAmount={Number(collectedAmount) || 0}
+                allowedMethods={["CASH", "BANK_TRANSFER", "CARD"]}
+                disabled={isSubmitting}
+                idPrefix="collect-receivable-payment"
+              />
             </div>
 
             <div className="sm:col-span-2">

@@ -4,6 +4,12 @@ import { useRef, useState, type FormEvent } from "react";
 import { Temporal } from "@js-temporal/polyfill";
 import { HttpError } from "@/core/http/http-error";
 import { showSuccessAlert } from "@/libs/swal";
+import { PaymentMethodSplitInput } from "@/features/billing/components/payment-method-split-input";
+import {
+  createPaymentSplitState,
+  resolvePaymentSplit,
+  type PaymentSplitState,
+} from "@/features/billing/utils/payment-split";
 import type {
   CollectRevenueInput,
   CreateRevenueEntryInput,
@@ -72,7 +78,9 @@ export function RevenueEntryDialog({
   const [notes, setNotes] = useState(entry?.notes ?? "");
   const [received, setReceived] = useState(isCollection);
   const [collectedAmount, setCollectedAmount] = useState("");
-  const [method, setMethod] = useState<RevenuePaymentMethod>("CASH");
+  const [paymentSplit, setPaymentSplit] = useState<PaymentSplitState>(() =>
+    createPaymentSplitState("CASH"),
+  );
   const [receivedAt, setReceivedAt] = useState(
     now.toPlainDateTime().toString({ smallestUnit: "minute" }),
   );
@@ -100,14 +108,24 @@ export function RevenueEntryDialog({
       );
       return;
     }
+    const splitCheck =
+      received || isCollection
+        ? resolvePaymentSplit(paymentSplit, paid, book.currency)
+        : null;
+    if (splitCheck && !splitCheck.ok) {
+      setError(splitCheck.error);
+      return;
+    }
     try {
       pending.current = true;
       key.current ??= crypto.randomUUID();
       const collection =
-        received || isCollection
+        (received || isCollection) && splitCheck && splitCheck.ok
           ? {
               amount: paid,
-              method,
+              ...(splitCheck.splits
+                ? { splits: splitCheck.splits }
+                : { method: splitCheck.method }),
               reference: reference.trim() || undefined,
               receivedAt: Temporal.PlainDateTime.from(receivedAt)
                 .toZonedDateTime(book.timeZone, { disambiguation: "reject" })
@@ -270,7 +288,7 @@ export function RevenueEntryDialog({
           <fieldset className="grid gap-4 border-t border-[var(--outline-variant)] pt-4 sm:grid-cols-2">
             <legend className="px-1 text-base font-semibold">Thanh toán</legend>
             {!isCollection && (
-              <label className="space-y-1.5">
+              <label className="space-y-1.5 sm:col-span-2">
                 <span className="block text-sm font-medium">
                   Số tiền đã thu ({book.currency})
                 </span>
@@ -281,27 +299,34 @@ export function RevenueEntryDialog({
                   max={amount || undefined}
                   value={collectedAmount}
                   placeholder={amount || ""}
-                  onChange={(event) => setCollectedAmount(event.target.value)}
+                  onChange={(event) => {
+                    key.current = null;
+                    setCollectedAmount(event.target.value);
+                  }}
                   className={revenueInputClass}
                 />
               </label>
             )}
-            <label className="space-y-1.5">
-              <span className="block text-sm font-medium">Phương thức</span>
-              <select
-                value={method}
-                onChange={(event) =>
-                  setMethod(event.target.value as RevenuePaymentMethod)
+            <div className="sm:col-span-2">
+              <PaymentMethodSplitInput
+                label="Phương thức thanh toán"
+                required
+                value={paymentSplit}
+                onChange={(next) => {
+                  key.current = null;
+                  setPaymentSplit(next);
+                }}
+                totalAmount={
+                  isCollection
+                    ? Number(amount) || 0
+                    : Number(collectedAmount || amount) || 0
                 }
-                className={revenueInputClass}
-              >
-                {Object.entries(REVENUE_METHODS).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
+                allowedMethods={["CASH", "BANK_TRANSFER", "CARD", "OTHER"]}
+                currency={book.currency}
+                disabled={busy}
+                idPrefix="revenue-entry-payment"
+              />
+            </div>
             <label className="space-y-1.5">
               <span className="block text-sm font-medium">
                 Thời điểm nhận tiền

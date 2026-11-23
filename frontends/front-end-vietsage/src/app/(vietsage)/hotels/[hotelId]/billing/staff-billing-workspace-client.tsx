@@ -25,6 +25,13 @@ import type {
 } from "@/features/billing/types/billing-contract";
 import { folioPreviewResource } from "@/features/billing/resources/folio-preview-resource";
 import { formatMoney } from "@/features/billing/utils/money";
+import { PaymentMethodSplitInput } from "@/features/billing/components/payment-method-split-input";
+import {
+  allocateGroupPaymentForInvoice,
+  createPaymentSplitState,
+  resolvePaymentSplit,
+  type PaymentSplitState,
+} from "@/features/billing/utils/payment-split";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
 import { publishHotelRoomChange } from "@/features/hotel-ops/utils/hotel-ops-tab-sync";
@@ -351,6 +358,12 @@ export function StaffBillingWorkspaceClient({
   const [surchargeInput, setSurchargeInput] = useState<string>("");
   const [discountNote, setDiscountNote] = useState<string>("");
   const [surchargeNote, setSurchargeNote] = useState<string>("");
+  const [paymentSplit, setPaymentSplit] = useState<PaymentSplitState>(() =>
+    createPaymentSplitState("CASH"),
+  );
+  const [groupPaymentSplit, setGroupPaymentSplit] = useState<PaymentSplitState>(() =>
+    createPaymentSplitState("CASH"),
+  );
   const checkoutAttemptIdsRef = useRef<Record<string, string>>({});
   const checkoutPaymentAttemptRef = useRef<{
     invoiceId: string;
@@ -367,6 +380,7 @@ export function StaffBillingWorkspaceClient({
       setSurchargeInput("");
       setDiscountNote("");
       setSurchargeNote("");
+      setPaymentSplit(createPaymentSplitState("CASH"));
       setReconciliations({});
       setCheckoutError("");
   }
@@ -961,6 +975,15 @@ export function StaffBillingWorkspaceClient({
 
     setCheckoutError("");
     const isZeroBalance = computedTotal <= 0;
+    const splitCheck = !isZeroBalance
+      ? resolvePaymentSplit(paymentSplit, computedTotal, currency)
+      : null;
+    if (splitCheck && !splitCheck.ok) {
+      setCheckoutError(splitCheck.error);
+      await showWarningAlert("Kiểm tra phân bổ thanh toán", splitCheck.error);
+      return;
+    }
+
     const confirmation = await showConfirmDialog({
       icon: "question",
       title: isZeroBalance ? "Xác nhận trả phòng" : "Xác nhận thanh toán & Trả phòng",
@@ -993,6 +1016,9 @@ export function StaffBillingWorkspaceClient({
             }]
           : []),
         { label: "Tổng thanh toán", value: formatMoney(computedTotal, currency) },
+        ...(splitCheck && splitCheck.ok
+          ? [{ label: "Phương thức thanh toán", value: splitCheck.summaryLabel }]
+          : []),
       ],
       text: isZeroBalance
         ? "Không còn số dư phải thu. Phòng sẽ chuyển sang trạng thái chờ dọn dẹp."
@@ -1098,6 +1124,20 @@ export function StaffBillingWorkspaceClient({
               };
         checkoutPaymentAttemptRef.current = paymentAttempt;
 
+        const singleAllocation =
+          splitCheck && splitCheck.ok && splitCheck.isMixed
+            ? allocateGroupPaymentForInvoice(appliedAmount, {
+                cash: splitCheck.cashAmount,
+                bank: splitCheck.bankTransferAmount,
+              })
+            : {
+                method:
+                  splitCheck && splitCheck.ok && splitCheck.method !== "OTHER"
+                    ? splitCheck.method
+                    : ("MANUAL" as const),
+                amount: appliedAmount,
+              };
+
         const paymentResponse = await requestInternalApiEnvelope<{
           payment: Payment;
           invoice: InvoiceDetail;
@@ -1107,7 +1147,8 @@ export function StaffBillingWorkspaceClient({
           {
             method: "POST",
             body: {
-              method: "MANUAL",
+              method: singleAllocation.method,
+              ...(singleAllocation.splits ? { splits: singleAllocation.splits } : {}),
               note: "Thu tiền tại quầy lễ tân",
               amount: appliedAmount,
               clientRequestId: paymentAttempt.clientRequestId,
@@ -1190,6 +1231,15 @@ export function StaffBillingWorkspaceClient({
       return;
     }
 
+    const groupSplitCheck =
+      computedGroupTotal > 0
+        ? resolvePaymentSplit(groupPaymentSplit, computedGroupTotal, currency)
+        : null;
+    if (groupSplitCheck && !groupSplitCheck.ok) {
+      await showWarningAlert("Kiểm tra phân bổ thanh toán đoàn", groupSplitCheck.error);
+      return;
+    }
+
     const roomNames = foliosToSettle.map((f) => displayRoom(f)).join(", ");
     const confirm = await showConfirmDialog({
       icon: "question",
@@ -1215,6 +1265,9 @@ export function StaffBillingWorkspaceClient({
             }]
           : []),
         { label: "Tổng thanh toán đoàn", value: formatMoney(computedGroupTotal, currency) },
+        ...(groupSplitCheck && groupSplitCheck.ok
+          ? [{ label: "Phương thức thanh toán", value: groupSplitCheck.summaryLabel }]
+          : []),
       ],
       confirmText: `Thanh toán (${foliosToSettle.length} phòng)`,
       cancelText: "Hủy bỏ",
@@ -1228,6 +1281,10 @@ export function StaffBillingWorkspaceClient({
     let failCount = 0;
     let firstInvoiceId: string | null = null;
     const errors: string[] = [];
+    const groupSplitBudgets =
+      groupSplitCheck && groupSplitCheck.ok && groupSplitCheck.isMixed
+        ? { cash: groupSplitCheck.cashAmount, bank: groupSplitCheck.bankTransferAmount }
+        : null;
 
     for (let i = 0; i < foliosToSettle.length; i++) {
       const folio = foliosToSettle[i];
@@ -1277,12 +1334,22 @@ export function StaffBillingWorkspaceClient({
         const invoiceBalance = toNumber(invoice.balanceAmount ?? invoice.totalAmount);
 
         if (invoiceBalance > 0) {
+          const folioAlloc = groupSplitBudgets
+            ? allocateGroupPaymentForInvoice(invoiceBalance, groupSplitBudgets)
+            : {
+                method:
+                  groupSplitCheck && groupSplitCheck.ok && groupSplitCheck.method !== "OTHER"
+                    ? groupSplitCheck.method
+                    : ("MANUAL" as const),
+                amount: invoiceBalance,
+              };
           await requestInternalApiEnvelope(
             `${apiBase}/invoices/${encodeURIComponent(invoice.id)}/manual-payment`,
             {
               method: "POST",
               body: {
-                method: "MANUAL",
+                method: folioAlloc.method,
+                ...(folioAlloc.splits ? { splits: folioAlloc.splits } : {}),
                 note: `Thanh toán gộp đoàn (${foliosToSettle.length} phòng: ${roomNames})`,
                 amount: invoiceBalance,
                 clientRequestId: generateFallbackAttemptId(`grp-pay-${invoice.id}`),
@@ -2463,6 +2530,23 @@ export function StaffBillingWorkspaceClient({
                         </div>
                       ) : null}
                     </div>
+
+                    {canManage && computedGroupTotal > 0 ? (
+                      <div className="border-t border-[#d4af37]/25 pt-2.5">
+                        <PaymentMethodSplitInput
+                          label="Phương thức thanh toán đoàn"
+                          value={groupPaymentSplit}
+                          onChange={setGroupPaymentSplit}
+                          totalAmount={computedGroupTotal}
+                          allowedMethods={["CASH", "BANK_TRANSFER", "CARD"]}
+                          currency={currency}
+                          variant="gold-dark"
+                          compact
+                          disabled={saving}
+                          idPrefix="billing-group-payment"
+                        />
+                      </div>
+                    ) : null}
                   </>
                 )}
               </dl>
@@ -2921,6 +3005,26 @@ export function StaffBillingWorkspaceClient({
                         </div>
                       ) : null}
                     </div>
+
+                    {canManage && computedTotal > 0 ? (
+                      <div className="border-t border-[#d4af37]/25 pt-2.5">
+                        <PaymentMethodSplitInput
+                          label="Phương thức thanh toán"
+                          value={paymentSplit}
+                          onChange={(next) => {
+                            checkoutPaymentAttemptRef.current = null;
+                            setPaymentSplit(next);
+                          }}
+                          totalAmount={computedTotal}
+                          allowedMethods={["CASH", "BANK_TRANSFER", "CARD"]}
+                          currency={currency}
+                          variant="gold-dark"
+                          compact
+                          disabled={saving}
+                          idPrefix="billing-single-payment"
+                        />
+                      </div>
+                    ) : null}
                   </>
                 )}
 

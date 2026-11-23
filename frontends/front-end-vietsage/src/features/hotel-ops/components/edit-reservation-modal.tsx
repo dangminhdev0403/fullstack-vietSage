@@ -13,6 +13,12 @@ import {
   isLateCheckInError,
 } from "@/features/hotel-ops/utils/check-in-error";
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
+import { PaymentMethodSplitInput } from "@/features/billing/components/payment-method-split-input";
+import {
+  createPaymentSplitState,
+  resolvePaymentSplit,
+  type PaymentSplitState,
+} from "@/features/billing/utils/payment-split";
 import {
   resolveReservationRoomConflict,
   type ReservationStayConflict,
@@ -392,6 +398,9 @@ export function EditReservationModal({
   const [depositAmountInput, setDepositAmount] = useState<string | null>(null);
   const [depositPercentInput, setDepositPercent] = useState<string | null>(null);
   const [depositInputMode, setDepositInputMode] = useState<"AMOUNT" | "PERCENT" | null>(null);
+  const [depositSplit, setDepositSplit] = useState<PaymentSplitState>(() =>
+    createPaymentSplitState("CASH"),
+  );
   const [showRoomOverride, setShowRoomOverride] = useState(false);
   const [editScope, setEditScope] = useState<"SINGLE" | "GROUP">("SINGLE");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -646,6 +655,7 @@ export function EditReservationModal({
     setDepositAmount(null);
     setDepositPercent(null);
     setDepositInputMode(null);
+    setDepositSplit(createPaymentSplitState("CASH"));
     }
   }
 
@@ -829,6 +839,15 @@ export function EditReservationModal({
       return null;
     }
 
+    const enteredDepositNum = depositAmount ? Number(depositAmount.replace(/\D/g, "")) : 0;
+    const depositDelta = enteredDepositNum > paidDeposits.total ? enteredDepositNum - paidDeposits.total : 0;
+    const depositSplitCheck =
+      depositDelta > 0 ? resolvePaymentSplit(depositSplit, depositDelta, "VND") : null;
+    if (depositSplitCheck && !depositSplitCheck.ok) {
+      await showWarningAlert("Kiểm tra phân bổ tiền cọc", depositSplitCheck.error);
+      return null;
+    }
+
     const isRateEdited = isRateDirty || (nightlyRate.trim() !== originalQuote.rateInput.trim());
     const finalRoomId = (options?.overrideRoomId ?? roomId).trim() || null;
 
@@ -878,15 +897,14 @@ export function EditReservationModal({
       }
 
       // Record deposit if entered and higher than previously recorded DB deposit
-      const enteredDepositNum = depositAmount ? Number(depositAmount.replace(/\D/g, "")) : 0;
-      if (enteredDepositNum > paidDeposits.total) {
-        const delta = enteredDepositNum - paidDeposits.total;
+      if (depositDelta > 0 && depositSplitCheck && depositSplitCheck.ok) {
         try {
           await staffRoomsRepository.createBookingPayment(hotelId, {
             reservationId: reservation.id,
-            amount: delta,
-            receivedAmount: delta,
-            paymentMethod: "MANUAL",
+            amount: depositDelta,
+            receivedAmount: depositDelta,
+            paymentMethod: depositSplitCheck.method === "OTHER" ? "MANUAL" : depositSplitCheck.method,
+            ...(depositSplitCheck.splits ? { splits: depositSplitCheck.splits } : {}),
             paymentType: "DEPOSIT",
             intent: "DEPOSIT",
             notes: "Ghi nhận tiền cọc khi cập nhật đơn đặt phòng",
@@ -2094,6 +2112,24 @@ export function EditReservationModal({
                     </div>
                   </div>
                 </div>
+
+                {numericDeposit > paidDeposits.total ? (
+                  <div className="pt-2 border-t border-slate-200/70">
+                    <PaymentMethodSplitInput
+                      label={
+                        paidDeposits.total > 0
+                          ? `Phương thức nhận cọc bổ sung (${formatVnd(numericDeposit - paidDeposits.total)})`
+                          : "Phương thức nhận tiền cọc"
+                      }
+                      value={depositSplit}
+                      onChange={setDepositSplit}
+                      totalAmount={numericDeposit - paidDeposits.total}
+                      allowedMethods={["CASH", "BANK_TRANSFER", "CARD"]}
+                      disabled={isSubmitting}
+                      idPrefix="edit-reservation-deposit"
+                    />
+                  </div>
+                ) : null}
               </div>
 
               {/* Khối Tóm tắt thanh toán trực quan */}

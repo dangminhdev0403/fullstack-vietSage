@@ -203,13 +203,14 @@ export class BillingService {
     hotelId: string,
     invoiceId: string,
     input: {
-      method: "MANUAL";
+      method?: "CASH" | "BANK_TRANSFER" | "CARD" | "MANUAL";
       note?: string;
       amount?: number;
+      splits?: Array<{ method: "CASH" | "BANK_TRANSFER" | "CARD" | "MANUAL"; amount: number }>;
       clientRequestId?: string;
     },
     options: AuthRequestOptions = {},
-  ): Promise<{ payment: Payment; invoice: InvoiceDetail; changeAmount?: number }> {
+  ): Promise<{ payment: Payment; payments?: Payment[]; invoice: InvoiceDetail; changeAmount?: number }> {
     const payload = await this.httpClient.request<unknown, typeof input>({
       method: "POST",
       path: hotelPath(hotelId, `/invoices/${encodeURIComponent(invoiceId)}/payments/manual-confirm`),
@@ -218,7 +219,7 @@ export class BillingService {
       accessTokenExpiresAt: options.accessTokenExpiresAt,
     });
 
-    return unwrapApiEnvelope<{ payment: Payment; invoice: InvoiceDetail; changeAmount?: number }>(payload).data;
+    return unwrapApiEnvelope<{ payment: Payment; payments?: Payment[]; invoice: InvoiceDetail; changeAmount?: number }>(payload).data;
   }
 
   async getPaymentStatus(hotelId: string, paymentId: string, options: AuthRequestOptions = {}): Promise<Payment> {

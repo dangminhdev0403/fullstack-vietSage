@@ -11,6 +11,7 @@ import type {
   CreateRevenueEntryInput,
   RevenueBookQuery,
   UpdateRevenueEntryInput,
+  UpsertRevenueTargetInput,
   VoidRevenueEntryInput,
 } from "../types/revenue-book-contract";
 
@@ -21,7 +22,14 @@ export const revenueBookResource = createResource<Scope>()({
   scopeKey: ({ hotelId }) => ["hotel", hotelId],
   queries: {
     list: defineQuery({
-      inputKey: (input: RevenueBookQuery) => [input.from ?? "", input.to ?? ""],
+      inputKey: (input: RevenueBookQuery) => [
+        input.from ?? "",
+        input.to ?? "",
+        input.category ?? "",
+        input.paymentMethod ?? "",
+        input.source ?? "",
+        input.settlementStatus ?? "",
+      ],
       queryFn: ({
         scope,
         input,
@@ -79,6 +87,13 @@ export const revenueBookResource = createResource<Scope>()({
       >) =>
         revenueBookRepository.void(scope.hotelId, variables.id, variables.body),
       invalidates: [{ type: "query", operation: "list" }],
+    }),
+    upsertTarget: defineMutation({
+      mutationFn: ({
+        scope,
+        variables,
+      }: ResourceMutationContext<Scope, UpsertRevenueTargetInput>) =>
+        revenueBookRepository.upsertTarget(scope.hotelId, variables),
     }),
   },
 });

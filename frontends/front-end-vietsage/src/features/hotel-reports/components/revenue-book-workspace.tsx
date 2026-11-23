@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState, type FormEvent } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { HttpError } from "@/core/http/http-error";
@@ -13,9 +12,17 @@ import {
 import { useRevenueBook } from "../hooks/use-revenue-book";
 import type {
   RevenueBook,
+  RevenueBookCategory,
   RevenueBookEntry,
   RevenueBookQuery,
+  RevenueBookSource,
+  RevenuePaymentMethod,
+  RevenueSettlementStatus,
 } from "../types/revenue-book-contract";
+import {
+  ReportsGroupSegmentedBar,
+  ReportsPrimaryMobileNav,
+} from "./reports-navigation-bars";
 import { RevenueBookDialog } from "./revenue-book-dialog";
 import { RevenueBookSpreadsheet } from "./revenue-book-spreadsheet";
 import {
@@ -34,6 +41,12 @@ function money(amount: number, currency = "VND") {
     maximumFractionDigits: 2,
   }).format(amount);
 }
+function formatDateVi(value?: string) {
+  if (!value) return "—";
+  const parts = value.split("-");
+  if (parts.length !== 3) return value;
+  return `${parts[2]}/${parts[1]}/${parts[0]}`;
+}
 function errorMessage(error: unknown) {
   if (error instanceof HttpError && error.status >= 500)
     return "Không thể tải hoặc lưu sổ doanh thu. Vui lòng thử lại sau.";
@@ -41,12 +54,63 @@ function errorMessage(error: unknown) {
     ? error.message
     : "Không thể thực hiện thao tác. Vui lòng thử lại.";
 }
-const sourceLabels = {
-  FOLIO: "Tự động",
+const sourceLabels: Record<RevenueBookSource, string> = {
+  FOLIO: "Hóa đơn tự động",
   MANUAL: "Bổ sung",
   DEPOSIT: "Tiền cọc",
   RECEIVABLE: "Công nợ",
 };
+
+const CATEGORY_FILTER_OPTIONS: ReadonlyArray<{
+  value: "" | RevenueBookCategory;
+  label: string;
+}> = [
+  { value: "", label: "Tất cả" },
+  { value: "ROOM", label: "Tiền phòng" },
+  { value: "MINIBAR", label: "Minibar" },
+  { value: "LAUNDRY", label: "Giặt ủi" },
+  { value: "OTHER", label: "Dịch vụ khác" },
+];
+
+const PAYMENT_METHOD_FILTER_OPTIONS: ReadonlyArray<{
+  value: "" | RevenuePaymentMethod;
+  label: string;
+}> = [
+  { value: "", label: "Tất cả" },
+  { value: "CASH", label: "Tiền mặt" },
+  { value: "BANK_TRANSFER", label: "Chuyển khoản" },
+  { value: "CARD", label: "Thẻ" },
+  { value: "OTHER", label: "Khác" },
+];
+
+const SOURCE_FILTER_OPTIONS: ReadonlyArray<{
+  value: "" | RevenueBookSource;
+  label: string;
+}> = [
+  { value: "", label: "Tất cả" },
+  { value: "FOLIO", label: "Hóa đơn tự động" },
+  { value: "MANUAL", label: "Bổ sung" },
+  { value: "DEPOSIT", label: "Tiền cọc" },
+  { value: "RECEIVABLE", label: "Công nợ" },
+];
+
+const SETTLEMENT_FILTER_OPTIONS: ReadonlyArray<{
+  value: "" | RevenueSettlementStatus;
+  label: string;
+}> = [
+  { value: "", label: "Tất cả" },
+  { value: "SETTLED", label: "Đã quyết toán" },
+  { value: "UNPAID", label: "Còn phải thu" },
+  { value: "OVERPAID", label: "Trả trước · Dư cọc" },
+];
+
+function parseFilterParam<T extends string>(
+  raw: string | null,
+  options: ReadonlyArray<{ value: "" | T }>,
+): T | undefined {
+  if (!raw) return undefined;
+  return options.some((opt) => opt.value === raw) ? (raw as T) : undefined;
+}
 
 export function RevenueBookWorkspace({ hotelId }: { hotelId: string }) {
   const pathname = usePathname();
@@ -56,6 +120,19 @@ export function RevenueBookWorkspace({ hotelId }: { hotelId: string }) {
     () => ({
       from: params.get("from") || undefined,
       to: params.get("to") || undefined,
+      category: parseFilterParam(
+        params.get("category"),
+        CATEGORY_FILTER_OPTIONS,
+      ),
+      paymentMethod: parseFilterParam(
+        params.get("paymentMethod"),
+        PAYMENT_METHOD_FILTER_OPTIONS,
+      ),
+      source: parseFilterParam(params.get("source"), SOURCE_FILTER_OPTIONS),
+      settlementStatus: parseFilterParam(
+        params.get("settlementStatus"),
+        SETTLEMENT_FILTER_OPTIONS,
+      ),
     }),
     [params],
   );
@@ -80,6 +157,69 @@ export function RevenueBookWorkspace({ hotelId }: { hotelId: string }) {
   const [rangeError, setRangeError] = useState("");
   const selected = book?.entries.find((entry) => entry.id === selectedId);
   const currency = book?.currency ?? "VND";
+  const navFrom = queryInput.from ?? book?.from;
+  const navTo = queryInput.to ?? book?.to;
+
+  const activeFilterSummary = useMemo(() => {
+    const labels: string[] = [];
+    if (queryInput.category) {
+      const label = CATEGORY_FILTER_OPTIONS.find(
+        (opt) => opt.value === queryInput.category,
+      )?.label;
+      if (label) labels.push(`Loại: ${label}`);
+    }
+    if (queryInput.paymentMethod) {
+      const label = PAYMENT_METHOD_FILTER_OPTIONS.find(
+        (opt) => opt.value === queryInput.paymentMethod,
+      )?.label;
+      if (label) labels.push(`Kênh TT: ${label}`);
+    }
+    if (queryInput.source) {
+      const label = SOURCE_FILTER_OPTIONS.find(
+        (opt) => opt.value === queryInput.source,
+      )?.label;
+      if (label) labels.push(`Nguồn: ${label}`);
+    }
+    if (queryInput.settlementStatus) {
+      const label = SETTLEMENT_FILTER_OPTIONS.find(
+        (opt) => opt.value === queryInput.settlementStatus,
+      )?.label;
+      if (label) labels.push(`Quyết toán: ${label}`);
+    }
+    return labels;
+  }, [
+    queryInput.category,
+    queryInput.paymentMethod,
+    queryInput.source,
+    queryInput.settlementStatus,
+  ]);
+  const hasActiveServerFilters = activeFilterSummary.length > 0;
+
+  function updateServerFilter(
+    key: "category" | "paymentMethod" | "source" | "settlementStatus",
+    value: string,
+  ) {
+    const next = new URLSearchParams(params.toString());
+    next.set("tab", "book");
+    if (value) {
+      next.set(key, value);
+    } else {
+      next.delete(key);
+    }
+    setSelectedId(null);
+    router.replace(`${pathname}?${next.toString()}`, { scroll: false });
+  }
+
+  function clearServerFilters() {
+    const next = new URLSearchParams(params.toString());
+    next.set("tab", "book");
+    next.delete("category");
+    next.delete("paymentMethod");
+    next.delete("source");
+    next.delete("settlementStatus");
+    setSelectedId(null);
+    router.replace(`${pathname}?${next.toString()}`, { scroll: false });
+  }
 
   function applyRange(event: FormEvent) {
     event.preventDefault();
@@ -152,7 +292,59 @@ export function RevenueBookWorkspace({ hotelId }: { hotelId: string }) {
   }
   return (
     <section className="space-y-5">
-      <header className="flex flex-wrap items-start justify-between gap-4">
+      {book && (
+        <div className="hidden border-b-2 border-slate-900 pb-4 print:block">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-wide text-slate-600">
+                {book.hotelName}
+              </p>
+              <h1 className="text-2xl font-bold text-slate-900 text-balance">
+                Sổ doanh thu
+              </h1>
+            </div>
+            <p className="text-sm font-semibold text-slate-800 tabular-nums">
+              Kỳ báo cáo: {formatDateVi(book.from)} – {formatDateVi(book.to)}
+            </p>
+          </div>
+          <p className="mt-1.5 text-sm text-slate-700 text-pretty">
+            Bộ lọc áp dụng:{" "}
+            <strong className="font-semibold text-slate-900">
+              {hasActiveServerFilters
+                ? activeFilterSummary.join(" · ")
+                : "Toàn bộ bút toán trong kỳ"}
+            </strong>
+          </p>
+          <dl className="mt-3 grid grid-cols-3 gap-4 border-t border-slate-200 pt-3 text-sm">
+            <div>
+              <dt className="text-xs font-semibold uppercase text-slate-600">
+                Tổng phát sinh trong kỳ
+              </dt>
+              <dd className="mt-0.5 text-base font-bold text-slate-900 tabular-nums">
+                {money(book.summary.revenueTotal, currency)}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs font-semibold uppercase text-slate-600">
+                Đã thu trong kỳ
+              </dt>
+              <dd className="mt-0.5 text-base font-bold text-slate-900 tabular-nums">
+                {money(book.summary.collectedTotal, currency)}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs font-semibold uppercase text-slate-600">
+                Số dư cuối kỳ
+              </dt>
+              <dd className="mt-0.5 text-base font-bold text-slate-900 tabular-nums">
+                {money(book.summary.closingBalance, currency)}
+              </dd>
+            </div>
+          </dl>
+        </div>
+      )}
+
+      <header className="flex flex-wrap items-start justify-between gap-4 print:hidden">
         <div>
           <h1 className="text-2xl font-semibold text-balance">Sổ doanh thu</h1>
           {book && (
@@ -162,12 +354,15 @@ export function RevenueBookWorkspace({ hotelId }: { hotelId: string }) {
           )}
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link
-            href={`${pathname}?${new URLSearchParams({ tab: "overview", ...(book ? { from: book.from, to: book.to } : {}) })}`}
+          <button
+            type="button"
+            disabled={!book || query.isFetching}
+            onClick={() => window.print()}
             className={revenueButtonClass}
           >
-            Phân tích
-          </Link>
+            <VsIcon name="print" className="text-xl" />
+            In / Xuất PDF
+          </button>
           <button
             type="button"
             disabled={!book || query.isFetching || exporting}
@@ -190,7 +385,24 @@ export function RevenueBookWorkspace({ hotelId }: { hotelId: string }) {
           )}
         </div>
       </header>
-      <form onSubmit={applyRange} className="flex flex-wrap items-end gap-3">
+
+      <ReportsPrimaryMobileNav
+        activeTab="book"
+        pathname={pathname}
+        from={navFrom}
+        to={navTo}
+      />
+      <ReportsGroupSegmentedBar
+        activeTab="book"
+        pathname={pathname}
+        from={navFrom}
+        to={navTo}
+      />
+
+      <form
+        onSubmit={applyRange}
+        className="flex flex-wrap items-end gap-3 print:hidden"
+      >
         <label className="space-y-1">
           <span className="block text-sm font-medium">Từ ngày</span>
           <input
@@ -228,6 +440,114 @@ export function RevenueBookWorkspace({ hotelId }: { hotelId: string }) {
           <VsIcon name="refresh" className="text-xl" />
         </button>
       </form>
+
+      {/* Server-Backed Filter Bar */}
+      <section
+        aria-label="Bộ lọc sổ doanh thu"
+        className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-xs print:hidden"
+      >
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+            <VsIcon name="filter_list" className="text-lg text-emerald-700" />
+            <span>Bộ lọc bút toán</span>
+            {hasActiveServerFilters && (
+              <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-800 whitespace-nowrap">
+                {activeFilterSummary.length} đang lọc
+              </span>
+            )}
+          </div>
+          {hasActiveServerFilters && (
+            <button
+              type="button"
+              disabled={query.isFetching}
+              onClick={clearServerFilters}
+              className="inline-flex min-h-11 items-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:opacity-50"
+            >
+              <VsIcon name="filter_alt_off" className="text-lg" />
+              Xóa bộ lọc
+            </button>
+          )}
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <label className="space-y-1">
+            <span className="block text-sm font-medium text-slate-700">
+              Loại doanh thu
+            </span>
+            <select
+              value={queryInput.category ?? ""}
+              disabled={query.isFetching}
+              onChange={(event) =>
+                updateServerFilter("category", event.target.value)
+              }
+              className={revenueInputClass}
+            >
+              {CATEGORY_FILTER_OPTIONS.map((option) => (
+                <option key={option.value || "all"} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="space-y-1">
+            <span className="block text-sm font-medium text-slate-700">
+              Kênh thanh toán
+            </span>
+            <select
+              value={queryInput.paymentMethod ?? ""}
+              disabled={query.isFetching}
+              onChange={(event) =>
+                updateServerFilter("paymentMethod", event.target.value)
+              }
+              className={revenueInputClass}
+            >
+              {PAYMENT_METHOD_FILTER_OPTIONS.map((option) => (
+                <option key={option.value || "all"} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="space-y-1">
+            <span className="block text-sm font-medium text-slate-700">
+              Nguồn chứng từ
+            </span>
+            <select
+              value={queryInput.source ?? ""}
+              disabled={query.isFetching}
+              onChange={(event) =>
+                updateServerFilter("source", event.target.value)
+              }
+              className={revenueInputClass}
+            >
+              {SOURCE_FILTER_OPTIONS.map((option) => (
+                <option key={option.value || "all"} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="space-y-1">
+            <span className="block text-sm font-medium text-slate-700">
+              Quyết toán
+            </span>
+            <select
+              value={queryInput.settlementStatus ?? ""}
+              disabled={query.isFetching}
+              onChange={(event) =>
+                updateServerFilter("settlementStatus", event.target.value)
+              }
+              className={revenueInputClass}
+            >
+              {SETTLEMENT_FILTER_OPTIONS.map((option) => (
+                <option key={option.value || "all"} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      </section>
+
       {rangeError && (
         <p role="alert" className="text-base text-red-700 text-pretty">
           {rangeError}
@@ -259,7 +579,7 @@ export function RevenueBookWorkspace({ hotelId }: { hotelId: string }) {
       {book && !query.isError && (
         <>
           {/* Executive Stat Cards */}
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-3 print:hidden">
             {/* Card 1: Doanh thu phát sinh */}
             <div className="rounded-2xl border border-sky-100 bg-linear-to-br from-sky-50/60 to-white p-4.5 shadow-xs transition-shadow hover:shadow-sm">
               <div className="flex items-center justify-between gap-3">
@@ -337,7 +657,7 @@ export function RevenueBookWorkspace({ hotelId }: { hotelId: string }) {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-4 print:hidden">
             <label className="block w-full max-w-sm space-y-1">
               <span className="block text-sm font-medium">
                 Tìm nội dung, phòng hoặc chứng từ

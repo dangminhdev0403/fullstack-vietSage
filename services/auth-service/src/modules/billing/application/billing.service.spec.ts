@@ -150,17 +150,90 @@ describe("BillingService - Commercial Ledger, Deposit Modes, Idempotency & Recei
   });
 
   describe("AUD-06 & AUD-08: createBookingPayment / recordBookingPayment", () => {
-    it("accepts only the neutral manual method for checkout confirmation", () => {
+    it("accepts counter payment methods and atomic cash+bank splits while rejecting invalid payloads", () => {
       expect(confirmManualPaymentBodySchema.parse({}).method).toBe(PaymentMethod.MANUAL);
       expect(
-        confirmManualPaymentBodySchema.safeParse({ method: PaymentMethod.CASH }).success,
+        confirmManualPaymentBodySchema.safeParse({ method: PaymentMethod.CASH, amount: 500000 })
+          .success,
+      ).toBe(true);
+      expect(
+        confirmManualPaymentBodySchema.safeParse({
+          method: PaymentMethod.CASH,
+          amount: 1000000,
+          splits: [
+            { method: PaymentMethod.CASH, amount: 400000 },
+            { method: PaymentMethod.BANK_TRANSFER, amount: 600000 },
+          ],
+        }).success,
+      ).toBe(true);
+      // Reject duplicate methods in splits
+      expect(
+        confirmManualPaymentBodySchema.safeParse({
+          splits: [
+            { method: PaymentMethod.CASH, amount: 400000 },
+            { method: PaymentMethod.CASH, amount: 600000 },
+          ],
+        }).success,
       ).toBe(false);
+      // Reject split sum mismatch against explicit amount
+      expect(
+        confirmManualPaymentBodySchema.safeParse({
+          amount: 1000000,
+          splits: [
+            { method: PaymentMethod.CASH, amount: 400000 },
+            { method: PaymentMethod.BANK_TRANSFER, amount: 500000 },
+          ],
+        }).success,
+      ).toBe(false);
+      // Reject unknown legacy field cashReceived
       expect(
         confirmManualPaymentBodySchema.safeParse({
           method: PaymentMethod.MANUAL,
           cashReceived: 100000,
         }).success,
       ).toBe(false);
+    });
+
+    it("records atomic split booking deposit with shared receivedAt and split idempotency keys", async () => {
+      mockTx.reservation.findFirst.mockResolvedValue({
+        id: "res-split-1",
+        hotelId,
+        paidDepositAmount: null,
+        chargeLines: [],
+        stay: null,
+      });
+      mockTx.invoice.findFirst.mockResolvedValue(null);
+      mockTx.bookingPayment.create
+        .mockResolvedValueOnce({
+          id: "bp-cash",
+          paymentMethod: PaymentMethod.CASH,
+          receivedAmount: new Prisma.Decimal(400000),
+        })
+        .mockResolvedValueOnce({
+          id: "bp-bank",
+          paymentMethod: PaymentMethod.BANK_TRANSFER,
+          receivedAmount: new Prisma.Decimal(600000),
+        });
+      mockTx.bookingPaymentAllocation.create.mockResolvedValue({});
+
+      const result = await service.createBookingPayment(actorUserId, activeRoleId, hotelId, {
+        reservationId: "res-split-1",
+        amount: 1000000,
+        splits: [
+          { method: PaymentMethod.CASH, amount: 400000 },
+          { method: PaymentMethod.BANK_TRANSFER, amount: 600000 },
+        ],
+      });
+
+      expect(mockTx.bookingPayment.create).toHaveBeenCalledTimes(2);
+      const firstCall = mockTx.bookingPayment.create.mock.calls[0][0].data;
+      const secondCall = mockTx.bookingPayment.create.mock.calls[1][0].data;
+      expect(firstCall.paymentMethod).toBe(PaymentMethod.CASH);
+      expect(secondCall.paymentMethod).toBe(PaymentMethod.BANK_TRANSFER);
+      expect(firstCall.receivedAt).toEqual(secondCall.receivedAt);
+      expect(firstCall.idempotencyKey).toMatch(/^split:.+:0$/);
+      expect(secondCall.idempotencyKey).toMatch(/^split:.+:1$/);
+      expect((result as any).payments).toHaveLength(2);
     });
 
     it("rejects orphan booking payment when neither reservationId nor groupId is provided", async () => {
@@ -573,6 +646,73 @@ describe("BillingService - Commercial Ledger, Deposit Modes, Idempotency & Recei
       expect(res.summary.outstandingAmount).toBe(4400000);
       expect(res.items[0].paidAmount).toBe(1333000);
       expect(res.items[0].balanceAmount).toBe(0);
+    });
+  });
+
+  describe("Atomic split receivable collection (CASH + BANK_TRANSFER)", () => {
+    it("creates 2 ReceivableCollection legs sharing collectedAt and updates receivable once", async () => {
+      const receivableId = "rec-split-1";
+      mockTx.$queryRaw.mockResolvedValue([
+        {
+          id: receivableId,
+          status: ReceivableStatus.OPEN,
+          outstandingAmount: new Prisma.Decimal(1000000),
+          paidAmount: new Prisma.Decimal(0),
+        },
+      ]);
+      mockTx.hotelReceivable.findFirst.mockResolvedValue({
+        id: receivableId,
+        hotelId,
+        status: ReceivableStatus.OPEN,
+        originalAmount: new Prisma.Decimal(1000000),
+        paidAmount: new Prisma.Decimal(0),
+        outstandingAmount: new Prisma.Decimal(1000000),
+      });
+      let colSeq = 0;
+      mockTx.receivableCollection.create.mockImplementation(async ({ data }: any) => ({
+        id: `col-${++colSeq}`,
+        ...data,
+      }));
+      mockTx.hotelReceivable.update.mockImplementation(async ({ data }: any) => ({
+        id: receivableId,
+        ...data,
+        collections: [],
+      }));
+
+      const result = await service.collectReceivable(
+        actorUserId,
+        activeRoleId,
+        hotelId,
+        receivableId,
+        {
+          collectedAmount: 1000000,
+          splits: [
+            { method: PaymentMethod.CASH, amount: 300000 },
+            { method: PaymentMethod.BANK_TRANSFER, amount: 700000 },
+          ],
+          notes: "Thu kết hợp tiền mặt và chuyển khoản",
+        },
+      );
+
+      expect(mockTx.receivableCollection.create).toHaveBeenCalledTimes(2);
+      const leg1 = mockTx.receivableCollection.create.mock.calls[0][0].data;
+      const leg2 = mockTx.receivableCollection.create.mock.calls[1][0].data;
+      expect(leg1.paymentMethod).toBe(PaymentMethod.CASH);
+      expect(leg1.collectedAmount).toEqual(new Prisma.Decimal(300000));
+      expect(leg2.paymentMethod).toBe(PaymentMethod.BANK_TRANSFER);
+      expect(leg2.collectedAmount).toEqual(new Prisma.Decimal(700000));
+      expect(leg1.collectedAt).toEqual(leg2.collectedAt);
+      expect(mockTx.hotelReceivable.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: receivableId },
+          data: expect.objectContaining({
+            paidAmount: new Prisma.Decimal(1000000),
+            outstandingAmount: new Prisma.Decimal(0),
+            status: ReceivableStatus.SETTLED,
+          }),
+        }),
+      );
+      expect((result as any).collections).toHaveLength(2);
     });
   });
 });

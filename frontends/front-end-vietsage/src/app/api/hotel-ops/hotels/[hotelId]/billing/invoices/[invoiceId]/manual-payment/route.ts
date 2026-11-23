@@ -10,14 +10,37 @@ import {
 } from "@/app/api/hotel-ops/_utils";
 
 type Params = { params: Promise<{ hotelId: string; invoiceId: string }> };
-const schema = z
+const paymentMethodEnum = z.enum(["CASH", "BANK_TRANSFER", "CARD", "MANUAL"]);
+const paymentSplitSchema = z
   .object({
-    method: z.literal("MANUAL"),
-    note: z.string().trim().max(500).optional(),
-    amount: z.number().positive().optional(),
-    clientRequestId: z.string().trim().min(1).optional(),
+    method: paymentMethodEnum,
+    amount: z.number().finite().positive(),
   })
   .strict();
+
+const schema = z
+  .object({
+    method: paymentMethodEnum.default("MANUAL"),
+    note: z.string().trim().max(500).optional(),
+    amount: z.number().finite().positive().optional(),
+    splits: z.array(paymentSplitSchema).min(1).max(4).optional(),
+    clientRequestId: z.string().trim().min(1).optional(),
+  })
+  .strict()
+  .refine(
+    (data) =>
+      !data.splits ||
+      new Set(data.splits.map((leg) => leg.method)).size === data.splits.length,
+    "Không được trùng phương thức thanh toán",
+  )
+  .refine(
+    (data) => {
+      if (!data.splits || data.amount === undefined) return true;
+      const sum = Math.round(data.splits.reduce((acc, leg) => acc + leg.amount, 0) * 100) / 100;
+      return Math.abs(sum - data.amount) < 0.01;
+    },
+    "Tổng số tiền chia theo phương thức phải khớp số tiền thu",
+  );
 
 export async function POST(request: Request, context: Params) {
   const { hotelId, invoiceId } = await context.params;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, useState, useTransition } from "react";
+import { useEffect, useId, useMemo, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Temporal } from "@js-temporal/polyfill";
@@ -13,7 +13,16 @@ import {
   type ColumnDef,
   type SortingState,
 } from "@tanstack/react-table";
+import { HttpError } from "@/core/http/http-error";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
+import { showErrorAlert, showSuccessAlert } from "@/libs/swal";
+import { useUpsertRevenueTarget } from "@/features/hotel-reports/hooks/use-revenue-book";
+import {
+  ReportsGroupSegmentedBar,
+  ReportsPrimaryMobileNav,
+  buildReportTabHref,
+  type ReportClientTab,
+} from "@/features/hotel-reports/components/reports-navigation-bars";
 import type {
   DailyRevenueItem,
   ExpenseCategoryBreakdownItem,
@@ -21,6 +30,7 @@ import type {
   HotelReportsData,
   MonthlyRevenueItem,
   NationalityAnalyticsItem,
+  QuarterlyRevenueSummaryItem,
   SourceRevenueItem,
   StaffRevenueItem,
 } from "@/features/hotel-reports/types/hotel-reports-contract";
@@ -30,14 +40,7 @@ type HotelReportsWorkspaceClientProps = {
   hotelId: string;
 };
 
-type ReportSubTab =
-  | "overview"
-  | "pnl"
-  | "daily"
-  | "monthly"
-  | "sources"
-  | "staff"
-  | "demographics";
+type ReportSubTab = ReportClientTab;
 
 const SUB_TABS: Array<{
   id: ReportSubTab;
@@ -135,6 +138,36 @@ function formatCompactVnd(amount: number): string {
 
 function formatPercent(value: number): string {
   return `${value.toFixed(1)}%`;
+}
+
+function formatSignedPercent(value: number): string {
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${value.toFixed(1)}%`;
+}
+
+function ChangePercentBadge({
+  value,
+  compareTitle,
+}: {
+  value?: number | null;
+  compareTitle?: string;
+}) {
+  if (value == null || !Number.isFinite(value)) {
+    return <span className="text-slate-400">—</span>;
+  }
+  const isPositive = value >= 0;
+  return (
+    <span
+      title={compareTitle}
+      className={`inline-flex items-center rounded-md px-2.5 py-1 text-xs font-bold tabular-nums whitespace-nowrap ${
+        isPositive
+          ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
+          : "bg-rose-50 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300"
+      }`}
+    >
+      {formatSignedPercent(value)}
+    </span>
+  );
 }
 
 function toPlainDateSafe(rawDate: string, timeZone = "Asia/Ho_Chi_Minh"): Temporal.PlainDate | null {
@@ -303,11 +336,67 @@ export function HotelReportsWorkspaceClient({
   const formattedEnd = formatVietnameseDate(reports.endDate, {
     timeZone: reports.timeZone,
   });
+  const navFrom = customFrom || initialFromPlain || undefined;
+  const navTo = customTo || initialToPlain || undefined;
+  const activeTabMeta = SUB_TABS.find((t) => t.id === activeTab) ?? SUB_TABS[0];
+  const isRevenueGroupSubTab =
+    activeTab === "daily" || activeTab === "monthly" || activeTab === "staff";
 
   return (
     <div className="space-y-6">
+      {/* Clean Printable Report Header */}
+      <div className="hidden border-b-2 border-slate-900 pb-4 print:block">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-wide text-slate-600">
+              {reports.hotelName}
+            </p>
+            <h1 className="text-2xl font-bold text-slate-900 text-balance">
+              Báo cáo &amp; Phân tích vận hành — {activeTabMeta.label}
+            </h1>
+          </div>
+          <p className="text-sm font-semibold text-slate-800 tabular-nums">
+            Kỳ báo cáo: {formattedStart} – {formattedEnd}
+          </p>
+        </div>
+        <dl className="mt-3 grid grid-cols-4 gap-4 border-t border-slate-200 pt-3 text-sm">
+          <div>
+            <dt className="text-xs font-semibold uppercase text-slate-600">
+              Tổng doanh thu
+            </dt>
+            <dd className="mt-0.5 text-base font-bold text-slate-900 tabular-nums">
+              {formatVnd(summary.totalRevenue)}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs font-semibold uppercase text-slate-600">
+              Lợi nhuận ròng
+            </dt>
+            <dd className="mt-0.5 text-base font-bold text-slate-900 tabular-nums">
+              {formatVnd(summary.netProfit ?? 0)}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs font-semibold uppercase text-slate-600">
+              Công suất OCC
+            </dt>
+            <dd className="mt-0.5 text-base font-bold text-slate-900 tabular-nums">
+              {formatPercent(summary.occupancyRate)}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs font-semibold uppercase text-slate-600">
+              Giá bán bình quân (ADR)
+            </dt>
+            <dd className="mt-0.5 text-base font-bold text-slate-900 tabular-nums">
+              {formatVnd(summary.adr)}
+            </dd>
+          </div>
+        </dl>
+      </div>
+
       {/* Workspace Header */}
-      <header className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm md:p-6 dark:border-slate-800 dark:bg-slate-900">
+      <header className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm md:p-6 print:hidden dark:border-slate-800 dark:bg-slate-900">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-1.5">
             <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3.5 py-1 text-xs font-bold uppercase tracking-wider text-emerald-800 whitespace-nowrap dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300">
@@ -336,10 +425,23 @@ export function HotelReportsWorkspaceClient({
                   Chi phí vận hành
                 </Link>
               )}
-              <Link href={`${pathname}?${new URLSearchParams({ tab: "book", from: initialFromPlain, to: initialToPlain })}`} className="inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 dark:border-slate-700 dark:bg-slate-900 dark:text-white">
-                <VsIcon name="receipt_long" className="text-lg" />
-                Sổ doanh thu
-              </Link>
+              {!isRevenueGroupSubTab && (
+                <Link
+                  href={buildReportTabHref(pathname, "book", navFrom, navTo)}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                >
+                  <VsIcon name="receipt_long" className="text-lg" />
+                  Sổ doanh thu
+                </Link>
+              )}
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 print:hidden dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+              >
+                <VsIcon name="print" className="text-lg" />
+                In / Xuất PDF
+              </button>
             </div>
             <div
               role="group"
@@ -410,6 +512,22 @@ export function HotelReportsWorkspaceClient({
           </div>
         </div>
       </header>
+
+      {/* Shared 2-Tier Reports Navigation */}
+      <ReportsPrimaryMobileNav
+        activeTab={activeTab}
+        pathname={pathname}
+        from={navFrom}
+        to={navTo}
+        onSelectClientTab={handleTabChange}
+      />
+      <ReportsGroupSegmentedBar
+        activeTab={activeTab}
+        pathname={pathname}
+        from={navFrom}
+        to={navTo}
+        onSelectClientTab={handleTabChange}
+      />
 
       {/* KPI Headline Cards */}
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -588,31 +706,6 @@ export function HotelReportsWorkspaceClient({
         </article>
       </section>
 
-      {/* Sub-Tabs Navigation */}
-      <nav
-        aria-label="Các danh mục báo cáo chi tiết"
-        className="flex items-center gap-2 overflow-x-auto rounded-2xl border border-slate-200/90 bg-slate-100/90 p-2 dark:border-slate-800 dark:bg-slate-900/80 md:hidden"
-      >
-        {SUB_TABS.map((subTab) => {
-          const isActive = activeTab === subTab.id;
-          return (
-            <button
-              key={subTab.id}
-              type="button"
-              onClick={() => handleTabChange(subTab.id)}
-              className={`flex items-center gap-2.5 rounded-xl px-4 py-2.5 text-sm md:text-base font-bold transition-all duration-150 whitespace-nowrap ${
-                isActive
-                  ? "bg-white text-emerald-900 shadow-sm ring-1 ring-slate-200/80 dark:bg-slate-800 dark:text-emerald-300 dark:ring-slate-700"
-                  : "text-slate-700 hover:bg-white/60 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
-              }`}
-            >
-              <VsIcon name={subTab.icon} className="text-lg" />
-              <span>{subTab.label}</span>
-            </button>
-          );
-        })}
-      </nav>
-
       {/* In-Place Sub-Tab Panels */}
       <div className={isPending ? "opacity-60 transition-opacity duration-200" : ""}>
         {activeTab === "overview" && <OverviewPanel reports={reports} />}
@@ -620,7 +713,14 @@ export function HotelReportsWorkspaceClient({
           <PnlReportPanel reports={reports} hotelId={hotelId} pathname={pathname} />
         )}
         {activeTab === "daily" && <DailyRevenuePanel reports={reports} />}
-        {activeTab === "monthly" && <MonthlyRevenuePanel reports={reports} />}
+        {activeTab === "monthly" && (
+          <MonthlyRevenuePanel
+            reports={reports}
+            hotelId={hotelId}
+            pathname={pathname}
+            onTargetSaved={() => router.refresh()}
+          />
+        )}
         {activeTab === "sources" && <SourceRevenuePanel reports={reports} />}
         {activeTab === "staff" && <StaffRevenuePanel reports={reports} />}
         {activeTab === "demographics" && <DemographicsPanel reports={reports} />}
@@ -1845,13 +1945,28 @@ function DailyRevenuePanel({ reports }: { reports: HotelReportsData }) {
 }
 
 // ----------------------------------------------------------------------
-// 3. Monthly Revenue Panel (with @tanstack/react-table & tfoot)
+// 3. Monthly Revenue Panel (with @tanstack/react-table, MoM/YoY, Targets & Quarterly Strip)
 // ----------------------------------------------------------------------
-function MonthlyRevenuePanel({ reports }: { reports: HotelReportsData }) {
+function MonthlyRevenuePanel({
+  reports,
+  hotelId,
+  pathname,
+  onTargetSaved,
+}: {
+  reports: HotelReportsData;
+  hotelId: string;
+  pathname: string;
+  onTargetSaved: () => void;
+}) {
   const { revenueByMonth } = reports;
+  const quarterlySummary: QuarterlyRevenueSummaryItem[] =
+    reports.quarterlySummary ?? [];
+  const canManageTargets =
+    reports.canManageTargets ?? pathname.startsWith("/owner");
   const [sorting, setSorting] = useState<SortingState>([
     { id: "month", desc: true },
   ]);
+  const [isTargetModalOpen, setIsTargetModalOpen] = useState(false);
 
   const maxMonthRev = Math.max(...revenueByMonth.map((m) => m.totalRevenue), 1);
 
@@ -1864,6 +1979,8 @@ function MonthlyRevenuePanel({ reports }: { reports: HotelReportsData }) {
     let bookings = 0;
     let roomsSold = 0;
     let occSum = 0;
+    let targetSum = 0;
+    let actualOnTargetedMonths = 0;
     for (const m of revenueByMonth) {
       roomRev += m.roomRevenue;
       serviceRev += m.serviceRevenue;
@@ -1874,9 +1991,15 @@ function MonthlyRevenuePanel({ reports }: { reports: HotelReportsData }) {
       bookings += m.bookingCount;
       roomsSold += m.roomsSold;
       occSum += m.averageOccupancy;
+      if (m.targetRevenue != null && m.targetRevenue > 0) {
+        targetSum += m.targetRevenue;
+        actualOnTargetedMonths += m.totalRevenue;
+      }
     }
     const avgOcc = occSum / Math.max(1, revenueByMonth.length);
     const avgAdr = roomsSold > 0 ? Math.round(roomRev / roomsSold) : 0;
+    const targetAchievementPct =
+      targetSum > 0 ? (actualOnTargetedMonths / targetSum) * 100 : null;
     return {
       roomRev,
       serviceRev,
@@ -1887,6 +2010,8 @@ function MonthlyRevenuePanel({ reports }: { reports: HotelReportsData }) {
       roomsSold,
       avgOcc,
       avgAdr,
+      targetSum,
+      targetAchievementPct,
     };
   }, [revenueByMonth]);
 
@@ -1986,6 +2111,123 @@ function MonthlyRevenuePanel({ reports }: { reports: HotelReportsData }) {
             {formatVnd(row.original.totalRevenue)}
           </div>
         ),
+      },
+      {
+        id: "momChangePercent",
+        accessorFn: (row) => row.momChangePercent ?? undefined,
+        sortUndefined: "last",
+        header: ({ column }) => (
+          <SortHeaderButton
+            label="So tháng trước"
+            align="right"
+            sorted={column.getIsSorted()}
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          />
+        ),
+        cell: ({ row }) => (
+          <div className="text-right whitespace-nowrap">
+            <ChangePercentBadge
+              value={row.original.momChangePercent}
+              compareTitle={
+                row.original.previousMonthRevenue != null
+                  ? `Tháng trước: ${formatVnd(row.original.previousMonthRevenue)}`
+                  : undefined
+              }
+            />
+          </div>
+        ),
+      },
+      {
+        id: "yoyChangePercent",
+        accessorFn: (row) => row.yoyChangePercent ?? undefined,
+        sortUndefined: "last",
+        header: ({ column }) => (
+          <SortHeaderButton
+            label="Cùng kỳ năm trước"
+            align="right"
+            sorted={column.getIsSorted()}
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          />
+        ),
+        cell: ({ row }) => (
+          <div className="text-right whitespace-nowrap">
+            <ChangePercentBadge
+              value={row.original.yoyChangePercent}
+              compareTitle={
+                row.original.previousYearRevenue != null
+                  ? `Cùng kỳ năm trước: ${formatVnd(row.original.previousYearRevenue)}`
+                  : undefined
+              }
+            />
+          </div>
+        ),
+      },
+      {
+        id: "targetRevenue",
+        accessorFn: (row) =>
+          row.targetAchievementPercent ??
+          (row.targetRevenue != null && row.targetRevenue > 0
+            ? (row.totalRevenue / row.targetRevenue) * 100
+            : undefined),
+        sortUndefined: "last",
+        header: ({ column }) => (
+          <SortHeaderButton
+            label="Mục tiêu & Tiến độ"
+            align="right"
+            sorted={column.getIsSorted()}
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          />
+        ),
+        cell: ({ row }) => {
+          const target = row.original.targetRevenue;
+          if (target == null || target <= 0) {
+            return (
+              <div className="text-right text-sm text-slate-400 whitespace-nowrap">
+                Chưa đặt
+              </div>
+            );
+          }
+          const pct =
+            row.original.targetAchievementPercent ??
+            (row.original.totalRevenue / target) * 100;
+          const barWidth = Math.min(100, Math.max(0, pct));
+          const achieved = pct >= 100;
+          return (
+            <div
+              className="min-w-[164px] space-y-1 text-right tabular-nums"
+              title={`Mục tiêu: ${formatVnd(target)} · Đạt ${formatPercent(pct)}`}
+            >
+              <div className="flex items-center justify-end gap-2 whitespace-nowrap">
+                <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                  {formatCompactVnd(target)}
+                </span>
+                <span
+                  className={`inline-flex rounded-md px-2 py-0.5 text-xs font-bold whitespace-nowrap ${
+                    achieved
+                      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                      : pct >= 75
+                        ? "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300"
+                        : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                  }`}
+                >
+                  {formatPercent(pct)}
+                </span>
+              </div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                <div
+                  className={`h-full rounded-full transition-all duration-300 ${
+                    achieved
+                      ? "bg-emerald-600"
+                      : pct >= 75
+                        ? "bg-blue-600"
+                        : "bg-amber-500"
+                  }`}
+                  style={{ width: `${barWidth}%` }}
+                />
+              </div>
+            </div>
+          );
+        },
       },
       {
         id: "expense",
@@ -2113,12 +2355,22 @@ function MonthlyRevenuePanel({ reports }: { reports: HotelReportsData }) {
                 key={m.month}
                 className="group relative flex flex-1 flex-col items-center justify-end h-full min-w-[64px]"
               >
-                <div className="pointer-events-none absolute -top-16 z-20 hidden rounded-xl bg-slate-900 px-3 py-1.5 text-center text-xs text-white shadow-lg group-hover:block whitespace-nowrap dark:bg-white dark:text-slate-900">
+                <div className="pointer-events-none absolute -top-20 z-20 hidden rounded-xl bg-slate-900 px-3 py-1.5 text-center text-xs text-white shadow-lg group-hover:block whitespace-nowrap dark:bg-white dark:text-slate-900">
                   <p className="font-bold">{m.monthLabel}</p>
                   <p className="mt-0.5 tabular-nums">
                     Thu {formatVnd(m.totalRevenue)} · Chi {formatVnd(m.expense ?? 0)} · Lãi/Lỗ{" "}
                     {formatVnd(m.netProfit ?? m.totalRevenue - (m.expense ?? 0))}
                   </p>
+                  {m.targetRevenue != null && m.targetRevenue > 0 && (
+                    <p className="mt-0.5 tabular-nums">
+                      Mục tiêu {formatVnd(m.targetRevenue)} (
+                      {formatPercent(
+                        m.targetAchievementPercent ??
+                          (m.totalRevenue / m.targetRevenue) * 100,
+                      )}
+                      )
+                    </p>
+                  )}
                 </div>
 
                 <span className="mb-1.5 text-xs font-bold text-slate-700 tabular-nums whitespace-nowrap dark:text-slate-300">
@@ -2143,15 +2395,122 @@ function MonthlyRevenuePanel({ reports }: { reports: HotelReportsData }) {
         </div>
       </section>
 
+      {/* Quarterly Progress Summary Strip */}
+      {quarterlySummary.length > 0 && (
+        <section
+          aria-label="Tiến độ doanh thu theo quý"
+          className="space-y-3"
+        >
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-lg font-bold text-slate-900 text-balance dark:text-white">
+              Tiến độ theo Quý
+            </h2>
+            <p className="text-sm text-slate-600 text-pretty dark:text-slate-400">
+              Tổng hợp thực đạt so với mục tiêu doanh thu và lợi nhuận từng quý.
+            </p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {quarterlySummary.map((item) => {
+              const hasTarget =
+                item.targetRevenue != null && item.targetRevenue > 0;
+              const pct =
+                item.achievementPercent ??
+                (hasTarget
+                  ? (item.actualRevenue / item.targetRevenue!) * 100
+                  : null);
+              const barWidth =
+                pct != null ? Math.min(100, Math.max(0, pct)) : 0;
+              const achieved = pct != null && pct >= 100;
+
+              return (
+                <article
+                  key={item.quarter}
+                  className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-bold text-slate-900 dark:text-white">
+                      {item.label}
+                    </span>
+                    {pct != null ? (
+                      <span
+                        className={`rounded-md px-2 py-0.5 text-xs font-bold tabular-nums whitespace-nowrap ${
+                          achieved
+                            ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                            : pct >= 75
+                              ? "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300"
+                              : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                        }`}
+                      >
+                        {formatPercent(pct)}
+                      </span>
+                    ) : (
+                      <span className="text-xs font-semibold text-slate-500 whitespace-nowrap dark:text-slate-400">
+                        {item.monthsIncluded} tháng
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-2 text-xl font-black tracking-tight text-slate-900 tabular-nums dark:text-white">
+                    {formatVnd(item.actualRevenue)}
+                  </p>
+                  {hasTarget && (
+                    <div className="mt-2.5 h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                      <div
+                        className={`h-full rounded-full transition-all duration-300 ${
+                          achieved
+                            ? "bg-emerald-600"
+                            : (pct ?? 0) >= 75
+                              ? "bg-blue-600"
+                              : "bg-amber-500"
+                        }`}
+                        style={{ width: `${barWidth}%` }}
+                      />
+                    </div>
+                  )}
+                  <div className="mt-2 flex flex-wrap items-center justify-between gap-1 text-xs text-slate-600 tabular-nums dark:text-slate-400">
+                    <span>
+                      {hasTarget
+                        ? `Mục tiêu: ${formatCompactVnd(item.targetRevenue!)}`
+                        : "Chưa đặt mục tiêu"}
+                    </span>
+                    <span
+                      className={
+                        item.netProfit >= 0
+                          ? "font-semibold text-emerald-700 dark:text-emerald-400"
+                          : "font-semibold text-rose-700 dark:text-rose-400"
+                      }
+                    >
+                      Lãi/Lỗ: {formatCompactVnd(item.netProfit)}
+                    </span>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       {/* Monthly Table */}
       <section className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <div className="border-b border-slate-200/90 p-5 dark:border-slate-800">
-          <h2 className="text-lg font-bold text-slate-900 md:text-xl text-balance dark:text-white">
-            Bảng tổng hợp doanh thu 12 tháng qua
-          </h2>
-          <p className="mt-0.5 text-sm text-slate-600 text-pretty dark:text-slate-400">
-            Mặc định hiển thị tháng gần nhất ở trên cùng để thuận tiện kiểm tra.
-          </p>
+        <div className="flex flex-col gap-3 border-b border-slate-200/90 p-5 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900 md:text-xl text-balance dark:text-white">
+              Bảng tổng hợp doanh thu 12 tháng qua
+            </h2>
+            <p className="mt-0.5 text-sm text-slate-600 text-pretty dark:text-slate-400">
+              Đối chiếu biến động MoM, cùng kỳ năm trước (YoY) và tiến độ hoàn thành mục tiêu tháng.
+            </p>
+          </div>
+          {canManageTargets && (
+            <button
+              type="button"
+              disabled={revenueByMonth.length === 0}
+              onClick={() => setIsTargetModalOpen(true)}
+              className="inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-emerald-800 px-4 py-2 text-sm font-bold text-white shadow-xs transition-colors hover:bg-emerald-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:opacity-50 print:hidden dark:bg-emerald-600 dark:hover:bg-emerald-500"
+            >
+              <VsIcon name="edit" className="text-lg" />
+              Đặt mục tiêu tháng
+            </button>
+          )}
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm md:text-base">
@@ -2212,6 +2571,24 @@ function MonthlyRevenuePanel({ reports }: { reports: HotelReportsData }) {
                 <td className="px-4 py-3.5 text-right font-extrabold text-emerald-800 tabular-nums whitespace-nowrap dark:text-emerald-400">
                   {formatVnd(totals.totalRev)}
                 </td>
+                <td className="px-4 py-3.5 text-right text-slate-400 whitespace-nowrap">
+                  —
+                </td>
+                <td className="px-4 py-3.5 text-right text-slate-400 whitespace-nowrap">
+                  —
+                </td>
+                <td className="px-4 py-3.5 text-right tabular-nums whitespace-nowrap">
+                  {totals.targetSum > 0 ? (
+                    <span>
+                      {formatCompactVnd(totals.targetSum)}
+                      {totals.targetAchievementPct != null
+                        ? ` (${formatPercent(totals.targetAchievementPct)})`
+                        : ""}
+                    </span>
+                  ) : (
+                    <span className="text-slate-400">—</span>
+                  )}
+                </td>
                 <td className="px-4 py-3.5 text-right font-bold text-rose-700 tabular-nums whitespace-nowrap dark:text-rose-400">
                   {formatVnd(totals.expenseSum)}
                 </td>
@@ -2235,6 +2612,275 @@ function MonthlyRevenuePanel({ reports }: { reports: HotelReportsData }) {
           </table>
         </div>
       </section>
+
+      {isTargetModalOpen && revenueByMonth.length > 0 && (
+        <MonthlyRevenueTargetModal
+          hotelId={hotelId}
+          months={revenueByMonth}
+          onClose={() => setIsTargetModalOpen(false)}
+          onSaved={onTargetSaved}
+        />
+      )}
+    </div>
+  );
+}
+
+function MonthlyRevenueTargetModal({
+  hotelId,
+  months,
+  onClose,
+  onSaved,
+}: {
+  hotelId: string;
+  months: MonthlyRevenueItem[];
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const titleId = useId();
+  const monthSelectId = useId();
+  const amountInputId = useId();
+  const upsertTargetMutation = useUpsertRevenueTarget(hotelId);
+
+  const sortedMonths = useMemo(
+    () => [...months].sort((a, b) => b.month.localeCompare(a.month)),
+    [months],
+  );
+
+  const defaultMonth = sortedMonths[0];
+  const [selectedMonth, setSelectedMonth] = useState<string>(
+    defaultMonth?.month ?? "",
+  );
+  const [amountInput, setAmountInput] = useState<string>(
+    defaultMonth?.targetRevenue != null && defaultMonth.targetRevenue > 0
+      ? String(defaultMonth.targetRevenue)
+      : "",
+  );
+  const [validationError, setValidationError] = useState<string>("");
+
+  const currentMonthItem = useMemo(
+    () => sortedMonths.find((item) => item.month === selectedMonth) ?? sortedMonths[0],
+    [sortedMonths, selectedMonth],
+  );
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape" && !upsertTargetMutation.isPending) {
+        onClose();
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose, upsertTargetMutation.isPending]);
+
+  function handleSelectMonth(nextMonth: string) {
+    setSelectedMonth(nextMonth);
+    setValidationError("");
+    const found = sortedMonths.find((item) => item.month === nextMonth);
+    setAmountInput(
+      found?.targetRevenue != null && found.targetRevenue > 0
+        ? String(found.targetRevenue)
+        : "",
+    );
+  }
+
+  const parsedPreviewAmount = useMemo(() => {
+    const trimmed = amountInput.trim();
+    if (trimmed === "") return null;
+    const num = Number(trimmed);
+    return Number.isFinite(num) && num >= 0 ? num : null;
+  }, [amountInput]);
+
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    if (upsertTargetMutation.isPending) return;
+
+    const trimmed = amountInput.trim();
+    const numericValue = trimmed === "" ? Number.NaN : Number(trimmed);
+    if (!selectedMonth) {
+      setValidationError("Vui lòng chọn tháng áp dụng mục tiêu.");
+      return;
+    }
+    if (!Number.isFinite(numericValue) || numericValue < 0) {
+      setValidationError("Số tiền mục tiêu phải là số không âm (nhập 0 để xóa mục tiêu).");
+      return;
+    }
+
+    setValidationError("");
+    try {
+      await upsertTargetMutation.upsertTarget({
+        month: selectedMonth,
+        targetAmount: Math.round(numericValue),
+      });
+      const label = currentMonthItem?.monthLabel ?? selectedMonth;
+      const rounded = Math.round(numericValue);
+      onClose();
+      onSaved();
+      if (rounded === 0) {
+        await showSuccessAlert(
+          "Đã xóa mục tiêu tháng",
+          `Đã gỡ mục tiêu doanh thu cho ${label}.`,
+        );
+      } else {
+        await showSuccessAlert(
+          "Đã lưu mục tiêu doanh thu",
+          `${label}: ${formatVnd(rounded)}`,
+        );
+      }
+    } catch (error) {
+      const message =
+        error instanceof HttpError && error.status >= 500
+          ? "Không thể lưu mục tiêu tháng. Vui lòng thử lại sau."
+          : error;
+      await showErrorAlert("Không thể lưu mục tiêu tháng", message);
+    }
+  }
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titleId}
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/60 p-4 backdrop-blur-xs print:hidden"
+      onClick={(event) => {
+        if (
+          event.target === event.currentTarget &&
+          !upsertTargetMutation.isPending
+        ) {
+          onClose();
+        }
+      }}
+    >
+      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+        <header className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-4 dark:border-slate-800">
+          <div>
+            <h3
+              id={titleId}
+              className="text-xl font-bold text-slate-900 text-balance dark:text-white"
+            >
+              Đặt mục tiêu doanh thu tháng
+            </h3>
+            <p className="mt-1 text-sm text-slate-600 text-pretty dark:text-slate-400">
+              Chọn tháng và nhập mức doanh thu mục tiêu (VND). Nhập 0 để xóa mục tiêu.
+            </p>
+          </div>
+          <button
+            type="button"
+            disabled={upsertTargetMutation.isPending}
+            onClick={onClose}
+            aria-label="Đóng cửa sổ"
+            className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+          >
+            <VsIcon name="close" className="text-xl" />
+          </button>
+        </header>
+
+        <form onSubmit={(event) => void handleSubmit(event)} className="space-y-5 p-6">
+          <div className="space-y-1.5">
+            <label
+              htmlFor={monthSelectId}
+              className="block text-sm font-semibold text-slate-800 dark:text-slate-200"
+            >
+              Tháng áp dụng
+            </label>
+            <select
+              id={monthSelectId}
+              value={selectedMonth}
+              disabled={upsertTargetMutation.isPending}
+              onChange={(event) => handleSelectMonth(event.target.value)}
+              className="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-base font-medium text-slate-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700/20 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+            >
+              {sortedMonths.map((item) => (
+                <option key={item.month} value={item.month}>
+                  {item.monthLabel}
+                  {item.targetRevenue != null && item.targetRevenue > 0
+                    ? ` (Mục tiêu hiện tại: ${formatCompactVnd(item.targetRevenue)})`
+                    : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {currentMonthItem && (
+            <dl className="grid grid-cols-2 gap-3 rounded-xl bg-slate-50 px-4 py-3 text-sm dark:bg-slate-800/60">
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  Doanh thu thực đạt
+                </dt>
+                <dd className="mt-1 font-bold text-slate-900 tabular-nums dark:text-white">
+                  {formatVnd(currentMonthItem.totalRevenue)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  Mục tiêu hiện tại
+                </dt>
+                <dd className="mt-1 font-bold text-emerald-800 tabular-nums dark:text-emerald-400">
+                  {currentMonthItem.targetRevenue != null &&
+                  currentMonthItem.targetRevenue > 0
+                    ? formatVnd(currentMonthItem.targetRevenue)
+                    : "Chưa đặt"}
+                </dd>
+              </div>
+            </dl>
+          )}
+
+          <div className="space-y-1.5">
+            <label
+              htmlFor={amountInputId}
+              className="block text-sm font-semibold text-slate-800 dark:text-slate-200"
+            >
+              Số tiền mục tiêu (VND)
+            </label>
+            <input
+              id={amountInputId}
+              type="number"
+              inputMode="numeric"
+              min="0"
+              step="1"
+              required
+              disabled={upsertTargetMutation.isPending}
+              value={amountInput}
+              onChange={(event) => {
+                setAmountInput(event.target.value);
+                setValidationError("");
+              }}
+              placeholder="Ví dụ: 150000000"
+              className="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-base font-semibold text-slate-900 tabular-nums focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700/20 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+            />
+            <p className="text-xs text-slate-600 text-pretty dark:text-slate-400">
+              {parsedPreviewAmount === null
+                ? "Nhập số tiền mục tiêu bằng VND, hoặc nhập 0 để xóa mục tiêu tháng."
+                : parsedPreviewAmount === 0
+                  ? "Giá trị 0 sẽ xóa mục tiêu doanh thu của tháng đã chọn."
+                  : `Hiển thị: ${formatVnd(Math.round(parsedPreviewAmount))}`}
+            </p>
+          </div>
+
+          {validationError && (
+            <p role="alert" className="text-sm font-semibold text-rose-700 text-pretty dark:text-rose-400">
+              {validationError}
+            </p>
+          )}
+
+          <footer className="flex flex-wrap items-center justify-end gap-3 border-t border-slate-200 pt-4 dark:border-slate-800">
+            <button
+              type="button"
+              disabled={upsertTargetMutation.isPending}
+              onClick={onClose}
+              className="inline-flex min-h-11 items-center justify-center whitespace-nowrap rounded-xl border border-slate-300 bg-white px-4 py-2 text-base font-semibold text-slate-800 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+            >
+              Hủy
+            </button>
+            <button
+              type="submit"
+              disabled={upsertTargetMutation.isPending}
+              className="inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-emerald-800 px-5 py-2 text-base font-bold text-white shadow-xs transition-colors hover:bg-emerald-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:opacity-50 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+            >
+              {upsertTargetMutation.isPending ? "Đang lưu…" : "Lưu mục tiêu"}
+            </button>
+          </footer>
+        </form>
+      </div>
     </div>
   );
 }

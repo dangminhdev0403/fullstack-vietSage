@@ -993,6 +993,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/hotels/{hotelId}/reports/targets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["HotelReportsController_upsertRevenueTarget"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/hotels/{hotelId}/reports/revenue-book": {
         parameters: {
             query?: never;
@@ -3990,6 +4006,23 @@ export interface paths {
         put?: never;
         /** Start immediate background BCA delivery for a validated declaration */
         post: operations["KbttController_submit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/kbtt/declarations/{occupantId}/clear": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Clear or resolve a failed declaration (mark submitted, dismiss, or delete) */
+        post: operations["KbttController_clearDeclaration"];
         delete?: never;
         options?: never;
         head?: never;
@@ -8241,9 +8274,70 @@ export interface operations {
             };
         };
     };
+    HotelReportsController_upsertRevenueTarget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description Tháng mục tiêu theo định dạng YYYY-MM
+                     * @example 2026-11
+                     */
+                    month: string;
+                    /**
+                     * @description Mục tiêu doanh thu VND (nhập 0 để xóa mục tiêu tháng)
+                     * @example 150000000
+                     */
+                    targetAmount: number;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example 200 */
+                        status: number;
+                        /** @example null */
+                        error: {
+                            [key: string]: unknown;
+                        } | null;
+                        /** @example Đã cập nhật mục tiêu doanh thu tháng */
+                        message: string;
+                        data: {
+                            hotelId: string;
+                            month: string;
+                            targetAmount: number | null;
+                            revenueTargets: {
+                                [key: string]: number;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+    };
     HotelRevenueBookController_getBook: {
         parameters: {
             query?: {
+                /** @description Lọc theo trạng thái thanh toán cuối kỳ */
+                settlementStatus?: "SETTLED" | "UNPAID" | "OVERPAID";
+                /** @description Lọc theo nguồn chứng từ */
+                source?: "FOLIO" | "MANUAL" | "DEPOSIT" | "RECEIVABLE";
+                /** @description Lọc theo phương thức thanh toán đã thu trong kỳ */
+                paymentMethod?: "CASH" | "BANK_TRANSFER" | "CARD" | "OTHER";
+                /** @description Lọc theo nhóm doanh thu */
+                category?: "ROOM" | "MINIBAR" | "LAUNDRY" | "OTHER";
                 /** @description Ngày kết thúc YYYY-MM-DD, bao gồm ngày này; tối đa 366 ngày */
                 to?: string;
                 /** @description Ngày bắt đầu YYYY-MM-DD; bỏ cả hai ngày để xem tháng hiện tại theo giờ khách sạn */
@@ -14635,6 +14729,54 @@ export interface operations {
         };
     };
     KbttController_submit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                occupantId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Hotel scope or business permission denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_AUTH_FAILED; sanitized provider authentication failure */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description KBTT_UNAVAILABLE; runtime secrets, encryption or storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    KbttController_clearDeclaration: {
         parameters: {
             query?: never;
             header?: never;

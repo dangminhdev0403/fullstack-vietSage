@@ -8,7 +8,7 @@ Base: `/hotels/{hotelId}/reports/revenue-book`.
 
 | Method | Suffix | Permission | Body |
 | --- | --- | --- | --- |
-| GET | — | `hotel.billing.view` | Query `from` and `to` together, or neither |
+| GET | — | `hotel.billing.view` | Query `from` and `to` together, or neither; optional filters `category`, `paymentMethod`, `source`, `settlementStatus` |
 | POST | `/entries` | `hotel.billing.manage` | `date`, `description`, `category`, `amount`, `idempotencyKey`; optional `roomId`, `documentNumber`, `notes`, `collection` |
 | PATCH | `/entries/{entryId}` | `hotel.billing.manage` | Editable entry fields plus `version` |
 | POST | `/entries/{entryId}/collections` | `hotel.billing.manage` | `receivedAt`, `amount`, `method`, `idempotencyKey`, `version`; optional `reference` |

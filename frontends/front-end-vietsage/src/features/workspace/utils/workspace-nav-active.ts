@@ -79,6 +79,18 @@ export function isNavItemActive(
   return false;
 }
 
+function matchesSubNavTabValue(
+  subItem: DashboardNavSubItem,
+  rawActiveVal: string,
+): boolean {
+  if (subItem.tabValue.trim().toLowerCase() === rawActiveVal) {
+    return true;
+  }
+  return Boolean(
+    subItem.matchTabValues?.some((v) => v.trim().toLowerCase() === rawActiveVal),
+  );
+}
+
 export function isSubNavItemActive(
   subItem: DashboardNavSubItem,
   parentHref: string,
@@ -94,16 +106,15 @@ export function isSubNavItemActive(
 
   const paramName = subItem.paramName ?? "tab";
   const rawActiveVal = active.searchParams.get(paramName)?.trim().toLowerCase() ?? "";
-  const subVal = subItem.tabValue.trim().toLowerCase();
 
   if (rawActiveVal) {
-    if (rawActiveVal === subVal) {
+    if (matchesSubNavTabValue(subItem, rawActiveVal)) {
       return true;
     }
     const anySiblingMatches = siblings.some(
       (sibling) =>
         (sibling.paramName ?? "tab") === paramName &&
-        sibling.tabValue.trim().toLowerCase() === rawActiveVal,
+        matchesSubNavTabValue(sibling, rawActiveVal),
     );
     if (!anySiblingMatches) {
       return Boolean(subItem.isDefault);
@@ -118,6 +129,7 @@ type SubNavCandidate = {
   key: string;
   label: string;
   tabValue: string;
+  matchTabValues?: readonly string[];
   icon?: string;
   anyCapabilities?: readonly string[];
 };
@@ -133,10 +145,20 @@ function getSubNavCandidatesForItem(
     /^\/owner\/hotels\/[^/]+\/billing$/.test(basePath)
   ) {
     return [
-      { key: "folios", label: "Hóa đơn lưu trú", tabValue: "folios", icon: "receipt_long" },
-      { key: "receivables", label: "Sổ Công nợ Phải thu", tabValue: "receivables", icon: "account_balance_wallet" },
-      { key: "expenses", label: "Chi phí vận hành", tabValue: "expenses", icon: "payments" },
-      { key: "saas", label: "Đối soát Phí VietSage SaaS", tabValue: "saas", icon: "analytics" },
+      {
+        key: "folios",
+        label: "Hóa đơn & Công nợ",
+        tabValue: "folios",
+        matchTabValues: ["folios", "receivables"],
+        icon: "receipt_long",
+      },
+      {
+        key: "expenses",
+        label: "Chi phí & Phí SaaS",
+        tabValue: "expenses",
+        matchTabValues: ["expenses", "saas"],
+        icon: "payments",
+      },
     ];
   }
 
@@ -148,12 +170,20 @@ function getSubNavCandidatesForItem(
     return [
       { key: "overview", label: "Tổng quan & KPIs", tabValue: "overview", icon: "dashboard" },
       { key: "pnl", label: "Kết quả KD & Lãi lỗ", tabValue: "pnl", icon: "account_balance" },
-      { key: "book", label: "Sổ doanh thu", tabValue: "book", icon: "receipt_long" },
-      { key: "daily", label: "Doanh thu theo ngày", tabValue: "daily", icon: "calendar_today" },
-      { key: "monthly", label: "Doanh thu theo tháng", tabValue: "monthly", icon: "calendar_month" },
-      { key: "sources", label: "Kênh đặt phòng", tabValue: "sources", icon: "hub" },
-      { key: "staff", label: "Thu ngân & Nhân viên", tabValue: "staff", icon: "badge" },
-      { key: "demographics", label: "Nguồn khách & Quốc tịch", tabValue: "demographics", icon: "public" },
+      {
+        key: "book",
+        label: "Sổ doanh thu",
+        tabValue: "book",
+        matchTabValues: ["book", "daily", "monthly", "staff"],
+        icon: "receipt_long",
+      },
+      {
+        key: "sources",
+        label: "Kênh & Thị trường",
+        tabValue: "sources",
+        matchTabValues: ["sources", "demographics"],
+        icon: "hub",
+      },
     ];
   }
 
@@ -399,6 +429,7 @@ export function resolveWorkspaceSubNavigation(
         href: `${basePath}?tab=${encodeURIComponent(candidate.tabValue)}` as `/${string}`,
         icon: candidate.icon,
         tabValue: candidate.tabValue,
+        ...(candidate.matchTabValues ? { matchTabValues: candidate.matchTabValues } : {}),
         paramName: "tab",
         isDefault: index === 0,
       }),

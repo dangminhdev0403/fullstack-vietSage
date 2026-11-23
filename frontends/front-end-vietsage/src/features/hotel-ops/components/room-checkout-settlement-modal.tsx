@@ -11,7 +11,13 @@ import type {
   StayFolioContext,
 } from "@/features/hotel-ops/types/hotel-ops-contract";
 import { invalidateHotelRealtimeQueries } from "@/features/hotel-ops/utils/invalidate-hotel-realtime-queries";
-import { showErrorAlert, showSuccessAlert } from "@/libs/swal";
+import { showErrorAlert, showSuccessAlert, showWarningAlert } from "@/libs/swal";
+import { PaymentMethodSplitInput } from "@/features/billing/components/payment-method-split-input";
+import {
+  createPaymentSplitState,
+  resolvePaymentSplit,
+  type PaymentSplitState,
+} from "@/features/billing/utils/payment-split";
 import {
   settleCheckout,
   checkoutErrorMessage,
@@ -78,6 +84,9 @@ function CheckoutSettlementForm({
 
   // Form states for Payment
   const [paymentAmount, setPaymentAmount] = useState<string | undefined>(undefined);
+  const [paymentSplit, setPaymentSplit] = useState<PaymentSplitState>(() =>
+    createPaymentSplitState("CASH"),
+  );
   const [paymentNote, setPaymentNote] = useState("");
 
   // Option to auto-mark room as clean/ready after checkout to immediately receive next guest
@@ -171,18 +180,34 @@ function CheckoutSettlementForm({
   // Handler for Option 1: Thu nốt tiền khách & Trả phòng
   async function handleSettlePaymentAndCheckout() {
     if (submittingRef.current || isCheckoutBlocked || !effectiveFolioContext) return;
+    const targetAmount = Number(paymentAmount ?? remainingDue);
+    const splitCheck =
+      remainingDue > 0 ? resolvePaymentSplit(paymentSplit, targetAmount, "VND") : null;
+    if (splitCheck && !splitCheck.ok) {
+      await showWarningAlert("Kiểm tra phân bổ thanh toán", splitCheck.error);
+      return;
+    }
+
     submittingRef.current = true;
     setIsSubmitting(true);
     try {
       paymentAttempt.current ??= `checkout-${stay.id}-${crypto.randomUUID()}`;
+      const resolvedMethod =
+        splitCheck && splitCheck.ok && splitCheck.method !== "OTHER"
+          ? splitCheck.method
+          : "MANUAL";
+      const resolvedSplits = splitCheck && splitCheck.ok ? splitCheck.splits : undefined;
+
       const result = await settleCheckout({
         folioId: effectiveFolioContext.folio?.id,
-        amount: Number(paymentAmount ?? remainingDue),
+        amount: targetAmount,
         expectedBalanceAmount: remainingDue,
         autoMarkReady,
         issueInvoice: () => staffRoomsRepository.issueCheckoutInvoice(hotelId, effectiveFolioContext.folio!.id, remainingDue),
         confirmPayment: (invoiceId, amount) => staffRoomsRepository.confirmCheckoutPayment(hotelId, invoiceId, {
-          method: "MANUAL", amount,
+          method: amount ? resolvedMethod : "MANUAL",
+          amount,
+          ...(amount && resolvedSplits ? { splits: resolvedSplits } : {}),
           note: paymentNote.trim() || "Thanh toán trả phòng tại quầy",
           clientRequestId: paymentAttempt.current!,
         }),
@@ -366,11 +391,28 @@ function CheckoutSettlementForm({
                       min="0"
                       step="1000"
                       value={paymentAmount ?? (remainingDue > 0 ? String(remainingDue) : "0")}
-                      onChange={(e) => setPaymentAmount(e.target.value)}
+                      onChange={(e) => {
+                        paymentAttempt.current = null;
+                        setPaymentAmount(e.target.value);
+                      }}
                       placeholder={remainingDue > 0 ? String(remainingDue) : "0"}
                       className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 focus:border-blue-600 focus:outline-hidden"
                     />
                   </div>
+
+                  <PaymentMethodSplitInput
+                    label="Phương thức thanh toán"
+                    required
+                    value={paymentSplit}
+                    onChange={(next) => {
+                      paymentAttempt.current = null;
+                      setPaymentSplit(next);
+                    }}
+                    totalAmount={Number(paymentAmount ?? remainingDue) || 0}
+                    allowedMethods={["CASH", "BANK_TRANSFER", "CARD"]}
+                    disabled={isSubmitting}
+                    idPrefix="checkout-settlement-payment"
+                  />
 
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1">

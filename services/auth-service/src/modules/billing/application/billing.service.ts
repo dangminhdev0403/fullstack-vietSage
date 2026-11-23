@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import {
   BadRequestException,
   ConflictException,
@@ -1680,24 +1681,54 @@ export class BillingService {
     hotelId: string,
     invoiceId: string,
     input: {
-      method: PaymentMethod;
+      method?: PaymentMethod;
       note?: string;
       amount?: number;
       cashReceived?: number;
+      splits?: Array<{ method: PaymentMethod; amount: number }>;
       clientRequestId?: string;
     },
   ) {
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
 
     const clientRequestId = input.clientRequestId?.trim();
-    const provider =
-      input.method === PaymentMethod.BANK_TRANSFER
+    const normalizedSplits =
+      input.splits && input.splits.length > 0 ? input.splits : null;
+    const isMultiSplit = Boolean(normalizedSplits && normalizedSplits.length > 1);
+    const effectiveMethod: PaymentMethod =
+      normalizedSplits && normalizedSplits.length === 1
+        ? normalizedSplits[0].method
+        : (input.method ?? PaymentMethod.MANUAL);
+    const effectiveAmount: number | undefined =
+      normalizedSplits && normalizedSplits.length === 1
+        ? normalizedSplits[0].amount
+        : input.amount;
+
+    const resolveProvider = (method: PaymentMethod) =>
+      method === PaymentMethod.BANK_TRANSFER
         ? PaymentProvider.BANK_TRANSFER
         : PaymentProvider.MANUAL;
+
+    const provider = resolveProvider(effectiveMethod);
+
+    if (isMultiSplit && normalizedSplits) {
+      if (new Set(normalizedSplits.map((leg) => leg.method)).size !== normalizedSplits.length) {
+        throw new BadRequestException("DUPLICATE_SPLIT_PAYMENT_METHOD");
+      }
+      for (const leg of normalizedSplits) {
+        if (!Number.isFinite(leg.amount) || leg.amount <= 0) {
+          throw new BadRequestException("INVALID_PAYMENT_AMOUNT");
+        }
+      }
+      if (input.cashReceived !== undefined) {
+        throw new BadRequestException("CASH_RECEIVED_ONLY_FOR_CASH");
+      }
+    }
 
     const createdHousekeepingTasks: HousekeepingTaskPayload[] = [];
     let result: {
       payment: any;
+      payments?: any[];
       invoice: any;
       changeAmount: number;
       conversation: { hotelId: string; stayId: string; roomId: string } | null;
@@ -1706,7 +1737,66 @@ export class BillingService {
     try {
       result = await this.prisma.$transaction(
         async (tx) => {
-          if (clientRequestId && tx.paymentTransaction?.findFirst) {
+          if (clientRequestId && isMultiSplit && normalizedSplits) {
+            const eventIds = [
+              `counter:${clientRequestId}`,
+              ...normalizedSplits.map((_, idx) => `counter:${clientRequestId}:${idx}`),
+            ];
+            const existingTxs = tx.paymentTransaction?.findMany
+              ? await tx.paymentTransaction.findMany({
+                  where: { hotelId, providerEventId: { in: eventIds } },
+                  include: { payment: true, invoice: true },
+                  orderBy: { providerEventId: "asc" },
+                })
+              : tx.paymentTransaction?.findFirst
+                ? await Promise.all(
+                    normalizedSplits.map((leg, idx) =>
+                      tx.paymentTransaction.findFirst({
+                        where: {
+                          hotelId,
+                          provider: resolveProvider(leg.method),
+                          providerEventId: `counter:${clientRequestId}:${idx}`,
+                        },
+                        include: { payment: true, invoice: true },
+                      }),
+                    ),
+                  ).then((rows) => rows.filter((row): row is NonNullable<typeof row> => Boolean(row)))
+                : [];
+
+            if (existingTxs.length > 0) {
+              const allMatch =
+                existingTxs.length === normalizedSplits.length &&
+                normalizedSplits.every((leg, idx) => {
+                  const matched = existingTxs.find(
+                    (row) => row.providerEventId === `counter:${clientRequestId}:${idx}`,
+                  );
+                  return (
+                    Boolean(matched) &&
+                    matched!.payment.method === leg.method &&
+                    new Prisma.Decimal(leg.amount).equals(matched!.amount)
+                  );
+                });
+
+              if (!allMatch) {
+                throw new ConflictException("COUNTER_PAYMENT_CONFLICT");
+              }
+
+              const orderedPayments = normalizedSplits.map(
+                (_, idx) =>
+                  existingTxs.find(
+                    (row) => row.providerEventId === `counter:${clientRequestId}:${idx}`,
+                  )!.payment,
+              );
+
+              return {
+                payment: orderedPayments[0],
+                payments: orderedPayments,
+                invoice: existingTxs[0].invoice,
+                changeAmount: 0,
+                conversation: null,
+              };
+            }
+          } else if (clientRequestId && tx.paymentTransaction?.findFirst) {
             const providerEventId = `counter:${clientRequestId}`;
             const existingTx = await tx.paymentTransaction.findFirst({
               where: { hotelId, provider, providerEventId },
@@ -1715,10 +1805,10 @@ export class BillingService {
 
             if (existingTx) {
               const rawPayload = existingTx.rawPayloadJson as Record<string, unknown> | null;
-              const methodMatches = existingTx.payment.method === input.method;
+              const methodMatches = existingTx.payment.method === effectiveMethod;
               const amountMatches =
-                input.amount === undefined ||
-                new Prisma.Decimal(input.amount).equals(existingTx.amount);
+                effectiveAmount === undefined ||
+                new Prisma.Decimal(effectiveAmount).equals(existingTx.amount);
               const existingCashReceived = rawPayload?.cashReceived;
               const cashReceivedMatches =
                 input.cashReceived === undefined
@@ -1776,7 +1866,7 @@ export class BillingService {
                   paymentNumber,
                   status: PaymentStatus.SUCCEEDED,
                   provider: PaymentProvider.MANUAL,
-                  method: input.method,
+                  method: effectiveMethod,
                   currency: invoice.currency,
                   amount: new Prisma.Decimal(0),
                   paidAmount: new Prisma.Decimal(0),
@@ -1803,7 +1893,7 @@ export class BillingService {
                   amount: new Prisma.Decimal(0),
                   currency: invoice.currency,
                   rawPayloadJson: {
-                    method: input.method,
+                    method: effectiveMethod,
                     amount: "0",
                     changeAmount: 0,
                     clientRequestId,
@@ -1837,11 +1927,44 @@ export class BillingService {
           }
 
           let appliedAmount: Prisma.Decimal;
-          if (input.amount !== undefined) {
-            if (!Number.isFinite(input.amount) || input.amount <= 0) {
+          const legDecimals: Array<{ method: PaymentMethod; amount: Prisma.Decimal }> = [];
+
+          if (isMultiSplit && normalizedSplits) {
+            const rawSum = normalizedSplits.reduce(
+              (sum, leg) => sum.plus(new Prisma.Decimal(leg.amount)),
+              new Prisma.Decimal(0),
+            );
+            if (
+              effectiveAmount !== undefined &&
+              rawSum.sub(new Prisma.Decimal(effectiveAmount)).abs().gte("0.01")
+            ) {
               throw new BadRequestException("INVALID_PAYMENT_AMOUNT");
             }
-            const reqAmount = new Prisma.Decimal(input.amount);
+            const isVnd = (invoice.currency ?? "VND").toUpperCase() === "VND";
+            const diffFromBalance = rawSum.sub(invoice.balanceAmount).abs();
+            if (isVnd && diffFromBalance.gt(0) && diffFromBalance.lt(1)) {
+              appliedAmount = invoice.balanceAmount;
+              const adjustment = invoice.balanceAmount.sub(rawSum);
+              normalizedSplits.forEach((leg, idx) => {
+                const dec =
+                  idx === normalizedSplits.length - 1
+                    ? new Prisma.Decimal(leg.amount).plus(adjustment)
+                    : new Prisma.Decimal(leg.amount);
+                legDecimals.push({ method: leg.method, amount: dec });
+              });
+            } else if (rawSum.gt(invoice.balanceAmount)) {
+              throw new BadRequestException("PAYMENT_AMOUNT_EXCEEDS_BALANCE");
+            } else {
+              appliedAmount = rawSum;
+              for (const leg of normalizedSplits) {
+                legDecimals.push({ method: leg.method, amount: new Prisma.Decimal(leg.amount) });
+              }
+            }
+          } else if (effectiveAmount !== undefined) {
+            if (!Number.isFinite(effectiveAmount) || effectiveAmount <= 0) {
+              throw new BadRequestException("INVALID_PAYMENT_AMOUNT");
+            }
+            const reqAmount = new Prisma.Decimal(effectiveAmount);
             const isVnd = (invoice.currency ?? "VND").toUpperCase() === "VND";
             const diffFromBalance = reqAmount.sub(invoice.balanceAmount).abs();
             if (isVnd && diffFromBalance.gt(0) && diffFromBalance.lt(1)) {
@@ -1857,7 +1980,7 @@ export class BillingService {
 
           let changeAmount = 0;
           if (input.cashReceived !== undefined) {
-            if (input.method !== PaymentMethod.CASH) {
+            if (effectiveMethod !== PaymentMethod.CASH) {
               throw new BadRequestException("CASH_RECEIVED_ONLY_FOR_CASH");
             }
             if (!Number.isFinite(input.cashReceived)) {
@@ -1870,61 +1993,139 @@ export class BillingService {
             changeAmount = Number(cashDec.minus(appliedAmount));
           }
 
-          const paymentNumber = await this.codesService.generateEntityCode("PAYMENT", tx);
-          const payment = await tx.payment.create({
-            data: {
-              hotelId,
-              invoiceId: invoice.id,
-              folioId: invoice.folioId,
-              stayId: invoice.stayId,
-              paymentNumber,
-              status: PaymentStatus.SUCCEEDED,
-              provider,
-              method: input.method,
-              currency: invoice.currency,
-              amount: appliedAmount,
-              paidAmount: appliedAmount,
-              confirmedAt: new Date(),
-              createdByUserId: actorUserId,
-              metadataJson: {
-                source: "front_desk",
-                ...(clientRequestId ? { clientRequestId } : {}),
-                ...(input.cashReceived !== undefined ? { cashReceived: input.cashReceived } : {}),
-                ...(changeAmount > 0 ? { changeAmount } : {}),
-                ...(input.note ? { note: input.note } : {}),
-              },
-            },
-          });
+          let primaryPayment: any;
+          let createdPayments: any[] | undefined;
 
-          const providerEventId = clientRequestId
-            ? `counter:${clientRequestId}`
-            : `counter:${payment.id}`;
-          const providerTransactionId = `counter:${payment.paymentNumber}`;
-          if (tx.paymentTransaction?.create) {
-            await tx.paymentTransaction.create({
+          if (isMultiSplit && legDecimals.length > 1) {
+            const confirmedAt = new Date();
+            const splitGroupId = clientRequestId || randomUUID();
+            createdPayments = [];
+
+            for (let idx = 0; idx < legDecimals.length; idx++) {
+              const leg = legDecimals[idx];
+              const legProvider = resolveProvider(leg.method);
+              const paymentNumber = await this.codesService.generateEntityCode("PAYMENT", tx);
+              const legPayment = await tx.payment.create({
+                data: {
+                  hotelId,
+                  invoiceId: invoice.id,
+                  folioId: invoice.folioId,
+                  stayId: invoice.stayId,
+                  paymentNumber,
+                  status: PaymentStatus.SUCCEEDED,
+                  provider: legProvider,
+                  method: leg.method,
+                  currency: invoice.currency,
+                  amount: leg.amount,
+                  paidAmount: leg.amount,
+                  confirmedAt,
+                  createdByUserId: actorUserId,
+                  metadataJson: {
+                    source: "front_desk",
+                    splitGroupId,
+                    splitIndex: idx,
+                    splitCount: legDecimals.length,
+                    splitTotal: appliedAmount.toString(),
+                    ...(clientRequestId ? { clientRequestId } : {}),
+                    ...(input.note ? { note: input.note } : {}),
+                  },
+                },
+              });
+              createdPayments.push(legPayment);
+
+              const legEventId = clientRequestId
+                ? `counter:${clientRequestId}:${idx}`
+                : `counter:${legPayment.id}`;
+              if (tx.paymentTransaction?.create) {
+                await tx.paymentTransaction.create({
+                  data: {
+                    hotelId,
+                    paymentId: legPayment.id,
+                    invoiceId: invoice.id,
+                    provider: legProvider,
+                    providerEventId: legEventId,
+                    providerTransactionId: `counter:${legPayment.paymentNumber}`,
+                    eventType: "payment.succeeded",
+                    status: PaymentStatus.SUCCEEDED,
+                    amount: leg.amount,
+                    currency: invoice.currency,
+                    rawPayloadJson: {
+                      method: leg.method,
+                      amount: leg.amount.toString(),
+                      splitGroupId,
+                      splitIndex: idx,
+                      splitCount: legDecimals.length,
+                      changeAmount: 0,
+                      clientRequestId,
+                      note: input.note,
+                    },
+                    signatureVerified: true,
+                    processedAt: confirmedAt,
+                  },
+                });
+              }
+            }
+
+            primaryPayment = createdPayments[0];
+          } else {
+            const paymentNumber = await this.codesService.generateEntityCode("PAYMENT", tx);
+            const payment = await tx.payment.create({
               data: {
                 hotelId,
-                paymentId: payment.id,
                 invoiceId: invoice.id,
-                provider,
-                providerEventId,
-                providerTransactionId,
-                eventType: "payment.succeeded",
+                folioId: invoice.folioId,
+                stayId: invoice.stayId,
+                paymentNumber,
                 status: PaymentStatus.SUCCEEDED,
-                amount: appliedAmount,
+                provider,
+                method: effectiveMethod,
                 currency: invoice.currency,
-                rawPayloadJson: {
-                  method: input.method,
-                  amount: appliedAmount.toString(),
-                  cashReceived: input.cashReceived,
-                  changeAmount,
-                  clientRequestId,
-                  note: input.note,
+                amount: appliedAmount,
+                paidAmount: appliedAmount,
+                confirmedAt: new Date(),
+                createdByUserId: actorUserId,
+                metadataJson: {
+                  source: "front_desk",
+                  ...(clientRequestId ? { clientRequestId } : {}),
+                  ...(input.cashReceived !== undefined ? { cashReceived: input.cashReceived } : {}),
+                  ...(changeAmount > 0 ? { changeAmount } : {}),
+                  ...(input.note ? { note: input.note } : {}),
                 },
-                signatureVerified: true,
-                processedAt: new Date(),
               },
             });
+
+            const providerEventId = clientRequestId
+              ? `counter:${clientRequestId}`
+              : `counter:${payment.id}`;
+            const providerTransactionId = `counter:${payment.paymentNumber}`;
+            if (tx.paymentTransaction?.create) {
+              await tx.paymentTransaction.create({
+                data: {
+                  hotelId,
+                  paymentId: payment.id,
+                  invoiceId: invoice.id,
+                  provider,
+                  providerEventId,
+                  providerTransactionId,
+                  eventType: "payment.succeeded",
+                  status: PaymentStatus.SUCCEEDED,
+                  amount: appliedAmount,
+                  currency: invoice.currency,
+                  rawPayloadJson: {
+                    method: effectiveMethod,
+                    amount: appliedAmount.toString(),
+                    cashReceived: input.cashReceived,
+                    changeAmount,
+                    clientRequestId,
+                    note: input.note,
+                  },
+                  signatureVerified: true,
+                  processedAt: new Date(),
+                },
+              });
+            }
+
+            primaryPayment = payment;
           }
 
           const isFullSettlement = appliedAmount.equals(invoice.balanceAmount);
@@ -1959,7 +2160,8 @@ export class BillingService {
           }
 
           return {
-            payment,
+            payment: primaryPayment,
+            ...(createdPayments ? { payments: createdPayments } : {}),
             invoice: updatedInvoice,
             changeAmount,
             conversation,
@@ -1968,42 +2170,80 @@ export class BillingService {
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
       );
     } catch (error) {
-      if (
-        clientRequestId &&
-        this.isDuplicateCounterEventError(error) &&
-        this.prisma.paymentTransaction?.findFirst
-      ) {
-        const providerEventId = `counter:${clientRequestId}`;
-        const existingTx = await this.prisma.paymentTransaction.findFirst({
-          where: { hotelId, provider, providerEventId },
-          include: { payment: true, invoice: true },
-        });
-        if (existingTx) {
-          const rawPayload = existingTx.rawPayloadJson as Record<string, unknown> | null;
-          const methodMatches = existingTx.payment.method === input.method;
-          const amountMatches =
-            input.amount === undefined ||
-            new Prisma.Decimal(input.amount).equals(existingTx.amount);
-          const existingCashReceived = rawPayload?.cashReceived;
-          const cashReceivedMatches =
-            input.cashReceived === undefined
-              ? existingCashReceived === undefined || existingCashReceived === null
-              : typeof existingCashReceived === "number" &&
-                new Prisma.Decimal(input.cashReceived).equals(existingCashReceived);
-
-          if (!methodMatches || !amountMatches || !cashReceivedMatches) {
-            throw new ConflictException("COUNTER_PAYMENT_CONFLICT");
+      if (clientRequestId && this.isDuplicateCounterEventError(error)) {
+        if (isMultiSplit && normalizedSplits && this.prisma.paymentTransaction?.findMany) {
+          const eventIds = normalizedSplits.map((_, idx) => `counter:${clientRequestId}:${idx}`);
+          const existingTxs = await this.prisma.paymentTransaction.findMany({
+            where: { hotelId, providerEventId: { in: eventIds } },
+            include: { payment: true, invoice: true },
+          });
+          if (existingTxs.length > 0) {
+            const allMatch =
+              existingTxs.length === normalizedSplits.length &&
+              normalizedSplits.every((leg, idx) => {
+                const matched = existingTxs.find(
+                  (row) => row.providerEventId === `counter:${clientRequestId}:${idx}`,
+                );
+                return (
+                  Boolean(matched) &&
+                  matched!.payment.method === leg.method &&
+                  new Prisma.Decimal(leg.amount).equals(matched!.amount)
+                );
+              });
+            if (!allMatch) {
+              throw new ConflictException("COUNTER_PAYMENT_CONFLICT");
+            }
+            const orderedPayments = normalizedSplits.map(
+              (_, idx) =>
+                existingTxs.find(
+                  (row) => row.providerEventId === `counter:${clientRequestId}:${idx}`,
+                )!.payment,
+            );
+            result = {
+              payment: orderedPayments[0],
+              payments: orderedPayments,
+              invoice: existingTxs[0].invoice,
+              changeAmount: 0,
+              conversation: null,
+            };
+          } else {
+            throw error;
           }
+        } else if (this.prisma.paymentTransaction?.findFirst) {
+          const providerEventId = `counter:${clientRequestId}`;
+          const existingTx = await this.prisma.paymentTransaction.findFirst({
+            where: { hotelId, provider, providerEventId },
+            include: { payment: true, invoice: true },
+          });
+          if (existingTx) {
+            const rawPayload = existingTx.rawPayloadJson as Record<string, unknown> | null;
+            const methodMatches = existingTx.payment.method === effectiveMethod;
+            const amountMatches =
+              effectiveAmount === undefined ||
+              new Prisma.Decimal(effectiveAmount).equals(existingTx.amount);
+            const existingCashReceived = rawPayload?.cashReceived;
+            const cashReceivedMatches =
+              input.cashReceived === undefined
+                ? existingCashReceived === undefined || existingCashReceived === null
+                : typeof existingCashReceived === "number" &&
+                  new Prisma.Decimal(input.cashReceived).equals(existingCashReceived);
 
-          const changeAmount =
-            typeof rawPayload?.changeAmount === "number" ? rawPayload.changeAmount : 0;
+            if (!methodMatches || !amountMatches || !cashReceivedMatches) {
+              throw new ConflictException("COUNTER_PAYMENT_CONFLICT");
+            }
 
-          result = {
-            payment: existingTx.payment,
-            invoice: existingTx.invoice,
-            changeAmount,
-            conversation: null,
-          };
+            const changeAmount =
+              typeof rawPayload?.changeAmount === "number" ? rawPayload.changeAmount : 0;
+
+            result = {
+              payment: existingTx.payment,
+              invoice: existingTx.invoice,
+              changeAmount,
+              conversation: null,
+            };
+          } else {
+            throw error;
+          }
         } else {
           throw error;
         }
@@ -2027,6 +2267,7 @@ export class BillingService {
 
     return {
       payment: result.payment,
+      ...(result.payments ? { payments: result.payments } : {}),
       invoice: invoiceDetail,
       changeAmount: result.changeAmount,
     };
@@ -3356,12 +3597,68 @@ export class BillingService {
     }
 
     const idempotencyKey = input.idempotencyKey?.trim();
-    const inputModeKey = input.inputMode ?? "AMOUNT";
-    const rawAmount = input.amount ?? input.receivedAmount;
+    const normalizedSplits =
+      input.splits && input.splits.length > 0 ? input.splits : null;
+    const isMultiSplit = Boolean(normalizedSplits && normalizedSplits.length > 1);
+    const effectivePaymentMethod =
+      normalizedSplits && normalizedSplits.length === 1
+        ? normalizedSplits[0].method
+        : input.paymentMethod;
+    const inputModeKey = isMultiSplit ? "AMOUNT" : (input.inputMode ?? "AMOUNT");
+    const rawAmount =
+      normalizedSplits && normalizedSplits.length === 1
+        ? normalizedSplits[0].amount
+        : (input.amount ?? input.receivedAmount);
+
+    if (isMultiSplit && normalizedSplits) {
+      if (new Set(normalizedSplits.map((leg) => leg.method)).size !== normalizedSplits.length) {
+        throw new BadRequestException("Không được trùng phương thức thanh toán khi chia tiền cọc");
+      }
+      for (const leg of normalizedSplits) {
+        if (!Number.isFinite(leg.amount) || leg.amount <= 0) {
+          throw new BadRequestException("Số tiền từng phương thức phải lớn hơn 0");
+        }
+      }
+    }
 
     return this.prisma.$transaction(
       async (tx) => {
-        if (idempotencyKey) {
+        if (idempotencyKey && isMultiSplit && normalizedSplits) {
+          const safeBase = idempotencyKey.slice(0, 100);
+          const legKeys = normalizedSplits.map((_, idx) => `split:${safeBase}:${idx}`);
+          const existingSplitRows = tx.bookingPayment?.findMany
+            ? await tx.bookingPayment.findMany({
+                where: { hotelId, idempotencyKey: { in: [idempotencyKey, ...legKeys] } },
+              })
+            : [];
+          if (existingSplitRows.length > 0) {
+            const allMatch =
+              existingSplitRows.length === normalizedSplits.length &&
+              normalizedSplits.every((leg, idx) => {
+                const row = existingSplitRows.find(
+                  (item) => item.idempotencyKey === `split:${safeBase}:${idx}`,
+                );
+                return (
+                  Boolean(row) &&
+                  row!.paymentMethod === leg.method &&
+                  row!.receivedAmount.equals(new Prisma.Decimal(leg.amount)) &&
+                  (!input.intent || row!.intent === input.intent) &&
+                  (row!.reservationId ?? undefined) === (input.reservationId ?? undefined) &&
+                  (row!.groupId ?? undefined) === (input.groupId ?? undefined)
+                );
+              });
+            if (!allMatch) {
+              throw new ConflictException("IDEMPOTENCY_KEY_PAYLOAD_MISMATCH");
+            }
+            const ordered = normalizedSplits.map(
+              (_, idx) =>
+                existingSplitRows.find(
+                  (item) => item.idempotencyKey === `split:${safeBase}:${idx}`,
+                )!,
+            );
+            return { ...ordered[0], payments: ordered };
+          }
+        } else if (idempotencyKey) {
           const existing = await tx.bookingPayment.findFirst({
             where: { hotelId, idempotencyKey },
           });
@@ -3372,7 +3669,7 @@ export class BillingService {
                 ? existing.receivedAmount.equals(new Prisma.Decimal(rawAmount))
                 : true;
             const methodMatches =
-              !input.paymentMethod || existing.paymentMethod === input.paymentMethod;
+              !effectivePaymentMethod || existing.paymentMethod === effectivePaymentMethod;
             const intentMatches = !input.intent || existing.intent === input.intent;
             const resMatches =
               (existing.reservationId ?? undefined) === (input.reservationId ?? undefined);
@@ -3522,6 +3819,77 @@ export class BillingService {
           }
         }
 
+        if (isMultiSplit && normalizedSplits) {
+          const splitSum = normalizedSplits.reduce(
+            (sum, leg) => sum.add(new Prisma.Decimal(leg.amount)),
+            new Prisma.Decimal(0),
+          );
+          if (rawAmount !== undefined && splitSum.sub(new Prisma.Decimal(rawAmount)).abs().gte("0.01")) {
+            throw new BadRequestException("Tổng tiền chia theo phương thức phải khớp số tiền đặt cọc");
+          }
+          if (splitSum.lte(0)) {
+            throw new BadRequestException("Số tiền thanh toán thực nhận phải lớn hơn 0");
+          }
+
+          const receivedAt = new Date();
+          const splitGroupId = (idempotencyKey || randomUUID()).slice(0, 100);
+          const createdPayments: any[] = [];
+          try {
+            for (let idx = 0; idx < normalizedSplits.length; idx++) {
+              const leg = normalizedSplits[idx];
+              const legDecimal = new Prisma.Decimal(leg.amount);
+              const createdLeg = await tx.bookingPayment.create({
+                data: {
+                  hotelId,
+                  reservationId: input.reservationId ?? null,
+                  groupId: group?.id ?? input.groupId ?? null,
+                  intent: input.intent ?? BookingPaymentIntent.DEPOSIT,
+                  inputMode: BookingPaymentMode.AMOUNT,
+                  percentValue: null,
+                  requestedAmount: legDecimal,
+                  receivedAmount: legDecimal,
+                  paymentMethod: leg.method,
+                  status: BookingPaymentStatus.COMPLETED,
+                  notes: input.notes ?? null,
+                  idempotencyKey: `split:${splitGroupId}:${idx}`,
+                  createdByUserId: actorUserId,
+                  receivedAt,
+                },
+              });
+              createdPayments.push(createdLeg);
+
+              if (
+                (input.reservationId || group?.id || input.groupId) &&
+                typeof tx.bookingPaymentAllocation?.create === "function"
+              ) {
+                await tx.bookingPaymentAllocation.create({
+                  data: {
+                    hotelId,
+                    bookingPaymentId: createdLeg.id,
+                    reservationId: input.reservationId ?? null,
+                    groupId: group?.id ?? input.groupId ?? null,
+                    folioId: reservation?.stay?.folioId ?? null,
+                    allocatedAmount: legDecimal,
+                    allocatedByUserId: actorUserId,
+                  },
+                });
+              }
+            }
+            return { ...createdPayments[0], payments: createdPayments };
+          } catch (error: any) {
+            if (idempotencyKey && error?.code === "P2002" && tx.bookingPayment?.findMany) {
+              const legKeys = normalizedSplits.map((_, idx) => `split:${splitGroupId}:${idx}`);
+              const raceExisting = await tx.bookingPayment.findMany({
+                where: { hotelId, idempotencyKey: { in: legKeys } },
+              });
+              if (raceExisting.length > 0) {
+                return { ...raceExisting[0], payments: raceExisting };
+              }
+            }
+            throw error;
+          }
+        }
+
         let requestedDecimal: Prisma.Decimal;
         let receivedDecimal: Prisma.Decimal;
 
@@ -3572,7 +3940,7 @@ export class BillingService {
                 input.percentValue != null ? new Prisma.Decimal(input.percentValue) : null,
               requestedAmount: requestedDecimal,
               receivedAmount: receivedDecimal,
-              paymentMethod: input.paymentMethod ?? PaymentMethod.MANUAL,
+              paymentMethod: effectivePaymentMethod ?? PaymentMethod.MANUAL,
               status: BookingPaymentStatus.COMPLETED,
               notes: input.notes ?? null,
               idempotencyKey: idempotencyKey || null,
@@ -4091,7 +4459,33 @@ export class BillingService {
               : 0),
         );
 
-        const collectAmount = new Prisma.Decimal(input.collectedAmount);
+        const normalizedSplits =
+          input.splits && input.splits.length > 0 ? input.splits : null;
+        if (normalizedSplits) {
+          if (new Set(normalizedSplits.map((leg) => leg.method)).size !== normalizedSplits.length) {
+            throw new BadRequestException("Không được trùng phương thức thanh toán khi thu nợ kết hợp");
+          }
+          for (const leg of normalizedSplits) {
+            if (!Number.isFinite(leg.amount) || leg.amount <= 0) {
+              throw new BadRequestException("Số tiền từng phương thức thu nợ phải lớn hơn 0");
+            }
+          }
+        }
+
+        const collectAmount = normalizedSplits
+          ? normalizedSplits.reduce(
+              (sum, leg) => sum.add(new Prisma.Decimal(leg.amount)),
+              new Prisma.Decimal(0),
+            )
+          : new Prisma.Decimal(input.collectedAmount ?? 0);
+
+        if (
+          normalizedSplits &&
+          input.collectedAmount !== undefined &&
+          collectAmount.sub(new Prisma.Decimal(input.collectedAmount)).abs().gte("0.01")
+        ) {
+          throw new BadRequestException("Tổng tiền chia theo phương thức phải khớp số tiền thu nợ");
+        }
         if (collectAmount.lte(0)) {
           throw new BadRequestException("Số tiền thu nợ phải lớn hơn 0");
         }
@@ -4105,18 +4499,38 @@ export class BillingService {
           ? ReceivableStatus.SETTLED
           : ReceivableStatus.PARTIALLY_COLLECTED;
 
-        const collection = await tx.receivableCollection.create({
-          data: {
-            hotelId,
-            receivableId: receivable.id,
-            collectedAmount: collectAmount,
-            paymentMethod: input.paymentMethod ?? PaymentMethod.MANUAL,
-            reference: input.reference ?? null,
-            notes: input.notes ?? null,
-            collectedByUserId: actorUserId,
-            collectedAt: new Date(),
-          },
-        });
+        const collectedAt = new Date();
+        const collectionLegs = normalizedSplits
+          ? normalizedSplits.map((leg) => ({
+              method: leg.method,
+              amount: new Prisma.Decimal(leg.amount),
+            }))
+          : [
+              {
+                method: input.paymentMethod ?? PaymentMethod.MANUAL,
+                amount: collectAmount,
+              },
+            ];
+
+        const createdCollections: Array<
+          Awaited<ReturnType<typeof tx.receivableCollection.create>>
+        > = [];
+        for (const leg of collectionLegs) {
+          const created = await tx.receivableCollection.create({
+            data: {
+              hotelId,
+              receivableId: receivable.id,
+              collectedAmount: leg.amount,
+              paymentMethod: leg.method,
+              reference: input.reference ?? null,
+              notes: input.notes ?? null,
+              collectedByUserId: actorUserId,
+              collectedAt,
+            },
+          });
+          createdCollections.push(created);
+        }
+        const collection = createdCollections[0];
 
         const updatedReceivable = await tx.hotelReceivable.update({
           where: { id: receivable.id },
@@ -4145,6 +4559,15 @@ export class BillingService {
                 hotelId,
                 receivableId: receivable.id,
                 collectionId: collection.id,
+                ...(createdCollections.length > 1
+                  ? {
+                      collectionIds: createdCollections.map((item) => item.id),
+                      splits: collectionLegs.map((leg) => ({
+                        method: leg.method,
+                        amount: leg.amount.toString(),
+                      })),
+                    }
+                  : {}),
                 collectedAmount: collectAmount.toString(),
                 paidAmount: newPaidAmount.toString(),
                 outstandingAmount: newOutstanding.toString(),
@@ -4157,6 +4580,7 @@ export class BillingService {
         return {
           receivable: updatedReceivable,
           collection,
+          ...(createdCollections.length > 1 ? { collections: createdCollections } : {}),
         };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },

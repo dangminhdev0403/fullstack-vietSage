@@ -44,7 +44,13 @@ export default async function StaffInvoicePage({ params }: PageProps) {
           </Link>
           <h1 className="mt-2 text-3xl font-black text-[var(--primary)]">Hóa đơn {invoice.invoiceNumber}</h1>
         </div>
-        <InvoiceActions hotelId={hotelId} invoiceId={invoiceId} isPaid={isPaid} />
+        <InvoiceActions
+          hotelId={hotelId}
+          invoiceId={invoiceId}
+          isPaid={isPaid}
+          balanceAmount={Number(invoice.balanceAmount ?? invoice.totalAmount ?? 0)}
+          currency={invoice.currency}
+        />
       </div>
 
       <article className="invoice-a4 mx-auto w-full max-w-[850px] rounded-lg border border-slate-200 bg-white p-7 text-slate-950 shadow-sm print:border-0 print:p-0 print:shadow-none">

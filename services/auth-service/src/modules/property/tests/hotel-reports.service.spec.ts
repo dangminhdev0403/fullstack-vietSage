@@ -1,3 +1,4 @@
+import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import { FolioItemType, GuestStayStatus, PaymentMethod, Prisma } from "@prisma/client";
 import { Temporal } from "@js-temporal/polyfill";
 import { HotelReportsService } from "../application/hotel-reports.service";
@@ -35,12 +36,16 @@ describe("HotelReportsService", () => {
     delete (mockPrisma as any).receivableCollection;
     delete (mockPrisma as any).bookingPayment;
     delete (mockPrisma as any).hotelReceivable;
+    delete (mockPrisma as any).hotel;
+    delete (mockPrisma as any).$transaction;
+    delete (mockHotelAccessService as any).loadActorContext;
     service = new HotelReportsService(mockPrisma as never, mockHotelAccessService as never);
 
     mockHotelAccessService.resolveRoomScope.mockResolvedValue({
       allowedRoomId: null,
       hotel: {
         id: "hotel-1",
+        tenantId: "tenant-1",
         name: "Khách sạn Sài Gòn Star",
         timezone: "Asia/Ho_Chi_Minh",
       },
@@ -741,9 +746,9 @@ describe("HotelReportsService", () => {
           hotelId: "hotel-1",
           voidedAt: null,
           OR: [
-            { date: { gte: new Date("2025-12-01T00:00:00.000Z"), lte: new Date("2026-11-13T00:00:00.000Z") } },
+            { date: { gte: new Date("2024-12-01T00:00:00.000Z"), lte: new Date("2026-11-13T00:00:00.000Z") } },
             { collections: { some: { receivedAt: {
-              gte: new Date("2025-12-01T00:00:00.000+07:00"),
+              gte: new Date("2024-12-01T00:00:00.000+07:00"),
               lte: new Date("2026-11-13T23:59:59.999+07:00"),
             } } } },
           ],
@@ -794,4 +799,352 @@ describe("HotelReportsService", () => {
       });
     },
   );
+
+  it("tính đúng MoM, YoY (24 tháng lookback -> 12 tháng output), targetAchievement, quarterlySummary và canManageTargets", async () => {
+    mockPrisma.room.count.mockResolvedValueOnce(10).mockResolvedValueOnce(3);
+    mockPrisma.payment.findMany.mockResolvedValue([]);
+    mockPrisma.guestStay.findMany.mockResolvedValue([]);
+    mockPrisma.hotelStaffAssignment.findMany.mockResolvedValue([]);
+
+    mockPrisma.folioItem.findMany.mockResolvedValue([
+      // 2024-12 (YoY baseline cho 2025-12): 8,000,000
+      { id: "fi-2024-12", itemType: FolioItemType.ROOM_CHARGE, totalSnapshot: 8000000, postedAt: new Date("2024-12-15T10:00:00.000+07:00"), postedByUserId: "u1" },
+      // 2025-11 (MoM baseline cho 2025-12 & YoY baseline cho 2026-11): 10,000,000
+      { id: "fi-2025-11", itemType: FolioItemType.ROOM_CHARGE, totalSnapshot: 10000000, postedAt: new Date("2025-11-10T10:00:00.000+07:00"), postedByUserId: "u1" },
+      // 2025-12 (tháng đầu trong cửa sổ 12 tháng): 12,000,000 -> MoM +20%, YoY +50%
+      { id: "fi-2025-12", itemType: FolioItemType.ROOM_CHARGE, totalSnapshot: 12000000, postedAt: new Date("2025-12-10T10:00:00.000+07:00"), postedByUserId: "u1" },
+      // 2026-09 (prior month 2026-08 = 0 -> momChangePercent null): 5,000,000
+      { id: "fi-2026-09", itemType: FolioItemType.ROOM_CHARGE, totalSnapshot: 5000000, postedAt: new Date("2026-09-12T10:00:00.000+07:00"), postedByUserId: "u1" },
+      // 2026-10: 15,000,000 -> MoM vs 5M = +200%
+      { id: "fi-2026-10", itemType: FolioItemType.ROOM_CHARGE, totalSnapshot: 15000000, postedAt: new Date("2026-10-15T10:00:00.000+07:00"), postedByUserId: "u1" },
+      // 2026-11: 12,500,000 -> MoM vs 15M = -16.7%, YoY vs 10M = +25%
+      { id: "fi-2026-11", itemType: FolioItemType.ROOM_CHARGE, totalSnapshot: 12500000, postedAt: new Date("2026-11-10T10:00:00.000+07:00"), postedByUserId: "u1" },
+    ]);
+
+    const extendedPrisma = mockPrisma as unknown as Record<string, unknown>;
+    extendedPrisma.hotelExpense = {
+      findMany: jest.fn().mockResolvedValue([
+        {
+          id: "exp-oct",
+          expenseDate: new Date("2026-10-20T00:00:00.000Z"),
+          category: "UTILITIES",
+          amount: new Prisma.Decimal(2500000),
+          paidAmount: new Prisma.Decimal(2500000),
+          paymentStatus: "PAID",
+        },
+      ]),
+    };
+    extendedPrisma.hotel = {
+      findUnique: jest.fn().mockResolvedValue({
+        brandSettings: {
+          primaryColor: "#0f172a",
+          revenueTargets: {
+            "2026-10": 10000000,
+            "2026-11": 20000000,
+            "2026-01": 0,
+            "2026-13": 999999,
+          },
+        },
+      }),
+    };
+    (mockHotelAccessService as any).loadActorContext = jest.fn().mockResolvedValue({
+      isSuperAdmin: false,
+      permissions: new Set(["hotel.dashboard.view", "hotel.billing.manage"]),
+    });
+
+    const result = await service.getReports("user-1", "role-owner", "hotel-1", {
+      range: "30d",
+      from: "2026-11-01",
+      to: "2026-11-13",
+    });
+
+    expect(result.revenueByMonth).toHaveLength(12);
+    expect(result.revenueByMonth[0].month).toBe("2025-12");
+    expect(result.revenueByMonth[11].month).toBe("2026-11");
+    expect(result.canManageTargets).toBe(true);
+
+    const dec2025 = result.revenueByMonth.find((m) => m.month === "2025-12")!;
+    expect(dec2025).toMatchObject({
+      totalRevenue: 12000000,
+      previousMonthRevenue: 10000000,
+      momChangePercent: 20,
+      previousYearRevenue: 8000000,
+      yoyChangePercent: 50,
+      targetRevenue: null,
+      targetAchievementPercent: null,
+    });
+
+    const sep2026 = result.revenueByMonth.find((m) => m.month === "2026-09")!;
+    expect(sep2026).toMatchObject({
+      totalRevenue: 5000000,
+      previousMonthRevenue: 0,
+      momChangePercent: null,
+      previousYearRevenue: 0,
+      yoyChangePercent: null,
+    });
+
+    const oct2026 = result.revenueByMonth.find((m) => m.month === "2026-10")!;
+    expect(oct2026).toMatchObject({
+      totalRevenue: 15000000,
+      previousMonthRevenue: 5000000,
+      momChangePercent: 200,
+      targetRevenue: 10000000,
+      targetAchievementPercent: 150,
+    });
+
+    const nov2026 = result.revenueByMonth.find((m) => m.month === "2026-11")!;
+    expect(nov2026).toMatchObject({
+      totalRevenue: 12500000,
+      previousMonthRevenue: 15000000,
+      momChangePercent: -16.7,
+      previousYearRevenue: 10000000,
+      yoyChangePercent: 25,
+      targetRevenue: 20000000,
+      targetAchievementPercent: 62.5,
+    });
+
+    const jan2026 = result.revenueByMonth.find((m) => m.month === "2026-01")!;
+    expect(jan2026.targetRevenue).toBeNull();
+    expect(jan2026.targetAchievementPercent).toBeNull();
+
+    // Quarterly summary aggregates 2025-Q4 (1m), 2026-Q1 (3m), 2026-Q2 (3m), 2026-Q3 (3m), 2026-Q4 (2m)
+    expect(result.quarterlySummary).toEqual([
+      {
+        quarter: "2025-Q4",
+        label: "Quý 4/2025",
+        actualRevenue: 12000000,
+        targetRevenue: null,
+        achievementPercent: null,
+        netProfit: 12000000,
+        monthsIncluded: 1,
+      },
+      {
+        quarter: "2026-Q1",
+        label: "Quý 1/2026",
+        actualRevenue: 0,
+        targetRevenue: null,
+        achievementPercent: null,
+        netProfit: 0,
+        monthsIncluded: 3,
+      },
+      {
+        quarter: "2026-Q2",
+        label: "Quý 2/2026",
+        actualRevenue: 0,
+        targetRevenue: null,
+        achievementPercent: null,
+        netProfit: 0,
+        monthsIncluded: 3,
+      },
+      {
+        quarter: "2026-Q3",
+        label: "Quý 3/2026",
+        actualRevenue: 5000000,
+        targetRevenue: null,
+        achievementPercent: null,
+        netProfit: 5000000,
+        monthsIncluded: 3,
+      },
+      {
+        quarter: "2026-Q4",
+        label: "Quý 4/2026",
+        actualRevenue: 27500000,
+        targetRevenue: 30000000,
+        achievementPercent: 91.7,
+        netProfit: 25000000,
+        monthsIncluded: 2,
+      },
+    ]);
+  });
+
+  it("canManageTargets trả về false khi thiếu quyền hoặc bị giới hạn theo phòng", async () => {
+    mockPrisma.room.count.mockResolvedValue(5);
+    mockPrisma.payment.findMany.mockResolvedValue([]);
+    mockPrisma.folioItem.findMany.mockResolvedValue([]);
+    mockPrisma.guestStay.findMany.mockResolvedValue([]);
+    mockPrisma.hotelStaffAssignment.findMany.mockResolvedValue([]);
+
+    (mockHotelAccessService as any).loadActorContext = jest.fn().mockResolvedValue({
+      isSuperAdmin: false,
+      permissions: new Set(["hotel.dashboard.view"]),
+    });
+    const noPerm = await service.getReports("user-1", "role-viewer", "hotel-1", {
+      range: "7d",
+    });
+    expect(noPerm.canManageTargets).toBe(false);
+
+    mockHotelAccessService.resolveRoomScope.mockResolvedValueOnce({
+      allowedRoomId: "room-101",
+      hotel: { id: "hotel-1", tenantId: "tenant-1", name: "Star", timezone: "Asia/Ho_Chi_Minh" },
+    });
+    (mockHotelAccessService as any).loadActorContext = jest.fn().mockResolvedValue({
+      isSuperAdmin: true,
+      permissions: new Set(["hotel.billing.manage"]),
+    });
+    const roomScoped = await service.getReports("user-2", "role-room", "hotel-1", {
+      range: "7d",
+    });
+    expect(roomScoped.canManageTargets).toBe(false);
+  });
+
+  describe("upsertRevenueTarget", () => {
+    it("lưu mục tiêu doanh thu tháng, bảo toàn các key brandSettings khác và ghi audit log", async () => {
+      const tx = {
+        hotel: {
+          findUnique: jest.fn().mockResolvedValue({
+            id: "hotel-1",
+            tenantId: "tenant-1",
+            brandSettings: {
+              primaryColor: "#1d4ed8",
+              logoUrl: "https://cdn.example.com/logo.png",
+              revenueTargets: { "2026-10": 100000000 },
+            },
+          }),
+          update: jest.fn().mockResolvedValue({}),
+        },
+        auditLog: {
+          create: jest.fn().mockResolvedValue({ id: "audit-1" }),
+        },
+      };
+      (mockPrisma as any).$transaction = jest.fn().mockImplementation(async (fn: any) => fn(tx));
+
+      const result = await service.upsertRevenueTarget("user-1", "role-owner", "hotel-1", {
+        month: "2026-11",
+        targetAmount: 150000000.6,
+      });
+
+      expect(result).toEqual({
+        hotelId: "hotel-1",
+        month: "2026-11",
+        targetAmount: 150000001,
+        revenueTargets: {
+          "2026-10": 100000000,
+          "2026-11": 150000001,
+        },
+      });
+      expect(tx.hotel.update).toHaveBeenCalledWith({
+        where: { id: "hotel-1" },
+        data: {
+          brandSettings: {
+            primaryColor: "#1d4ed8",
+            logoUrl: "https://cdn.example.com/logo.png",
+            revenueTargets: {
+              "2026-10": 100000000,
+              "2026-11": 150000001,
+            },
+          },
+        },
+      });
+      expect(tx.auditLog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          actorId: "user-1",
+          tenantId: "tenant-1",
+          entityType: "Hotel",
+          entityId: "hotel-1",
+          action: "HOTEL_REVENUE_TARGET_UPDATED",
+          metadata: {
+            hotelId: "hotel-1",
+            month: "2026-11",
+            previousTargetAmount: null,
+            targetAmount: 150000001,
+          },
+        }),
+      });
+    });
+
+    it("xóa khóa mục tiêu của tháng khi targetAmount === 0 mà vẫn giữ nguyên các tháng khác và brandSettings", async () => {
+      const tx = {
+        hotel: {
+          findUnique: jest.fn().mockResolvedValue({
+            id: "hotel-1",
+            tenantId: "tenant-1",
+            brandSettings: {
+              primaryColor: "#1d4ed8",
+              revenueTargets: {
+                "2026-10": 100000000,
+                "2026-11": 150000000,
+              },
+            },
+          }),
+          update: jest.fn().mockResolvedValue({}),
+        },
+        auditLog: {
+          create: jest.fn().mockResolvedValue({ id: "audit-2" }),
+        },
+      };
+      (mockPrisma as any).$transaction = jest.fn().mockImplementation(async (fn: any) => fn(tx));
+
+      const result = await service.upsertRevenueTarget("user-1", "role-owner", "hotel-1", {
+        month: "2026-11",
+        targetAmount: 0,
+      });
+
+      expect(result).toEqual({
+        hotelId: "hotel-1",
+        month: "2026-11",
+        targetAmount: null,
+        revenueTargets: { "2026-10": 100000000 },
+      });
+      expect(tx.hotel.update).toHaveBeenCalledWith({
+        where: { id: "hotel-1" },
+        data: {
+          brandSettings: {
+            primaryColor: "#1d4ed8",
+            revenueTargets: { "2026-10": 100000000 },
+          },
+        },
+      });
+      expect(tx.auditLog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          entityType: "Hotel",
+          entityId: "hotel-1",
+          action: "HOTEL_REVENUE_TARGET_UPDATED",
+          metadata: expect.objectContaining({
+            month: "2026-11",
+            previousTargetAmount: 150000000,
+            targetAmount: null,
+          }),
+        }),
+      });
+    });
+
+    it("từ chối tài khoản bị phân quyền theo phòng bằng ForbiddenException", async () => {
+      mockHotelAccessService.resolveRoomScope.mockResolvedValueOnce({
+        allowedRoomId: "room-101",
+        hotel: { id: "hotel-1", tenantId: "tenant-1", name: "Star", timezone: "Asia/Ho_Chi_Minh" },
+      });
+      const txSpy = jest.fn();
+      (mockPrisma as any).$transaction = txSpy;
+
+      await expect(
+        service.upsertRevenueTarget("user-room", "role-room", "hotel-1", {
+          month: "2026-11",
+          targetAmount: 120000000,
+        }),
+      ).rejects.toThrow(
+        new ForbiddenException(
+          "Tài khoản chỉ được phân quyền theo phòng nên không thể cập nhật mục tiêu doanh thu khách sạn",
+        ),
+      );
+      expect(txSpy).not.toHaveBeenCalled();
+    });
+
+    it("ném NotFoundException nếu không tìm thấy khách sạn trong transaction", async () => {
+      const tx = {
+        hotel: {
+          findUnique: jest.fn().mockResolvedValue(null),
+          update: jest.fn(),
+        },
+        auditLog: { create: jest.fn() },
+      };
+      (mockPrisma as any).$transaction = jest.fn().mockImplementation(async (fn: any) => fn(tx));
+
+      await expect(
+        service.upsertRevenueTarget("user-1", "role-owner", "hotel-missing", {
+          month: "2026-11",
+          targetAmount: 120000000,
+        }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
 });

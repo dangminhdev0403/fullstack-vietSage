@@ -57,6 +57,22 @@ export type MonthlyRevenueItem = {
   roomsSold: number;
   averageOccupancy: number;
   adr: number;
+  previousMonthRevenue?: number | null;
+  momChangePercent?: number | null;
+  previousYearRevenue?: number | null;
+  yoyChangePercent?: number | null;
+  targetRevenue?: number | null;
+  targetAchievementPercent?: number | null;
+};
+
+export type QuarterlyRevenueSummaryItem = {
+  quarter: string;
+  label: string;
+  actualRevenue: number;
+  targetRevenue: number | null;
+  achievementPercent: number | null;
+  netProfit: number;
+  monthsIncluded: number;
 };
 
 export type ExpenseCategoryBreakdownItem = {
@@ -133,9 +149,11 @@ export type HotelReportsData = {
   range: string;
   startDate: string;
   endDate: string;
+  canManageTargets?: boolean;
   summary: HotelReportsSummary;
   revenueByDay: DailyRevenueItem[];
   revenueByMonth: MonthlyRevenueItem[];
+  quarterlySummary?: QuarterlyRevenueSummaryItem[];
   expenseByCategory?: ExpenseCategoryBreakdownItem[];
   revenueBySource: SourceRevenueItem[];
   revenueByStaff: StaffRevenueItem[];

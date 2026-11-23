@@ -50,8 +50,13 @@ async function forward(request: Request, context: Context) {
             ? `/${segments.map(encodeURIComponent).join("/")}`
             : "",
           query: {
-            from: url.searchParams.get("from") ?? undefined,
-            to: url.searchParams.get("to") ?? undefined,
+            from: url.searchParams.get("from") || undefined,
+            to: url.searchParams.get("to") || undefined,
+            category: url.searchParams.get("category") || undefined,
+            paymentMethod: url.searchParams.get("paymentMethod") || undefined,
+            source: url.searchParams.get("source") || undefined,
+            settlementStatus:
+              url.searchParams.get("settlementStatus") || undefined,
           },
           body,
         }),

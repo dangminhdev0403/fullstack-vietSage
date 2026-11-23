@@ -100,13 +100,39 @@ export const createPaymentSessionBodySchema = z
   })
   .strict();
 
+const counterPaymentMethodEnum = z.enum([
+  PaymentMethod.CASH,
+  PaymentMethod.CARD,
+  PaymentMethod.BANK_TRANSFER,
+  PaymentMethod.MANUAL,
+]);
+
+export const paymentSplitItemSchema = z
+  .object({
+    method: counterPaymentMethodEnum,
+    amount: z.preprocess(
+      (val) => (typeof val === "string" && val.trim() !== "" ? Number(val) : val),
+      z.number().finite().positive(),
+    ),
+  })
+  .strict();
+
+export type PaymentSplitItemInput = {
+  method: PaymentMethod;
+  amount: number;
+};
+
+function hasUniqueSplitMethods(splits: Array<{ method: PaymentMethod }>): boolean {
+  return new Set(splits.map((item) => item.method)).size === splits.length;
+}
+
+function sumSplitAmounts(splits: Array<{ amount: number }>): number {
+  return Math.round(splits.reduce((sum, item) => sum + item.amount, 0) * 100) / 100;
+}
+
 export const confirmManualPaymentBodySchema = z
   .object({
-    method: z
-      .enum([
-        PaymentMethod.MANUAL,
-      ])
-      .default(PaymentMethod.MANUAL),
+    method: counterPaymentMethodEnum.default(PaymentMethod.MANUAL),
     note: z.string().trim().max(500).optional(),
     amount: z
       .preprocess(
@@ -114,9 +140,24 @@ export const confirmManualPaymentBodySchema = z
         z.number().positive(),
       )
       .optional(),
+    splits: z.array(paymentSplitItemSchema).min(1).max(4).optional(),
     clientRequestId: z.string().trim().min(1).optional(),
   })
-  .strict();
+  .strict()
+  .refine((data) => !data.splits || hasUniqueSplitMethods(data.splits), {
+    message: "Không được trùng phương thức thanh toán trong cùng một lần thu kết hợp",
+    path: ["splits"],
+  })
+  .refine(
+    (data) =>
+      !data.splits ||
+      data.amount === undefined ||
+      Math.abs(sumSplitAmounts(data.splits) - data.amount) < 0.01,
+    {
+      message: "Tổng số tiền chia theo phương thức phải khớp với tổng số tiền thu",
+      path: ["splits"],
+    },
+  );
 
 export const paymentWebhookBodySchema = z
   .object({
@@ -156,14 +197,8 @@ export const createBookingPaymentBodySchema = z
     percentValue: z.coerce.number().min(0.01).max(100).optional(),
     amount: z.coerce.number().positive().optional(),
     receivedAmount: z.coerce.number().positive().optional(),
-    paymentMethod: z
-      .enum([
-        PaymentMethod.CASH,
-        PaymentMethod.CARD,
-        PaymentMethod.BANK_TRANSFER,
-        PaymentMethod.MANUAL,
-      ])
-      .default(PaymentMethod.MANUAL),
+    paymentMethod: counterPaymentMethodEnum.default(PaymentMethod.MANUAL),
+    splits: z.array(paymentSplitItemSchema).min(1).max(4).optional(),
     notes: z.string().trim().max(1000).optional(),
     idempotencyKey: z.string().trim().min(1).max(120).optional(),
   })
@@ -172,8 +207,21 @@ export const createBookingPaymentBodySchema = z
     message: "Phải cung cấp reservationId hoặc groupId cho khoản thanh toán đặt phòng",
     path: ["reservationId"],
   })
+  .refine((data) => !data.splits || hasUniqueSplitMethods(data.splits), {
+    message: "Không được trùng phương thức thanh toán trong cùng một lần cọc kết hợp",
+    path: ["splits"],
+  })
   .refine(
     (data) => {
+      if (data.splits && data.splits.length > 0) {
+        const splitSum = sumSplitAmounts(data.splits);
+        if (splitSum <= 0) return false;
+        const explicitAmount = data.amount ?? data.receivedAmount;
+        if (explicitAmount !== undefined && Math.abs(splitSum - explicitAmount) >= 0.01) {
+          return false;
+        }
+        return true;
+      }
       if (data.inputMode === "PERCENT") {
         return data.percentValue !== undefined && data.percentValue > 0 && data.percentValue <= 100;
       }
@@ -184,7 +232,7 @@ export const createBookingPaymentBodySchema = z
       return true;
     },
     {
-      message: "Vui lòng nhập số tiền hoặc tỷ lệ phần trăm hợp lệ theo phương thức đã chọn",
+      message: "Vui lòng nhập số tiền, tỷ lệ phần trăm hoặc chia phương thức thanh toán hợp lệ",
       path: ["amount"],
     },
   );
@@ -209,22 +257,39 @@ export const transferToReceivableBodySchema = z
 
 export const collectReceivableBodySchema = z
   .object({
-    collectedAmount: z.preprocess(
-      (val) => (typeof val === "string" ? Number(val) : val),
-      z.number().positive(),
-    ),
-    paymentMethod: z
-      .enum([
-        PaymentMethod.CASH,
-        PaymentMethod.CARD,
-        PaymentMethod.BANK_TRANSFER,
-        PaymentMethod.MANUAL,
-      ])
-      .default(PaymentMethod.MANUAL),
+    collectedAmount: z
+      .preprocess(
+        (val) => (typeof val === "string" && val.trim() !== "" ? Number(val) : val),
+        z.number().positive(),
+      )
+      .optional(),
+    paymentMethod: counterPaymentMethodEnum.default(PaymentMethod.MANUAL),
+    splits: z.array(paymentSplitItemSchema).min(1).max(4).optional(),
     reference: z.string().trim().max(120).optional(),
     notes: z.string().trim().max(1000).optional(),
   })
-  .strict();
+  .strict()
+  .refine((data) => !data.splits || hasUniqueSplitMethods(data.splits), {
+    message: "Không được trùng phương thức thanh toán trong cùng một lần thu nợ kết hợp",
+    path: ["splits"],
+  })
+  .refine(
+    (data) => {
+      if (data.splits && data.splits.length > 0) {
+        const splitSum = sumSplitAmounts(data.splits);
+        if (splitSum <= 0) return false;
+        if (data.collectedAmount !== undefined && Math.abs(splitSum - data.collectedAmount) >= 0.01) {
+          return false;
+        }
+        return true;
+      }
+      return data.collectedAmount !== undefined && data.collectedAmount > 0;
+    },
+    {
+      message: "Số tiền thu nợ và phần chia phương thức thanh toán phải khớp và lớn hơn 0",
+      path: ["collectedAmount"],
+    },
+  );
 
 export type CreateBookingPaymentInput = {
   hotelId?: string;
@@ -238,6 +303,7 @@ export type CreateBookingPaymentInput = {
   amount?: number;
   receivedAmount?: number;
   paymentMethod?: PaymentMethod;
+  splits?: PaymentSplitItemInput[];
   notes?: string;
   idempotencyKey?: string;
 };
@@ -253,8 +319,9 @@ export type TransferToReceivableInput = {
 };
 
 export type CollectReceivableInput = {
-  collectedAmount: number;
+  collectedAmount?: number;
   paymentMethod?: PaymentMethod;
+  splits?: PaymentSplitItemInput[];
   reference?: string;
   notes?: string;
 };

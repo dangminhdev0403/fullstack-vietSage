@@ -147,8 +147,8 @@ export function RevenueBookSpreadsheet({
     if (!filter.trim()) return activeActivities;
     const lower = filter.trim().toLocaleLowerCase("vi");
     return activeActivities.filter((act) => {
-      const { entry, collection } = act;
-      const rowKey = `${entry.id}_${act.date}_${collection?.id ?? "rev"}`;
+      const { entry, collection, payment } = act;
+      const rowKey = `${entry.id}_${act.date}_${payment?.id ?? collection?.id ?? "rev"}`;
       const effectiveDescription =
         descriptionsByRow[`${book.hotelId}:${rowKey}`] ?? entry.description;
       const text = `${effectiveDescription} ${entry.roomNumber ?? ""} ${entry.documentNumber ?? ""} ${act.date}`.toLocaleLowerCase("vi");
@@ -164,7 +164,7 @@ export function RevenueBookSpreadsheet({
   const auditRowKeys = useMemo(() => {
     return activeActivities
       .filter((act) => {
-        const rowKey = `${act.entry.id}_${act.date}_${act.collection?.id ?? "rev"}`;
+        const rowKey = `${act.entry.id}_${act.date}_${act.payment?.id ?? act.collection?.id ?? "rev"}`;
         const desc = descriptionsByRow[`${book.hotelId}:${rowKey}`] ?? act.entry.description;
         const note = notesByRow[`${book.hotelId}:${rowKey}`] ?? act.entry.notes ?? "";
         const combined = `${desc} ${note}`.toLowerCase();
@@ -174,7 +174,7 @@ export function RevenueBookSpreadsheet({
           combined.includes("test")
         );
       })
-      .map((act) => `${act.entry.id}_${act.date}_${act.collection?.id ?? "rev"}`);
+      .map((act) => `${act.entry.id}_${act.date}_${act.payment?.id ?? act.collection?.id ?? "rev"}`);
   }, [activeActivities, descriptionsByRow, notesByRow, book.hotelId]);
 
   // Count active overrides
@@ -225,7 +225,7 @@ export function RevenueBookSpreadsheet({
       }
       currentGroup.activities.push(act);
 
-      const rowKey = `${act.entry.id}_${act.date}_${act.collection?.id ?? "rev"}`;
+      const rowKey = `${act.entry.id}_${act.date}_${act.payment?.id ?? act.collection?.id ?? "rev"}`;
 
       // Base revenues from API
       const baseRoom = act.revenue?.roomRevenue ?? 0;
@@ -256,14 +256,23 @@ export function RevenueBookSpreadsheet({
         addMoney(otherVal, customRowTotal),
       );
 
-      // Base payments from API
-      const basePaid = act.collection?.amount ?? 0;
-      const baseCash = act.collection?.method === "CASH" ? basePaid : 0;
-      const baseBank = act.collection?.method === "BANK_TRANSFER" ? basePaid : 0;
-      const baseOtherPayment =
-        act.collection &&
-        act.collection.method !== "CASH" &&
-        act.collection.method !== "BANK_TRANSFER"
+      // Base payments from API (supports merged split CASH + BANK_TRANSFER on 1 row)
+      const basePaid = act.payment?.totalAmount ?? act.collection?.amount ?? 0;
+      const baseCash = act.payment
+        ? act.payment.cashAmount
+        : act.collection?.method === "CASH"
+          ? basePaid
+          : 0;
+      const baseBank = act.payment
+        ? act.payment.bankTransferAmount
+        : act.collection?.method === "BANK_TRANSFER"
+          ? basePaid
+          : 0;
+      const baseOtherPayment = act.payment
+        ? act.payment.otherAmount
+        : act.collection &&
+            act.collection.method !== "CASH" &&
+            act.collection.method !== "BANK_TRANSFER"
           ? basePaid
           : 0;
 
@@ -1121,7 +1130,7 @@ export function RevenueBookSpreadsheet({
                       if (e.target.checked) {
                         setSelectedRowKeys(
                           activeActivities.map(
-                            (a) => `${a.entry.id}_${a.date}_${a.collection?.id ?? "rev"}`,
+                            (a) => `${a.entry.id}_${a.date}_${a.payment?.id ?? a.collection?.id ?? "rev"}`,
                           ),
                         );
                       } else {
@@ -1276,12 +1285,40 @@ export function RevenueBookSpreadsheet({
                     {group.activities.map((act) => {
                       runningSequence++;
                       const seq = runningSequence;
-                      const { entry, revenue, collection } = act;
-                      const local = collection
-                        ? localParts(collection.receivedAt, book.timeZone)
-                        : null;
+                      const { entry, revenue, collection, payment } = act;
+                      const local = payment
+                        ? localParts(payment.receivedAt, book.timeZone)
+                        : collection
+                          ? localParts(collection.receivedAt, book.timeZone)
+                          : null;
 
-                      const rowKey = `${entry.id}_${act.date}_${collection?.id ?? "rev"}`;
+                      const rowKey = `${entry.id}_${act.date}_${payment?.id ?? collection?.id ?? "rev"}`;
+
+                      // Base payments from API (supports merged split CASH + BANK_TRANSFER on 1 row)
+                      const basePaid = payment?.totalAmount ?? collection?.amount ?? 0;
+                      const baseCash = payment
+                        ? payment.cashAmount
+                        : collection?.method === "CASH"
+                          ? basePaid
+                          : 0;
+                      const baseBank = payment
+                        ? payment.bankTransferAmount
+                        : collection?.method === "BANK_TRANSFER"
+                          ? basePaid
+                          : 0;
+                      const baseOtherPayment = payment
+                        ? payment.otherAmount
+                        : collection &&
+                            collection.method !== "CASH" &&
+                            collection.method !== "BANK_TRANSFER"
+                          ? basePaid
+                          : 0;
+
+                      const bankLocal = payment?.bankTransferAt
+                        ? localParts(payment.bankTransferAt, book.timeZone)
+                        : baseBank !== 0 && local
+                          ? local
+                          : null;
 
                       // Effective text overrides
                       const effectiveRoom =
@@ -1295,9 +1332,10 @@ export function RevenueBookSpreadsheet({
                       const effectivePaymentDate =
                         textOverrides[`${book.hotelId}:paymentDate:${rowKey}`] ??
                         (local ? dateLabel(local.date) : "");
+                      const baseBankTime = baseBank !== 0 && bankLocal ? bankLocal.time : "";
                       const effectiveBankTime =
                         textOverrides[`${book.hotelId}:bankTime:${rowKey}`] ??
-                        (local?.time ?? "");
+                        baseBankTime;
 
                       // Base revenues from API
                       const baseRoom = revenue?.roomRevenue ?? 0;
@@ -1326,17 +1364,6 @@ export function RevenueBookSpreadsheet({
                         addMoney(otherVal, rowCustomSum),
                       );
 
-                      // Base payments from API
-                      const basePaid = collection?.amount ?? 0;
-                      const baseCash = collection?.method === "CASH" ? basePaid : 0;
-                      const baseBank = collection?.method === "BANK_TRANSFER" ? basePaid : 0;
-                      const baseOtherPayment =
-                        collection &&
-                        collection.method !== "CASH" &&
-                        collection.method !== "BANK_TRANSFER"
-                          ? basePaid
-                          : 0;
-
                       // Overridden/effective payments
                       const cashVal = valuesByCell[`${book.hotelId}:cash:${rowKey}`] ?? baseCash;
                       const bankVal = valuesByCell[`${book.hotelId}:bank:${rowKey}`] ?? baseBank;
@@ -1362,7 +1389,7 @@ export function RevenueBookSpreadsheet({
 
                       return (
                         <tr
-                          key={`act-${entry.id}-${act.date}-${collection?.id ?? "rev"}-${seq}`}
+                          key={`act-${entry.id}-${act.date}-${payment?.id ?? collection?.id ?? "rev"}-${seq}`}
                           className={`hover:bg-sky-50/30 transition-colors divide-x divide-slate-100 ${
                             selectedRowKeys.includes(rowKey) ? "bg-rose-50/50" : ""
                           }`}
@@ -1517,7 +1544,7 @@ export function RevenueBookSpreadsheet({
                             {renderEditableTextCell({
                               field: "bankTime",
                               rowKey,
-                              baseValue: local?.time || "",
+                              baseValue: baseBankTime,
                               currentValue: effectiveBankTime,
                               placeholder: "+ Giờ",
                               align: "center",

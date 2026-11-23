@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 // @ts-expect-error Node's strip-types runner requires explicit TypeScript extension.
-import { isNavItemActive, parseSidebarUrl, resolveWorkspaceSubNavigation } from "./workspace-nav-active.ts";
+import { isNavItemActive, isSubNavItemActive, parseSidebarUrl, resolveWorkspaceSubNavigation } from "./workspace-nav-active.ts";
 // @ts-expect-error Node's strip-types runner requires explicit TypeScript extension.
 import { buildWorkspaceNavigation } from "../config/workspace-registry.ts";
 import type { DashboardNavItem } from "../types/workspace-navigation.ts";
@@ -107,4 +107,136 @@ test("buildWorkspaceNavigation produces shift, rooms, requests, messages, checko
 test("legacy BCA tab bookmark resolves to the unified in-house sidebar", () => {
   assert.equal(parseSidebarUrl("/owner/hotels/hotel-1/front-desk?tab=kbtt").searchParams.get("tab"), "in-house");
   assert.equal(parseSidebarUrl("/hotels/hotel-1/front-desk?tab=arrivals").searchParams.get("tab"), "arrivals");
+});
+
+test("owner.hotel.billing resolves to 2 consolidated sub-nav items and highlights multi-tab deep links", () => {
+  const billingHref = "/owner/hotels/hotel-1/billing" as const;
+  const [billingItem] = resolveWorkspaceSubNavigation([
+    {
+      key: "owner.hotel.billing",
+      href: billingHref,
+      label: "Tài chính & đối soát",
+      icon: "payments",
+    },
+  ]);
+
+  const children = billingItem.children ?? [];
+  assert.deepEqual(
+    children.map((item) => ({
+      label: item.label,
+      tabValue: item.tabValue,
+      matchTabValues: item.matchTabValues,
+      icon: item.icon,
+    })),
+    [
+      {
+        label: "Hóa đơn & Công nợ",
+        tabValue: "folios",
+        matchTabValues: ["folios", "receivables"],
+        icon: "receipt_long",
+      },
+      {
+        label: "Chi phí & Phí SaaS",
+        tabValue: "expenses",
+        matchTabValues: ["expenses", "saas"],
+        icon: "payments",
+      },
+    ],
+  );
+
+  const [foliosGroup, expensesGroup] = children;
+
+  // Default (no ?tab) and unknown tab fall back to Hóa đơn & Công nợ
+  for (const activePath of [billingHref, `${billingHref}?tab=folios`, `${billingHref}?tab=receivables`, `${billingHref}?tab=unknown`]) {
+    assert.equal(isSubNavItemActive(foliosGroup, billingHref, activePath, children), true, `Expected foliosGroup active for ${activePath}`);
+    assert.equal(isSubNavItemActive(expensesGroup, billingHref, activePath, children), false, `Expected expensesGroup inactive for ${activePath}`);
+  }
+
+  // ?tab=expenses and ?tab=saas highlight Chi phí & Phí SaaS exclusively
+  for (const activePath of [`${billingHref}?tab=expenses`, `${billingHref}?tab=saas`, `${billingHref}?tab=SAAS`]) {
+    assert.equal(isSubNavItemActive(expensesGroup, billingHref, activePath, children), true, `Expected expensesGroup active for ${activePath}`);
+    assert.equal(isSubNavItemActive(foliosGroup, billingHref, activePath, children), false, `Expected foliosGroup inactive for ${activePath}`);
+  }
+});
+
+test("owner.hotel.reports and staff.reports resolve to 4 consolidated sub-nav items with multi-tab active matching", () => {
+  const reportEntries: readonly DashboardNavItem[] = [
+    {
+      key: "owner.hotel.reports",
+      href: "/owner/hotels/hotel-1/reports",
+      label: "Báo cáo & Phân tích",
+      icon: "analytics",
+    },
+    {
+      key: "staff.reports",
+      href: "/hotels/hotel-1/reports",
+      label: "Báo cáo & Phân tích",
+      icon: "analytics",
+    },
+  ];
+
+  const resolved = resolveWorkspaceSubNavigation(reportEntries);
+
+  for (const reportItem of resolved) {
+    const children = reportItem.children ?? [];
+    assert.deepEqual(
+      children.map((item) => ({
+        label: item.label,
+        tabValue: item.tabValue,
+        matchTabValues: item.matchTabValues,
+        icon: item.icon,
+      })),
+      [
+        {
+          label: "Tổng quan & KPIs",
+          tabValue: "overview",
+          matchTabValues: undefined,
+          icon: "dashboard",
+        },
+        {
+          label: "Kết quả KD & Lãi lỗ",
+          tabValue: "pnl",
+          matchTabValues: undefined,
+          icon: "account_balance",
+        },
+        {
+          label: "Sổ doanh thu",
+          tabValue: "book",
+          matchTabValues: ["book", "daily", "monthly", "staff"],
+          icon: "receipt_long",
+        },
+        {
+          label: "Kênh & Thị trường",
+          tabValue: "sources",
+          matchTabValues: ["sources", "demographics"],
+          icon: "hub",
+        },
+      ],
+    );
+
+    const activeLabelsFor = (path: string) =>
+      children
+        .filter((child) => isSubNavItemActive(child, reportItem.href, path, children))
+        .map((child) => child.label);
+
+    assert.deepEqual(activeLabelsFor(reportItem.href), ["Tổng quan & KPIs"]);
+    assert.deepEqual(activeLabelsFor(`${reportItem.href}?tab=overview`), ["Tổng quan & KPIs"]);
+    assert.deepEqual(activeLabelsFor(`${reportItem.href}?tab=pnl`), ["Kết quả KD & Lãi lỗ"]);
+
+    for (const tab of ["book", "daily", "monthly", "staff"]) {
+      assert.deepEqual(
+        activeLabelsFor(`${reportItem.href}?tab=${tab}`),
+        ["Sổ doanh thu"],
+        `Expected Sổ doanh thu for ${reportItem.key}?tab=${tab}`,
+      );
+    }
+
+    for (const tab of ["sources", "demographics"]) {
+      assert.deepEqual(
+        activeLabelsFor(`${reportItem.href}?tab=${tab}`),
+        ["Kênh & Thị trường"],
+        `Expected Kênh & Thị trường for ${reportItem.key}?tab=${tab}`,
+      );
+    }
+  }
 });

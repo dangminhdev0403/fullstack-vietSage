@@ -8,6 +8,7 @@ import type {
   CreateRevenueEntryInput,
   RevenueBookQuery,
   UpdateRevenueEntryInput,
+  UpsertRevenueTargetInput,
   VoidRevenueEntryInput,
 } from "../types/revenue-book-contract";
 
@@ -42,6 +43,20 @@ export function useRevenueBook(hotelId: string, input: RevenueBookQuery) {
     },
     async voidEntry(id: string, body: VoidRevenueEntryInput) {
       await cancel.mutateAsync({ id, body });
+    },
+  };
+}
+
+export function useUpsertRevenueTarget(hotelId: string) {
+  const resource = useMemo(
+    () => revenueBookResource.bind({ hotelId }),
+    [hotelId],
+  );
+  const mutation = useMutation(resource.mutations.upsertTarget.options());
+  return {
+    ...mutation,
+    upsertTarget(input: UpsertRevenueTargetInput) {
+      return mutation.mutateAsync(input);
     },
   };
 }

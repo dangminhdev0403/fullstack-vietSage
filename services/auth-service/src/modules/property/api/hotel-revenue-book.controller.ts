@@ -12,7 +12,9 @@ import { hotelIdParamSchema } from "../domain/schemas/shared.schema";
 
 interface RevenueRequest extends Request { user: AuthenticatedUser }
 const moneyProperties = Object.fromEntries(["roomRevenue", "minibarRevenue", "laundryRevenue", "otherRevenue", "revenueTotal", "openingBalance", "closingBalance", "balanceAdjustment"].map((key) => [key, { type: "number" }]));
-const collectionProperties = { receivedAt: { type: "string", format: "date-time" }, amount: { type: "number", minimum: 0, exclusiveMinimum: true }, method: { type: "string", enum: ["CASH", "BANK_TRANSFER", "CARD", "OTHER"] }, reference: { type: "string", nullable: true, maxLength: 120 } };
+const splitItemProperties = { method: { type: "string", enum: ["CASH", "BANK_TRANSFER", "CARD", "OTHER"] }, amount: { type: "number", minimum: 0, exclusiveMinimum: true } };
+const collectionProperties = { receivedAt: { type: "string", format: "date-time" }, amount: { type: "number", minimum: 0, exclusiveMinimum: true }, method: { type: "string", enum: ["CASH", "BANK_TRANSFER", "CARD", "OTHER"] }, reference: { type: "string", nullable: true, maxLength: 120 }, splitGroupId: { type: "string", nullable: true } };
+const collectionInputProperties = { receivedAt: { type: "string", format: "date-time" }, amount: { type: "number", minimum: 0, exclusiveMinimum: true }, method: { type: "string", enum: ["CASH", "BANK_TRANSFER", "CARD", "OTHER"] }, splits: { type: "array", minItems: 1, maxItems: 4, items: { type: "object", required: ["method", "amount"], properties: splitItemProperties } }, reference: { type: "string", nullable: true, maxLength: 120 } };
 const entryProperties = { date: { type: "string", format: "date" }, description: { type: "string", maxLength: 300 }, category: { type: "string", enum: ["ROOM", "MINIBAR", "LAUNDRY", "OTHER"] }, amount: { type: "number", minimum: 0, exclusiveMinimum: true }, roomId: { type: "string", nullable: true }, documentNumber: { type: "string", nullable: true, maxLength: 80 }, notes: { type: "string", nullable: true, maxLength: 1000 } };
 const mutationResponse = (status = 200, message = "Đã cập nhật sổ doanh thu") => successEnvelopeSchema({ type: "object", required: ["id", "version"], properties: { id: { type: "string" }, version: { type: "integer" } } }, status, message);
 const bookResponse = successEnvelopeSchema({
@@ -25,7 +27,7 @@ const bookResponse = successEnvelopeSchema({
       ...moneyProperties, ...entryProperties, id: { type: "string" }, source: { type: "string", enum: ["FOLIO", "MANUAL", "DEPOSIT", "RECEIVABLE"] }, roomNumber: { type: "string", nullable: true },
       category: { ...entryProperties.category, nullable: true }, amount: { type: "number", nullable: true }, declarationStatus: { type: "string", nullable: true }, version: { type: "integer", nullable: true }, voidedAt: { type: "string", format: "date-time", nullable: true },
       revenueLines: { type: "array", items: { type: "object", required: ["date", "roomRevenue", "minibarRevenue", "laundryRevenue", "otherRevenue", "revenueTotal"], properties: { date: { type: "string", format: "date" }, ...Object.fromEntries(Object.entries(moneyProperties).filter(([key]) => !["openingBalance", "closingBalance", "balanceAdjustment"].includes(key))) } } },
-      collections: { type: "array", items: { type: "object", required: ["id", ...Object.keys(collectionProperties)], properties: { id: { type: "string" }, ...collectionProperties, amount: { type: "number" }, method: { type: "string" } } } },
+      collections: { type: "array", items: { type: "object", required: ["id", "receivedAt", "amount", "method", "reference"], properties: { id: { type: "string" }, ...collectionProperties, amount: { type: "number" }, method: { type: "string" } } } },
     } } },
   },
 }, 200, "Đã tải sổ doanh thu");
@@ -41,6 +43,10 @@ export class HotelRevenueBookController {
   @SuccessMessage("Đã tải sổ doanh thu")
   @ApiQuery({ name: "from", type: String, required: false, description: "Ngày bắt đầu YYYY-MM-DD; bỏ cả hai ngày để xem tháng hiện tại theo giờ khách sạn" })
   @ApiQuery({ name: "to", type: String, required: false, description: "Ngày kết thúc YYYY-MM-DD, bao gồm ngày này; tối đa 366 ngày" })
+  @ApiQuery({ name: "category", enum: ["ROOM", "MINIBAR", "LAUNDRY", "OTHER"], required: false, description: "Lọc theo nhóm doanh thu" })
+  @ApiQuery({ name: "paymentMethod", enum: ["CASH", "BANK_TRANSFER", "CARD", "OTHER"], required: false, description: "Lọc theo phương thức thanh toán đã thu trong kỳ" })
+  @ApiQuery({ name: "source", enum: ["FOLIO", "MANUAL", "DEPOSIT", "RECEIVABLE"], required: false, description: "Lọc theo nguồn chứng từ" })
+  @ApiQuery({ name: "settlementStatus", enum: ["SETTLED", "UNPAID", "OVERPAID"], required: false, description: "Lọc theo trạng thái thanh toán cuối kỳ" })
   @ApiOkResponse({ schema: bookResponse })
   getBook(@Req() request: RevenueRequest, @Param("hotelId") hotelId: string, @Query() query: unknown) {
     return this.service.getBook(request.user.userId, request.user.roleId, parseWithZod(hotelIdParamSchema, hotelId), parseWithZod(revenueBookQuerySchema, query));
@@ -49,7 +55,7 @@ export class HotelRevenueBookController {
   @Post("entries")
   @RequirePermission("hotel.billing.manage")
   @SuccessMessage("Đã thêm khoản phát sinh")
-  @ApiBody({ schema: { type: "object", required: ["date", "description", "category", "amount", "idempotencyKey"], properties: { ...entryProperties, idempotencyKey: { type: "string", maxLength: 120 }, collection: { type: "object", required: ["receivedAt", "amount", "method"], properties: collectionProperties } } } })
+  @ApiBody({ schema: { type: "object", required: ["date", "description", "category", "amount", "idempotencyKey"], properties: { ...entryProperties, idempotencyKey: { type: "string", maxLength: 120 }, collection: { type: "object", required: ["receivedAt"], properties: collectionInputProperties } } } })
   @ApiCreatedResponse({ schema: mutationResponse(201, "Đã thêm khoản phát sinh") })
   create(@Req() request: RevenueRequest, @Param("hotelId") hotelId: string, @Body() body: unknown) {
     return this.service.create(request.user.userId, request.user.roleId, parseWithZod(hotelIdParamSchema, hotelId), parseWithZod(createRevenueEntrySchema, body));
@@ -69,7 +75,7 @@ export class HotelRevenueBookController {
   @RequirePermission("hotel.billing.manage")
   @SuccessMessage("Đã ghi nhận tiền thu")
   @ApiParam({ name: "entryId", type: String })
-  @ApiBody({ schema: { type: "object", required: ["receivedAt", "amount", "method", "idempotencyKey", "version"], properties: { ...collectionProperties, version: { type: "integer", minimum: 0 }, idempotencyKey: { type: "string", maxLength: 120 } } } })
+  @ApiBody({ schema: { type: "object", required: ["receivedAt", "idempotencyKey", "version"], properties: { ...collectionInputProperties, version: { type: "integer", minimum: 0 }, idempotencyKey: { type: "string", maxLength: 120 } } } })
   @ApiCreatedResponse({ schema: mutationResponse(201, "Đã ghi nhận tiền thu") })
   collect(@Req() request: RevenueRequest, @Param("hotelId") hotelId: string, @Param("entryId") entryId: string, @Body() body: unknown) {
     return this.service.collect(request.user.userId, request.user.roleId, parseWithZod(hotelIdParamSchema, hotelId), parseWithZod(revenueEntryIdSchema, entryId), parseWithZod(collectRevenueEntrySchema, body));

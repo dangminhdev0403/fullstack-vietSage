@@ -30,6 +30,12 @@ import { FrontDeskArrivalDetailPanel } from "@/features/hotel-ops/components/fro
 import { EditReservationModal } from "@/features/hotel-ops/components/edit-reservation-modal";
 import { DailyMovementsModal } from "@/features/hotel-ops/components/daily-movements-modal";
 import { RoomCheckoutSettlementModal } from "@/features/hotel-ops/components/room-checkout-settlement-modal";
+import { PaymentMethodSplitInput } from "@/features/billing/components/payment-method-split-input";
+import {
+  createPaymentSplitState,
+  resolvePaymentSplit,
+  type PaymentSplitState,
+} from "@/features/billing/utils/payment-split";
 import { staffRoomsRepository } from "@/features/hotel-ops/repositories/staff-rooms-repository";
 import { staffRoomsResource } from "@/features/hotel-ops/resources/staff-rooms-resource";
 import { roomPlanResource } from "@/features/hotel-ops/resources/room-plan-resource";
@@ -933,6 +939,9 @@ export function StaffRoomsClient({
   const [reservationPrebookedServices, setReservationPrebookedServices] = useState<PrebookedServiceItem[]>([]);
   const [reservationCustomPercent, setReservationCustomPercent] = useState<string>("10");
   const [reservationDepositAmount, setReservationDepositAmount] = useState<string>("");
+  const [reservationDepositSplit, setReservationDepositSplit] = useState<PaymentSplitState>(() =>
+    createPaymentSplitState("CASH"),
+  );
 
   // Reassign reservation conflict state (when guest extends stay into an upcoming reservation)
   const [reassignReservation, setReassignReservation] =
@@ -976,6 +985,9 @@ export function StaffRoomsClient({
   const [bulkNightlyRates, setBulkNightlyRates] = useState<Record<string, number>>({});
   const [bulkPrebookedServices, setBulkPrebookedServices] = useState<PrebookedServiceItem[]>([]);
   const [bulkDepositAmount, setBulkDepositAmount] = useState<string>("");
+  const [bulkDepositSplit, setBulkDepositSplit] = useState<PaymentSplitState>(() =>
+    createPaymentSplitState("CASH"),
+  );
 
   // Booking Source Partners Query
   const bookingPartnersQuery = useQuery({
@@ -1424,9 +1436,22 @@ export function StaffRoomsClient({
       }
     }
 
+    const reservationDepositSplitCheck =
+      reservationDepositNumeric > 0
+        ? resolvePaymentSplit(reservationDepositSplit, reservationDepositNumeric, "VND")
+        : null;
+    if (reservationDepositSplitCheck && !reservationDepositSplitCheck.ok) {
+      await showWarningAlert("Kiểm tra phân bổ tiền cọc", reservationDepositSplitCheck.error);
+      return;
+    }
+
     const confirmResult = await showConfirmDialog({
       title: "Tạo đặt phòng?",
-      text: `Khách: ${reservationGuestName.trim()}`,
+      text: `Khách: ${reservationGuestName.trim()}${
+        reservationDepositSplitCheck && reservationDepositSplitCheck.ok
+          ? ` · Cọc: ${formatMoney({ price: reservationDepositNumeric, currency: "VND" })} (${reservationDepositSplitCheck.summaryLabel})`
+          : ""
+      }`,
       confirmText: "Tạo đặt phòng",
       cancelText: "Hủy bỏ",
     });
@@ -1542,7 +1567,17 @@ export function StaffRoomsClient({
             inputMode: "AMOUNT",
             amount: reservationDepositNumeric,
             receivedAmount: reservationDepositNumeric,
-            paymentMethod: "CASH",
+            paymentMethod:
+              reservationDepositSplitCheck &&
+              reservationDepositSplitCheck.ok &&
+              reservationDepositSplitCheck.method !== "OTHER"
+                ? reservationDepositSplitCheck.method
+                : "CASH",
+            ...(reservationDepositSplitCheck &&
+            reservationDepositSplitCheck.ok &&
+            reservationDepositSplitCheck.splits
+              ? { splits: reservationDepositSplitCheck.splits }
+              : {}),
           });
         } catch (depositErr) {
           console.error("Lỗi ghi nhận tiền cọc đặt phòng:", depositErr);
@@ -1562,6 +1597,7 @@ export function StaffRoomsClient({
       setReservationIsCustomNightlyRates(false);
       setReservationPrebookedServices([]);
       setReservationDepositAmount("");
+      setReservationDepositSplit(createPaymentSplitState("CASH"));
 
       const createdGuestName = createdReservation?.guestDisplayName || reservationGuestName;
       const reservationCode =
@@ -3678,106 +3714,146 @@ export function StaffRoomsClient({
 
   function renderBulkDepositSection() {
     return (
-      <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
-        <label
-          htmlFor="bulk-deposit-amount"
-          className="text-xs font-bold text-slate-700 whitespace-nowrap"
-        >
-          Tiền đặt cọc (₫):
-        </label>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative flex items-center w-40 sm:w-48">
-            <input
-              id="bulk-deposit-amount"
-              type="text"
-              inputMode="numeric"
-              value={formatPriceInput(bulkDepositAmount)}
-              onChange={(e) => {
-                const digits = e.target.value.replace(/\D/g, "");
-                setBulkDepositAmount(digits);
-              }}
-              placeholder="0"
-              className="w-full text-xs sm:text-sm font-bold text-slate-900 bg-white border border-slate-300 rounded-lg pl-3 pr-8 py-1.5 focus:border-purple-600 focus:ring-1 focus:ring-purple-600 outline-none"
-            />
-            <span className="absolute right-2.5 text-xs font-semibold text-slate-400 pointer-events-none">
-              ₫
-            </span>
-          </div>
-          <div className="inline-flex items-center gap-1">
-            {[20, 50, 100].map((pct) => (
-              <button
-                key={pct}
-                type="button"
-                onClick={() => handleApplyBulkDepositPercent(pct)}
-                className="px-2 py-1 text-xs font-bold text-purple-700 hover:bg-purple-100/70 bg-white rounded-lg border border-purple-200 transition cursor-pointer whitespace-nowrap"
-              >
-                {pct}%
-              </button>
-            ))}
-            {bulkDepositNumeric > 0 && (
-              <button
-                type="button"
-                onClick={() => setBulkDepositAmount("")}
-                className="px-2 py-1 text-xs text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition cursor-pointer whitespace-nowrap"
-              >
-                Xóa
-              </button>
-            )}
+      <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <label
+            htmlFor="bulk-deposit-amount"
+            className="text-xs font-bold text-slate-700 whitespace-nowrap"
+          >
+            Tiền đặt cọc (₫):
+          </label>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative flex items-center w-40 sm:w-48">
+              <input
+                id="bulk-deposit-amount"
+                type="text"
+                inputMode="numeric"
+                value={formatPriceInput(bulkDepositAmount)}
+                onChange={(e) => {
+                  const digits = e.target.value.replace(/\D/g, "");
+                  setBulkDepositAmount(digits);
+                }}
+                placeholder="0"
+                className="w-full text-xs sm:text-sm font-bold text-slate-900 bg-white border border-slate-300 rounded-lg pl-3 pr-8 py-1.5 focus:border-purple-600 focus:ring-1 focus:ring-purple-600 outline-none"
+              />
+              <span className="absolute right-2.5 text-xs font-semibold text-slate-400 pointer-events-none">
+                ₫
+              </span>
+            </div>
+            <div className="inline-flex items-center gap-1">
+              {[20, 50, 100].map((pct) => (
+                <button
+                  key={pct}
+                  type="button"
+                  onClick={() => handleApplyBulkDepositPercent(pct)}
+                  className="px-2 py-1 text-xs font-bold text-purple-700 hover:bg-purple-100/70 bg-white rounded-lg border border-purple-200 transition cursor-pointer whitespace-nowrap"
+                >
+                  {pct}%
+                </button>
+              ))}
+              {bulkDepositNumeric > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBulkDepositAmount("");
+                    setBulkDepositSplit(createPaymentSplitState("CASH"));
+                  }}
+                  className="px-2 py-1 text-xs text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition cursor-pointer whitespace-nowrap"
+                >
+                  Xóa
+                </button>
+              )}
+            </div>
           </div>
         </div>
+
+        {bulkDepositNumeric > 0 ? (
+          <div className="pt-2.5 border-t border-slate-200/80">
+            <PaymentMethodSplitInput
+              label="Phương thức nhận tiền cọc đoàn"
+              value={bulkDepositSplit}
+              onChange={setBulkDepositSplit}
+              totalAmount={bulkDepositNumeric}
+              allowedMethods={["CASH", "BANK_TRANSFER", "CARD"]}
+              compact
+              disabled={isBulkSubmitting}
+              idPrefix="bulk-deposit-payment"
+            />
+          </div>
+        ) : null}
       </div>
     );
   }
 
   function renderReservationDepositSection() {
     return (
-      <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
-        <label
-          htmlFor="reservation-deposit-amount"
-          className="text-xs font-bold text-slate-700 whitespace-nowrap"
-        >
-          Tiền đặt cọc (₫):
-        </label>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative flex items-center w-40 sm:w-48">
-            <input
-              id="reservation-deposit-amount"
-              type="text"
-              inputMode="numeric"
-              value={formatPriceInput(reservationDepositAmount)}
-              onChange={(e) => {
-                const digits = e.target.value.replace(/\D/g, "");
-                setReservationDepositAmount(digits);
-              }}
-              placeholder="0"
-              className="w-full text-xs sm:text-sm font-bold text-slate-900 bg-white border border-slate-300 rounded-lg pl-3 pr-8 py-1.5 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 outline-none"
-            />
-            <span className="absolute right-2.5 text-xs font-semibold text-slate-400 pointer-events-none">
-              ₫
-            </span>
-          </div>
-          <div className="inline-flex items-center gap-1">
-            {[20, 50, 100].map((pct) => (
-              <button
-                key={pct}
-                type="button"
-                onClick={() => handleApplyReservationDepositPercent(pct)}
-                className="px-2 py-1 text-xs font-bold text-emerald-700 hover:bg-emerald-100/70 bg-white rounded-lg border border-emerald-200 transition cursor-pointer whitespace-nowrap"
-              >
-                {pct}%
-              </button>
-            ))}
-            {reservationDepositNumeric > 0 && (
-              <button
-                type="button"
-                onClick={() => setReservationDepositAmount("")}
-                className="px-2 py-1 text-xs text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition cursor-pointer whitespace-nowrap"
-              >
-                Xóa
-              </button>
-            )}
+      <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <label
+            htmlFor="reservation-deposit-amount"
+            className="text-xs font-bold text-slate-700 whitespace-nowrap"
+          >
+            Tiền đặt cọc (₫):
+          </label>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative flex items-center w-40 sm:w-48">
+              <input
+                id="reservation-deposit-amount"
+                type="text"
+                inputMode="numeric"
+                value={formatPriceInput(reservationDepositAmount)}
+                onChange={(e) => {
+                  const digits = e.target.value.replace(/\D/g, "");
+                  setReservationDepositAmount(digits);
+                }}
+                placeholder="0"
+                className="w-full text-xs sm:text-sm font-bold text-slate-900 bg-white border border-slate-300 rounded-lg pl-3 pr-8 py-1.5 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 outline-none"
+              />
+              <span className="absolute right-2.5 text-xs font-semibold text-slate-400 pointer-events-none">
+                ₫
+              </span>
+            </div>
+            <div className="inline-flex items-center gap-1">
+              {[20, 50, 100].map((pct) => (
+                <button
+                  key={pct}
+                  type="button"
+                  onClick={() => handleApplyReservationDepositPercent(pct)}
+                  className="px-2 py-1 text-xs font-bold text-emerald-700 hover:bg-emerald-100/70 bg-white rounded-lg border border-emerald-200 transition cursor-pointer whitespace-nowrap"
+                >
+                  {pct}%
+                </button>
+              ))}
+              {reservationDepositNumeric > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReservationDepositAmount("");
+                    setReservationDepositSplit(createPaymentSplitState("CASH"));
+                  }}
+                  className="px-2 py-1 text-xs text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition cursor-pointer whitespace-nowrap"
+                >
+                  Xóa
+                </button>
+              )}
+            </div>
           </div>
         </div>
+
+        {reservationDepositNumeric > 0 ? (
+          <div className="pt-2.5 border-t border-slate-200/80">
+            <PaymentMethodSplitInput
+              label="Phương thức nhận tiền cọc"
+              value={reservationDepositSplit}
+              onChange={setReservationDepositSplit}
+              totalAmount={reservationDepositNumeric}
+              allowedMethods={["CASH", "BANK_TRANSFER", "CARD"]}
+              compact
+              disabled={reservationSubmitting}
+              idPrefix="single-reservation-deposit-payment"
+            />
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -3811,6 +3887,15 @@ export function StaffRoomsClient({
         "Thời gian không hợp lệ",
         "Ngày trả phòng phải sau ngày nhận phòng ít nhất 1 đêm.",
       );
+      return;
+    }
+
+    const bulkDepositSplitCheck =
+      bulkDepositNumeric > 0
+        ? resolvePaymentSplit(bulkDepositSplit, bulkDepositNumeric, "VND")
+        : null;
+    if (bulkDepositSplitCheck && !bulkDepositSplitCheck.ok) {
+      await showWarningAlert("Kiểm tra phân bổ tiền cọc đoàn", bulkDepositSplitCheck.error);
       return;
     }
 
@@ -4009,7 +4094,17 @@ export function StaffRoomsClient({
             inputMode: "AMOUNT",
             amount: bulkDepositNumeric,
             receivedAmount: bulkDepositNumeric,
-            paymentMethod: "CASH",
+            paymentMethod:
+              bulkDepositSplitCheck &&
+              bulkDepositSplitCheck.ok &&
+              bulkDepositSplitCheck.method !== "OTHER"
+                ? bulkDepositSplitCheck.method
+                : "CASH",
+            ...(bulkDepositSplitCheck &&
+            bulkDepositSplitCheck.ok &&
+            bulkDepositSplitCheck.splits
+              ? { splits: bulkDepositSplitCheck.splits }
+              : {}),
           });
         } catch (depositErr) {
           console.error("Lỗi ghi nhận tiền cọc đoàn:", depositErr);
@@ -4032,6 +4127,7 @@ export function StaffRoomsClient({
       setBulkIsCustomNightlyRates(false);
       setBulkPrebookedServices([]);
       setBulkDepositAmount("");
+      setBulkDepositSplit(createPaymentSplitState("CASH"));
 
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
       await refetch();

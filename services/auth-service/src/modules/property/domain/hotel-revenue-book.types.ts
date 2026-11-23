@@ -6,6 +6,7 @@ export interface RevenueBookCollection {
   amount: number;
   method: string;
   reference: string | null;
+  splitGroupId?: string | null;
 }
 export interface RevenueBookEntry {
   id: string;

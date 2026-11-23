@@ -2,9 +2,23 @@ import { BadRequestException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { toYmd } from "../../../common/time/vietnam-temporal";
 import type { RevenueBookEntry, RevenueBookTotals } from "./hotel-revenue-book.types";
-import type { RevenueBookCategory } from "./schemas/hotel-revenue-book.schema";
+import type {
+  RevenueBookCategory,
+  RevenueBookPaymentMethodFilter,
+  RevenueBookSettlementStatusFilter,
+  RevenueBookSourceFilter,
+} from "./schemas/hotel-revenue-book.schema";
 
-export type MoneyEvent = { date: Date; amount: Prisma.Decimal | number; category?: RevenueBookCategory; id?: string; method?: string; reference?: string | null };
+const STANDARD_PAYMENT_METHODS = new Set(["CASH", "BANK_TRANSFER", "CARD"]);
+
+export interface RevenueBookFilters {
+  category?: RevenueBookCategory;
+  paymentMethod?: RevenueBookPaymentMethodFilter;
+  source?: RevenueBookSourceFilter;
+  settlementStatus?: RevenueBookSettlementStatusFilter;
+}
+
+export type MoneyEvent = { date: Date; amount: Prisma.Decimal | number; category?: RevenueBookCategory; id?: string; method?: string; reference?: string | null; splitGroupId?: string | null };
 export type BookAccount = Pick<RevenueBookEntry, "id" | "source" | "date" | "roomId" | "roomNumber" | "documentNumber" | "description" | "category" | "amount" | "notes" | "declarationStatus" | "version" | "voidedAt"> & {
   charges: MoneyEvent[];
   collections: MoneyEvent[];
@@ -51,8 +65,42 @@ export function projectBookAccount(account: BookAccount, from: Date, end: Date, 
     })),
     collections: collections.sort((a, b) => a.date.getTime() - b.date.getTime()).map((collection) => ({
       id: collection.id!, receivedAt: collection.date.toISOString(), amount: decimal(collection.amount).toNumber(), method: collection.method ?? "OTHER", reference: collection.reference ?? null,
+      ...(collection.splitGroupId ? { splitGroupId: collection.splitGroupId } : {}),
     })),
   };
+}
+export function filterRevenueBookEntries(
+  entries: RevenueBookEntry[],
+  filters: RevenueBookFilters,
+): RevenueBookEntry[] {
+  return entries.filter((entry) => {
+    if (filters.source && entry.source !== filters.source) {
+      return false;
+    }
+    if (filters.category) {
+      const matchesCategory =
+        entry.category === filters.category ||
+        (filters.category === "ROOM" && entry.roomRevenue !== 0) ||
+        (filters.category === "MINIBAR" && entry.minibarRevenue !== 0) ||
+        (filters.category === "LAUNDRY" && entry.laundryRevenue !== 0) ||
+        (filters.category === "OTHER" && entry.otherRevenue !== 0);
+      if (!matchesCategory) return false;
+    }
+    if (filters.paymentMethod) {
+      const matchesPaymentMethod = entry.collections.some((collection) =>
+        filters.paymentMethod === "OTHER"
+          ? !STANDARD_PAYMENT_METHODS.has(collection.method)
+          : collection.method === filters.paymentMethod,
+      );
+      if (!matchesPaymentMethod) return false;
+    }
+    if (filters.settlementStatus) {
+      if (filters.settlementStatus === "SETTLED" && entry.closingBalance !== 0) return false;
+      if (filters.settlementStatus === "UNPAID" && !(entry.closingBalance > 0)) return false;
+      if (filters.settlementStatus === "OVERPAID" && !(entry.closingBalance < 0)) return false;
+    }
+    return true;
+  });
 }
 export function totalRevenueBook(entries: RevenueBookEntry[]): RevenueBookTotals {
   const fields = ["roomRevenue", "minibarRevenue", "laundryRevenue", "otherRevenue", "revenueTotal", "openingBalance", "closingBalance", "balanceAdjustment"] as const;

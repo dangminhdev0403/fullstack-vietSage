@@ -10,6 +10,7 @@ export type DashboardNavSubItem = {
   href: `/${string}`;
   icon?: string;
   tabValue: string;
+  matchTabValues?: readonly string[];
   paramName?: string;
   isDefault?: boolean;
 };

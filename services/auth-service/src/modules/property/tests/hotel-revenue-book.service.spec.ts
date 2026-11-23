@@ -158,4 +158,116 @@ describe("hotel revenue book workflows", () => {
     expect(book.summary).toMatchObject({ revenueTotal: 200, collectedTotal: 100, bankTransferTotal: 100, balanceAdjustment: 0, closingBalance: 100 });
     expect(book.entries.flatMap((row) => row.collections).map((payment) => payment.id)).toEqual(["deposit-1"]);
   });
+
+  it("applies multi-dimensional query filters and recalculates summary totals from filtered entries", async () => {
+    const { service, tx } = setup();
+    const date = new Date("2026-11-13T01:00:00Z");
+
+    tx.folio.findMany.mockResolvedValue([{
+      id: "folio-1", currency: "VND", roomId: "room-1", room: { roomNumber: "101" }, openedAt: date, folioNumber: "F-001", voidedAt: null,
+      stay: { guestDisplayName: "Nguyễn An", kbttGuestDeclarations: [] },
+      items: [
+        { itemType: "ROOM_CHARGE", nameSnapshot: "Tiền phòng", metadataSnapshotJson: null, serviceItem: null, postedAt: date, totalSnapshot: D(500), discountAmountSnapshot: D(0), voidedAt: null },
+        { itemType: "SERVICE", nameSnapshot: "Nước suối minibar", metadataSnapshotJson: null, serviceItem: null, postedAt: date, totalSnapshot: D(50), discountAmountSnapshot: D(0), voidedAt: null },
+      ],
+      payments: [{ id: "pay-bank", metadataJson: null, confirmedAt: date, paidAmount: D(200), refundedAmount: D(0), method: "BANK_TRANSFER", paymentNumber: "P-1", transactions: [] }],
+      bookingPaymentAllocations: [], hotelReceivables: [],
+    }]);
+
+    tx.hotelRevenueEntry.findMany.mockResolvedValue([
+      {
+        id: "manual-laundry", hotelId: "hotel-a", roomId: null, roomNumberSnapshot: null,
+        date: new Date("2026-11-13T00:00:00Z"), description: "Giặt ủi", category: "LAUNDRY", amount: D(120),
+        documentNumber: "PT-01", notes: null, version: 1, voidedAt: null,
+        collections: [{ id: "col-cash", amount: D(120), receivedAt: date, method: "CASH", reference: null }],
+      },
+      {
+        id: "manual-other", hotelId: "hotel-a", roomId: null, roomNumberSnapshot: null,
+        date: new Date("2026-11-13T00:00:00Z"), description: "Phụ thu", category: "OTHER", amount: D(80),
+        documentNumber: "PT-02", notes: null, version: 1, voidedAt: null,
+        collections: [{ id: "col-momo", amount: D(80), receivedAt: date, method: "MOMO", reference: null }],
+      },
+    ]);
+
+    const laundryCash = await service.getBook("user-a", "role-a", "hotel-a", {
+      from: "2026-11-13",
+      to: "2026-11-13",
+      category: "LAUNDRY",
+      paymentMethod: "CASH",
+      settlementStatus: "SETTLED",
+    });
+    expect(laundryCash.entries.map((e) => e.id)).toEqual(["manual-laundry"]);
+    expect(laundryCash.summary).toMatchObject({
+      roomRevenue: 0,
+      laundryRevenue: 120,
+      revenueTotal: 120,
+      collectedTotal: 120,
+      cashTotal: 120,
+      bankTransferTotal: 0,
+      closingBalance: 0,
+    });
+
+    const unpaidMinibar = await service.getBook("user-a", "role-a", "hotel-a", {
+      from: "2026-11-13",
+      to: "2026-11-13",
+      source: "FOLIO",
+      category: "MINIBAR",
+      settlementStatus: "UNPAID",
+    });
+    expect(unpaidMinibar.entries.map((e) => e.id)).toEqual(["folio:folio-1"]);
+    expect(unpaidMinibar.summary).toMatchObject({
+      roomRevenue: 500,
+      minibarRevenue: 50,
+      revenueTotal: 550,
+      collectedTotal: 200,
+      bankTransferTotal: 200,
+      closingBalance: 350,
+    });
+
+    const otherMethod = await service.getBook("user-a", "role-a", "hotel-a", {
+      from: "2026-11-13",
+      to: "2026-11-13",
+      paymentMethod: "OTHER",
+    });
+    expect(otherMethod.entries.map((e) => e.id)).toEqual(["manual-other"]);
+    expect(otherMethod.summary).toMatchObject({
+      otherRevenue: 80,
+      revenueTotal: 80,
+      collectedTotal: 80,
+      otherCollectedTotal: 80,
+    });
+  });
+
+  it("groups split deposit receipts and attaches splitGroupId for split folio payments", async () => {
+    const { service, tx } = setup();
+    const date = new Date("2026-11-13T05:30:00Z");
+
+    tx.folio.findMany.mockResolvedValue([{
+      id: "folio-split", currency: "VND", roomId: "room-1", room: { roomNumber: "101" }, openedAt: date, folioNumber: "F-SPLIT", voidedAt: null,
+      stay: { guestDisplayName: "Trần Bình", kbttGuestDeclarations: [] },
+      items: [{ itemType: "ROOM_CHARGE", nameSnapshot: "Tiền phòng", metadataSnapshotJson: null, serviceItem: null, postedAt: date, totalSnapshot: D(1000), discountAmountSnapshot: D(0), voidedAt: null }],
+      payments: [
+        { id: "p-cash", metadataJson: { source: "front_desk", splitGroupId: "grp-1" }, confirmedAt: date, paidAmount: D(400), refundedAmount: D(0), method: "CASH", paymentNumber: "P-1", transactions: [] },
+        { id: "p-bank", metadataJson: { source: "front_desk", splitGroupId: "grp-1" }, confirmedAt: date, paidAmount: D(600), refundedAmount: D(0), method: "BANK_TRANSFER", paymentNumber: "P-2", transactions: [] },
+      ],
+      bookingPaymentAllocations: [], hotelReceivables: [],
+    }]);
+
+    tx.bookingPayment.findMany.mockResolvedValue([
+      { id: "dep-cash", status: "COMPLETED", idempotencyKey: "split:depgrp:0", receivedAt: date, receivedAmount: D(200), paymentMethod: "CASH", transactionReference: null, notes: "Cọc kết hợp", reservationId: "res-1", groupId: null, reservation: { guestDisplayName: "Lê Hoa", reservationCode: "R-100", roomId: "room-1", room: { roomNumber: "101" } }, allocations: [] },
+      { id: "dep-bank", status: "COMPLETED", idempotencyKey: "split:depgrp:1", receivedAt: date, receivedAmount: D(300), paymentMethod: "BANK_TRANSFER", transactionReference: "FT-99", notes: "Cọc kết hợp", reservationId: "res-1", groupId: null, reservation: { guestDisplayName: "Lê Hoa", reservationCode: "R-100", roomId: "room-1", room: { roomNumber: "101" } }, allocations: [] },
+    ]);
+
+    const book = await service.getBook("user-a", "role-a", "hotel-a", { from: "2026-11-13", to: "2026-11-13" });
+    expect(book.summary).toMatchObject({ cashTotal: 600, bankTransferTotal: 900, collectedTotal: 1500 });
+    const folioEntry = book.entries.find((e) => e.id === "folio:folio-split")!;
+    expect(folioEntry.collections).toHaveLength(2);
+    expect(folioEntry.collections[0].splitGroupId).toBe("folio:folio-split:grp-1");
+    expect(folioEntry.collections[1].splitGroupId).toBe("folio:folio-split:grp-1");
+
+    const depositEntries = book.entries.filter((e) => e.source === "DEPOSIT");
+    expect(depositEntries).toHaveLength(1);
+    expect(depositEntries[0].collections).toHaveLength(2);
+    expect(depositEntries[0].collections[0].splitGroupId).toBe(depositEntries[0].collections[1].splitGroupId);
+  });
 });

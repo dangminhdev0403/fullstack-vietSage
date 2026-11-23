@@ -174,3 +174,54 @@ test("rejects invalid numeric money instead of emitting a broken workbook", () =
   report.summary.revenueTotal = Number.NaN;
   assert.throws(() => buildRevenueBookWorkbook(report), /số tiền không hợp lệ/);
 });
+
+test("merges split cash + bank transfer payments onto one row and omits transfer time for cash-only rows", () => {
+  const splitEntry = account({
+    id: "folio-split",
+    revenueLines: [
+      { date: "2026-10-02", roomRevenue: 1_000_000, minibarRevenue: 0, laundryRevenue: 0, otherRevenue: 0, revenueTotal: 1_000_000 },
+    ],
+    collections: [
+      { id: "leg-cash", receivedAt: "2026-10-02T07:25:00Z", amount: 400_000, method: "CASH", reference: "P-1", splitGroupId: "grp-1" },
+      { id: "leg-bank", receivedAt: "2026-10-02T07:25:00Z", amount: 600_000, method: "BANK_TRANSFER", reference: "P-2", splitGroupId: "grp-1" },
+    ],
+    roomRevenue: 1_000_000,
+    revenueTotal: 1_000_000,
+    closingBalance: 0,
+  });
+  const cashOnlyEntry = account({
+    id: "folio-cash",
+    roomNumber: "102",
+    revenueLines: [
+      { date: "2026-10-02", roomRevenue: 500_000, minibarRevenue: 0, laundryRevenue: 0, otherRevenue: 0, revenueTotal: 500_000 },
+    ],
+    collections: [
+      { id: "only-cash", receivedAt: "2026-10-02T09:10:00Z", amount: 500_000, method: "CASH", reference: "P-3" },
+    ],
+    roomRevenue: 500_000,
+    revenueTotal: 500_000,
+    closingBalance: 0,
+  });
+
+  const report = book([splitEntry, cashOnlyEntry]);
+  report.summary = {
+    roomRevenue: 1_500_000, minibarRevenue: 0, laundryRevenue: 0, otherRevenue: 0, revenueTotal: 1_500_000,
+    collectedTotal: 1_500_000, cashTotal: 900_000, bankTransferTotal: 600_000, otherCollectedTotal: 0,
+    openingBalance: 0, closingBalance: 0, balanceAdjustment: 0,
+  };
+  const rows = rowsOf(report);
+  const details = rows.filter((row) => typeof row.A === "number");
+  assert.equal(details.length, 2, "Split payment merges into 1 row alongside cash-only row");
+
+  const splitRow = details.find((row) => row.C === "101")!;
+  assert.equal(splitRow.K, 400_000, "Cash column shows cash leg");
+  assert.equal(splitRow.L, "14:25", "Transfer time column shows bank transfer time in Asia/Ho_Chi_Minh");
+  assert.equal(splitRow.M, 600_000, "Bank transfer column shows bank leg");
+  assert.equal(splitRow.N, 1_000_000, "Total payment column sums cash + bank transfer");
+
+  const cashRow = details.find((row) => row.C === "102")!;
+  assert.equal(cashRow.K, 500_000);
+  assert.equal(cashRow.L, undefined, "Cash-only row must not display Giờ CK");
+  assert.equal(cashRow.M, 0);
+  assert.equal(cashRow.N, 500_000);
+});

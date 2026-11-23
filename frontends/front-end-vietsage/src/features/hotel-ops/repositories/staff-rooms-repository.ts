@@ -129,6 +129,11 @@ export type ListBookingPaymentsQuery = {
   limit?: number;
 };
 
+export type PaymentSplitPayloadItem = {
+  method: "CASH" | "BANK_TRANSFER" | "CARD" | "MANUAL";
+  amount: number;
+};
+
 export type CreateBookingPaymentInput = {
   reservationId?: string;
   groupId?: string;
@@ -140,9 +145,11 @@ export type CreateBookingPaymentInput = {
   percentValue?: number;
   amount?: number;
   receivedAmount?: number;
-  paymentMethod: "CASH" | "BANK_TRANSFER" | "CARD" | "QR" | "EWALLET" | string;
+  paymentMethod?: "CASH" | "BANK_TRANSFER" | "CARD" | "QR" | "EWALLET" | "MANUAL" | string;
+  splits?: PaymentSplitPayloadItem[];
   referenceCode?: string;
   notes?: string;
+  idempotencyKey?: string;
 };
 
 export type ReceivableItem = {
@@ -197,7 +204,8 @@ export type TransferStayToReceivableInput = {
 export type CollectReceivableInput = {
   amount?: number;
   collectedAmount?: number;
-  paymentMethod: "CASH" | "BANK_TRANSFER" | "CARD" | "QR" | "EWALLET" | string;
+  paymentMethod?: "CASH" | "BANK_TRANSFER" | "CARD" | "QR" | "EWALLET" | "MANUAL" | string;
+  splits?: PaymentSplitPayloadItem[];
   referenceCode?: string;
   reference?: string;
   notes?: string;
@@ -213,8 +221,9 @@ export const staffRoomsRepository = {
   },
 
   async confirmCheckoutPayment(hotelId: string, invoiceId: string, input: {
-    method: "MANUAL";
+    method?: "CASH" | "BANK_TRANSFER" | "CARD" | "MANUAL";
     amount?: number;
+    splits?: PaymentSplitPayloadItem[];
     note: string;
     clientRequestId: string;
   }) {
@@ -800,10 +809,14 @@ export const staffRoomsRepository = {
     payload: CreateBookingPaymentInput,
     signal?: AbortSignal,
   ): Promise<BookingPaymentItem> {
+    const hasSplits = Boolean(payload.splits && payload.splits.length > 0);
     const mappedMethod =
       payload.paymentMethod === "QR" ? "BANK_TRANSFER" :
-      payload.paymentMethod || "CASH";
-    const mappedMode = payload.inputMode || "AMOUNT";
+      payload.paymentMethod || (hasSplits ? payload.splits![0].method : "CASH");
+    const mappedMode = hasSplits ? "AMOUNT" : (payload.inputMode || "AMOUNT");
+    const splitSum = hasSplits
+      ? Math.round(payload.splits!.reduce((acc, item) => acc + item.amount, 0) * 100) / 100
+      : undefined;
     const body = {
       reservationId: payload.reservationId,
       groupId: payload.groupId,
@@ -812,10 +825,12 @@ export const staffRoomsRepository = {
       paymentType: payload.paymentType,
       intent: payload.intent || "DEPOSIT",
       inputMode: mappedMode,
-      percentValue: payload.percentValue,
-      amount: payload.amount,
-      receivedAmount: payload.receivedAmount ?? payload.amount,
+      percentValue: hasSplits ? undefined : payload.percentValue,
+      amount: splitSum ?? payload.amount,
+      receivedAmount: splitSum ?? payload.receivedAmount ?? payload.amount,
       paymentMethod: mappedMethod,
+      ...(hasSplits ? { splits: payload.splits } : {}),
+      ...(payload.idempotencyKey ? { idempotencyKey: payload.idempotencyKey } : {}),
       notes: [payload.referenceCode ? `Tham chiếu: ${payload.referenceCode}` : "", payload.notes].filter(Boolean).join(" - ") || undefined,
     };
     const response = await requestInternalApiEnvelope<BookingPaymentItem>(
@@ -902,12 +917,17 @@ export const staffRoomsRepository = {
     payload: CollectReceivableInput,
     signal?: AbortSignal,
   ): Promise<ReceivableItem> {
+    const hasSplits = Boolean(payload.splits && payload.splits.length > 0);
     const mappedMethod =
       payload.paymentMethod === "QR" ? "BANK_TRANSFER" :
-      payload.paymentMethod || "CASH";
+      payload.paymentMethod || (hasSplits ? payload.splits![0].method : "CASH");
+    const splitSum = hasSplits
+      ? Math.round(payload.splits!.reduce((acc, item) => acc + item.amount, 0) * 100) / 100
+      : undefined;
     const body = {
-      collectedAmount: payload.collectedAmount ?? payload.amount,
+      collectedAmount: splitSum ?? payload.collectedAmount ?? payload.amount,
       paymentMethod: mappedMethod,
+      ...(hasSplits ? { splits: payload.splits } : {}),
       reference: payload.reference ?? payload.referenceCode,
       notes: payload.notes,
     };

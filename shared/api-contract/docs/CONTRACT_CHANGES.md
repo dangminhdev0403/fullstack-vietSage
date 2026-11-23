@@ -1,3 +1,12 @@
+## 2026-11-23 — Revenue book multi-filters, monthly MoM/YoY comparisons, and monthly revenue targets
+
+- **Revenue book server-side filters (`GET /hotels/{hotelId}/reports/revenue-book`)**:
+  - Added optional strict query parameters: `category` (`ROOM | MINIBAR | LAUNDRY | OTHER`), `paymentMethod` (`CASH | BANK_TRANSFER | CARD | OTHER`), `source` (`FOLIO | MANUAL | DEPOSIT | RECEIVABLE`), and `settlementStatus` (`SETTLED | UNPAID | OVERPAID`). Authoritative `summary` totals are recomputed over the filtered entries.
+- **Monthly MoM/YoY comparisons, quarterly summary & revenue targets (`GET /hotels/{hotelId}/reports`, `PUT /hotels/{hotelId}/reports/targets`)**:
+  - Extended report lookback window to 23 months so every month in `revenueByMonth` includes additive optional `previousMonthRevenue`, `momChangePercent`, `previousYearRevenue`, `yoyChangePercent`, `targetRevenue`, and `targetAchievementPercent`. Added optional `quarterlySummary` and `canManageTargets` fields.
+  - Added private hotel-scoped `PUT /hotels/{hotelId}/reports/targets` (`hotel.billing.manage`, hotel-wide scope only) accepting `{ month: "YYYY-MM", targetAmount: number }` (`0` clears the month target). Targets are persisted under existing `Hotel.brandSettings.revenueTargets` with audit logging; no database schema migration is required.
+  - Synchronized `openapi.json`, `openapi.yaml`, and generated frontend `v1.ts` types.
+
 ## 2026-11-18 — BCA same-day catch-up, temporary disconnect cooldown, exclusive facility isolation, and UNKNOWN reconciliation
 
 - **System-owned daily sweep slots & 10-minute catch-up (`GET|PUT /hotels/{hotelId}/kbtt/auto-submit`)**:

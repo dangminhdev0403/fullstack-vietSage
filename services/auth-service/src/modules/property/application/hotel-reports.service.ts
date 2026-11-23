@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { Temporal } from "@js-temporal/polyfill";
 import {
   FolioItemType,
@@ -12,7 +12,10 @@ import {
 } from "@prisma/client";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { HotelAccessService } from "./hotel-access.service";
-import type { GetHotelReportsQuery } from "../domain/schemas/hotel-reports.schema";
+import type {
+  GetHotelReportsQuery,
+  UpsertHotelRevenueTargetInput,
+} from "../domain/schemas/hotel-reports.schema";
 import {
   EXPENSE_CATEGORY_LABELS,
   type ExpenseCategory,
@@ -85,6 +88,37 @@ function getStayActivePlainDates(
 function toNumber(value: Prisma.Decimal | number | null | undefined): number {
   if (value == null) return 0;
   return typeof value === "number" ? value : value.toNumber();
+}
+
+const REVENUE_TARGET_MONTH_REGEX = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+function roundPercent1(value: number): number {
+  const rounded = Math.round(value * 10) / 10;
+  return Object.is(rounded, -0) ? 0 : rounded;
+}
+
+function extractRevenueTargets(brandSettings: unknown): Record<string, number> {
+  if (!brandSettings || typeof brandSettings !== "object" || Array.isArray(brandSettings)) {
+    return {};
+  }
+  const rawTargets = (brandSettings as Record<string, unknown>).revenueTargets;
+  if (!rawTargets || typeof rawTargets !== "object" || Array.isArray(rawTargets)) {
+    return {};
+  }
+  const targets: Record<string, number> = {};
+  for (const [month, value] of Object.entries(rawTargets as Record<string, unknown>)) {
+    if (!REVENUE_TARGET_MONTH_REGEX.test(month)) continue;
+    const parsed =
+      typeof value === "number"
+        ? value
+        : typeof value === "string" && value.trim() !== ""
+          ? Number(value)
+          : NaN;
+    if (Number.isFinite(parsed) && parsed > 0) {
+      targets[month] = parsed;
+    }
+  }
+  return targets;
 }
 
 function normalizeNationality(raw: string | null | undefined): string {
@@ -237,7 +271,23 @@ export interface HotelReportsData {
     roomsSold: number;
     averageOccupancy: number;
     adr: number;
+    previousMonthRevenue: number | null;
+    momChangePercent: number | null;
+    previousYearRevenue: number | null;
+    yoyChangePercent: number | null;
+    targetRevenue: number | null;
+    targetAchievementPercent: number | null;
   }>;
+  quarterlySummary: Array<{
+    quarter: string;
+    label: string;
+    actualRevenue: number;
+    targetRevenue: number | null;
+    achievementPercent: number | null;
+    netProfit: number;
+    monthsIncluded: number;
+  }>;
+  canManageTargets: boolean;
   expenseByCategory: Array<{
     category: ExpenseCategory | "SAAS_FEE";
     categoryLabel: string;
@@ -319,6 +369,13 @@ export interface HotelReportsData {
   }>;
 }
 
+export interface UpsertHotelRevenueTargetResult {
+  hotelId: string;
+  month: string;
+  targetAmount: number | null;
+  revenueTargets: Record<string, number>;
+}
+
 type StayRecord = {
   id: string;
   reservationCode: string;
@@ -398,15 +455,16 @@ export class HotelReportsService {
       timeZone,
     );
 
-    // Ensure our single DB query batch also covers the 12-month trend window
-    const twelveMonthsStartPlain = endPlain
+    // Ensure our single DB query batch also covers the 24-month trend window
+    // (12 displayed months + MoM and YoY comparison baselines)
+    const twentyFourMonthsStartPlain = endPlain
       .toPlainYearMonth()
-      .subtract({ months: 11 })
+      .subtract({ months: 23 })
       .toPlainDate({ day: 1 });
     const queryWindowStartPlain =
-      Temporal.PlainDate.compare(startPlain, twelveMonthsStartPlain) < 0
+      Temporal.PlainDate.compare(startPlain, twentyFourMonthsStartPlain) < 0
         ? startPlain
-        : twelveMonthsStartPlain;
+        : twentyFourMonthsStartPlain;
     const queryWindowStartDate = plainDateStartUtc(queryWindowStartPlain, timeZone);
 
     const roomWhere: Prisma.RoomWhereInput =
@@ -437,6 +495,8 @@ export class HotelReportsService {
       allExpensesRaw,
       allSaasBillableDaysRaw,
       allReceivableCollectionsRaw,
+      hotelBrandRecord,
+      actorContext,
     ] = await Promise.all([
       this.prisma.room.count({ where: roomWhere }),
       this.prisma.room.count({ where: { ...roomWhere, status: RoomStatus.OCCUPIED } }),
@@ -731,7 +791,25 @@ export class HotelReportsService {
               })
           : null,
       ),
+      typeof (this.prisma as any).hotel?.findUnique === "function"
+        ? (this.prisma as any).hotel.findUnique({
+            where: { id: hotelId },
+            select: { brandSettings: true },
+          })
+        : Promise.resolve(null),
+      scope.allowedRoomId === null &&
+      typeof (this.hotelAccessService as any).loadActorContext === "function"
+        ? this.hotelAccessService.loadActorContext(actorUserId, activeRoleId)
+        : Promise.resolve(null),
     ]);
+
+    const revenueTargets = extractRevenueTargets(hotelBrandRecord?.brandSettings);
+    const canManageTargets =
+      scope.allowedRoomId === null &&
+      Boolean(
+        actorContext?.isSuperAdmin ||
+          actorContext?.permissions?.has("hotel.billing.manage") === true,
+      );
 
     const allStays = (allStaysRaw as StayRecord[]).filter(
       (s) => s.status !== GuestStayStatus.CANCELLED,
@@ -968,7 +1046,7 @@ export class HotelReportsService {
       allReceivableCollectionsRaw,
     );
 
-    // 5. Monthly Revenue Breakdown (uses full 12-month window datasets)
+    // 5. Monthly Revenue Breakdown (uses full 24-month window datasets for MoM/YoY baselines, outputs 12 months)
     const combinedMonthlyPayments = [...allSucceededPayments, ...unallocatedDeposits];
     const revenueByMonth = this.buildMonthlyBreakdown(
       endPlain,
@@ -981,7 +1059,9 @@ export class HotelReportsService {
       allExpensesRaw,
       allSaasBillableDaysRaw,
       allReceivableCollectionsRaw,
+      revenueTargets,
     );
+    const quarterlySummary = this.buildQuarterlySummary(revenueByMonth);
 
     // 6. Expense Category Breakdown (including VietSage SaaS fee)
     const expenseByCategory = this.buildExpenseBreakdown(
@@ -1071,6 +1151,8 @@ export class HotelReportsService {
       },
       revenueByDay,
       revenueByMonth,
+      quarterlySummary,
+      canManageTargets,
       expenseByCategory,
       revenueBySource,
       revenueByStaff,
@@ -1080,6 +1162,87 @@ export class HotelReportsService {
       receivablesSummary,
       bookingPaymentsSummary,
     };
+  }
+
+  async upsertRevenueTarget(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    input: UpsertHotelRevenueTargetInput,
+  ): Promise<UpsertHotelRevenueTargetResult> {
+    const scope = await this.hotelAccessService.resolveRoomScope(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    );
+    if (scope.allowedRoomId !== null) {
+      throw new ForbiddenException(
+        "Tài khoản chỉ được phân quyền theo phòng nên không thể cập nhật mục tiêu doanh thu khách sạn",
+      );
+    }
+
+    const roundedAmount = Math.round(input.targetAmount);
+    const nextTargetAmount = roundedAmount > 0 ? roundedAmount : null;
+
+    return this.prisma.$transaction(async (tx) => {
+      const hotel = await tx.hotel.findUnique({
+        where: { id: hotelId },
+        select: { id: true, tenantId: true, brandSettings: true },
+      });
+      if (!hotel) {
+        throw new NotFoundException("Không tìm thấy khách sạn");
+      }
+
+      const existingBrandSettings =
+        hotel.brandSettings &&
+        typeof hotel.brandSettings === "object" &&
+        !Array.isArray(hotel.brandSettings)
+          ? { ...(hotel.brandSettings as Record<string, unknown>) }
+          : {};
+
+      const existingTargets = extractRevenueTargets(existingBrandSettings);
+      const revenueTargets: Record<string, number> = { ...existingTargets };
+      if (nextTargetAmount === null) {
+        delete revenueTargets[input.month];
+      } else {
+        revenueTargets[input.month] = nextTargetAmount;
+      }
+
+      const nextBrandSettings: Prisma.InputJsonObject = {
+        ...(existingBrandSettings as Prisma.InputJsonObject),
+        revenueTargets,
+      };
+
+      await tx.hotel.update({
+        where: { id: hotelId },
+        data: {
+          brandSettings: nextBrandSettings,
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          actorId: actorUserId,
+          tenantId: hotel.tenantId ?? scope.hotel?.tenantId,
+          entityType: "Hotel",
+          entityId: hotelId,
+          action: "HOTEL_REVENUE_TARGET_UPDATED",
+          metadata: {
+            hotelId,
+            month: input.month,
+            previousTargetAmount: existingTargets[input.month] ?? null,
+            targetAmount: nextTargetAmount,
+          },
+        },
+      });
+
+      return {
+        hotelId,
+        month: input.month,
+        targetAmount: nextTargetAmount,
+        revenueTargets,
+      };
+    });
   }
 
   private resolveDateRange(
@@ -1352,11 +1515,22 @@ export class HotelReportsService {
     }> = [],
     saasDays: Array<{ serviceDate: Date; amount: Prisma.Decimal | number }> = [],
     receivableCollections: Array<{ collectedAmount: Prisma.Decimal | number; collectedAt: Date }> = [],
+    revenueTargets: Record<string, number> = {},
   ) {
-    const months: HotelReportsData["revenueByMonth"] = [];
+    type BaseMonthlyItem = Omit<
+      HotelReportsData["revenueByMonth"][number],
+      | "previousMonthRevenue"
+      | "momChangePercent"
+      | "previousYearRevenue"
+      | "yoyChangePercent"
+      | "targetRevenue"
+      | "targetAchievementPercent"
+    >;
+
+    const windowMonths: BaseMonthlyItem[] = [];
     const endYearMonth = endPlain.toPlainYearMonth();
 
-    for (let i = 11; i >= 0; i--) {
+    for (let i = 23; i >= 0; i--) {
       const ym = endYearMonth.subtract({ months: i });
       const monthKey = ym.toString(); // YYYY-MM
       const monthLabel = `Thg ${ym.month}/${ym.year}`;
@@ -1484,7 +1658,7 @@ export class HotelReportsService {
           : 0;
       const adr = roomsSold > 0 ? Math.round((monthRoomRevenue || monthPmsRevenue) / roomsSold) : 0;
 
-      months.push({
+      windowMonths.push({
         month: monthKey,
         monthLabel,
         totalRevenue: monthRevenue,
@@ -1502,7 +1676,110 @@ export class HotelReportsService {
       });
     }
 
+    const months: HotelReportsData["revenueByMonth"] = [];
+    for (let idx = 12; idx < windowMonths.length; idx++) {
+      const current = windowMonths[idx];
+      const previousMonth = windowMonths[idx - 1];
+      const previousYear = windowMonths[idx - 12];
+
+      const previousMonthRevenue = previousMonth ? previousMonth.totalRevenue : null;
+      const momChangePercent =
+        previousMonthRevenue !== null && previousMonthRevenue > 0
+          ? roundPercent1(((current.totalRevenue - previousMonthRevenue) / previousMonthRevenue) * 100)
+          : null;
+
+      const previousYearRevenue = previousYear ? previousYear.totalRevenue : null;
+      const yoyChangePercent =
+        previousYearRevenue !== null && previousYearRevenue > 0
+          ? roundPercent1(((current.totalRevenue - previousYearRevenue) / previousYearRevenue) * 100)
+          : null;
+
+      const rawTarget = revenueTargets[current.month];
+      const targetRevenue =
+        typeof rawTarget === "number" && Number.isFinite(rawTarget) && rawTarget > 0
+          ? rawTarget
+          : null;
+      const targetAchievementPercent =
+        targetRevenue !== null && targetRevenue > 0
+          ? roundPercent1((current.totalRevenue / targetRevenue) * 100)
+          : null;
+
+      months.push({
+        ...current,
+        previousMonthRevenue,
+        momChangePercent,
+        previousYearRevenue,
+        yoyChangePercent,
+        targetRevenue,
+        targetAchievementPercent,
+      });
+    }
+
     return months;
+  }
+
+  private buildQuarterlySummary(
+    revenueByMonth: HotelReportsData["revenueByMonth"],
+  ): HotelReportsData["quarterlySummary"] {
+    const quarterMap = new Map<
+      string,
+      {
+        quarter: string;
+        label: string;
+        actualRevenue: number;
+        targetRevenue: number;
+        hasTarget: boolean;
+        netProfit: number;
+        monthsIncluded: number;
+      }
+    >();
+
+    for (const item of revenueByMonth) {
+      const [yearStr, monthStr] = item.month.split("-");
+      const year = Number(yearStr);
+      const monthNum = Number(monthStr);
+      const q = Math.ceil(monthNum / 3);
+      const quarter = `${year}-Q${q}`;
+
+      let entry = quarterMap.get(quarter);
+      if (!entry) {
+        entry = {
+          quarter,
+          label: `Quý ${q}/${year}`,
+          actualRevenue: 0,
+          targetRevenue: 0,
+          hasTarget: false,
+          netProfit: 0,
+          monthsIncluded: 0,
+        };
+        quarterMap.set(quarter, entry);
+      }
+
+      entry.actualRevenue += item.totalRevenue;
+      entry.netProfit += item.netProfit;
+      entry.monthsIncluded += 1;
+      if (item.targetRevenue !== null && item.targetRevenue > 0) {
+        entry.targetRevenue += item.targetRevenue;
+        entry.hasTarget = true;
+      }
+    }
+
+    return Array.from(quarterMap.values()).map((entry) => {
+      const targetRevenue = entry.hasTarget ? entry.targetRevenue : null;
+      const achievementPercent =
+        targetRevenue !== null && targetRevenue > 0
+          ? roundPercent1((entry.actualRevenue / targetRevenue) * 100)
+          : null;
+      return {
+        quarter: entry.quarter,
+        label: entry.label,
+        actualRevenue: entry.actualRevenue,
+        targetRevenue,
+        achievementPercent,
+        netProfit: entry.netProfit,
+        monthsIncluded: entry.monthsIncluded,
+      };
+    });
   }
 
   private buildExpenseBreakdown(

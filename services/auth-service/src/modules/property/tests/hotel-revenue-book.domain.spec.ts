@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client";
-import { assertBookLimit, projectBookAccount, revenueCategory, totalRevenueBook, type BookAccount } from "../domain/hotel-revenue-book";
+import { assertBookLimit, filterRevenueBookEntries, projectBookAccount, revenueCategory, totalRevenueBook, type BookAccount } from "../domain/hotel-revenue-book";
 import { collectRevenueEntrySchema, createRevenueEntrySchema, revenueBookQuerySchema } from "../domain/schemas/hotel-revenue-book.schema";
 
 const from = new Date("2026-11-12T17:00:00Z");
@@ -70,5 +70,117 @@ describe("hotel revenue book monetary projection", () => {
     expect(revenueBookQuerySchema.safeParse({ from: "2026-11-01" }).success).toBe(false);
     expect(createRevenueEntrySchema.safeParse({ date: "2026-11-13", description: "Giặt ủi", category: "LAUNDRY", amount: 10.001, idempotencyKey: "create-1" }).success).toBe(false);
     expect(createRevenueEntrySchema.safeParse({ date: "2026-11-13", description: "Giặt ủi", category: "LAUNDRY", amount: 10, idempotencyKey: "create-1", collection: { receivedAt: "2026-11-13T02:00:00Z", amount: 11, method: "CASH" } }).success).toBe(false);
+    expect(createRevenueEntrySchema.safeParse({
+      date: "2026-11-13",
+      description: "Giặt ủi",
+      category: "LAUNDRY",
+      amount: 100,
+      idempotencyKey: "create-split-1",
+      collection: {
+        receivedAt: "2026-11-13T02:00:00Z",
+        amount: 100,
+        splits: [
+          { method: "CASH", amount: 40 },
+          { method: "BANK_TRANSFER", amount: 60 },
+        ],
+      },
+    }).success).toBe(true);
+    expect(collectRevenueEntrySchema.safeParse({
+      receivedAt: "2026-11-13T02:00:00Z",
+      amount: 100,
+      splits: [
+        { method: "CASH", amount: 40 },
+        { method: "BANK_TRANSFER", amount: 50 },
+      ],
+      idempotencyKey: "collect-split-mismatch",
+      version: 1,
+    }).success).toBe(false);
+  });
+
+  it("validates multi-dimensional revenue book filter query parameters strictly", () => {
+    expect(revenueBookQuerySchema.parse({
+      category: "ROOM",
+      paymentMethod: "BANK_TRANSFER",
+      source: "FOLIO",
+      settlementStatus: "UNPAID",
+    })).toEqual({
+      category: "ROOM",
+      paymentMethod: "BANK_TRANSFER",
+      source: "FOLIO",
+      settlementStatus: "UNPAID",
+    });
+    expect(revenueBookQuerySchema.safeParse({ category: "SPA" }).success).toBe(false);
+    expect(revenueBookQuerySchema.safeParse({ paymentMethod: "MOMO" }).success).toBe(false);
+    expect(revenueBookQuerySchema.safeParse({ source: "EXPENSE" }).success).toBe(false);
+    expect(revenueBookQuerySchema.safeParse({ settlementStatus: "PARTIAL" }).success).toBe(false);
+    expect(revenueBookQuerySchema.safeParse({ unknownParam: "1" }).success).toBe(false);
+  });
+
+  it("filters entries by source, category, paymentMethod, settlementStatus, and combined dimensions", () => {
+    const folioEntry = projectBookAccount(account({
+      id: "folio:1",
+      source: "FOLIO",
+      category: null,
+      amount: null,
+      charges: [
+        { date: from, amount: 500, category: "ROOM" },
+        { date: from, amount: 50, category: "MINIBAR" },
+      ],
+      collections: [
+        { id: "p-1", date: from, amount: 200, method: "BANK_TRANSFER" },
+      ],
+    }), from, end, zone)!; // closingBalance = +350 (UNPAID)
+
+    const manualSettled = projectBookAccount(account({
+      id: "manual-settled",
+      source: "MANUAL",
+      category: "LAUNDRY",
+      amount: 100,
+      charges: [{ date: from, amount: 100, category: "LAUNDRY" }],
+      collections: [{ id: "p-2", date: from, amount: 100, method: "CASH" }],
+    }), from, end, zone)!; // closingBalance = 0 (SETTLED)
+
+    const manualAdvance = projectBookAccount(account({
+      id: "manual-advance",
+      source: "MANUAL",
+      category: "OTHER",
+      amount: 80,
+      charges: [{ date: end, amount: 80, category: "OTHER" }],
+      collections: [{ id: "p-3", date: from, amount: 80, method: "MOMO" }],
+    }), from, end, zone)!; // closingBalance = -80 (OVERPAID), otherRevenue = 0 but category = OTHER
+
+    const depositEntry = projectBookAccount(account({
+      id: "deposit:1",
+      source: "DEPOSIT",
+      category: null,
+      amount: null,
+      charges: [],
+      collections: [{ id: "p-4", date: from, amount: 300, method: "CARD" }],
+    }), from, end, zone)!; // closingBalance = -300 (OVERPAID)
+
+    const all = [folioEntry, manualSettled, manualAdvance, depositEntry];
+
+    expect(filterRevenueBookEntries(all, {})).toHaveLength(4);
+    expect(filterRevenueBookEntries(all, { source: "FOLIO" }).map((e) => e.id)).toEqual(["folio:1"]);
+    expect(filterRevenueBookEntries(all, { source: "DEPOSIT" }).map((e) => e.id)).toEqual(["deposit:1"]);
+    expect(filterRevenueBookEntries(all, { category: "MINIBAR" }).map((e) => e.id)).toEqual(["folio:1"]);
+    expect(filterRevenueBookEntries(all, { category: "ROOM" }).map((e) => e.id)).toEqual(["folio:1"]);
+    expect(filterRevenueBookEntries(all, { category: "LAUNDRY" }).map((e) => e.id)).toEqual(["manual-settled"]);
+    expect(filterRevenueBookEntries(all, { category: "OTHER" }).map((e) => e.id)).toEqual(["manual-advance"]);
+
+    expect(filterRevenueBookEntries(all, { paymentMethod: "CASH" }).map((e) => e.id)).toEqual(["manual-settled"]);
+    expect(filterRevenueBookEntries(all, { paymentMethod: "BANK_TRANSFER" }).map((e) => e.id)).toEqual(["folio:1"]);
+    expect(filterRevenueBookEntries(all, { paymentMethod: "CARD" }).map((e) => e.id)).toEqual(["deposit:1"]);
+    expect(filterRevenueBookEntries(all, { paymentMethod: "OTHER" }).map((e) => e.id)).toEqual(["manual-advance"]);
+
+    expect(filterRevenueBookEntries(all, { settlementStatus: "UNPAID" }).map((e) => e.id)).toEqual(["folio:1"]);
+    expect(filterRevenueBookEntries(all, { settlementStatus: "SETTLED" }).map((e) => e.id)).toEqual(["manual-settled"]);
+    expect(filterRevenueBookEntries(all, { settlementStatus: "OVERPAID" }).map((e) => e.id)).toEqual(["manual-advance", "deposit:1"]);
+
+    expect(filterRevenueBookEntries(all, {
+      source: "MANUAL",
+      paymentMethod: "OTHER",
+      settlementStatus: "OVERPAID",
+    }).map((e) => e.id)).toEqual(["manual-advance"]);
   });
 });

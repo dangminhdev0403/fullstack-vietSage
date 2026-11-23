@@ -201,9 +201,12 @@ export function WorkspaceShell({
         {effectiveNavItems.slice(0, effectiveNavItems.length > 4 ? 3 : 4).map((item) => {
           const active = isNavItemActive(item.href, activePath, effectiveNavItems);
           const badge = badgeByKey[item.key] ?? 0;
-          const mobileLabel = item.label === "Tài chính & đối soát"
-            ? "Tài chính"
-            : item.label === "Báo cáo & Phân tích" ? "Báo cáo" : item.label;
+          const mobileLabel =
+            item.key === "owner.hotel.billing"
+              ? "Tài chính"
+              : item.key === "owner.hotel.reports" || item.key === "staff.reports"
+                ? "Báo cáo"
+                : item.label;
           return (
             <Link
               key={item.key}

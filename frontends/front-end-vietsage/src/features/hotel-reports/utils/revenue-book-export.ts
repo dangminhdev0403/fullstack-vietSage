@@ -1,8 +1,26 @@
-import type { RevenueBook, RevenueBookEntry } from "../types/revenue-book-contract";
+import type { RevenueBook, RevenueBookCollection, RevenueBookEntry } from "../types/revenue-book-contract";
 
 export type Revenue = Pick<RevenueBookEntry, "roomRevenue" | "minibarRevenue" | "laundryRevenue" | "otherRevenue" | "revenueTotal">;
-export type Collection = RevenueBookEntry["collections"][number];
-export type Activity = { entry: RevenueBookEntry; date: string; revenue?: Revenue; collection?: Collection; closing?: number };
+export type Collection = RevenueBookCollection;
+export type MergedPayment = {
+  id: string;
+  receivedAt: string;
+  bankTransferAt: string | null;
+  cashAmount: number;
+  bankTransferAmount: number;
+  otherAmount: number;
+  totalAmount: number;
+  collections: Collection[];
+  references: string[];
+};
+export type Activity = {
+  entry: RevenueBookEntry;
+  date: string;
+  revenue?: Revenue;
+  collection?: Collection;
+  payment?: MergedPayment;
+  closing?: number;
+};
 type Cell = string | number | null | undefined;
 const encoder = new TextEncoder();
 const columns = "ABCDEFGHIJKLMNOPQRS";
@@ -54,6 +72,78 @@ export function localParts(instant: string, timeZone: string): { date: string; t
   return { date: `${get("year")}-${get("month")}-${get("day")}`, time: `${get("hour")}:${get("minute")}` };
 }
 
+function mergeDayCollections(collections: Collection[]): MergedPayment[] {
+  const sorted = [...collections].sort((left, right) => left.receivedAt.localeCompare(right.receivedAt));
+  const groups: Collection[][] = [];
+  const bySplitId = new Map<string, Collection[]>();
+
+  for (const col of sorted) {
+    const splitId = col.splitGroupId?.trim();
+    if (splitId) {
+      const existing = bySplitId.get(splitId);
+      if (existing) {
+        existing.push(col);
+      } else {
+        const list = [col];
+        bySplitId.set(splitId, list);
+        groups.push(list);
+      }
+      continue;
+    }
+
+    // Fallback: merge positive collections sharing the exact same receivedAt instant and disjoint methods
+    const prevGroup = groups[groups.length - 1];
+    if (
+      prevGroup &&
+      !prevGroup[0].splitGroupId &&
+      col.amount > 0 &&
+      prevGroup.every((item) => item.amount > 0 && item.receivedAt === col.receivedAt && item.method !== col.method)
+    ) {
+      prevGroup.push(col);
+    } else {
+      groups.push([col]);
+    }
+  }
+
+  return groups.map((group) => {
+    let cashAmount = 0;
+    let bankTransferAmount = 0;
+    let otherAmount = 0;
+    let bankTransferAt: string | null = null;
+    const refSet = new Set<string>();
+
+    for (const item of group) {
+      if (item.method === "CASH") {
+        cashAmount = addMoney(cashAmount, item.amount);
+      } else if (item.method === "BANK_TRANSFER") {
+        bankTransferAmount = addMoney(bankTransferAmount, item.amount);
+        if (!bankTransferAt) bankTransferAt = item.receivedAt;
+      } else {
+        otherAmount = addMoney(otherAmount, item.amount);
+      }
+      if (item.reference) refSet.add(item.reference);
+    }
+
+    const totalAmount = addMoney(addMoney(cashAmount, bankTransferAmount), otherAmount);
+    const id =
+      group.length === 1
+        ? group[0].id
+        : group[0].splitGroupId?.trim() || group.map((item) => item.id).join("+");
+
+    return {
+      id,
+      receivedAt: group[0].receivedAt,
+      bankTransferAt: bankTransferAmount !== 0 ? bankTransferAt : null,
+      cashAmount,
+      bankTransferAmount,
+      otherAmount,
+      totalAmount,
+      collections: group,
+      references: [...refSet],
+    };
+  });
+}
+
 export function buildActivities(book: RevenueBook): Activity[] {
   const activities: Activity[] = [];
   for (const entry of book.entries) {
@@ -70,9 +160,16 @@ export function buildActivities(book: RevenueBook): Activity[] {
     for (const collection of entry.collections) day(localParts(collection.receivedAt, book.timeZone).date).collections.push(collection);
     const ownActivities: Activity[] = [];
     for (const [date, group] of [...dates.entries()].sort(([left], [right]) => left.localeCompare(right))) {
-      group.collections.sort((left, right) => left.receivedAt.localeCompare(right.receivedAt));
-      for (let index = 0; index < Math.max(1, group.collections.length); index++) {
-        ownActivities.push({ entry, date, revenue: index === 0 && group.hasRevenue ? group.revenue : undefined, collection: group.collections[index] });
+      const mergedPayments = mergeDayCollections(group.collections);
+      for (let index = 0; index < Math.max(1, mergedPayments.length); index++) {
+        const payment = mergedPayments[index];
+        ownActivities.push({
+          entry,
+          date,
+          revenue: index === 0 && group.hasRevenue ? group.revenue : undefined,
+          collection: payment?.collections[0],
+          payment,
+        });
       }
     }
     if (ownActivities.length === 0) ownActivities.push({ entry, date: "" });
@@ -167,13 +264,26 @@ function sheetXml(
       dayRevenue = emptyRevenue();
       dayCash = dayBank = dayOther = 0;
     }
-    const { entry, revenue, collection } = activity;
-    const paid = collection?.amount ?? 0;
-    const cash = collection?.method === "CASH" ? paid : 0;
-    const bank = collection?.method === "BANK_TRANSFER" ? paid : 0;
-    const other = collection && collection.method !== "CASH" && collection.method !== "BANK_TRANSFER" ? paid : 0;
-    const local = collection ? localParts(collection.receivedAt, book.timeZone) : null;
-    const rowKey = `${entry.id}_${activity.date}_${collection?.id ?? "rev"}`;
+    const { entry, revenue, collection, payment } = activity;
+    const paid = payment?.totalAmount ?? collection?.amount ?? 0;
+    const cash = payment ? payment.cashAmount : collection?.method === "CASH" ? paid : 0;
+    const bank = payment ? payment.bankTransferAmount : collection?.method === "BANK_TRANSFER" ? paid : 0;
+    const other = payment
+      ? payment.otherAmount
+      : collection && collection.method !== "CASH" && collection.method !== "BANK_TRANSFER"
+        ? paid
+        : 0;
+    const local = payment
+      ? localParts(payment.receivedAt, book.timeZone)
+      : collection
+        ? localParts(collection.receivedAt, book.timeZone)
+        : null;
+    const bankLocal = payment?.bankTransferAt
+      ? localParts(payment.bankTransferAt, book.timeZone)
+      : bank && local
+        ? local
+        : null;
+    const rowKey = `${entry.id}_${activity.date}_${payment?.id ?? collection?.id ?? "rev"}`;
     if (overrides?.deletedRowKeys?.includes(rowKey)) {
       continue;
     }
@@ -182,7 +292,7 @@ function sheetXml(
     const effectiveRoom = overrides?.textOverrides?.[`${book.hotelId}:roomNumber:${rowKey}`] ?? entry.roomNumber;
     const effectiveDoc = overrides?.textOverrides?.[`${book.hotelId}:docNumber:${rowKey}`] ?? entry.documentNumber;
     const effectivePaymentDate = overrides?.textOverrides?.[`${book.hotelId}:paymentDate:${rowKey}`] ?? (local ? dateLabel(local.date) : null);
-    const effectiveBankTime = overrides?.textOverrides?.[`${book.hotelId}:bankTime:${rowKey}`] ?? (bank ? local?.time : null);
+    const effectiveBankTime = overrides?.textOverrides?.[`${book.hotelId}:bankTime:${rowKey}`] ?? (bank !== 0 ? bankLocal?.time ?? null : null);
 
     const roomRev = overrides?.valuesByCell?.[`${book.hotelId}:room:${rowKey}`] ?? revenue?.roomRevenue ?? 0;
     const laundryRev = overrides?.valuesByCell?.[`${book.hotelId}:laundry:${rowKey}`] ?? revenue?.laundryRevenue ?? 0;
@@ -194,12 +304,16 @@ function sheetXml(
     const otherPaid = overrides?.valuesByCell?.[`${book.hotelId}:otherPayment:${rowKey}`] ?? other;
     const totalPaid = addMoney(addMoney(cashPaid, bankPaid), otherPaid);
 
-    const notes = [customNote ?? entry.notes, !activity.date ? "Số dư chuyển sang" : null, entry.voidedAt ? "Đã hủy khoản phát sinh" : null, collection?.reference ? `Tham chiếu: ${collection.reference}` : null].filter(Boolean).join("; ");
+    const refText = payment?.references.length
+      ? payment.references.join(", ")
+      : collection?.reference ?? null;
+    const notes = [customNote ?? entry.notes, !activity.date ? "Số dư chuyển sang" : null, entry.voidedAt ? "Đã hủy khoản phát sinh" : null, refText ? `Tham chiếu: ${refText}` : null].filter(Boolean).join("; ");
+    const hasPayment = Boolean(payment || collection);
     addRow([
       ++sequence, activity.date ? dateLabel(activity.date) : null, effectiveRoom, effectiveDoc, customDesc ?? entry.description,
       revenue ? roomRev : null, revenue ? laundryRev : null, revenue ? otherRev : null, revenue ? totalRev : null,
-      effectivePaymentDate, collection || cashPaid > 0 ? cashPaid : null, effectiveBankTime, collection || bankPaid > 0 ? bankPaid : null,
-      collection || totalPaid > 0 ? totalPaid : null, collection || otherPaid > 0 ? otherPaid : null, activity.closing,
+      effectivePaymentDate, hasPayment || cashPaid > 0 ? cashPaid : null, effectiveBankTime, hasPayment || bankPaid > 0 ? bankPaid : null,
+      hasPayment || totalPaid > 0 ? totalPaid : null, hasPayment || otherPaid > 0 ? otherPaid : null, activity.closing,
       entry.declarationStatus ? declarationLabels[entry.declarationStatus] ?? "Chưa xác định" : null, notes,
     ]);
     if (revenue) {

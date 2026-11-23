@@ -18,6 +18,12 @@ import { BookingConfirmationModal } from "@/features/hotel-ops/components/bookin
 import { EditReservationModal } from "@/features/hotel-ops/components/edit-reservation-modal";
 import { GroupOperationsDrawer } from "@/features/hotel-ops/components/group-operations-drawer";
 import { RoomCheckoutSettlementModal } from "@/features/hotel-ops/components/room-checkout-settlement-modal";
+import { PaymentMethodSplitInput } from "@/features/billing/components/payment-method-split-input";
+import {
+  createPaymentSplitState,
+  resolvePaymentSplit,
+  type PaymentSplitState,
+} from "@/features/billing/utils/payment-split";
 import {
   formatFriendlyCheckInError,
   formatFriendlyHotelOpsError,
@@ -109,7 +115,9 @@ export function FrontDeskArrivalDetailPanel({
   const [depositMode, setDepositMode] = useState<"AMOUNT" | "PERCENT">("AMOUNT");
   const [depositPercent, setDepositPercent] = useState<string>("50");
   const [depositAmount, setDepositAmount] = useState<string>("");
-  const [depositMethod, setDepositMethod] = useState<"CASH" | "BANK_TRANSFER" | "CARD" | "QR">("BANK_TRANSFER");
+  const [depositSplit, setDepositSplit] = useState<PaymentSplitState>(() =>
+    createPaymentSplitState("BANK_TRANSFER"),
+  );
   const [depositNotes, setDepositNotes] = useState<string>("");
   const [isSubmittingDeposit, setIsSubmittingDeposit] = useState<boolean>(false);
   const [isSubmittingReceivable, setIsSubmittingReceivable] = useState<boolean>(false);
@@ -134,6 +142,7 @@ export function FrontDeskArrivalDetailPanel({
     setDepositMode("AMOUNT");
     setDepositPercent("50");
     setDepositAmount("");
+    setDepositSplit(createPaymentSplitState("BANK_TRANSFER"));
     setDepositNotes("");
   }
 
@@ -593,30 +602,55 @@ export function FrontDeskArrivalDetailPanel({
 
   async function handleCreateDeposit() {
     if (!arrival) return;
+    const computedPercentAmount =
+      depositMode === "PERCENT"
+        ? Math.round((totalEstimated * Number(depositPercent || 0)) / 100)
+        : 0;
     const numericAmount = depositMode === "AMOUNT" ? Number(depositAmount) : undefined;
-    if (depositMode === "AMOUNT" && (!numericAmount || numericAmount <= 0)) {
+    const effectiveTargetAmount =
+      depositMode === "PERCENT" ? computedPercentAmount : (numericAmount ?? 0);
+
+    if (
+      depositMode === "AMOUNT" &&
+      depositSplit.mode !== "MIXED" &&
+      (!numericAmount || numericAmount <= 0)
+    ) {
       await showWarningAlert("Thiếu số tiền", "Vui lòng nhập số tiền cọc hoặc chọn tỷ lệ % hợp lệ.");
       return;
     }
+
+    const splitCheck = resolvePaymentSplit(depositSplit, effectiveTargetAmount, "VND");
+    if (!splitCheck.ok) {
+      await showWarningAlert("Kiểm tra phân bổ thanh toán", splitCheck.error);
+      return;
+    }
+    if (splitCheck.total <= 0) {
+      await showWarningAlert("Thiếu số tiền", "Vui lòng nhập số tiền cọc hợp lệ lớn hơn 0.");
+      return;
+    }
+
     setIsSubmittingDeposit(true);
     try {
       await staffRoomsRepository.createBookingPayment(hotelId, {
         reservationId: arrival.id,
         groupCode: arrival.groupCode || undefined,
         paymentType: "DEPOSIT",
-        inputMode: depositMode,
-        percentValue: depositMode === "PERCENT" ? Number(depositPercent) : undefined,
-        amount: numericAmount,
-        paymentMethod: depositMethod,
+        inputMode: splitCheck.isMixed ? "AMOUNT" : depositMode,
+        percentValue: !splitCheck.isMixed && depositMode === "PERCENT" ? Number(depositPercent) : undefined,
+        amount: splitCheck.isMixed ? splitCheck.total : numericAmount,
+        receivedAmount: splitCheck.isMixed ? splitCheck.total : numericAmount,
+        paymentMethod: splitCheck.method === "OTHER" ? "MANUAL" : splitCheck.method,
+        ...(splitCheck.splits ? { splits: splitCheck.splits } : {}),
         notes: depositNotes.trim() || undefined,
       });
 
       void refetchBookingPayments();
       setDepositAmount("");
+      setDepositSplit(createPaymentSplitState(depositSplit.mode === "MIXED" ? "BANK_TRANSFER" : depositSplit.mode));
       setDepositNotes("");
       await showSuccessAlert(
         "Đã ghi nhận thanh toán cọc",
-        `Đã lưu khoản trả trước cho đơn #${arrival.reservationCode || arrival.id}.`,
+        `Đã lưu khoản trả trước (${splitCheck.summaryLabel}) cho đơn #${arrival.reservationCode || arrival.id}.`,
       );
       await invalidateHotelRealtimeQueries(queryClient, hotelId);
     } catch (err) {
@@ -655,16 +689,23 @@ export function FrontDeskArrivalDetailPanel({
 
   async function handleCollectReceivable(receivableId: string, amount: number) {
     if (!receivableId) return;
+    const splitCheck = resolvePaymentSplit(depositSplit, amount, "VND");
+    if (!splitCheck.ok) {
+      await showWarningAlert("Kiểm tra phân bổ thanh toán", splitCheck.error);
+      return;
+    }
     setIsSubmittingReceivable(true);
     try {
       await staffRoomsRepository.collectReceivable(hotelId, receivableId, {
         amount,
-        paymentMethod: depositMethod,
+        collectedAmount: amount,
+        paymentMethod: splitCheck.method === "OTHER" ? "MANUAL" : splitCheck.method,
+        ...(splitCheck.splits ? { splits: splitCheck.splits } : {}),
       });
       void refetchReceivables();
       await showSuccessAlert(
         "Thu hồi công nợ thành công",
-        "Đã cập nhật khoản thanh toán công nợ.",
+        `Đã cập nhật khoản thanh toán công nợ (${splitCheck.summaryLabel}).`,
       );
     } catch (err) {
       await showErrorAlert(
@@ -1321,66 +1362,85 @@ export function FrontDeskArrivalDetailPanel({
               </div>
 
               {/* Deposit Entry Form */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end bg-slate-50/60 p-3.5 rounded-xl border border-slate-100">
-                <div>
-                  <label htmlFor="arrival-deposit-mode" className="block text-xs font-bold text-slate-700 mb-1">
-                    Hình thức tính cọc
-                  </label>
-                  <select
-                    id="arrival-deposit-mode"
-                    value={depositMode}
-                    onChange={(e) => setDepositMode(e.target.value as "AMOUNT" | "PERCENT")}
-                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800"
-                  >
-                    <option value="AMOUNT">Theo số tiền (VND)</option>
-                    <option value="PERCENT">Theo tỷ lệ (%)</option>
-                  </select>
+              <div className="space-y-3 bg-slate-50/60 p-3.5 rounded-xl border border-slate-100">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label htmlFor="arrival-deposit-mode" className="block text-xs font-bold text-slate-700 mb-1">
+                      Hình thức tính cọc
+                    </label>
+                    <select
+                      id="arrival-deposit-mode"
+                      value={depositMode}
+                      onChange={(e) => setDepositMode(e.target.value as "AMOUNT" | "PERCENT")}
+                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800"
+                    >
+                      <option value="AMOUNT">Theo số tiền (VND)</option>
+                      <option value="PERCENT">Theo tỷ lệ (%)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label htmlFor="arrival-deposit-value" className="block text-xs font-bold text-slate-700 mb-1">
+                      {depositMode === "PERCENT" ? "Tỷ lệ cọc (%)" : "Số tiền cọc (VND)"}
+                    </label>
+                    {depositMode === "PERCENT" ? (
+                      <input
+                        id="arrival-deposit-value"
+                        type="number"
+                        min={1}
+                        max={100}
+                        value={depositPercent}
+                        onChange={(e) => setDepositPercent(e.target.value)}
+                        className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800"
+                      />
+                    ) : (
+                      <input
+                        id="arrival-deposit-value"
+                        type="number"
+                        min={0}
+                        value={depositAmount}
+                        onChange={(e) => setDepositAmount(e.target.value)}
+                        placeholder="VD: 500000"
+                        className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800"
+                      />
+                    )}
+                  </div>
                 </div>
 
-                <div>
-                  <label htmlFor="arrival-deposit-value" className="block text-xs font-bold text-slate-700 mb-1">
-                    {depositMode === "PERCENT" ? "Tỷ lệ cọc (%)" : "Số tiền cọc (VND)"}
-                  </label>
-                  {depositMode === "PERCENT" ? (
+                <PaymentMethodSplitInput
+                  label="Nguồn tiền đối soát"
+                  value={depositSplit}
+                  onChange={setDepositSplit}
+                  totalAmount={
+                    depositMode === "PERCENT"
+                      ? Math.round((totalEstimated * Number(depositPercent || 0)) / 100)
+                      : Number(depositAmount) || 0
+                  }
+                  onTotalChange={
+                    depositMode === "AMOUNT"
+                      ? (nextTotal) => setDepositAmount(nextTotal > 0 ? String(nextTotal) : "")
+                      : undefined
+                  }
+                  allowedMethods={["CASH", "BANK_TRANSFER", "CARD"]}
+                  disabled={isSubmittingDeposit || isSubmittingReceivable}
+                  idPrefix="arrival-deposit-payment"
+                />
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                  <div className="sm:col-span-2">
+                    <label htmlFor="arrival-deposit-notes" className="block text-xs font-bold text-slate-700 mb-1">
+                      Ghi chú người nộp / nội dung
+                    </label>
                     <input
-                      id="arrival-deposit-value"
-                      type="number"
-                      min={1}
-                      max={100}
-                      value={depositPercent}
-                      onChange={(e) => setDepositPercent(e.target.value)}
+                      id="arrival-deposit-notes"
+                      type="text"
+                      value={depositNotes}
+                      onChange={(e) => setDepositNotes(e.target.value)}
+                      placeholder="VD: Anh Nam CK cọc phòng 50%"
                       className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800"
                     />
-                  ) : (
-                    <input
-                      id="arrival-deposit-value"
-                      type="number"
-                      min={0}
-                      value={depositAmount}
-                      onChange={(e) => setDepositAmount(e.target.value)}
-                      placeholder="VD: 500000"
-                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800"
-                    />
-                  )}
-                </div>
+                  </div>
 
-                <div>
-                  <label htmlFor="arrival-deposit-method" className="block text-xs font-bold text-slate-700 mb-1">
-                    Nguồn tiền đối soát
-                  </label>
-                  <select
-                    id="arrival-deposit-method"
-                    value={depositMethod}
-                    onChange={(e) => setDepositMethod(e.target.value as "CASH" | "BANK_TRANSFER" | "CARD" | "QR")}
-                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800"
-                  >
-                    <option value="BANK_TRANSFER">🏦 Chuyển khoản (CK)</option>
-                    <option value="CASH">💵 Tiền mặt (TM)</option>
-                    <option value="CARD">💳 Quẹt thẻ (POS)</option>
-                  </select>
-                </div>
-
-                <div className="flex items-center gap-2">
                   <button
                     type="button"
                     disabled={isSubmittingDeposit || isSubmittingReceivable}
@@ -1390,20 +1450,6 @@ export function FrontDeskArrivalDetailPanel({
                     <VsIcon name="add_card" className="text-sm" />
                     <span>{isSubmittingDeposit ? "Đang lưu..." : "Ghi nhận đặt cọc"}</span>
                   </button>
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label htmlFor="arrival-deposit-notes" className="block text-xs font-bold text-slate-700 mb-1">
-                    Ghi chú người nộp / nội dung
-                  </label>
-                  <input
-                    id="arrival-deposit-notes"
-                    type="text"
-                    value={depositNotes}
-                    onChange={(e) => setDepositNotes(e.target.value)}
-                    placeholder="VD: Anh Nam CK cọc phòng 50%"
-                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800"
-                  />
                 </div>
               </div>
 

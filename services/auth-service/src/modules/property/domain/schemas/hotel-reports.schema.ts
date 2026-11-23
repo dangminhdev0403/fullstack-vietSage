@@ -34,3 +34,12 @@ export const getHotelReportsQuerySchema = z
   );
 
 export type GetHotelReportsQuery = z.infer<typeof getHotelReportsQuerySchema>;
+
+export const upsertHotelRevenueTargetSchema = z
+  .object({
+    month: z.string().trim().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Tháng phải có định dạng YYYY-MM"),
+    targetAmount: z.number().finite().min(0, "Mục tiêu doanh thu không được âm").max(9_999_999_999),
+  })
+  .strict();
+
+export type UpsertHotelRevenueTargetInput = z.infer<typeof upsertHotelRevenueTargetSchema>;
