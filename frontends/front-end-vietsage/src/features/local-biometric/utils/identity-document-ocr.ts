@@ -60,6 +60,56 @@ export const CODE_TO_TEXT_NATIONALITY: Record<string, string> = {
   MMR: "Myanmar",
 };
 
+export const NATIONALITY_ALIASES: Record<string, string> = {
+  "HAN QUOC": "KOR",
+  "CH HAN QUOC": "KOR",
+  "CONG HOA HAN QUOC": "KOR",
+  "KOREA": "KOR",
+  "SOUTH KOREA": "KOR",
+  "KOREAN": "KOR",
+  "VIET NAM": "VNM",
+  "VIETNAM": "VNM",
+  "HOA KY": "USA",
+  "MY": "USA",
+  "UNITED STATES": "USA",
+  "TRUNG QUOC": "CHN",
+  "CHINA": "CHN",
+  "NHAT BAN": "JPN",
+  "JAPAN": "JPN",
+  "DAI LOAN": "TWN",
+  "TAIWAN": "TWN",
+  "NGA": "RUS",
+  "LIEN BANG NGA": "RUS",
+  "RUSSIA": "RUS",
+  "VUONG QUOC ANH": "GBR",
+  "ANH": "GBR",
+  "UNITED KINGDOM": "GBR",
+  "PHAP": "FRA",
+  "FRANCE": "FRA",
+  "DUC": "DEU",
+  "CHLB DUC": "DEU",
+  "GERMANY": "DEU",
+  "UC": "AUS",
+  "AUSTRALIA": "AUS",
+  "CANADA": "CAN",
+  "SINGAPORE": "SGP",
+  "THAI LAN": "THA",
+  "THAILAND": "THA",
+  "MALAYSIA": "MYS",
+  "INDONESIA": "IDN",
+  "PHILIPPINES": "PHL",
+  "AN DO": "IND",
+  "INDIA": "IND",
+  "CAMPUCHIA": "KHM",
+  "CAMBODIA": "KHM",
+  "LAO": "LAO",
+  "LAOS": "LAO",
+  "MYANMAR": "MMR",
+  "HONG KONG": "HKG",
+  "TRIEU TIEN": "PRK",
+  "CHDCND TRIEU TIEN": "PRK",
+};
+
 export function matchBcaNationalityCode(
   value: string | null | undefined,
   items: readonly {
@@ -71,32 +121,72 @@ export function matchBcaNationalityCode(
   const raw = value?.trim();
   if (!raw) return "";
   const bracketCode = /\[([A-Z]{3})\]\s*$/i.exec(raw)?.[1];
+  if (bracketCode) {
+    const upperBracket = bracketCode.toUpperCase();
+    if (items.length === 0 || items.some((item) => item.code.toUpperCase() === upperBracket)) {
+      return upperBracket;
+    }
+  }
+
+  const rawUpper = (bracketCode ?? raw).toUpperCase();
+  if (/^[A-Z]{3}$/.test(rawUpper)) {
+    if (items.length === 0 || items.some((item) => item.code.toUpperCase() === rawUpper)) {
+      return rawUpper;
+    }
+  }
+
   const normalized = (bracketCode ?? raw)
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .replace(/[^A-Za-z0-9]+/g, " ")
+    .trim()
     .toUpperCase();
-  const aliasCode = Object.entries(CODE_TO_TEXT_NATIONALITY).find(
-    ([code, name]) =>
-      /^[A-Z]{3}$/.test(code) &&
-      name
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .toUpperCase() === normalized,
-  )?.[0];
-  const matches = items.filter(
-    (item) =>
-      item.code === aliasCode ||
-      [item.code, item.nameVi, item.nameEn]
-        .filter((candidate): candidate is string => Boolean(candidate))
-        .some(
-          (candidate) =>
-            candidate
-              .normalize("NFD")
-              .replace(/[\u0300-\u036f]/g, "")
-              .toUpperCase() === normalized,
-        ),
-  );
-  return matches.length === 1 ? matches[0].code : "";
+
+  const strippedPrefix = normalized.replace(/^(CH|CHLB|CHDCND|CONG HOA|LIEN BANG|VUONG QUOC)\s+/g, "").trim();
+
+  const aliasCode =
+    NATIONALITY_ALIASES[normalized] ||
+    NATIONALITY_ALIASES[strippedPrefix] ||
+    Object.entries(CODE_TO_TEXT_NATIONALITY).find(
+      ([code, name]) =>
+        /^[A-Z]{3}$/.test(code) &&
+        name
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/đ/g, "d")
+          .replace(/Đ/g, "D")
+          .replace(/[^A-Za-z0-9]+/g, " ")
+          .trim()
+          .toUpperCase() === normalized,
+    )?.[0];
+
+  const matches = items.filter((item) => {
+    if (aliasCode && item.code.toUpperCase() === aliasCode) return true;
+    const candidates = [item.code, item.nameVi, item.nameEn]
+      .filter((candidate): candidate is string => Boolean(candidate))
+      .map((candidate) =>
+        candidate
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/đ/g, "d")
+          .replace(/Đ/g, "D")
+          .replace(/[^A-Za-z0-9]+/g, " ")
+          .trim()
+          .toUpperCase(),
+      );
+    return candidates.some((cand) => {
+      if (cand === normalized || cand === strippedPrefix) return true;
+      const candStripped = cand.replace(/^(CH|CHLB|CHDCND|CONG HOA|LIEN BANG|VUONG QUOC)\s+/g, "").trim();
+      return candStripped === normalized || candStripped === strippedPrefix;
+    });
+  });
+
+  if (matches.length >= 1) return matches[0].code;
+  if (aliasCode) return aliasCode;
+  if (/^[A-Z]{3}$/.test(rawUpper)) return rawUpper;
+  return "";
 }
 
 export function normalizeNationalityToText(value?: string | null): string {

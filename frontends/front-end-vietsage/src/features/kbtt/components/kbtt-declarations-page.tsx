@@ -71,10 +71,24 @@ function uniqueCatalogMatch(
   );
   if (exact.length === 1) return exact[0].code;
 
+  const strippedVal = value.replace(/^(CH|CHLB|CHDCND|CONG HOA|LIEN BANG|VUONG QUOC)\s+/g, "").trim();
+  const strippedExact = items.filter((item) => {
+    if (item.code.toUpperCase() === value || item.code.toUpperCase() === strippedVal) return true;
+    const vi = normalizeCatalogText(item.nameVi);
+    const viStripped = vi.replace(/^(CH|CHLB|CHDCND|CONG HOA|LIEN BANG|VUONG QUOC)\s+/g, "").trim();
+    return vi === value || vi === strippedVal || viStripped === value || viStripped === strippedVal;
+  });
+  if (strippedExact.length === 1) return strippedExact[0].code;
+
   const padded = ` ${value} `;
   const contained = items.filter((item) => {
     const name = normalizeCatalogText(item.nameVi);
-    return name.length >= 3 && padded.includes(` ${name} `);
+    const nameStripped = name.replace(/^(CH|CHLB|CHDCND|CONG HOA|LIEN BANG|VUONG QUOC)\s+/g, "").trim();
+    return (
+      (name.length >= 3 && padded.includes(` ${name} `)) ||
+      (nameStripped.length >= 3 && ` ${strippedVal} `.includes(` ${nameStripped} `)) ||
+      (strippedVal.length >= 3 && ` ${nameStripped} `.includes(` ${strippedVal} `))
+    );
   });
   const longest = Math.max(
     0,
@@ -1774,6 +1788,12 @@ export function DeclarationModal({
       if (!initial.soHoChieu && occupant.identityNumber)
         initial.soHoChieu = occupant.identityNumber;
       if (!initial.loaiNgayThangNamSinh) initial.loaiNgayThangNamSinh = "D";
+      if (!initial.thoiHanTamTruStr && initial.ngayDiDuKienStr) {
+        initial.thoiHanTamTruStr = initial.ngayDiDuKienStr;
+      }
+      if (!initial.quocTich && occupant.nationality) {
+        initial.quocTich = occupant.nationality;
+      }
     }
     return formatKbttDraftForDisplay(initial);
   }, [
@@ -1874,6 +1894,9 @@ export function DeclarationModal({
         ? { noiCuTru: Number(inferredResidencePlace) }
         : {}),
       ...(citizenshipKind === "FOREIGN" && baseFormData.quocTich === undefined && inferredNationalityCode
+        ? { quocTich: inferredNationalityCode }
+        : {}),
+      ...(citizenshipKind === "FOREIGN" && (baseFormData.quocTich === "" || baseFormData.quocTich === null) && inferredNationalityCode
         ? { quocTich: inferredNationalityCode }
         : {}),
     }),

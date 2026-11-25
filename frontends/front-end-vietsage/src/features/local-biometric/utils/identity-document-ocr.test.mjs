@@ -14,8 +14,12 @@ const catalog = [
 test("OpenMRZ nationality resolves to the exact BCA catalog code", () => {
   assert.equal(matchBcaNationalityCode("Korean [KOR]", catalog), "KOR");
   assert.equal(matchBcaNationalityCode("Hàn Quốc", catalog), "KOR");
+  assert.equal(matchBcaNationalityCode("CH Hàn Quốc", catalog), "KOR");
   assert.equal(matchBcaNationalityCode("KOR", catalog), "KOR");
   assert.equal(matchBcaNationalityCode("Việt Nam", catalog), "VNM");
+  assert.equal(matchBcaNationalityCode("CH Hàn Quốc", []), "KOR");
+  assert.equal(matchBcaNationalityCode("Hàn Quốc", []), "KOR");
+  assert.equal(matchBcaNationalityCode("KOR", []), "KOR");
   assert.equal(matchBcaNationalityCode("Không xác định", catalog), "");
 });
 

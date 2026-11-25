@@ -1289,17 +1289,82 @@ function GroupCheckInForm({
     if (submitLock.current || isSubmitting || isRefreshing || isSwappingRoom || isMarkingReady) return;
     submitLock.current = true;
     try {
-    // Validate: each room must have at least 1 guest with a name
+    // Validate: each room and guest must fulfill identity & BCA requirements
     for (let i = 0; i < roomsState.length; i++) {
       const r = roomsState[i];
-      const primary = r.guests[0];
-      if (!primary || !primary.fullName.trim()) {
+      if (!r.guests || r.guests.length === 0) {
         setActiveRoomIndex(i);
         await showWarningAlert(
-          "Thiếu họ tên khách",
-          `Vui lòng nhập họ tên khách chính cho Phòng ${r.roomNumber}.`,
+          "Thiếu thông tin khách",
+          `Phòng ${r.roomNumber} chưa có thông tin khách nhận phòng.`,
         );
         return;
+      }
+
+      for (let gIdx = 0; gIdx < r.guests.length; gIdx++) {
+        const g = r.guests[gIdx];
+        const guestLabel = gIdx === 0 ? "khách chính" : `khách đi cùng ${gIdx}`;
+
+        if (!g.fullName.trim()) {
+          setActiveRoomIndex(i);
+          await showWarningAlert(
+            "Thiếu họ tên khách",
+            `Vui lòng nhập họ tên cho ${guestLabel} tại Phòng ${r.roomNumber}.`,
+          );
+          return;
+        }
+
+        const bcaCode = matchBcaNationalityCode(g.nationality || "Việt Nam", nationalities);
+        const isForeign =
+          bcaCode !== "VNM" &&
+          (bcaCode !== "" ||
+            (g.nationality && !["Việt Nam", "VN", "VNM"].includes(g.nationality.trim())) ||
+            Boolean(g.identityNumber?.trim() && /^[A-Za-z]/.test(g.identityNumber.trim())));
+
+        if (isForeign) {
+          if (!g.identityNumber?.trim()) {
+            setActiveRoomIndex(i);
+            await showWarningAlert(
+              "Thiếu số hộ chiếu khách nước ngoài",
+              `Vui lòng nhập số hộ chiếu cho ${guestLabel}: ${g.fullName} (Phòng ${r.roomNumber}) để khai báo BCA.`,
+            );
+            return;
+          }
+          if (!/^[A-Za-z0-9]{3,32}$/.test(g.identityNumber.trim())) {
+            setActiveRoomIndex(i);
+            await showWarningAlert(
+              "Số hộ chiếu không hợp lệ",
+              `Số hộ chiếu của ${guestLabel}: ${g.fullName} (Phòng ${r.roomNumber}) chỉ được chứa chữ cái và số.`,
+            );
+            return;
+          }
+          if (!bcaCode || bcaCode === "VNM") {
+            setActiveRoomIndex(i);
+            await showWarningAlert(
+              "Chưa chọn quốc tịch",
+              `Vui lòng chọn quốc tịch nước ngoài hợp lệ cho ${guestLabel}: ${g.fullName} (Phòng ${r.roomNumber}).`,
+            );
+            return;
+          }
+          if (!g.dateOfBirth?.trim()) {
+            setActiveRoomIndex(i);
+            await showWarningAlert(
+              "Thiếu ngày sinh khách nước ngoài",
+              `Vui lòng nhập ngày sinh cho ${guestLabel}: ${g.fullName} (Phòng ${r.roomNumber}) theo yêu cầu BCA.`,
+            );
+            return;
+          }
+        } else {
+          const idNum = (g.identityNumber || "").trim();
+          if (idNum && !/^\d{9}$|^\d{12}$/.test(idNum)) {
+            setActiveRoomIndex(i);
+            await showWarningAlert(
+              "Số CCCD không hợp lệ",
+              `Số CCCD/CMND của ${guestLabel}: ${g.fullName} (Phòng ${r.roomNumber}) phải gồm 9 hoặc 12 chữ số.`,
+            );
+            return;
+          }
+        }
       }
     }
 
@@ -1381,7 +1446,7 @@ function GroupCheckInForm({
         identityNumber: occ.identityNumber?.trim() || undefined,
         dateOfBirth: toIsoDate(occ.dateOfBirth?.trim()) || undefined,
         gender: occ.gender?.trim() || undefined,
-        nationality: occ.nationality?.trim() || undefined,
+        nationality: matchBcaNationalityCode(occ.nationality || "Việt Nam", nationalities) || occ.nationality?.trim() || undefined,
         residencePlace: occ.residencePlace?.trim() || undefined,
         isPrimary: false,
       }));

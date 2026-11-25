@@ -50,6 +50,75 @@ function formatVietnamDateTime(date: Date | string): string {
   return Number.isNaN(value.getTime()) ? '' : formatLocalDateTime(value, VIETNAM_TIME_ZONE);
 }
 
+const COMMON_COUNTRY_NAME_TO_CODE: Record<string, string> = {
+  "VIET NAM": "VNM",
+  "HAN QUOC": "KOR",
+  "CH HAN QUOC": "KOR",
+  "CONG HOA HAN QUOC": "KOR",
+  "KOREA": "KOR",
+  "SOUTH KOREA": "KOR",
+  "KOREAN": "KOR",
+  "HOA KY": "USA",
+  "MY": "USA",
+  "UNITED STATES": "USA",
+  "TRUNG QUOC": "CHN",
+  "CHINA": "CHN",
+  "NHAT BAN": "JPN",
+  "JAPAN": "JPN",
+  "DAI LOAN": "TWN",
+  "TAIWAN": "TWN",
+  "NGA": "RUS",
+  "LIEN BANG NGA": "RUS",
+  "RUSSIA": "RUS",
+  "RUSSIAN FEDERATION": "RUS",
+  "VUONG QUOC ANH": "GBR",
+  "ANH": "GBR",
+  "UNITED KINGDOM": "GBR",
+  "PHAP": "FRA",
+  "FRANCE": "FRA",
+  "DUC": "DEU",
+  "CHLB DUC": "DEU",
+  "GERMANY": "DEU",
+  "UC": "AUS",
+  "AUSTRALIA": "AUS",
+  "CANADA": "CAN",
+  "SINGAPORE": "SGP",
+  "THAI LAN": "THA",
+  "THAILAND": "THA",
+  "MALAYSIA": "MYS",
+  "INDONESIA": "IDN",
+  "PHILIPPINES": "PHL",
+  "AN DO": "IND",
+  "INDIA": "IND",
+  "CAMPUCHIA": "KHM",
+  "CAMBODIA": "KHM",
+  "LAO": "LAO",
+  "LAOS": "LAO",
+  "MYANMAR": "MMR",
+  "HONG KONG": "HKG",
+  "TRIEU TIEN": "PRK",
+  "CHDCND TRIEU TIEN": "PRK",
+};
+
+export function resolveKbttNationalityCode(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  const upper = trimmed.toUpperCase();
+  if (/^[A-Z0-9_-]{2,32}$/.test(upper)) return upper;
+  const normalized = trimmed
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .replace(/[^A-Za-z0-9]+/g, " ")
+    .trim()
+    .toUpperCase();
+  if (COMMON_COUNTRY_NAME_TO_CODE[normalized]) return COMMON_COUNTRY_NAME_TO_CODE[normalized];
+  const stripped = normalized.replace(/^(CH|CHLB|CHDCND|CONG HOA|LIEN BANG|VUONG QUOC)\s+/g, "").trim();
+  if (COMMON_COUNTRY_NAME_TO_CODE[stripped]) return COMMON_COUNTRY_NAME_TO_CODE[stripped];
+  return null;
+}
+
 export function composeKbttDraft(
   citizenshipKind: 'VIETNAMESE' | 'FOREIGN',
   data: Record<string, unknown>,
@@ -126,9 +195,9 @@ export function composeKbttDraft(
         draft.loaiNgayThangNamSinh = "D";
       }
       if (!draft.quocTich && occupant.nationality) {
-        const nat = occupant.nationality.trim().toUpperCase();
-        if (/^[A-Z0-9_-]{2,32}$/.test(nat)) {
-          draft.quocTich = nat;
+        const resolved = resolveKbttNationalityCode(occupant.nationality);
+        if (resolved) {
+          draft.quocTich = resolved;
         }
       }
     }
