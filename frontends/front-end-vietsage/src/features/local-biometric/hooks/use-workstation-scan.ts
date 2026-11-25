@@ -24,8 +24,14 @@ export function useWorkstationScan(hotelId: string) {
   const pollingRef = useRef(false);
   
   const clearTimers = useCallback(() => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    if (scanTimerRef.current) clearInterval(scanTimerRef.current);
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    if (scanTimerRef.current) {
+      clearInterval(scanTimerRef.current);
+      scanTimerRef.current = null;
+    }
   }, []);
 
   const checkStatus = useCallback(async () => {
@@ -48,9 +54,12 @@ export function useWorkstationScan(hotelId: string) {
     timerRef.current = setInterval(checkStatus, interval);
     return () => {
       clearTimeout(initialCheck);
-      clearTimers();
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
     };
-  }, [checkStatus, clearTimers, state.phase, pairCode]);
+  }, [checkStatus, state.phase, pairCode]);
 
   const requestScan = useCallback(async () => {
     try {
@@ -59,7 +68,10 @@ export function useWorkstationScan(hotelId: string) {
       currentScanIdRef.current = res.scanRequestId;
       setState({ phase: 'requested', scanRequestId: res.scanRequestId, expiresAt: res.expiresAt });
       
-      if (scanTimerRef.current) clearInterval(scanTimerRef.current);
+      if (scanTimerRef.current) {
+        clearInterval(scanTimerRef.current);
+        scanTimerRef.current = null;
+      }
       scanTimerRef.current = setInterval(async () => {
         if (!currentScanIdRef.current || pollingRef.current) return;
         pollingRef.current = true;
@@ -67,19 +79,29 @@ export function useWorkstationScan(hotelId: string) {
           const scan = await workstationRepository.readScan(currentScanIdRef.current, hotelId);
           if (scan.status === "received" && scan.payload) {
             setState({ phase: 'received', payload: scan.payload, capturedTransferId: scan.payload.transferId });
+            const completedScanId = scan.scanRequestId;
             currentScanIdRef.current = null;
-            if (scanTimerRef.current) clearInterval(scanTimerRef.current);
-            await workstationRepository.acknowledgeScan(scan.scanRequestId, hotelId);
+            if (scanTimerRef.current) {
+              clearInterval(scanTimerRef.current);
+              scanTimerRef.current = null;
+            }
+            await workstationRepository.acknowledgeScan(completedScanId, hotelId);
           } else if (Date.now() >= scan.expiresAt) {
             setState({ phase: 'expired' });
             currentScanIdRef.current = null;
-            if (scanTimerRef.current) clearInterval(scanTimerRef.current);
+            if (scanTimerRef.current) {
+              clearInterval(scanTimerRef.current);
+              scanTimerRef.current = null;
+            }
           }
         } catch (error: unknown) {
           if (error instanceof Error && error.message.includes('hết hạn')) {
              setState({ phase: 'expired' });
              currentScanIdRef.current = null;
-             if (scanTimerRef.current) clearInterval(scanTimerRef.current);
+             if (scanTimerRef.current) {
+               clearInterval(scanTimerRef.current);
+               scanTimerRef.current = null;
+             }
           }
         } finally {
           pollingRef.current = false;
@@ -110,18 +132,22 @@ export function useWorkstationScan(hotelId: string) {
       workstationRepository.discardScan(currentScanIdRef.current, hotelId).catch(() => {});
       currentScanIdRef.current = null;
     }
-    if (scanTimerRef.current) clearInterval(scanTimerRef.current);
+    if (scanTimerRef.current) {
+      clearInterval(scanTimerRef.current);
+      scanTimerRef.current = null;
+    }
     setState({ phase: 'checking' });
     checkStatus();
   }, [hotelId, checkStatus]);
   
   useEffect(() => {
     return () => {
+      clearTimers();
       if (currentScanIdRef.current) {
         workstationRepository.discardScan(currentScanIdRef.current, hotelId).catch(() => {});
       }
     };
-  }, [hotelId]);
+  }, [clearTimers, hotelId]);
 
   return { state, pairCode, requestScan, createPairing, disconnect, reset };
 }
