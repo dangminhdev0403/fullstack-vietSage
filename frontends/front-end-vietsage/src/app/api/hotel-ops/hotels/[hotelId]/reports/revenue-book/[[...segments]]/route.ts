@@ -17,7 +17,8 @@ async function forward(request: Request, context: Context) {
     request.method === "GET"
       ? segments.length === 0
       : request.method === "PATCH"
-        ? segments.length === 2 && entries === "entries" && Boolean(id)
+        ? (segments.length === 2 && entries === "entries" && Boolean(id)) ||
+          (segments.length === 1 && entries === "notes")
         : request.method === "POST" &&
           entries === "entries" &&
           (segments.length === 1 ||

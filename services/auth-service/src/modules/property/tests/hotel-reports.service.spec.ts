@@ -1,5 +1,5 @@
 import { ForbiddenException, NotFoundException } from "@nestjs/common";
-import { FolioItemType, GuestStayStatus, PaymentMethod, Prisma } from "@prisma/client";
+import { FolioItemType, GuestStayStatus, PaymentMethod, Prisma, ReservationStatus } from "@prisma/client";
 import { Temporal } from "@js-temporal/polyfill";
 import { HotelReportsService } from "../application/hotel-reports.service";
 
@@ -7,7 +7,9 @@ describe("HotelReportsService", () => {
   const mockPrisma = {
     room: {
       count: jest.fn(),
+      findMany: jest.fn().mockResolvedValue([]),
     },
+    channelDailyAvailability: { findMany: jest.fn().mockResolvedValue([]) },
     payment: {
       findMany: jest.fn(),
     },
@@ -38,6 +40,7 @@ describe("HotelReportsService", () => {
     delete (mockPrisma as any).hotelReceivable;
     delete (mockPrisma as any).hotel;
     delete (mockPrisma as any).$transaction;
+    delete (mockPrisma as any).reservation;
     delete (mockHotelAccessService as any).loadActorContext;
     service = new HotelReportsService(mockPrisma as never, mockHotelAccessService as never);
 
@@ -253,7 +256,15 @@ describe("HotelReportsService", () => {
         createdBy: { id: "user-1", fullName: "Thu Ngân Ca Đêm", email: "ca@vn" },
       },
     ]);
-    mockPrisma.folioItem.findMany.mockResolvedValue([]);
+    mockPrisma.folioItem.findMany.mockResolvedValue([
+      {
+        id: "fi-early",
+        itemType: FolioItemType.ROOM_CHARGE,
+        totalSnapshot: 1800000,
+        postedAt: earlyMorningVn,
+        postedByUserId: "user-1",
+      },
+    ]);
     mockPrisma.guestStay.findMany.mockResolvedValue([
       {
         id: "stay-oct20",
@@ -1145,6 +1156,473 @@ describe("HotelReportsService", () => {
           targetAmount: 120000000,
         }),
       ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe("Workstream C: Advance on-books, projections, pacing, deduplication and weighted metrics", () => {
+    it("tính toán doanh thu dự kiến và tỷ lệ lấp đầy trên sổ (on-books) từ các đơn đặt trước (advance reservations)", async () => {
+      mockPrisma.room.count
+        .mockResolvedValueOnce(10) // totalRooms
+        .mockResolvedValueOnce(2); // occupiedRoomsNow
+
+      mockPrisma.payment.findMany.mockResolvedValue([]);
+      mockPrisma.folioItem.findMany.mockResolvedValue([
+        {
+          id: "folio-1",
+          itemType: FolioItemType.ROOM_CHARGE,
+          totalSnapshot: 4000000,
+          postedAt: new Date("2026-11-03T10:00:00+07:00"),
+          postedByUserId: "staff-1",
+        },
+      ]);
+
+      const checkIn = new Date("2026-11-01T14:00:00+07:00");
+      const checkOut = new Date("2026-11-05T12:00:00+07:00");
+
+      mockPrisma.guestStay.findMany.mockResolvedValue([
+        {
+          id: "stay-1",
+          reservationId: null,
+          reservationCode: "DIR-001",
+          guestDisplayName: "Nguyễn Văn Thực Tế",
+          guestNationality: "Việt Nam",
+          guestGender: "NAM",
+          status: GuestStayStatus.ACTIVE,
+          plannedCheckInAt: checkIn,
+          plannedCheckOutAt: checkOut,
+          checkedInAt: checkIn,
+          checkedOutAt: checkOut,
+          nightlyRateSnapshot: 1000000,
+          baseNightlyRateSnapshot: 1000000,
+          createdByUserId: "staff-1",
+          closedByUserId: null,
+          createdBy: { id: "staff-1", fullName: "Lễ tân", email: "lt@hotel.vn" },
+          occupants: [{ id: "occ-1", fullName: "Nguyễn Văn Thực Tế", nationality: "Việt Nam", gender: "NAM", isPrimary: true }],
+          reservation: null,
+        },
+      ]);
+
+      mockPrisma.hotelStaffAssignment.findMany.mockResolvedValue([]);
+
+      const advCheckIn = new Date("2026-11-20T14:00:00+07:00");
+      const advCheckOut = new Date("2026-11-25T12:00:00+07:00");
+
+      (mockPrisma as any).reservation = {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: "res-advance-1",
+            reservationCode: "RES-ADV-001",
+            groupCode: "CHANNEX:book-1",
+            guestDisplayName: "Kim Advance",
+            status: ReservationStatus.CONFIRMED,
+            plannedCheckInAt: advCheckIn,
+            plannedCheckOutAt: advCheckOut,
+            nightlyRateSnapshot: 1200000,
+            baseNightlyRateSnapshot: 1200000,
+            guestCount: 2,
+            sourceCategory: "OTA",
+            sourcePartner: { id: "p-1", name: "Booking.com", category: "OTA" },
+          },
+        ]),
+      };
+
+      const result = await service.getReports(
+        "user-1",
+        "role-owner",
+        "hotel-1",
+        { range: "30d", from: "2026-11-01", to: "2026-11-30" },
+      );
+
+      // Period has 30 days * 10 rooms = 300 available room nights
+      expect(result.summary.totalAvailableRoomNights).toBe(300);
+      expect(result.summary.totalRoomNights).toBe(4);
+      expect(result.summary.roomRevenue).toBe(4000000);
+      expect(result.summary.adr).toBe(1000000);
+
+      // Advance projections: 5 nights from 20 to 25 @ 1,200,000 = 6,000,000
+      expect(result.summary.projectedRoomNights).toBe(5);
+      expect(result.summary.projectedRoomRevenue).toBe(6000000);
+
+      // On-books totals
+      expect(result.summary.onBooksRoomNights).toBe(9);
+      expect(result.summary.onBooksRoomRevenue).toBe(10000000);
+      expect(result.summary.onBooksOccupancyRate).toBe(3); // 9 / 300 * 100 = 3%
+      expect(result.summary.onBooksAdr).toBe(Math.round(10000000 / 9)); // 1,111,111
+
+      // Verify daily projection for 2026-11-20
+      const day20 = result.revenueByDay.find((d) => d.date === "2026-11-20");
+      expect(day20).toBeDefined();
+      expect(day20?.projectedRooms).toBe(1);
+      expect(day20?.projectedRevenue).toBe(1200000);
+      expect(day20?.onBooksRooms).toBe(1);
+      expect(day20?.onBooksRevenue).toBe(1200000);
+
+      // Verify source breakdown has Booking.com with projected revenue kept separate from actual totalRevenue
+      const bookingComSource = result.revenueBySource.find(
+        (s) => s.sourceName.includes("Booking.com") || s.sourceKey.includes("Booking.com"),
+      );
+      expect(bookingComSource).toBeDefined();
+      expect(bookingComSource?.projectedRevenue).toBe(6000000);
+      expect(bookingComSource?.actualRevenue).toBe(0);
+      expect(bookingComSource?.totalRevenue).toBe(0);
+      expect(bookingComSource?.bookingCount).toBe(1);
+      expect(day20?.totalRevenue).toBe(0);
+      expect(day20?.netProfit).toBe(0);
+    });
+
+    it("loại bỏ hoàn toàn các đơn đặt phòng bị hủy (CANCELLED, NO_SHOW)", async () => {
+      mockPrisma.room.count
+        .mockResolvedValueOnce(10)
+        .mockResolvedValueOnce(0);
+
+      mockPrisma.payment.findMany.mockResolvedValue([]);
+      mockPrisma.folioItem.findMany.mockResolvedValue([]);
+      mockPrisma.guestStay.findMany.mockResolvedValue([]);
+      mockPrisma.hotelStaffAssignment.findMany.mockResolvedValue([]);
+
+      const advCheckIn = new Date("2026-11-10T14:00:00+07:00");
+      const advCheckOut = new Date("2026-11-15T12:00:00+07:00");
+
+      (mockPrisma as any).reservation = {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: "res-cancelled",
+            reservationCode: "RES-CAN-01",
+            status: ReservationStatus.CANCELLED,
+            plannedCheckInAt: advCheckIn,
+            plannedCheckOutAt: advCheckOut,
+            nightlyRateSnapshot: 1500000,
+            baseNightlyRateSnapshot: 1500000,
+            guestCount: 2,
+            sourceCategory: "OTA",
+            sourcePartner: { id: "p-2", name: "Agoda", category: "OTA" },
+          },
+          {
+            id: "res-noshow",
+            reservationCode: "RES-NS-01",
+            status: ReservationStatus.NO_SHOW,
+            plannedCheckInAt: advCheckIn,
+            plannedCheckOutAt: advCheckOut,
+            nightlyRateSnapshot: 800000,
+            baseNightlyRateSnapshot: 800000,
+            guestCount: 1,
+            sourceCategory: "DIRECT",
+            sourcePartner: null,
+          },
+        ]),
+      };
+
+      const result = await service.getReports(
+        "user-1",
+        "role-owner",
+        "hotel-1",
+        { range: "30d", from: "2026-11-01", to: "2026-11-30" },
+      );
+
+      expect(result.summary.projectedRoomNights).toBe(0);
+      expect(result.summary.projectedRoomRevenue).toBe(0);
+      expect(result.summary.onBooksRoomNights).toBe(0);
+      expect(result.summary.onBooksRoomRevenue).toBe(0);
+      // Cancelled and no-show channels must not be in sources
+      expect(result.revenueBySource.find((s) => s.sourceKey.includes("AGODA"))).toBeUndefined();
+      expect(result.revenueBySource.every((s) => s.bookingCount === 0 && s.totalRevenue === 0)).toBe(true);
+    });
+
+    it("khử trùng lặp (deduplicate) đơn đặt phòng đã chuyển thành lượt lưu trú (stay có reservationId hoặc matching code)", async () => {
+      mockPrisma.room.count
+        .mockResolvedValueOnce(10)
+        .mockResolvedValueOnce(1);
+
+      mockPrisma.payment.findMany.mockResolvedValue([]);
+      mockPrisma.folioItem.findMany.mockResolvedValue([
+        {
+          id: "folio-1",
+          itemType: FolioItemType.ROOM_CHARGE,
+          totalSnapshot: 3000000,
+          postedAt: new Date("2026-11-02T10:00:00+07:00"),
+          postedByUserId: "staff-1",
+        },
+      ]);
+
+      const checkIn = new Date("2026-11-01T14:00:00+07:00");
+      const checkOut = new Date("2026-11-04T12:00:00+07:00");
+
+      mockPrisma.guestStay.findMany.mockResolvedValue([
+        {
+          id: "stay-converted",
+          reservationId: "res-converted-1",
+          reservationCode: "RES-CONV-01",
+          guestDisplayName: "Trần Đã Nhận Phòng",
+          guestNationality: "Việt Nam",
+          guestGender: "NAM",
+          status: GuestStayStatus.ACTIVE,
+          plannedCheckInAt: checkIn,
+          plannedCheckOutAt: checkOut,
+          checkedInAt: checkIn,
+          checkedOutAt: null,
+          nightlyRateSnapshot: 1000000,
+          baseNightlyRateSnapshot: 1000000,
+          createdByUserId: "staff-1",
+          closedByUserId: null,
+          createdBy: { id: "staff-1", fullName: "Lễ tân", email: "lt@hotel.vn" },
+          occupants: [{ id: "occ-conv", fullName: "Trần Đã Nhận Phòng", nationality: "Việt Nam", gender: "NAM", isPrimary: true }],
+          reservation: {
+            id: "res-converted-1",
+            reservationCode: "RES-CONV-01",
+            groupCode: null,
+            status: "CONFIRMED",
+            guestCount: 2,
+            createdByUserId: "staff-1",
+          },
+        },
+      ]);
+
+      mockPrisma.hotelStaffAssignment.findMany.mockResolvedValue([]);
+
+      // Advance reservation record with identical id "res-converted-1"
+      (mockPrisma as any).reservation = {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: "res-converted-1",
+            reservationCode: "RES-CONV-01",
+            status: ReservationStatus.CONFIRMED,
+            plannedCheckInAt: checkIn,
+            plannedCheckOutAt: checkOut,
+            nightlyRateSnapshot: 1000000,
+            baseNightlyRateSnapshot: 1000000,
+            guestCount: 2,
+            sourceCategory: "DIRECT",
+            sourcePartner: null,
+          },
+        ]),
+      };
+
+      const result = await service.getReports(
+        "user-1",
+        "role-owner",
+        "hotel-1",
+        { range: "30d", from: "2026-11-01", to: "2026-11-30" },
+      );
+
+      // Converted reservation must be deduplicated
+      expect(result.summary.totalRoomNights).toBe(3);
+      expect(result.summary.roomRevenue).toBe(3000000);
+      expect(result.summary.projectedRoomNights).toBe(0);
+      expect(result.summary.projectedRoomRevenue).toBe(0);
+      expect(result.summary.onBooksRoomNights).toBe(3);
+      expect(result.summary.onBooksRoomRevenue).toBe(3000000);
+    });
+
+    it("tính ADR bình quân có trọng số chuẩn xác và xử lý an toàn khi quỹ phòng bằng 0", async () => {
+      mockPrisma.room.count
+        .mockResolvedValueOnce(0) // totalRooms = 0
+        .mockResolvedValueOnce(0);
+
+      mockPrisma.payment.findMany.mockResolvedValue([]);
+      mockPrisma.folioItem.findMany.mockResolvedValue([]);
+      mockPrisma.guestStay.findMany.mockResolvedValue([]);
+      mockPrisma.hotelStaffAssignment.findMany.mockResolvedValue([]);
+
+      const result = await service.getReports(
+        "user-1",
+        "role-owner",
+        "hotel-1",
+        { range: "30d", from: "2026-11-01", to: "2026-11-30" },
+      );
+
+      expect(result.summary.totalRooms).toBe(0);
+      expect(result.summary.totalAvailableRoomNights).toBe(0);
+      expect(result.summary.occupancyRate).toBe(0);
+      expect(result.summary.adr).toBe(0);
+      expect(result.summary.revpar).toBe(0);
+      expect(result.summary.onBooksOccupancyRate).toBe(0);
+      expect(result.summary.onBooksAdr).toBe(0);
+      expect(Number.isNaN(result.summary.occupancyRate)).toBe(false);
+      expect(Number.isNaN(result.summary.adr)).toBe(false);
+      expect(Number.isNaN(result.summary.revpar)).toBe(false);
+    });
+
+    it("báo cáo theo kênh phân phối phản ánh doanh thu thực tế và trên sổ mà không tự suy diễn hoa hồng", async () => {
+      mockPrisma.room.count
+        .mockResolvedValueOnce(10)
+        .mockResolvedValueOnce(0);
+
+      mockPrisma.payment.findMany.mockResolvedValue([]);
+      mockPrisma.folioItem.findMany.mockResolvedValue([]);
+      mockPrisma.guestStay.findMany.mockResolvedValue([]);
+      mockPrisma.hotelStaffAssignment.findMany.mockResolvedValue([]);
+
+      const advCheckIn = new Date("2026-11-15T14:00:00+07:00");
+      const advCheckOut = new Date("2026-11-18T12:00:00+07:00");
+
+      (mockPrisma as any).reservation = {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: "res-ota-1",
+            reservationCode: "RES-EXP-01",
+            status: ReservationStatus.CONFIRMED,
+            plannedCheckInAt: advCheckIn,
+            plannedCheckOutAt: advCheckOut,
+            nightlyRateSnapshot: 2000000,
+            baseNightlyRateSnapshot: 2000000,
+            guestCount: 2,
+            sourceCategory: "OTA",
+            sourcePartner: { id: "p-exp", name: "Expedia", category: "OTA" },
+          },
+        ]),
+      };
+
+      const result = await service.getReports(
+        "user-1",
+        "role-owner",
+        "hotel-1",
+        { range: "30d", from: "2026-11-01", to: "2026-11-30" },
+      );
+
+      const expedia = result.revenueBySource.find((s) => s.sourceName.includes("Expedia"));
+      expect(expedia).toBeDefined();
+      expect(expedia?.actualRevenue).toBe(0);
+      expect(expedia?.totalRevenue).toBe(0);
+      expect(expedia?.projectedRevenue).toBe(6000000);
+      expect(expedia?.roomNights).toBe(3);
+      expect(expedia?.adr).toBe(0);
+    });
+
+    it("R5: phân bổ giá theo serviceDate từng đêm (500k + 700k), không đưa dự kiến vào lãi/lỗ thực tế ngày hay tháng", async () => {
+      mockPrisma.room.count.mockResolvedValueOnce(5).mockResolvedValueOnce(0);
+      mockPrisma.payment.findMany.mockResolvedValue([]);
+      mockPrisma.folioItem.findMany.mockResolvedValue([]);
+      mockPrisma.guestStay.findMany.mockResolvedValue([]);
+      mockPrisma.hotelStaffAssignment.findMany.mockResolvedValue([]);
+      (mockPrisma as any).reservation = {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: "res-var-1",
+            reservationCode: "RES-VAR-01",
+            status: ReservationStatus.CONFIRMED,
+            plannedCheckInAt: new Date("2026-11-28T14:00:00+07:00"),
+            plannedCheckOutAt: new Date("2026-11-30T12:00:00+07:00"),
+            nightlyRateSnapshot: 600000,
+            baseNightlyRateSnapshot: 600000,
+            guestCount: 2,
+            sourceCategory: "DIRECT",
+            chargeLines: [
+              {
+                lineType: "ROOM_NIGHT",
+                serviceDate: new Date("2026-11-28T00:00:00.000Z"),
+                totalSnapshot: new Prisma.Decimal(500000),
+                currency: "VND",
+              },
+              {
+                lineType: "ROOM_NIGHT",
+                serviceDate: new Date("2026-11-29T00:00:00.000Z"),
+                totalSnapshot: new Prisma.Decimal(700000),
+                currency: "VND",
+              },
+            ],
+          },
+        ]),
+      };
+
+      const result = await service.getReports("user-1", "role-owner", "hotel-1", {
+        range: "30d",
+        from: "2026-11-28",
+        to: "2026-11-29",
+      });
+
+      const day1 = result.revenueByDay.find((d) => d.date === "2026-11-28");
+      const day2 = result.revenueByDay.find((d) => d.date === "2026-11-29");
+      expect(day1?.projectedRevenue).toBe(500000);
+      expect(day2?.projectedRevenue).toBe(700000);
+      expect(day1?.totalRevenue).toBe(0);
+      expect(day1?.netProfit).toBe(0);
+      expect(day2?.totalRevenue).toBe(0);
+      expect(day2?.netProfit).toBe(0);
+      expect(result.summary.totalRevenue).toBe(0);
+      expect(result.summary.netProfit).toBe(0);
+      expect(result.summary.projectedRoomRevenue).toBe(1200000);
+
+      const novMonth = result.revenueByMonth.find((m) => m.month === "2026-11");
+      expect(novMonth?.roomRevenue).toBe(0);
+      expect(novMonth?.netProfit).toBe(0);
+    });
+
+    it("R4 & R7: áp dụng allowedRoomIds (nhiều phòng / tập rỗng), trừ phòng khóa blockedRooms khỏi đêm phòng khả dụng và đối soát marketDimensions", async () => {
+      // 1. Blocked rooms: 10 phòng trong 30 ngày = 300 đêm, khóa 4 phòng trong 1 ngày => 296 đêm khả dụng
+      mockPrisma.room.count.mockResolvedValueOnce(10).mockResolvedValueOnce(0);
+      (mockPrisma.room as any).findMany = jest.fn().mockResolvedValue(
+        Array.from({ length: 10 }, () => ({ type: "DELUXE" })),
+      );
+      (mockPrisma as any).channelDailyAvailability = {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            date: new Date("2026-11-10T00:00:00.000Z"),
+            roomType: "DELUXE",
+            totalRooms: 10,
+            blockedRooms: 4,
+          },
+        ]),
+      };
+      mockPrisma.payment.findMany.mockResolvedValue([]);
+      mockPrisma.folioItem.findMany.mockResolvedValue([
+        {
+          id: "fi-1",
+          itemType: FolioItemType.ROOM_CHARGE,
+          totalSnapshot: 2000000,
+          postedAt: new Date("2026-11-10T10:00:00+07:00"),
+          folio: { room: { id: "r-101", roomNumber: "101", type: "DELUXE", roomType: { id: "rt-1", name: "Deluxe" } } },
+          stay: {
+            guestNationality: "KR",
+            occupants: [{ nationality: "KR" }],
+            reservation: {
+              reservationCode: "BK-1",
+              sourceCategory: "OTA",
+              sourcePartner: { id: "p-agoda", name: "Agoda" },
+              bookingOwnerUserId: "staff-1",
+            },
+          },
+        },
+      ]);
+      mockPrisma.guestStay.findMany.mockResolvedValue([]);
+      mockPrisma.hotelStaffAssignment.findMany.mockResolvedValue([
+        { userId: "staff-1", user: { id: "staff-1", fullName: "Nguyễn A", email: "a@hotel.vn", userRoles: [] } },
+      ]);
+      (mockPrisma as any).reservation = { findMany: jest.fn().mockResolvedValue([]) };
+
+      const full = await service.getReports("user-1", "role-owner", "hotel-1", {
+        range: "30d",
+        from: "2026-11-01",
+        to: "2026-11-30",
+      });
+      expect(full.summary.availableRoomNights).toBe(296);
+      expect(full.summary.totalAvailableRoomNights).toBe(296);
+      // Every market dimension sums back to period actual totalRevenue
+      for (const dim of ["nationality", "roomType", "room", "partner", "owner"] as const) {
+        const sumActual = full.marketDimensions[dim].reduce((s, r) => s + r.actualRevenue, 0);
+        expect(sumActual).toBe(full.summary.totalRevenue);
+      }
+      expect(full.marketDimensions.nationality[0]?.label).toBe("Hàn Quốc");
+      expect(full.marketDimensions.roomType[0]?.label).toBe("Deluxe");
+      expect(full.marketDimensions.room[0]?.label).toBe("101");
+
+      // 2. Room scope with multiple allowedRoomIds applied to reservation query
+      mockHotelAccessService.resolveRoomScope.mockResolvedValueOnce({
+        hotel: { id: "hotel-1", name: "Hotel", timezone: "Asia/Ho_Chi_Minh", tenantId: "t-1" },
+        allowedRoomId: null,
+        allowedRoomIds: ["r-101", "r-102"],
+        mode: "ROOM_EXCLUSIVE",
+      });
+      mockPrisma.room.count.mockResolvedValueOnce(2).mockResolvedValueOnce(0);
+      await service.getReports("user-2", "role-staff", "hotel-1", {
+        range: "7d",
+        from: "2026-11-01",
+        to: "2026-11-07",
+      });
+      expect((mockPrisma as any).reservation.findMany).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ roomId: { in: ["r-101", "r-102"] } }),
+        }),
+      );
     });
   });
 });

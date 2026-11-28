@@ -50,13 +50,13 @@ const SUB_TABS: Array<{
 }> = [
   {
     id: "overview",
-    label: "Tổng quan & KPIs",
+    label: "Chỉ số vận hành",
     icon: "dashboard",
     description: "Chỉ số doanh thu, ADR, công suất phòng OCC và RevPAR.",
   },
   {
     id: "pnl",
-    label: "Kết quả KD & Lãi lỗ",
+    label: "Báo cáo lãi lỗ",
     icon: "monitoring",
     description: "Doanh thu, chi phí vận hành, phí SaaS và lãi/lỗ ròng theo kỳ.",
   },
@@ -112,7 +112,8 @@ const WEEKDAY_VI: Record<number, string> = {
   7: "CN",
 };
 
-function formatVnd(amount: number): string {
+function formatVnd(amount: number | null | undefined): string {
+  if (amount == null || !Number.isFinite(amount)) return "—";
   return new Intl.NumberFormat("vi-VN", {
     style: "currency",
     currency: "VND",
@@ -120,8 +121,8 @@ function formatVnd(amount: number): string {
   }).format(amount);
 }
 
-function formatCompactVnd(amount: number): string {
-  if (!Number.isFinite(amount) || amount === 0) return "0 ₫";
+function formatCompactVnd(amount: number | null | undefined): string {
+  if (amount == null || !Number.isFinite(amount) || amount === 0) return "0 ₫";
   const sign = amount < 0 ? "-" : "";
   const abs = Math.abs(amount);
   if (abs >= 1_000_000_000) {
@@ -136,7 +137,8 @@ function formatCompactVnd(amount: number): string {
   return `${sign}${Math.round(abs)} ₫`;
 }
 
-function formatPercent(value: number): string {
+function formatPercent(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) return "—";
   return `${value.toFixed(1)}%`;
 }
 
@@ -529,7 +531,7 @@ export function HotelReportsWorkspaceClient({
         onSelectClientTab={handleTabChange}
       />
 
-      {/* KPI Headline Cards */}
+      {activeTab === "overview" && (
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {/* Total Revenue */}
         <article className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm md:p-6 dark:border-slate-800 dark:bg-slate-900">
@@ -606,105 +608,7 @@ export function HotelReportsWorkspaceClient({
         </article>
       </section>
 
-      {/* P&L & Cashflow Summary Strip */}
-      <section
-        aria-label="Tổng hợp kết quả kinh doanh và dòng tiền"
-        className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
-      >
-        <article className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 whitespace-nowrap dark:text-slate-400">
-              Thực thu trong kỳ
-            </span>
-            <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 whitespace-nowrap dark:bg-emerald-950/60 dark:text-emerald-300">
-              Thu tiền
-            </span>
-          </div>
-          <p className="mt-2.5 text-2xl font-black tracking-tight text-slate-900 tabular-nums dark:text-white">
-            {formatVnd(summary.collectedRevenue ?? 0)}
-          </p>
-          <p className="mt-2 text-xs text-slate-600 text-pretty dark:text-slate-400">
-            Còn phải thu / công nợ:{" "}
-            <strong className="text-amber-700 tabular-nums dark:text-amber-400">
-              {formatVnd(summary.uncollectedRevenue ?? 0)}
-            </strong>
-          </p>
-        </article>
-
-        <article className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 whitespace-nowrap dark:text-slate-400">
-              Tổng chi phí
-            </span>
-            <span className="rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-semibold text-rose-700 whitespace-nowrap dark:bg-rose-950/60 dark:text-rose-300">
-              Vận hành + SaaS
-            </span>
-          </div>
-          <p className="mt-2.5 text-2xl font-black tracking-tight text-rose-700 tabular-nums dark:text-rose-400">
-            {formatVnd(summary.totalExpense ?? 0)}
-          </p>
-          <p className="mt-2 text-xs text-slate-600 text-pretty dark:text-slate-400">
-            Vận hành {formatCompactVnd(summary.operatingExpense ?? 0)} · Phí SaaS{" "}
-            {formatCompactVnd(summary.saasFeeExpense ?? 0)}
-          </p>
-        </article>
-
-        <article className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 whitespace-nowrap dark:text-slate-400">
-              Lợi nhuận ròng (Lãi/Lỗ)
-            </span>
-            <span
-              className={`rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap ${
-                (summary.netProfit ?? 0) >= 0
-                  ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
-                  : "bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300"
-              }`}
-            >
-              {(summary.netProfit ?? 0) >= 0 ? "Có lãi" : "Đang lỗ"} ·{" "}
-              {(summary.profitMargin ?? 0).toFixed(1)}%
-            </span>
-          </div>
-          <p
-            className={`mt-2.5 text-2xl font-black tracking-tight tabular-nums ${
-              (summary.netProfit ?? 0) >= 0
-                ? "text-emerald-700 dark:text-emerald-400"
-                : "text-rose-700 dark:text-rose-400"
-            }`}
-          >
-            {formatVnd(summary.netProfit ?? 0)}
-          </p>
-          <p className="mt-2 text-xs text-slate-600 text-pretty dark:text-slate-400">
-            Doanh thu trừ tổng chi phí vận hành và phí SaaS.
-          </p>
-        </article>
-
-        <article className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 whitespace-nowrap dark:text-slate-400">
-              Dòng tiền ròng
-            </span>
-            <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-700 whitespace-nowrap dark:bg-slate-800 dark:text-slate-300">
-              Thu - Đã chi
-            </span>
-          </div>
-          <p
-            className={`mt-2.5 text-2xl font-black tracking-tight tabular-nums ${
-              (summary.netCashFlow ?? 0) >= 0
-                ? "text-slate-900 dark:text-white"
-                : "text-rose-700 dark:text-rose-400"
-            }`}
-          >
-            {formatVnd(summary.netCashFlow ?? 0)}
-          </p>
-          <p className="mt-2 text-xs text-slate-600 text-pretty dark:text-slate-400">
-            Tỷ lệ chi phí/doanh thu:{" "}
-            <strong className="text-slate-900 tabular-nums dark:text-slate-200">
-              {(summary.expenseRatio ?? 0).toFixed(1)}%
-            </strong>
-          </p>
-        </article>
-      </section>
+      )}
 
       {/* In-Place Sub-Tab Panels */}
       <div className={isPending ? "opacity-60 transition-opacity duration-200" : ""}>
@@ -1334,6 +1238,173 @@ function OverviewPanel({ reports }: { reports: HotelReportsData }) {
         </section>
       </div>
 
+      {/* On-Books Pacing & Advance Commitments Card */}
+      <section className="rounded-2xl border border-teal-200/90 bg-gradient-to-br from-teal-50/50 via-white to-emerald-50/30 p-6 shadow-sm dark:border-teal-900/60 dark:bg-gradient-to-br dark:from-slate-900 dark:via-slate-900 dark:to-teal-950/30">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300">
+                <VsIcon name="book_online" className="text-base" />
+              </span>
+              <h2 className="text-lg font-bold text-slate-900 md:text-xl text-balance dark:text-white">
+                Tiến độ Đã bán trên sổ (On-Books vs Thực tế)
+              </h2>
+            </div>
+            <p className="mt-1 text-sm text-slate-600 text-pretty dark:text-slate-400">
+              Theo dõi sức bán tổng thể kết hợp giữa lượt lưu trú thực tế đã phát sinh và các đơn đặt phòng trước trong tương lai chưa nhận phòng.
+            </p>
+          </div>
+          <div className="inline-flex items-center gap-2 rounded-xl border border-teal-200 bg-white/80 px-3.5 py-1.5 text-xs font-bold text-teal-800 dark:border-teal-800 dark:bg-slate-800 dark:text-teal-300">
+            <span>
+              Quỹ phòng: {summary.totalRooms} phòng (
+              {(summary.totalAvailableRoomNights ?? summary.availableRoomNights) != null
+                ? `${summary.totalAvailableRoomNights ?? summary.availableRoomNights} đêm`
+                : "Chưa xác định theo phòng"}
+              )
+            </span>
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {/* 1. Thực tế lưu trú */}
+          <div className="rounded-xl border border-slate-200/80 bg-white/90 p-4 dark:border-slate-800 dark:bg-slate-800/60">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              1. Thực tế đã lưu trú
+            </span>
+            <p className="mt-2 text-xl font-extrabold text-slate-900 tabular-nums dark:text-white">
+              {formatVnd(summary.roomRevenue)}
+            </p>
+            <div className="mt-2 space-y-1 text-xs text-slate-600 dark:text-slate-400 tabular-nums">
+              <div className="flex justify-between">
+                <span>Đêm phòng đã bán:</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">{summary.totalRoomNights} đêm</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Công suất thực tế (OCC):</span>
+                <span className="font-semibold text-emerald-700 dark:text-emerald-400">{formatPercent(summary.occupancyRate)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Giá bán bình quân (ADR):</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">{formatVnd(summary.adr)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* 2. Đặt trước trên sổ */}
+          <div className="rounded-xl border border-teal-200/80 bg-white/90 p-4 dark:border-teal-800/60 dark:bg-slate-800/60">
+            <span className="text-xs font-bold uppercase tracking-wider text-teal-700 dark:text-teal-400">
+              2. Đặt trước tương lai (On-Books)
+            </span>
+            <p className="mt-2 text-xl font-extrabold text-teal-700 tabular-nums dark:text-teal-400">
+              {formatVnd(summary.projectedRoomRevenue ?? 0)}
+            </p>
+            <div className="mt-2 space-y-1 text-xs text-slate-600 dark:text-slate-400 tabular-nums">
+              <div className="flex justify-between">
+                <span>Đêm phòng tương lai:</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">{summary.projectedRoomNights ?? 0} đêm</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Tỷ lệ lấp đầy thêm:</span>
+                <span className="font-semibold text-teal-700 dark:text-teal-400">
+                  {summary.onBooksOccupancyRate != null && summary.occupancyRate != null
+                    ? `+${formatPercent(Math.max(0, summary.onBooksOccupancyRate - summary.occupancyRate))}`
+                    : "—"}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span>Trạng thái:</span>
+                <span className="font-semibold text-teal-700 dark:text-teal-400">Chờ nhận phòng</span>
+              </div>
+            </div>
+          </div>
+
+          {/* 3. Tổng trên sổ (On-Books Total) */}
+          <div className="rounded-xl border border-emerald-200/80 bg-white/90 p-4 dark:border-emerald-800/60 dark:bg-slate-800/60">
+            <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+              3. Tổng tiền phòng trên sổ
+            </span>
+            <p className="mt-2 text-xl font-extrabold text-emerald-800 tabular-nums dark:text-emerald-300">
+              {formatVnd(summary.onBooksRoomRevenue ?? summary.onBooksRevenue ?? (summary.roomRevenue + (summary.projectedRoomRevenue ?? 0)))}
+            </p>
+            <div className="mt-2 space-y-1 text-xs text-slate-600 dark:text-slate-400 tabular-nums">
+              <div className="flex justify-between">
+                <span>Tổng đêm phòng trên sổ:</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">
+                  {summary.onBooksRoomNights ?? summary.onBooksRooms ?? (summary.totalRoomNights + (summary.projectedRoomNights ?? 0))} đêm
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span>Tổng công suất trên sổ:</span>
+                <span className="font-semibold text-emerald-700 dark:text-emerald-400">
+                  {formatPercent(summary.onBooksOccupancyRate ?? summary.occupancyRate)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span>ADR bình quân trên sổ:</span>
+                <span className="font-semibold text-emerald-700 dark:text-emerald-400">
+                  {formatVnd(summary.onBooksAdr ?? summary.adr)}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* 4. Tiến độ lấp đầy (Pacing Bar) */}
+          <div className="rounded-xl border border-slate-200/80 bg-white/90 p-4 dark:border-slate-800 dark:bg-slate-800/60">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              4. Tiến độ lấp đầy quỹ phòng
+            </span>
+            <p className="mt-2 text-xl font-extrabold text-slate-900 tabular-nums dark:text-white">
+              {formatPercent(summary.onBooksOccupancyRate ?? summary.occupancyRate)}
+            </p>
+            <div className="mt-3">
+              <div className="h-3 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700 flex">
+                <div
+                  className="h-full bg-emerald-600 transition-all duration-300"
+                  style={{ width: `${Math.min(100, summary.occupancyRate ?? 0)}%` }}
+                  title={`Thực tế: ${formatPercent(summary.occupancyRate)}`}
+                />
+                <div
+                  className="h-full bg-teal-500 transition-all duration-300"
+                  style={{
+                    width: `${Math.min(
+                      100 - Math.min(100, summary.occupancyRate ?? 0),
+                      Math.max(
+                        0,
+                        (summary.onBooksOccupancyRate ?? summary.occupancyRate ?? 0) -
+                          (summary.occupancyRate ?? 0),
+                      ),
+                    )}%`,
+                  }}
+                  title={`Đặt trước: +${formatPercent(
+                    summary.onBooksOccupancyRate != null && summary.occupancyRate != null
+                      ? Math.max(0, summary.onBooksOccupancyRate - summary.occupancyRate)
+                      : null,
+                  )}`}
+                />
+              </div>
+              <div className="mt-2 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                <span className="inline-flex items-center gap-1">
+                  <span className="h-2 w-2 rounded-full bg-emerald-600 inline-block" /> Thực tế
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <span className="h-2 w-2 rounded-full bg-teal-500 inline-block" /> Đặt trước
+                </span>
+                <span className="font-semibold text-slate-700 dark:text-slate-300">
+                  Còn trống:{" "}
+                  {(summary.totalAvailableRoomNights ?? summary.availableRoomNights) != null
+                    ? Math.max(
+                        0,
+                        (summary.totalAvailableRoomNights ?? summary.availableRoomNights ?? 0) -
+                          (summary.onBooksRoomNights ?? summary.onBooksRooms ?? summary.totalRoomNights),
+                      )
+                    : "—"}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Channel Summary Card */}
       <section className="rounded-2xl border border-slate-200/90 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <h2 className="text-lg font-bold text-slate-900 md:text-xl text-balance dark:text-white">
@@ -1377,7 +1448,7 @@ function OverviewPanel({ reports }: { reports: HotelReportsData }) {
 // ----------------------------------------------------------------------
 function DailyRevenuePanel({ reports }: { reports: HotelReportsData }) {
   const { revenueByDay, timeZone } = reports;
-  const [chartMode, setChartMode] = useState<"revenue" | "pnl" | "occupancy">("revenue");
+  const [chartMode, setChartMode] = useState<"revenue" | "pnl" | "occupancy" | "onbooks">("revenue");
   const [onlyActiveDays, setOnlyActiveDays] = useState(false);
   const [sorting, setSorting] = useState<SortingState>([
     { id: "date", desc: true },
@@ -1385,7 +1456,11 @@ function DailyRevenuePanel({ reports }: { reports: HotelReportsData }) {
 
   const maxDayRevenue = Math.max(...revenueByDay.map((d) => d.totalRevenue), 1);
   const maxDayAbsPnl = Math.max(...revenueByDay.map((d) => Math.abs(d.netProfit ?? 0)), 1);
-  const maxDayOcc = Math.max(...revenueByDay.map((d) => d.occupancyRate), 10);
+  const maxDayOcc = Math.max(...revenueByDay.map((d) => d.occupancyRate ?? 0), 10);
+  const maxDayOnBooks = Math.max(
+    ...revenueByDay.map((d) => d.onBooksRevenue ?? d.totalRevenue),
+    1,
+  );
 
   const filteredDays = useMemo(() => {
     if (!onlyActiveDays) return revenueByDay;
@@ -1402,6 +1477,7 @@ function DailyRevenuePanel({ reports }: { reports: HotelReportsData }) {
     let netProfitSum = 0;
     let roomsOccSum = 0;
     let occSum = 0;
+    let occKnownCount = 0;
     for (const d of filteredDays) {
       roomRev += d.roomRevenue;
       serviceRev += d.serviceRevenue;
@@ -1410,11 +1486,13 @@ function DailyRevenuePanel({ reports }: { reports: HotelReportsData }) {
       expenseSum += dayExpense;
       netProfitSum += d.netProfit ?? d.totalRevenue - dayExpense;
       roomsOccSum += d.roomsOccupied;
-      occSum += d.occupancyRate;
+      if (d.occupancyRate != null) {
+        occSum += d.occupancyRate;
+        occKnownCount += 1;
+      }
     }
-    const count = Math.max(1, filteredDays.length);
     const avgAdr = roomsOccSum > 0 ? Math.round(roomRev / roomsOccSum) : 0;
-    const avgOcc = occSum / count;
+    const avgOcc = occKnownCount > 0 ? occSum / occKnownCount : null;
     return {
       roomRev,
       serviceRev,
@@ -1441,11 +1519,18 @@ function DailyRevenuePanel({ reports }: { reports: HotelReportsData }) {
         cell: ({ row }) => {
           const item = row.original;
           return (
-            <div className="font-bold text-slate-900 whitespace-nowrap dark:text-white">
-              {formatVietnameseDate(item.date, {
-                includeWeekday: true,
-                timeZone,
-              })}
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-slate-900 whitespace-nowrap dark:text-white">
+                {formatVietnameseDate(item.date, {
+                  includeWeekday: true,
+                  timeZone,
+                })}
+              </span>
+              {item.isFuture && (
+                <span className="rounded bg-teal-100 px-1.5 py-0.5 text-xs font-bold text-teal-800 whitespace-nowrap dark:bg-teal-950 dark:text-teal-300">
+                  Đặt trước
+                </span>
+              )}
             </div>
           );
         },
@@ -1461,15 +1546,24 @@ function DailyRevenuePanel({ reports }: { reports: HotelReportsData }) {
           />
         ),
         cell: ({ row }) => {
-          const count = row.original.roomsOccupied;
+          const item = row.original;
+          const count = item.roomsOccupied;
+          const onBooks = item.onBooksRooms ?? count;
           return (
-            <div className="text-right font-semibold text-slate-800 whitespace-nowrap tabular-nums dark:text-slate-200">
-              {count > 0 ? (
-                <span className="inline-flex items-center rounded-md bg-slate-100 px-2.5 py-0.5 text-sm font-bold text-slate-900 dark:bg-slate-800 dark:text-white">
-                  {count} phòng
+            <div className="text-right whitespace-nowrap tabular-nums">
+              <span className="font-semibold text-slate-800 dark:text-slate-200">
+                {count > 0 ? (
+                  <span className="inline-flex items-center rounded-md bg-slate-100 px-2.5 py-0.5 text-sm font-bold text-slate-900 dark:bg-slate-800 dark:text-white">
+                    {count} phòng
+                  </span>
+                ) : (
+                  <span className="text-slate-400">0 phòng</span>
+                )}
+              </span>
+              {onBooks > count && (
+                <span className="block text-xs font-semibold text-teal-700 dark:text-teal-400">
+                  (Trên sổ: {onBooks})
                 </span>
-              ) : (
-                <span className="text-slate-400">0 phòng</span>
               )}
             </div>
           );
@@ -1617,15 +1711,18 @@ function DailyRevenuePanel({ reports }: { reports: HotelReportsData }) {
         ),
         cell: ({ row }) => {
           const occ = row.original.occupancyRate;
+          const occNum = occ ?? 0;
           return (
             <div className="text-right whitespace-nowrap tabular-nums">
               <span
                 className={`inline-block rounded-md px-2.5 py-1 text-sm font-bold whitespace-nowrap ${
-                  occ >= 50
-                    ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
-                    : occ > 0
-                      ? "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300"
-                      : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+                  occ == null
+                    ? "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+                    : occNum >= 50
+                      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                      : occNum > 0
+                        ? "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300"
+                        : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
                 }`}
               >
                 {formatPercent(occ)}
@@ -1699,6 +1796,17 @@ function DailyRevenuePanel({ reports }: { reports: HotelReportsData }) {
             >
               Theo Công suất (OCC %)
             </button>
+            <button
+              type="button"
+              onClick={() => setChartMode("onbooks")}
+              className={`rounded-lg px-3.5 py-1.5 text-sm font-bold transition-all whitespace-nowrap ${
+                chartMode === "onbooks"
+                  ? "bg-white text-teal-800 shadow-sm dark:bg-slate-900 dark:text-teal-400"
+                  : "text-slate-600 hover:text-slate-900 dark:text-slate-400"
+              }`}
+            >
+              Trên sổ (On-books)
+            </button>
           </div>
         </div>
 
@@ -1708,16 +1816,21 @@ function DailyRevenuePanel({ reports }: { reports: HotelReportsData }) {
             const dayNetProfit = day.netProfit ?? day.totalRevenue - dayExpense;
             const isRevenueMode = chartMode === "revenue";
             const isPnlMode = chartMode === "pnl";
+            const isOnBooksMode = chartMode === "onbooks";
             const rawVal = isRevenueMode
               ? day.totalRevenue
               : isPnlMode
                 ? dayNetProfit
-                : day.occupancyRate;
+                : isOnBooksMode
+                  ? (day.onBooksRevenue ?? day.totalRevenue)
+                  : (day.occupancyRate ?? 0);
             const maxVal = isRevenueMode
               ? maxDayRevenue
               : isPnlMode
                 ? maxDayAbsPnl
-                : maxDayOcc;
+                : isOnBooksMode
+                  ? maxDayOnBooks
+                  : maxDayOcc;
             const absVal = Math.abs(rawVal);
             const heightPercent =
               absVal > 0 ? Math.max(12, Math.round((absVal / maxVal) * 100)) : 3;
@@ -1729,7 +1842,13 @@ function DailyRevenuePanel({ reports }: { reports: HotelReportsData }) {
                 ? dayNetProfit !== 0
                   ? formatCompactVnd(dayNetProfit)
                   : "0"
-                : `${Math.round(day.occupancyRate)}%`;
+                : isOnBooksMode
+                  ? (day.onBooksRevenue ?? day.totalRevenue) > 0
+                    ? formatCompactVnd(day.onBooksRevenue ?? day.totalRevenue)
+                    : "0"
+                  : day.occupancyRate != null
+                    ? `${Math.round(day.occupancyRate)}%`
+                    : "—";
 
             const barColorClass =
               absVal === 0
@@ -1740,7 +1859,11 @@ function DailyRevenuePanel({ reports }: { reports: HotelReportsData }) {
                     ? dayNetProfit >= 0
                       ? "bg-emerald-600 group-hover:bg-emerald-500"
                       : "bg-rose-500 group-hover:bg-rose-400"
-                    : "bg-purple-600 group-hover:bg-purple-500";
+                    : isOnBooksMode
+                      ? day.isFuture
+                        ? "bg-teal-600 group-hover:bg-teal-500"
+                        : "bg-emerald-700 group-hover:bg-emerald-600"
+                      : "bg-purple-600 group-hover:bg-purple-500";
 
             return (
               <div
@@ -1755,10 +1878,17 @@ function DailyRevenuePanel({ reports }: { reports: HotelReportsData }) {
                       timeZone,
                     })}
                   </p>
-                  <p className="mt-0.5 tabular-nums">
-                    Thu {formatVnd(day.totalRevenue)} · Chi {formatVnd(dayExpense)} · Lãi/Lỗ{" "}
-                    {formatVnd(dayNetProfit)}
-                  </p>
+                  {isOnBooksMode ? (
+                    <p className="mt-0.5 tabular-nums">
+                      {day.isFuture ? "Tương lai: " : "Thực tế: "}
+                      {formatVnd(day.totalRevenue)} · Đặt trước: {formatVnd(day.projectedRevenue ?? 0)} · Tổng: {formatVnd(day.onBooksRevenue ?? day.totalRevenue)}
+                    </p>
+                  ) : (
+                    <p className="mt-0.5 tabular-nums">
+                      Thu {formatVnd(day.totalRevenue)} · Chi {formatVnd(dayExpense)} · Lãi/Lỗ{" "}
+                      {formatVnd(dayNetProfit)}
+                    </p>
+                  )}
                 </div>
 
                 {/* Top Value Label matching Bar Height */}
@@ -1979,6 +2109,7 @@ function MonthlyRevenuePanel({
     let bookings = 0;
     let roomsSold = 0;
     let occSum = 0;
+    let occKnownCount = 0;
     let targetSum = 0;
     let actualOnTargetedMonths = 0;
     for (const m of revenueByMonth) {
@@ -1990,13 +2121,16 @@ function MonthlyRevenuePanel({
       netProfitSum += m.netProfit ?? m.totalRevenue - monthExpense;
       bookings += m.bookingCount;
       roomsSold += m.roomsSold;
-      occSum += m.averageOccupancy;
+      if (m.averageOccupancy != null) {
+        occSum += m.averageOccupancy;
+        occKnownCount += 1;
+      }
       if (m.targetRevenue != null && m.targetRevenue > 0) {
         targetSum += m.targetRevenue;
         actualOnTargetedMonths += m.totalRevenue;
       }
     }
-    const avgOcc = occSum / Math.max(1, revenueByMonth.length);
+    const avgOcc = occKnownCount > 0 ? occSum / occKnownCount : null;
     const avgAdr = roomsSold > 0 ? Math.round(roomRev / roomsSold) : 0;
     const targetAchievementPct =
       targetSum > 0 ? (actualOnTargetedMonths / targetSum) * 100 : null;
@@ -3038,6 +3172,88 @@ function SourceRevenuePanel({ reports }: { reports: HotelReportsData }) {
 
   return (
     <div className="space-y-6">
+      {/* Visual Channel Distribution Bars */}
+      <section className="rounded-2xl border border-slate-200/90 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <h2 className="text-lg font-bold text-slate-900 md:text-xl text-balance dark:text-white">
+          Phân bổ doanh thu theo kênh phân phối
+        </h2>
+        <p className="mt-1 text-sm text-slate-600 text-pretty dark:text-slate-400">
+          Biểu đồ tỷ trọng thị phần và doanh thu phòng giữa các kênh OTA, đại lý và đặt phòng trực tiếp.
+        </p>
+
+        {/* Stacked Percentage Bar */}
+        <div className="mt-5">
+          <div className="flex h-4 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+            {revenueBySource.map((s, idx) => {
+              const colors = [
+                "bg-emerald-600",
+                "bg-blue-600",
+                "bg-purple-600",
+                "bg-amber-500",
+                "bg-teal-600",
+                "bg-indigo-600",
+              ];
+              const colorClass = colors[idx % colors.length];
+              return (
+                <div
+                  key={s.sourceKey}
+                  className={`h-full ${colorClass} transition-all duration-300`}
+                  style={{ width: `${Math.max(1, s.sharePercent)}%` }}
+                  title={`${s.sourceName}: ${formatPercent(s.sharePercent)} (${formatVnd(s.totalRevenue)})`}
+                />
+              );
+            })}
+          </div>
+
+          {/* Channel Legend & Mini Cards */}
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {revenueBySource.map((s, idx) => {
+              const borderColors = [
+                "border-emerald-200 dark:border-emerald-900/60",
+                "border-blue-200 dark:border-blue-900/60",
+                "border-purple-200 dark:border-purple-900/60",
+                "border-amber-200 dark:border-amber-900/60",
+                "border-teal-200 dark:border-teal-900/60",
+                "border-indigo-200 dark:border-indigo-900/60",
+              ];
+              const dotColors = [
+                "bg-emerald-600",
+                "bg-blue-600",
+                "bg-purple-600",
+                "bg-amber-500",
+                "bg-teal-600",
+                "bg-indigo-600",
+              ];
+              return (
+                <div
+                  key={s.sourceKey}
+                  className={`rounded-xl border ${borderColors[idx % borderColors.length]} bg-slate-50/60 p-3.5 dark:bg-slate-800/40`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 truncate">
+                      <span className={`h-2.5 w-2.5 rounded-full ${dotColors[idx % dotColors.length]} shrink-0`} />
+                      <span className="text-sm font-bold text-slate-900 truncate dark:text-white">
+                        {s.sourceName}
+                      </span>
+                    </div>
+                    <span className="rounded-md bg-white px-2 py-0.5 text-xs font-bold text-slate-800 shadow-2xs whitespace-nowrap dark:bg-slate-700 dark:text-slate-200">
+                      {formatPercent(s.sharePercent)}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-base font-extrabold text-slate-900 tabular-nums dark:text-white">
+                    {formatVnd(s.totalRevenue)}
+                  </p>
+                  <div className="mt-1 flex items-center justify-between text-xs text-slate-600 tabular-nums dark:text-slate-400">
+                    <span>{s.bookingCount} đơn đặt ({s.roomNights ?? s.bookingCount} đêm)</span>
+                    <span className="font-semibold text-blue-700 dark:text-blue-400">ADR: {formatVnd(s.adr)}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
       <section className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="border-b border-slate-200/90 p-5 dark:border-slate-800">
           <h2 className="text-lg font-bold text-slate-900 md:text-xl text-balance dark:text-white">
@@ -3112,7 +3328,150 @@ function SourceRevenuePanel({ reports }: { reports: HotelReportsData }) {
           </table>
         </div>
       </section>
+
+      {reports.marketDimensions && (
+        <MarketDimensionsSection dimensions={reports.marketDimensions} />
+      )}
     </div>
+  );
+}
+
+const MARKET_DIMENSION_TABS = [
+  { key: "nationality", label: "Quốc tịch" },
+  { key: "roomType", label: "Loại phòng" },
+  { key: "room", label: "Từng phòng" },
+  { key: "partner", label: "Đối tác" },
+  { key: "owner", label: "Nhân viên" },
+] as const;
+
+function MarketDimensionsSection({
+  dimensions,
+}: {
+  dimensions: NonNullable<HotelReportsData["marketDimensions"]>;
+}) {
+  const [activeDim, setActiveDim] =
+    useState<(typeof MARKET_DIMENSION_TABS)[number]["key"]>("nationality");
+  const rows = dimensions[activeDim] ?? [];
+  const totals = useMemo(
+    () =>
+      rows.reduce(
+        (acc, row) => ({
+          actualRevenue: acc.actualRevenue + row.actualRevenue,
+          projectedRevenue: acc.projectedRevenue + row.projectedRevenue,
+          actualNights: acc.actualNights + row.actualNights,
+          projectedNights: acc.projectedNights + row.projectedNights,
+          bookingCount: acc.bookingCount + row.bookingCount,
+          guestCount: acc.guestCount + row.guestCount,
+        }),
+        {
+          actualRevenue: 0,
+          projectedRevenue: 0,
+          actualNights: 0,
+          projectedNights: 0,
+          bookingCount: 0,
+          guestCount: 0,
+        },
+      ),
+    [rows],
+  );
+
+  return (
+    <section className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex flex-col gap-3 border-b border-slate-200/90 p-5 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800">
+        <div>
+          <h2 className="text-lg font-bold text-slate-900 md:text-xl text-balance dark:text-white">
+            Phân tích doanh thu theo chiều thị trường
+          </h2>
+          <p className="mt-1 text-sm text-slate-600 text-pretty dark:text-slate-400">
+            Tách riêng doanh thu thực tế đã ghi nhận và doanh thu dự kiến đặt trước theo từng chiều đối soát.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-1.5 rounded-xl border border-slate-200 bg-slate-100 p-1 dark:border-slate-800 dark:bg-slate-800">
+          {MARKET_DIMENSION_TABS.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setActiveDim(tab.key)}
+              className={`rounded-lg px-3 py-1.5 text-xs font-bold transition whitespace-nowrap cursor-pointer ${
+                activeDim === tab.key
+                  ? "bg-white text-emerald-800 shadow-2xs dark:bg-slate-900 dark:text-emerald-400"
+                  : "text-slate-600 hover:text-slate-900 dark:text-slate-300"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-sm">
+          <thead className="border-b border-slate-200 bg-slate-50/90 text-xs text-slate-700 dark:border-slate-800 dark:bg-slate-800/70 dark:text-slate-300">
+            <tr>
+              <th className="px-4 py-3 whitespace-nowrap">Nhóm phân tích</th>
+              <th className="px-4 py-3 text-right whitespace-nowrap">Lượt đặt</th>
+              <th className="px-4 py-3 text-right whitespace-nowrap">Khách</th>
+              <th className="px-4 py-3 text-right whitespace-nowrap">Đêm thực tế</th>
+              <th className="px-4 py-3 text-right whitespace-nowrap">Đêm dự kiến</th>
+              <th className="px-4 py-3 text-right whitespace-nowrap">Doanh thu thực tế</th>
+              <th className="px-4 py-3 text-right whitespace-nowrap">Dự kiến đặt trước</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            {rows.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="px-4 py-8 text-center text-sm text-slate-500">
+                  Chưa có dữ liệu trong kỳ cho chiều phân tích này.
+                </td>
+              </tr>
+            ) : (
+              rows.map((row) => (
+                <tr key={row.key} className="hover:bg-emerald-50/40 dark:hover:bg-slate-800/50">
+                  <td className="px-4 py-3 font-bold text-slate-900 whitespace-nowrap dark:text-white">
+                    {row.label}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums whitespace-nowrap">
+                    {row.bookingCount}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums whitespace-nowrap">
+                    {row.guestCount}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums whitespace-nowrap">
+                    {row.actualNights}
+                  </td>
+                  <td className="px-4 py-3 text-right text-teal-700 tabular-nums whitespace-nowrap dark:text-teal-400">
+                    {row.projectedNights}
+                  </td>
+                  <td className="px-4 py-3 text-right font-bold text-emerald-800 tabular-nums whitespace-nowrap dark:text-emerald-400">
+                    {formatVnd(row.actualRevenue)}
+                  </td>
+                  <td className="px-4 py-3 text-right font-semibold text-teal-700 tabular-nums whitespace-nowrap dark:text-teal-400">
+                    {formatVnd(row.projectedRevenue)}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+          {rows.length > 0 && (
+            <tfoot className="border-t-2 border-slate-200 bg-slate-50/90 font-bold text-slate-900 dark:border-slate-700 dark:bg-slate-800/90 dark:text-white">
+              <tr>
+                <td className="px-4 py-3 whitespace-nowrap">Tổng cộng cùng kỳ</td>
+                <td className="px-4 py-3 text-right tabular-nums whitespace-nowrap">{totals.bookingCount}</td>
+                <td className="px-4 py-3 text-right tabular-nums whitespace-nowrap">{totals.guestCount}</td>
+                <td className="px-4 py-3 text-right tabular-nums whitespace-nowrap">{totals.actualNights}</td>
+                <td className="px-4 py-3 text-right text-teal-700 tabular-nums whitespace-nowrap dark:text-teal-400">{totals.projectedNights}</td>
+                <td className="px-4 py-3 text-right font-extrabold text-emerald-800 tabular-nums whitespace-nowrap dark:text-emerald-400">
+                  {formatVnd(totals.actualRevenue)}
+                </td>
+                <td className="px-4 py-3 text-right font-bold text-teal-700 tabular-nums whitespace-nowrap dark:text-teal-400">
+                  {formatVnd(totals.projectedRevenue)}
+                </td>
+              </tr>
+            </tfoot>
+          )}
+        </table>
+      </div>
+    </section>
   );
 }
 

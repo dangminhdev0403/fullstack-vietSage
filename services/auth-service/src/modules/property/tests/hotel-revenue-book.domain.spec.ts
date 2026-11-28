@@ -183,4 +183,62 @@ describe("hotel revenue book monetary projection", () => {
       settlementStatus: "OVERPAID",
     }).map((e) => e.id)).toEqual(["manual-advance"]);
   });
+
+  it("reconciles opening VND 3,070,000 balance, room charge, supplemental minibar, deposit and payment (Verification Case 1)", () => {
+    const priorDate = new Date("2026-10-25T01:00:00Z");
+    const periodDate = new Date("2026-11-13T02:00:00Z");
+    const laterDate = new Date("2026-11-14T03:00:00Z");
+
+    const folioAccount = projectBookAccount(account({
+      id: "folio:reconcile",
+      source: "FOLIO",
+      charges: [
+        { date: priorDate, amount: 1150000, category: "ROOM" },
+        { date: priorDate, amount: 1920000, category: "ROOM" },
+        { date: periodDate, amount: 1500000, category: "ROOM" },
+      ],
+      collections: [
+        { id: "p-late", date: laterDate, amount: 1000000, method: "BANK_TRANSFER" },
+      ],
+      adjustments: [
+        { date: periodDate, amount: -500000 },
+      ],
+    }), from, end, zone)!;
+
+    const manualMinibar = projectBookAccount(account({
+      id: "manual:minibar",
+      source: "MANUAL",
+      category: "MINIBAR",
+      amount: 250000,
+      charges: [{ date: periodDate, amount: 250000, category: "MINIBAR" }],
+      collections: [{ id: "c-cash", date: periodDate, amount: 250000, method: "CASH" }],
+    }), from, end, zone)!;
+
+    const depositEntry = projectBookAccount(account({
+      id: "deposit:500k",
+      source: "DEPOSIT",
+      charges: [],
+      collections: [{ id: "dep-col", date: periodDate, amount: 500000, method: "BANK_TRANSFER" }],
+      adjustments: [
+        { date: periodDate, amount: 500000 },
+      ],
+    }), from, end, zone)!;
+
+    const entries = [folioAccount, manualMinibar, depositEntry];
+    const totals = totalRevenueBook(entries);
+
+    expect(totals.openingBalance).toBe(3070000);
+    expect(totals.roomRevenue).toBe(1500000);
+    expect(totals.minibarRevenue).toBe(250000);
+    expect(totals.revenueTotal).toBe(1750000);
+
+    expect(totals.cashTotal).toBe(250000);
+    expect(totals.bankTransferTotal).toBe(1500000);
+    expect(totals.collectedTotal).toBe(1750000);
+    expect(totals.cashTotal + totals.bankTransferTotal + totals.otherCollectedTotal).toBe(totals.collectedTotal);
+
+    expect(totals.balanceAdjustment).toBe(0);
+    expect(totals.closingBalance).toBe(3070000);
+    expect(totals.closingBalance).toBe(totals.openingBalance + totals.revenueTotal - totals.collectedTotal + totals.balanceAdjustment);
+  });
 });

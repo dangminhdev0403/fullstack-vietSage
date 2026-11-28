@@ -43,15 +43,9 @@ const PRIMARY_MOBILE_GROUPS: ReadonlyArray<{
 }> = [
   {
     target: "overview",
-    label: "Tổng quan & KPIs",
+    label: "Kết quả kinh doanh",
     icon: "dashboard",
-    matches: ["overview"],
-  },
-  {
-    target: "pnl",
-    label: "Kết quả KD & Lãi lỗ",
-    icon: "trending_up",
-    matches: ["pnl"],
+    matches: ["overview", "pnl"],
   },
   {
     target: "book",
@@ -65,6 +59,11 @@ const PRIMARY_MOBILE_GROUPS: ReadonlyArray<{
     icon: "hub",
     matches: MARKET_GROUP_TABS,
   },
+];
+
+const PERFORMANCE_SEGMENTS: ReadonlyArray<{ id: ReportWorkspaceTab; label: string; icon: string }> = [
+  { id: "overview", label: "Chỉ số vận hành", icon: "dashboard" },
+  { id: "pnl", label: "Báo cáo lãi lỗ", icon: "account_balance" },
 ];
 
 const REVENUE_SEGMENTS: ReadonlyArray<{
@@ -110,7 +109,7 @@ export function ReportsPrimaryMobileNav({
   return (
     <nav
       aria-label="Danh mục báo cáo chính"
-      className="flex items-center gap-1.5 overflow-x-auto rounded-2xl border border-slate-200/90 bg-slate-100/90 p-1.5 md:hidden print:hidden dark:border-slate-800 dark:bg-slate-900/80"
+      className="flex items-center gap-1.5 overflow-x-auto rounded-2xl border border-slate-200/90 bg-slate-100/90 p-1.5 print:hidden dark:border-slate-800 dark:bg-slate-900/80"
     >
       {PRIMARY_MOBILE_GROUPS.map((group) => {
         const isGroupActive = group.matches.includes(activeTab);
@@ -177,15 +176,16 @@ export function ReportsGroupSegmentedBar({
   to,
   onSelectClientTab,
 }: ReportsNavigationProps) {
+  const isOverviewGroup = activeTab === "overview" || activeTab === "pnl";
   const isRevenueGroup = REVENUE_GROUP_TABS.includes(activeTab);
   const isMarketGroup = MARKET_GROUP_TABS.includes(activeTab);
 
-  if (!isRevenueGroup && !isMarketGroup) {
+  if (!isOverviewGroup && !isRevenueGroup && !isMarketGroup) {
     return null;
   }
 
-  const segments = isRevenueGroup ? REVENUE_SEGMENTS : MARKET_SEGMENTS;
-  const ariaLabel = isRevenueGroup
+  const segments = isOverviewGroup ? PERFORMANCE_SEGMENTS : isRevenueGroup ? REVENUE_SEGMENTS : MARKET_SEGMENTS;
+  const ariaLabel = isOverviewGroup ? "Chế độ xem kết quả kinh doanh" : isRevenueGroup
     ? "Chế độ xem sổ doanh thu và đối soát"
     : "Chế độ xem kênh đặt phòng và thị trường khách";
 

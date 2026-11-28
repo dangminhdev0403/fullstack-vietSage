@@ -88,6 +88,22 @@ export const revenueBookResource = createResource<Scope>()({
         revenueBookRepository.void(scope.hotelId, variables.id, variables.body),
       invalidates: [{ type: "query", operation: "list" }],
     }),
+    updateNote: defineMutation({
+      mutationFn: ({
+        scope,
+        variables,
+      }: ResourceMutationContext<
+        Scope,
+        {
+          accountKey: string;
+          notes?: string | null;
+          roomId?: string | null;
+          expectedPriorNote?: string | null;
+        }
+      >) =>
+        revenueBookRepository.updateNote(scope.hotelId, variables),
+      invalidates: [{ type: "query", operation: "list" }],
+    }),
     upsertTarget: defineMutation({
       mutationFn: ({
         scope,

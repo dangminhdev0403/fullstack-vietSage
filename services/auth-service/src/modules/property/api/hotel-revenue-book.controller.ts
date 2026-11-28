@@ -7,16 +7,17 @@ import { RequirePermission } from "../../../shared/decorators/require-permission
 import { SuccessMessage } from "../../../shared/decorators/success-message.decorator";
 import type { AuthenticatedUser } from "../../../shared/security";
 import { HotelRevenueBookService } from "../application/hotel-revenue-book.service";
-import { collectRevenueEntrySchema, createRevenueEntrySchema, revenueBookQuerySchema, revenueEntryIdSchema, updateRevenueEntrySchema, voidRevenueEntrySchema } from "../domain/schemas/hotel-revenue-book.schema";
+import { collectRevenueEntrySchema, createRevenueEntrySchema, revenueBookQuerySchema, revenueEntryIdSchema, updateRevenueEntrySchema, updateRevenueNoteSchema, voidRevenueEntrySchema } from "../domain/schemas/hotel-revenue-book.schema";
 import { hotelIdParamSchema } from "../domain/schemas/shared.schema";
 
 interface RevenueRequest extends Request { user: AuthenticatedUser }
 const moneyProperties = Object.fromEntries(["roomRevenue", "minibarRevenue", "laundryRevenue", "otherRevenue", "revenueTotal", "openingBalance", "closingBalance", "balanceAdjustment"].map((key) => [key, { type: "number" }]));
-const splitItemProperties = { method: { type: "string", enum: ["CASH", "BANK_TRANSFER", "CARD", "OTHER"] }, amount: { type: "number", minimum: 0, exclusiveMinimum: true } };
-const collectionProperties = { receivedAt: { type: "string", format: "date-time" }, amount: { type: "number", minimum: 0, exclusiveMinimum: true }, method: { type: "string", enum: ["CASH", "BANK_TRANSFER", "CARD", "OTHER"] }, reference: { type: "string", nullable: true, maxLength: 120 }, splitGroupId: { type: "string", nullable: true } };
-const collectionInputProperties = { receivedAt: { type: "string", format: "date-time" }, amount: { type: "number", minimum: 0, exclusiveMinimum: true }, method: { type: "string", enum: ["CASH", "BANK_TRANSFER", "CARD", "OTHER"] }, splits: { type: "array", minItems: 1, maxItems: 4, items: { type: "object", required: ["method", "amount"], properties: splitItemProperties } }, reference: { type: "string", nullable: true, maxLength: 120 } };
+const splitItemProperties = { method: { type: "string", enum: ["CASH", "BANK_TRANSFER", "CARD", "OTHER"] }, amount: { type: "number", minimum: 0, exclusiveMinimum: true }, destinationAccount: { type: "string", nullable: true, maxLength: 120 } };
+const collectionProperties = { receivedAt: { type: "string", format: "date-time" }, amount: { type: "number", minimum: 0, exclusiveMinimum: true }, method: { type: "string", enum: ["CASH", "BANK_TRANSFER", "CARD", "OTHER"] }, reference: { type: "string", nullable: true, maxLength: 120 }, destinationAccount: { type: "string", nullable: true, maxLength: 120 }, splitGroupId: { type: "string", nullable: true } };
+const collectionInputProperties = { receivedAt: { type: "string", format: "date-time" }, amount: { type: "number", minimum: 0, exclusiveMinimum: true }, method: { type: "string", enum: ["CASH", "BANK_TRANSFER", "CARD", "OTHER"] }, destinationAccount: { type: "string", nullable: true, maxLength: 120 }, splits: { type: "array", minItems: 1, maxItems: 4, items: { type: "object", required: ["method", "amount"], properties: splitItemProperties } }, reference: { type: "string", nullable: true, maxLength: 120 } };
 const entryProperties = { date: { type: "string", format: "date" }, description: { type: "string", maxLength: 300 }, category: { type: "string", enum: ["ROOM", "MINIBAR", "LAUNDRY", "OTHER"] }, amount: { type: "number", minimum: 0, exclusiveMinimum: true }, roomId: { type: "string", nullable: true }, documentNumber: { type: "string", nullable: true, maxLength: 80 }, notes: { type: "string", nullable: true, maxLength: 1000 } };
 const mutationResponse = (status = 200, message = "Đã cập nhật sổ doanh thu") => successEnvelopeSchema({ type: "object", required: ["id", "version"], properties: { id: { type: "string" }, version: { type: "integer" } } }, status, message);
+const noteResponse = successEnvelopeSchema({ type: "object", required: ["accountKey", "notes"], properties: { accountKey: { type: "string" }, notes: { type: "string" } } }, 200, "Đã cập nhật ghi chú sổ doanh thu");
 const bookResponse = successEnvelopeSchema({
   type: "object", required: ["hotelId", "hotelName", "timeZone", "currency", "from", "to", "entries", "summary", "rooms", "canManage"],
   properties: {
@@ -89,5 +90,14 @@ export class HotelRevenueBookController {
   @ApiCreatedResponse({ schema: mutationResponse(201, "Đã hủy khoản phát sinh") })
   void(@Req() request: RevenueRequest, @Param("hotelId") hotelId: string, @Param("entryId") entryId: string, @Body() body: unknown) {
     return this.service.void(request.user.userId, request.user.roleId, parseWithZod(hotelIdParamSchema, hotelId), parseWithZod(revenueEntryIdSchema, entryId), parseWithZod(voidRevenueEntrySchema, body));
+  }
+
+  @Patch("notes")
+  @RequirePermission("hotel.billing.manage")
+  @SuccessMessage("Đã cập nhật ghi chú sổ doanh thu")
+  @ApiBody({ schema: { type: "object", required: ["accountKey"], properties: { accountKey: { type: "string", maxLength: 160 }, notes: { type: "string", nullable: true, maxLength: 1000 }, roomId: { type: "string", nullable: true }, expectedPriorNote: { type: "string", nullable: true, maxLength: 1000 } } } })
+  @ApiOkResponse({ schema: noteResponse })
+  updateNote(@Req() request: RevenueRequest, @Param("hotelId") hotelId: string, @Body() body: unknown) {
+    return this.service.updateNote(request.user.userId, request.user.roleId, parseWithZod(hotelIdParamSchema, hotelId), parseWithZod(updateRevenueNoteSchema, body));
   }
 }

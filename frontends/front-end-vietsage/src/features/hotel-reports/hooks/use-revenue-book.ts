@@ -25,13 +25,15 @@ export function useRevenueBook(hotelId: string, input: RevenueBookQuery) {
   const update = useMutation(resource.mutations.update.options());
   const collect = useMutation(resource.mutations.collect.options());
   const cancel = useMutation(resource.mutations.void.options());
+  const note = useMutation(resource.mutations.updateNote.options());
   return {
     ...query,
     busy:
       create.isPending ||
       update.isPending ||
       collect.isPending ||
-      cancel.isPending,
+      cancel.isPending ||
+      note.isPending,
     async createEntry(body: CreateRevenueEntryInput) {
       await create.mutateAsync(body);
     },
@@ -43,6 +45,14 @@ export function useRevenueBook(hotelId: string, input: RevenueBookQuery) {
     },
     async voidEntry(id: string, body: VoidRevenueEntryInput) {
       await cancel.mutateAsync({ id, body });
+    },
+    async updateNote(
+      accountKey: string,
+      notes?: string | null,
+      roomId?: string | null,
+      expectedPriorNote?: string | null,
+    ) {
+      await note.mutateAsync({ accountKey, notes, roomId, expectedPriorNote });
     },
   };
 }

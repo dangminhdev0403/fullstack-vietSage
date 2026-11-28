@@ -4,7 +4,7 @@ export type HotelReportsSummary = {
   totalStays: number;
   totalGuests: number;
   totalRoomNights: number;
-  occupancyRate: number;
+  occupancyRate: number | null;
   currentOccupancyRate: number;
   totalRevenue: number;
   roomRevenue: number;
@@ -23,7 +23,17 @@ export type HotelReportsSummary = {
   expenseRatio?: number;
   netCashFlow?: number;
   adr: number;
-  revpar: number;
+  revpar: number | null;
+  onBooksRooms?: number;
+  onBooksRoomNights?: number;
+  onBooksRevenue?: number;
+  onBooksRoomRevenue?: number;
+  projectedRoomNights?: number;
+  projectedRoomRevenue?: number;
+  onBooksOccupancyRate?: number | null;
+  onBooksAdr?: number;
+  availableRoomNights?: number | null;
+  totalAvailableRoomNights?: number | null;
 };
 
 export type DailyRevenueItem = {
@@ -37,9 +47,18 @@ export type DailyRevenueItem = {
   expense?: number;
   paidExpense?: number;
   netProfit?: number;
+  availableRoomNights?: number | null;
   roomsOccupied: number;
   adr: number;
-  occupancyRate: number;
+  occupancyRate: number | null;
+  actualRooms?: number;
+  actualRevenue?: number;
+  projectedRooms?: number;
+  projectedRevenue?: number;
+  onBooksRooms?: number;
+  onBooksRevenue?: number;
+  onBooksOccupancyRate?: number | null;
+  isFuture?: boolean;
 };
 
 export type MonthlyRevenueItem = {
@@ -55,7 +74,8 @@ export type MonthlyRevenueItem = {
   netProfit?: number;
   bookingCount: number;
   roomsSold: number;
-  averageOccupancy: number;
+  averageOccupancy: number | null;
+  availableRoomNights?: number | null;
   adr: number;
   previousMonthRevenue?: number | null;
   momChangePercent?: number | null;
@@ -88,12 +108,15 @@ export type ExpenseCategoryBreakdownItem = {
 export type SourceRevenueItem = {
   sourceKey: string;
   sourceName: string;
-  sourceType: "OTA" | "DIRECT" | "WALK_IN";
+  sourceType: "OTA" | "DIRECT" | "WALK_IN" | "TA" | "CORPORATE" | "OTHER";
   bookingCount: number;
   guestCount: number;
   totalRevenue: number;
   sharePercent: number;
   adr: number;
+  roomNights?: number;
+  actualRevenue?: number;
+  projectedRevenue?: number;
 };
 
 export type StaffRevenueItem = {
@@ -141,6 +164,34 @@ export type PaymentMethodStat = {
   percentage: number;
 };
 
+export type MarketDimensionMetric = {
+  key: string;
+  label: string;
+  actualRevenue: number;
+  actualRoomRevenue: number;
+  projectedRevenue: number;
+  actualNights: number;
+  projectedNights: number;
+  bookingCount: number;
+  guestCount: number;
+};
+
+export type MarketDimensions = {
+  nationality: MarketDimensionMetric[];
+  roomType: MarketDimensionMetric[];
+  room: MarketDimensionMetric[];
+  partner: MarketDimensionMetric[];
+  owner: MarketDimensionMetric[];
+};
+
+export type BookingOwnerRevenueItem = {
+  ownerUserId: string;
+  ownerName: string;
+  bookingCount: number;
+  roomNights: number;
+  revenue: number;
+};
+
 export type HotelReportsData = {
   hotelId: string;
   hotelName: string;
@@ -157,6 +208,8 @@ export type HotelReportsData = {
   expenseByCategory?: ExpenseCategoryBreakdownItem[];
   revenueBySource: SourceRevenueItem[];
   revenueByStaff: StaffRevenueItem[];
+  revenueByBookingOwner?: BookingOwnerRevenueItem[];
+  marketDimensions?: MarketDimensions;
   receivablesSummary?: {
     totalOriginal: number;
     totalPaid: number;

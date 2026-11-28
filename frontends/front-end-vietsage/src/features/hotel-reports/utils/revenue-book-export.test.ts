@@ -225,3 +225,182 @@ test("merges split cash + bank transfer payments onto one row and omits transfer
   assert.equal(cashRow.M, 0);
   assert.equal(cashRow.N, 500_000);
 });
+
+test("folds minibar revenue into other revenue and ignores payment/time text overrides on export", () => {
+  const entry = account({
+    id: "folio-minibar",
+    roomNumber: "205",
+    roomRevenue: 1_000_000,
+    minibarRevenue: 120_000,
+    laundryRevenue: 50_000,
+    otherRevenue: 30_000,
+    revenueTotal: 1_200_000,
+    closingBalance: 0,
+    revenueLines: [
+      {
+        date: "2026-10-05",
+        roomRevenue: 1_000_000,
+        minibarRevenue: 120_000,
+        laundryRevenue: 50_000,
+        otherRevenue: 30_000,
+        revenueTotal: 1_200_000,
+      },
+    ],
+    collections: [
+      {
+        id: "cash-only",
+        receivedAt: "2026-10-05T03:15:00Z",
+        amount: 1_200_000,
+        method: "CASH",
+        reference: "PT-205",
+      },
+    ],
+  });
+  const report = book([entry]);
+  report.summary = {
+    roomRevenue: 1_000_000,
+    minibarRevenue: 120_000,
+    laundryRevenue: 50_000,
+    otherRevenue: 30_000,
+    revenueTotal: 1_200_000,
+    collectedTotal: 1_200_000,
+    cashTotal: 1_200_000,
+    bankTransferTotal: 0,
+    otherCollectedTotal: 0,
+    openingBalance: 0,
+    closingBalance: 0,
+    balanceAdjustment: 0,
+  };
+  const rowKey = "folio-minibar_2026-10-05_cash-only";
+  const xml = unzip(
+    buildRevenueBookWorkbook(report, {
+      textOverrides: {
+        [`hotel-1:roomNumber:${rowKey}`]: "205A",
+        [`hotel-1:paymentDate:${rowKey}`]: "99/99/2099",
+        [`hotel-1:bankTime:${rowKey}`]: "11",
+      },
+    }),
+  ).get("xl/worksheets/sheet1.xml")!;
+  const rows = [...xml.matchAll(/<row\b[^>]*>([\s\S]*?)<\/row>/g)].map((row) => {
+    const cells: Record<string, string | number> = {};
+    for (const cell of row[1].matchAll(/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
+      const column = cell[1].match(/r="([A-Z]+)\d+"/)?.[1];
+      if (!column || !cell[2]) continue;
+      const number = cell[2].match(/<v>([^<]+)<\/v>/)?.[1];
+      const text = cell[2].match(/<t\b[^>]*>([\s\S]*?)<\/t>/)?.[1];
+      if (number !== undefined) cells[column] = Number(number);
+      else if (text !== undefined) cells[column] = text;
+    }
+    return cells;
+  });
+  const detail = rows.find((row) => row.A === 1)!;
+  assert.equal(detail.C, "205A", "Non-financial room text override still applies");
+  assert.equal(detail.F, 1_000_000);
+  assert.equal(detail.G, 50_000);
+  assert.equal(detail.H, 150_000, "Other revenue includes minibar revenue so columns reconcile");
+  assert.equal(detail.I, 1_200_000);
+  assert.equal(detail.J, "05/10/2026", "Payment date ignores tampered text override");
+  assert.equal(detail.L, undefined, "Bank transfer time ignores tampered text override");
+  const totalRow = rows.find((row) => row.A === "TỔNG KỲ")!;
+  assert.equal(totalRow.H, 150_000);
+  assert.equal(totalRow.I, 1_200_000);
+});
+
+test("reconciles opening VND 3,070,000 balance, room charge, supplemental minibar, deposit, and later payment with Excel parity (Verification Case 1)", () => {
+  const folioEntry = account({
+    id: "folio-reconcile",
+    roomNumber: "101",
+    documentNumber: "F-001",
+    description: "Khách lưu trú phòng 101",
+    openingBalance: 3_070_000,
+    roomRevenue: 1_500_000,
+    revenueTotal: 1_500_000,
+    closingBalance: 3_070_000,
+    balanceAdjustment: -500_000,
+    revenueLines: [
+      { date: "2026-10-02", roomRevenue: 1_500_000, minibarRevenue: 0, laundryRevenue: 0, otherRevenue: 0, revenueTotal: 1_500_000 },
+    ],
+    collections: [
+      { id: "bank-late", receivedAt: "2026-10-04T08:00:00Z", amount: 1_000_000, method: "BANK_TRANSFER", reference: "CK-101" },
+    ],
+    notes: "Khách nợ cũ chuyển sang, hẹn chuyển khoản nốt",
+  });
+
+  const minibarEntry = account({
+    id: "manual-minibar",
+    source: "MANUAL",
+    roomNumber: null,
+    documentNumber: "PT-MB01",
+    description: "Minibar bổ sung ngoài danh mục",
+    category: "MINIBAR",
+    openingBalance: 0,
+    minibarRevenue: 250_000,
+    otherRevenue: 0,
+    revenueTotal: 250_000,
+    closingBalance: 0,
+    balanceAdjustment: 0,
+    revenueLines: [
+      { date: "2026-10-02", roomRevenue: 0, minibarRevenue: 250_000, laundryRevenue: 0, otherRevenue: 0, revenueTotal: 250_000 },
+    ],
+    collections: [
+      { id: "cash-mb", receivedAt: "2026-10-02T10:00:00Z", amount: 250_000, method: "CASH", reference: null },
+    ],
+    notes: "Đã thu tiền mặt tại quầy",
+  });
+
+  const depositEntry = account({
+    id: "deposit-500k",
+    source: "DEPOSIT",
+    roomNumber: "101",
+    documentNumber: "R-100",
+    description: "Tiền đặt cọc · Khách lưu trú",
+    openingBalance: 0,
+    revenueTotal: 0,
+    closingBalance: 0,
+    balanceAdjustment: 500_000,
+    revenueLines: [],
+    collections: [
+      { id: "dep-pay", receivedAt: "2026-10-02T04:00:00Z", amount: 500_000, method: "BANK_TRANSFER", reference: "CK-COC" },
+    ],
+    notes: "Cọc qua tài khoản Vietcombank",
+  });
+
+  const report = book([folioEntry, minibarEntry, depositEntry]);
+  report.summary = {
+    openingBalance: 3_070_000,
+    roomRevenue: 1_500_000,
+    minibarRevenue: 250_000,
+    laundryRevenue: 0,
+    otherRevenue: 0,
+    revenueTotal: 1_750_000,
+    collectedTotal: 1_750_000,
+    cashTotal: 250_000,
+    bankTransferTotal: 1_500_000,
+    otherCollectedTotal: 0,
+    closingBalance: 3_070_000,
+    balanceAdjustment: 0,
+  };
+
+  const rows = rowsOf(report);
+  const totalRow = rows.find((row) => row.A === "TỔNG KỲ")!;
+
+  assert.equal(report.summary.openingBalance, 3_070_000);
+  assert.equal(report.summary.closingBalance, 3_070_000);
+  assert.equal(
+    report.summary.closingBalance,
+    report.summary.openingBalance + report.summary.revenueTotal - report.summary.collectedTotal + report.summary.balanceAdjustment,
+  );
+  assert.equal(report.summary.cashTotal + report.summary.bankTransferTotal + report.summary.otherCollectedTotal, report.summary.collectedTotal);
+
+  assert.equal(totalRow.F, 1_500_000, "Room revenue matches in Excel");
+  assert.equal(totalRow.H, 250_000, "Other revenue (including minibar) matches in Excel");
+  assert.equal(totalRow.I, 1_750_000, "Total revenue matches in Excel");
+  assert.equal(totalRow.K, 250_000, "Cash matches in Excel");
+  assert.equal(totalRow.M, 1_500_000, "Bank transfer matches in Excel");
+  assert.equal(totalRow.N, 1_750_000, "Total collected matches in Excel");
+  assert.equal(totalRow.P, 3_070_000, "Closing balance matches in Excel");
+
+  const details = rows.filter((row) => typeof row.A === "number");
+  const folioRow = details.find((row) => row.C === "101" && row.D === "F-001")!;
+  assert.equal(folioRow.R, "Khách nợ cũ chuyển sang, hẹn chuyển khoản nốt", "Authoritative note appears in Excel column R");
+});

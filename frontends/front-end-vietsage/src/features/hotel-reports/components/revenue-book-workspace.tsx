@@ -23,6 +23,7 @@ import {
   ReportsGroupSegmentedBar,
   ReportsPrimaryMobileNav,
 } from "./reports-navigation-bars";
+import { addMoney } from "../utils/revenue-book-export";
 import { RevenueBookDialog } from "./revenue-book-dialog";
 import { RevenueBookSpreadsheet } from "./revenue-book-spreadsheet";
 import {
@@ -243,23 +244,7 @@ export function RevenueBookWorkspace({ hotelId }: { hotelId: string }) {
       setExporting(true);
       const { exportRevenueBook } =
         await import("../utils/revenue-book-export");
-      const { useRevenueBookCustomStore } =
-        await import("../store/revenue-book-custom-store");
-      const {
-        descriptionsByRow,
-        notesByRow,
-        deletedRowsByHotel,
-        valuesByCell,
-        textOverrides,
-      } = useRevenueBookCustomStore.getState();
-      const deletedRowKeys = deletedRowsByHotel[book.hotelId] ?? [];
-      exportRevenueBook(book, {
-        descriptionsByRow,
-        notesByRow,
-        deletedRowKeys,
-        valuesByCell,
-        textOverrides,
-      });
+      exportRevenueBook(book);
     } catch (error) {
       await showErrorAlert("Không thể xuất Excel", errorMessage(error));
     } finally {
@@ -288,6 +273,20 @@ export function RevenueBookWorkspace({ hotelId }: { hotelId: string }) {
       );
     } catch (error) {
       await showErrorAlert("Không thể hủy khoản", errorMessage(error));
+    }
+  }
+
+  async function handleUpdateNote(
+    accountKey: string,
+    notes: string,
+    roomId?: string | null,
+    expectedPriorNote?: string | null,
+  ) {
+    try {
+      await query.updateNote(accountKey, notes, roomId, expectedPriorNote);
+    } catch (error) {
+      await showErrorAlert("Không thể lưu ghi chú", errorMessage(error));
+      await query.refetch();
     }
   }
   return (
@@ -678,8 +677,7 @@ export function RevenueBookWorkspace({ hotelId }: { hotelId: string }) {
             filter={filter}
             canManage={Boolean(book.canManage)}
             onSelectEntry={(id) => setSelectedId(id)}
-            onCollect={(entry) => setEditor({ mode: "collect", entry })}
-            onEdit={(entry) => setEditor({ mode: "edit", entry })}
+            onUpdateNote={handleUpdateNote}
           />
           <dl className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-[var(--on-surface-variant)]">
             <div>
@@ -764,7 +762,10 @@ function RevenueEntryDetail({
     ["Số dư đầu kỳ", money(entry.openingBalance, book.currency)],
     ["Tiền phòng", money(entry.roomRevenue, book.currency)],
     ["Giặt ủi", money(entry.laundryRevenue, book.currency)],
-    ["Dịch vụ khác", money(entry.otherRevenue, book.currency)],
+    [
+      "Dịch vụ khác",
+      money(addMoney(entry.otherRevenue, entry.minibarRevenue), book.currency),
+    ],
     [
       "Phân bổ cọc / Chuyển công nợ",
       money(entry.balanceAdjustment, book.currency),

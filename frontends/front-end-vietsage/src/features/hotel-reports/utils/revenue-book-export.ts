@@ -179,15 +179,15 @@ export function buildActivities(book: RevenueBook): Activity[] {
   return activities.sort((left, right) => left.date.localeCompare(right.date) || (left.entry.roomNumber ?? "").localeCompare(right.entry.roomNumber ?? "", "vi", { numeric: true }) || left.entry.id.localeCompare(right.entry.id));
 }
 
+export type RevenueBookExportOverrides = {
+  descriptionsByRow?: Record<string, string>;
+  notesByRow?: Record<string, string>;
+  textOverrides?: Record<string, string>;
+};
+
 function sheetXml(
   book: RevenueBook,
-  overrides?: {
-    descriptionsByRow?: Record<string, string>;
-    notesByRow?: Record<string, string>;
-    deletedRowKeys?: string[];
-    valuesByCell?: Record<string, number>;
-    textOverrides?: Record<string, string>;
-  },
+  overrides?: RevenueBookExportOverrides,
 ): string {
   const rows: string[] = [];
   const merges = [
@@ -284,25 +284,18 @@ function sheetXml(
         ? local
         : null;
     const rowKey = `${entry.id}_${activity.date}_${payment?.id ?? collection?.id ?? "rev"}`;
-    if (overrides?.deletedRowKeys?.includes(rowKey)) {
-      continue;
-    }
     const customDesc = overrides?.descriptionsByRow?.[`${book.hotelId}:${rowKey}`];
     const customNote = overrides?.notesByRow?.[`${book.hotelId}:${rowKey}`];
     const effectiveRoom = overrides?.textOverrides?.[`${book.hotelId}:roomNumber:${rowKey}`] ?? entry.roomNumber;
     const effectiveDoc = overrides?.textOverrides?.[`${book.hotelId}:docNumber:${rowKey}`] ?? entry.documentNumber;
-    const effectivePaymentDate = overrides?.textOverrides?.[`${book.hotelId}:paymentDate:${rowKey}`] ?? (local ? dateLabel(local.date) : null);
-    const effectiveBankTime = overrides?.textOverrides?.[`${book.hotelId}:bankTime:${rowKey}`] ?? (bank !== 0 ? bankLocal?.time ?? null : null);
+    // Monetary amounts, payment dates, transfer times and balances are strictly system-sourced.
+    const paymentDate = local ? dateLabel(local.date) : null;
+    const bankTime = bank !== 0 ? bankLocal?.time ?? null : null;
 
-    const roomRev = overrides?.valuesByCell?.[`${book.hotelId}:room:${rowKey}`] ?? revenue?.roomRevenue ?? 0;
-    const laundryRev = overrides?.valuesByCell?.[`${book.hotelId}:laundry:${rowKey}`] ?? revenue?.laundryRevenue ?? 0;
-    const otherRev = overrides?.valuesByCell?.[`${book.hotelId}:other:${rowKey}`] ?? revenue?.otherRevenue ?? 0;
-    const totalRev = addMoney(addMoney(roomRev, laundryRev), otherRev);
-
-    const cashPaid = overrides?.valuesByCell?.[`${book.hotelId}:cash:${rowKey}`] ?? cash;
-    const bankPaid = overrides?.valuesByCell?.[`${book.hotelId}:bank:${rowKey}`] ?? bank;
-    const otherPaid = overrides?.valuesByCell?.[`${book.hotelId}:otherPayment:${rowKey}`] ?? other;
-    const totalPaid = addMoney(addMoney(cashPaid, bankPaid), otherPaid);
+    const roomRev = revenue?.roomRevenue ?? 0;
+    const laundryRev = revenue?.laundryRevenue ?? 0;
+    const otherRev = addMoney(revenue?.otherRevenue ?? 0, revenue?.minibarRevenue ?? 0);
+    const totalRev = revenue?.revenueTotal ?? 0;
 
     const refText = payment?.references.length
       ? payment.references.join(", ")
@@ -312,8 +305,8 @@ function sheetXml(
     addRow([
       ++sequence, activity.date ? dateLabel(activity.date) : null, effectiveRoom, effectiveDoc, customDesc ?? entry.description,
       revenue ? roomRev : null, revenue ? laundryRev : null, revenue ? otherRev : null, revenue ? totalRev : null,
-      effectivePaymentDate, hasPayment || cashPaid > 0 ? cashPaid : null, effectiveBankTime, hasPayment || bankPaid > 0 ? bankPaid : null,
-      hasPayment || totalPaid > 0 ? totalPaid : null, hasPayment || otherPaid > 0 ? otherPaid : null, activity.closing,
+      paymentDate, hasPayment ? cash : null, bankTime, hasPayment ? bank : null,
+      hasPayment ? paid : null, hasPayment ? other : null, activity.closing,
       entry.declarationStatus ? declarationLabels[entry.declarationStatus] ?? "Chưa xác định" : null, notes,
     ]);
     if (revenue) {
@@ -322,13 +315,13 @@ function sheetXml(
       dayRevenue.otherRevenue = addMoney(dayRevenue.otherRevenue, otherRev);
       dayRevenue.revenueTotal = addMoney(dayRevenue.revenueTotal, totalRev);
     }
-    dayCash = addMoney(dayCash, cashPaid);
-    dayBank = addMoney(dayBank, bankPaid);
-    dayOther = addMoney(dayOther, otherPaid);
+    dayCash = addMoney(dayCash, cash);
+    dayBank = addMoney(dayBank, bank);
+    dayOther = addMoney(dayOther, other);
   }
   subtotal();
   const s = book.summary;
-  const totalRow = addRow(["TỔNG KỲ", null, null, null, null, s.roomRevenue, s.laundryRevenue, s.otherRevenue, s.revenueTotal, null, s.cashTotal, null, s.bankTransferTotal, s.collectedTotal, s.otherCollectedTotal, s.closingBalance], true, 28);
+  const totalRow = addRow(["TỔNG KỲ", null, null, null, null, s.roomRevenue, s.laundryRevenue, addMoney(s.otherRevenue, s.minibarRevenue), s.revenueTotal, null, s.cashTotal, null, s.bankTransferTotal, s.collectedTotal, s.otherCollectedTotal, s.closingBalance], true, 28);
   merges.push(`A${totalRow}:E${totalRow}`);
   const widths = [6, 14, 12, 26, 38, 18, 18, 18, 20, 18, 18, 12, 18, 20, 18, 20, 18, 38];
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><dimension ref="A1:R${rowNumber}"/><sheetViews><sheetView workbookViewId="0"><pane ySplit="9" topLeftCell="A10" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><sheetFormatPr defaultRowHeight="24"/><cols>${widths.map((width, index) => `<col min="${index + 1}" max="${index + 1}" width="${width}" customWidth="1"/>`).join("")}</cols><sheetData>${rows.join("")}</sheetData><mergeCells count="${merges.length}">${merges.map((ref) => `<mergeCell ref="${ref}"/>`).join("")}</mergeCells><printOptions horizontalCentered="1"/><pageMargins left="0.25" right="0.25" top="0.4" bottom="0.4" header="0.2" footer="0.2"/><pageSetup paperSize="8" orientation="landscape" fitToWidth="1" fitToHeight="0"/></worksheet>`;
@@ -381,13 +374,7 @@ function zip(parts: Record<string, string>): Uint8Array {
 
 export function buildRevenueBookWorkbook(
   book: RevenueBook,
-  overrides?: {
-    descriptionsByRow?: Record<string, string>;
-    notesByRow?: Record<string, string>;
-    deletedRowKeys?: string[];
-    valuesByCell?: Record<string, number>;
-    textOverrides?: Record<string, string>;
-  },
+  overrides?: RevenueBookExportOverrides,
 ): Uint8Array {
   return zip({
     "[Content_Types].xml": '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>',
@@ -401,13 +388,7 @@ export function buildRevenueBookWorkbook(
 
 export function exportRevenueBook(
   book: RevenueBook,
-  overrides?: {
-    descriptionsByRow?: Record<string, string>;
-    notesByRow?: Record<string, string>;
-    deletedRowKeys?: string[];
-    valuesByCell?: Record<string, number>;
-    textOverrides?: Record<string, string>;
-  },
+  overrides?: RevenueBookExportOverrides,
 ): void {
   const bytes = new Uint8Array(buildRevenueBookWorkbook(book, overrides));
   const url = URL.createObjectURL(new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));

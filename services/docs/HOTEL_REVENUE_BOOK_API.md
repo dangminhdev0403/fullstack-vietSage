@@ -13,6 +13,7 @@ Base: `/hotels/{hotelId}/reports/revenue-book`.
 | PATCH | `/entries/{entryId}` | `hotel.billing.manage` | Editable entry fields plus `version` |
 | POST | `/entries/{entryId}/collections` | `hotel.billing.manage` | `receivedAt`, `amount`, `method`, `idempotencyKey`, `version`; optional `reference` |
 | POST | `/entries/{entryId}/void` | `hotel.billing.manage` | `reason`, `version` |
+| PATCH | `/notes` | `hotel.billing.manage` | `accountKey`, optional `notes` (max 1000) and `roomId` |
 
 Dates use `YYYY-MM-DD`. Receipt times are ISO instants with an offset. No dates defaults to the hotel's local month-start through today. The inclusive range is limited to 366 days; books exceeding 10,000 accounts are rejected instead of truncated. Amounts are positive VND numbers with at most two decimal places. Categories are `ROOM`, `MINIBAR`, `LAUNDRY`, `OTHER`; manual collection methods are `CASH`, `BANK_TRANSFER`, `CARD`, `OTHER`.
 
@@ -24,13 +25,13 @@ Dates use `YYYY-MM-DD`. Receipt times are ISO instants with an offset. No dates 
 - Charges use their actual posting/business date; receipt dates never create revenue. Voids reverse revenue on their dated event, no earlier than recognition of a future manual charge.
 - Booking deposits appear once at receipt. Their synthetic folio payments do not count as new cash. Allocation credits the folio and debits the deposit account through non-cash adjustments.
 - Receivable collections remain attached to the originating folio, so a debt transfer does not create revenue or another cash receipt.
-- Native refund/void history must contain dated events sufficient to reconcile the stored amount. Incomplete historical refund data produces an actionable reconciliation error instead of guessed cash dates.
+- Native refund/void history must contain dated events sufficient to reconcile the stored amount. Incomplete historical refund data produces an actionable reconciliation error surfacing the exact record identifier (payment number, folio number, or deposit reference) instead of guessed cash dates.
 - Service category snapshots take precedence when available. Legacy service charges without an explicit report-category snapshot fall back to the available service category/name; unrecognized categories go to `OTHER`.
-- Manual updates preserve an audit of old/new values; this initial release does not lock accounting days. Voiding a manual entry with receipts is rejected to preserve cash history. Resolve/refund the actual collection with management before cancellation; this release does not offer manual receipt refunds.
+- Manual updates preserve an audit of old/new values and only allow non-financial metadata changes (`description`, `roomId`, `documentNumber`, `notes`); recorded financial fields (`date`, `category`, `amount`) are immutable once inserted. Inline spreadsheet editing on posted rows is strictly restricted to durable, hotel-scoped notes persisted across devices and shift handovers (`PATCH /notes`), with hotel and assigned-room access checks enforced. Voiding a manual entry with receipts is rejected to preserve cash history. Resolve/refund the actual collection with management before cancellation; this release does not offer manual receipt refunds.
 
 ## Storage and rollout
 
-`HotelRevenueEntry` stores manual charges and optimistic versions; `HotelRevenueCollection` stores their receipts. Composite foreign keys keep collections in the same hotel as their parent. Money/category/method checks and idempotency indexes are included in `services/auth-service/prisma/migrations/20261113010000_hotel_revenue_book/migration.sql`.
+`HotelRevenueEntry` stores manual charges and optimistic versions; `HotelRevenueCollection` stores their receipts; `HotelRevenueNote` stores persistent account notes scoped by hotel and assigned room. Composite foreign keys keep collections in the same hotel as their parent. Money/category/method checks and idempotency indexes are included in `services/auth-service/prisma/migrations/20261113010000_hotel_revenue_book/migration.sql` and `services/auth-service/prisma/migrations/20261126021000_hotel_revenue_notes/migration.sql`.
 
 Prepare and validate the migration before release. Applying it is a separate database operation. A missing table returns a service-unavailable message; the application must not silently replace missing persisted entries with an empty book. Existing folio/payment data and platform fee policy are unchanged.
 

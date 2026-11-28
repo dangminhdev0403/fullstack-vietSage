@@ -58,6 +58,7 @@ export function RevenueEntryDialog({
   onCollect: (id: string, input: CollectRevenueInput) => Promise<void>;
 }) {
   const isCollection = mode === "collect";
+  const isEdit = mode === "edit";
   const now = Temporal.Now.zonedDateTimeISO(book.timeZone);
   const [date, setDate] = useState(entry?.date ?? now.toPlainDate().toString());
   const [description, setDescription] = useState(entry?.description ?? "");
@@ -126,6 +127,9 @@ export function RevenueEntryDialog({
               ...(splitCheck.splits
                 ? { splits: splitCheck.splits }
                 : { method: splitCheck.method }),
+              ...(splitCheck.destinationAccount
+                ? { destinationAccount: splitCheck.destinationAccount }
+                : {}),
               reference: reference.trim() || undefined,
               receivedAt: Temporal.PlainDateTime.from(receivedAt)
                 .toZonedDateTime(book.timeZone, { disambiguation: "reject" })
@@ -134,10 +138,10 @@ export function RevenueEntryDialog({
             }
           : undefined;
       const fields = {
-        date,
+        date: isEdit && entry ? entry.date : date,
         description: description.trim(),
-        category,
-        amount: value,
+        category: isEdit && entry?.category ? entry.category : category,
+        amount: isEdit && entry?.amount != null ? entry.amount : value,
         roomId: roomId || null,
         documentNumber: documentNumber.trim() || null,
         notes: notes.trim() || null,
@@ -198,6 +202,7 @@ export function RevenueEntryDialog({
               <input
                 required
                 type="date"
+                disabled={busy || isEdit}
                 value={date}
                 onChange={(event) => setDate(event.target.value)}
                 className={revenueInputClass}
@@ -232,6 +237,7 @@ export function RevenueEntryDialog({
             <label className="space-y-1.5">
               <span className="block text-sm font-medium">Nhóm doanh thu</span>
               <select
+                disabled={busy || isEdit}
                 value={category}
                 onChange={(event) =>
                   setCategory(event.target.value as RevenueCategory)
@@ -243,6 +249,9 @@ export function RevenueEntryDialog({
                     {label}
                   </option>
                 ))}
+                {isEdit && category === "MINIBAR" && (
+                  <option value="MINIBAR">Minibar</option>
+                )}
               </select>
             </label>
             <label className="space-y-1.5">
@@ -268,10 +277,17 @@ export function RevenueEntryDialog({
             min="0.01"
             max="9999999999.99"
             step="0.01"
+            disabled={busy || isEdit}
+            readOnly={isEdit}
             value={amount}
             onChange={(event) => setAmount(event.target.value)}
             className={revenueInputClass}
           />
+          {isEdit && (
+            <p className="text-xs text-slate-600 text-pretty">
+              Ngày phát sinh, nhóm doanh thu và số tiền không thể sửa sau khi ghi nhận. Nếu cần đổi số tiền, hãy hủy khoản này và tạo khoản mới.
+            </p>
+          )}
         </label>
         {mode === "create" && (
           <label className="flex min-h-11 items-center gap-3 text-base">

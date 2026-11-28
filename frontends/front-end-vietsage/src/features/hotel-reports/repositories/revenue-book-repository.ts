@@ -68,6 +68,22 @@ export const revenueBookRepository = {
       )
     ).data;
   },
+  async updateNote(
+    hotelId: string,
+    body: {
+      accountKey: string;
+      notes?: string | null;
+      roomId?: string | null;
+      expectedPriorNote?: string | null;
+    },
+  ) {
+    return (
+      await requestInternalApiEnvelope<{ accountKey: string; notes: string }>(
+        path(hotelId, "/notes"),
+        { method: "PATCH", body },
+      )
+    ).data;
+  },
   async upsertTarget(
     hotelId: string,
     body: UpsertRevenueTargetInput,

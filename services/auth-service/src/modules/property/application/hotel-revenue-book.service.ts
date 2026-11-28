@@ -1,11 +1,11 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException, ServiceUnavailableException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, ServiceUnavailableException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { createHash } from "node:crypto";
 import { addDaysYmd, resolveTimeZone, startOfPlainDate, todayYmd, toYmd } from "../../../common/time/vietnam-temporal";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { assertBookLimit, filterRevenueBookEntries, projectBookAccount, revenueCategory, totalRevenueBook, type BookAccount, type MoneyEvent } from "../domain/hotel-revenue-book";
 import type { RevenueBook } from "../domain/hotel-revenue-book.types";
-import type { CollectRevenueEntry, CreateRevenueEntry, RevenueBookCategory, RevenueBookQuery, UpdateRevenueEntry, VoidRevenueEntry } from "../domain/schemas/hotel-revenue-book.schema";
+import type { CollectRevenueEntry, CreateRevenueEntry, RevenueBookCategory, RevenueBookQuery, UpdateRevenueEntry, UpdateRevenueNote, VoidRevenueEntry } from "../domain/schemas/hotel-revenue-book.schema";
 import { HotelAccessService, type HotelRoomScope } from "./hotel-access.service";
 
 function jsonText(value: Prisma.JsonValue | null, key: string): string | null {
@@ -24,13 +24,22 @@ function extractSplitKey(idempotencyKey: string | null | undefined): string | nu
 function normalizeRevenueCollectionLegs(input: {
   amount?: number;
   method?: string;
-  splits?: Array<{ method: string; amount: number }>;
-}): Array<{ method: string; amount: number }> {
+  destinationAccount?: string | null;
+  splits?: Array<{ method: string; amount: number; destinationAccount?: string | null }>;
+}): Array<{ method: string; amount: number; destinationAccount: string | null }> {
   if (input.splits && input.splits.length > 0) {
-    return input.splits.map((leg) => ({ method: leg.method, amount: leg.amount }));
+    return input.splits.map((leg) => ({
+      method: leg.method,
+      amount: leg.amount,
+      destinationAccount: leg.destinationAccount?.trim() || (input.splits?.length === 1 ? input.destinationAccount?.trim() : null) || null,
+    }));
   }
   if (input.amount !== undefined && input.method) {
-    return [{ method: input.method, amount: input.amount }];
+    return [{
+      method: input.method,
+      amount: input.amount,
+      destinationAccount: input.destinationAccount?.trim() || null,
+    }];
   }
   throw new BadRequestException("Vui lòng nhập phương thức và số tiền thu hợp lệ");
 }
@@ -53,7 +62,7 @@ export class HotelRevenueBookService {
     const instantWindow = { gte: start, lt: end };
     try {
       const data = await this.prisma.$transaction(async (tx) => {
-        const [folios, deposits, manual, rooms] = await Promise.all([
+        const [folios, deposits, manual, rooms, persistedNotes] = await Promise.all([
           tx.folio.findMany({
             where: {
               hotelId, ...roomFilter, openedAt: { lt: end },
@@ -92,10 +101,21 @@ export class HotelRevenueBookService {
             take: 10001, include: { collections: { where: { receivedAt: { lt: end } }, orderBy: { receivedAt: "asc" } } },
           }),
           tx.room.findMany({ where: { hotelId, ...(roomIds === null ? {} : { id: { in: roomIds } }) }, select: { id: true, roomNumber: true }, orderBy: { roomNumber: "asc" }, take: 10001 }),
+          tx.hotelRevenueNote.findMany({ where: { hotelId, ...roomFilter }, select: { accountKey: true, notes: true } }),
         ]);
         assertBookLimit(folios.length); assertBookLimit(deposits.length); assertBookLimit(manual.length); assertBookLimit(rooms.length);
-        return { folios, deposits, manual, rooms };
+        return { folios, deposits, manual, rooms, persistedNotes };
       }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
+      const noteMap = new Map<string, string | null>();
+      for (const n of data.persistedNotes) {
+        noteMap.set(n.accountKey, n.notes?.trim() || null);
+      }
+      const resolveAccountNote = (accountKey: string, legacyNote?: string | null): string | null => {
+        if (noteMap.has(accountKey)) {
+          return noteMap.get(accountKey) ?? null;
+        }
+        return legacyNote?.trim() || null;
+      };
       const accounts: BookAccount[] = [];
       for (const folio of data.folios) {
         if (folio.currency !== "VND") throw new BadRequestException("Báo cáo hiện hỗ trợ VND. Vui lòng đối soát riêng hồ sơ dùng loại tiền khác.");
@@ -121,7 +141,7 @@ export class HotelRevenueBookService {
           });
           if (payment.refundedAmount.gt(0)) {
             const refundTotal = payment.transactions.reduce((sum, event) => sum.add(event.amount), new Prisma.Decimal(0));
-            if (!refundTotal.equals(payment.refundedAmount)) throw new BadRequestException("Có khoản hoàn tiền chưa có lịch sử giao dịch đầy đủ. Vui lòng đối soát khoản hoàn tiền trước khi xuất báo cáo.");
+            if (!refundTotal.equals(payment.refundedAmount)) throw new BadRequestException(`Khoản hoàn tiền của thanh toán ${payment.paymentNumber ?? payment.id} (hồ sơ ${folio.folioNumber}) chưa có lịch sử giao dịch đầy đủ. Vui lòng đối soát khoản hoàn tiền trước khi xuất báo cáo.`);
             for (const refund of payment.transactions) collections.push({ id: refund.id, date: refund.processedAt ?? refund.createdAt, amount: refund.amount.neg(), method: payment.method, reference: payment.paymentNumber });
           }
         }
@@ -145,14 +165,15 @@ export class HotelRevenueBookService {
               ...(isTimestampSplit ? { splitGroupId: `receivable:${receivable.id}:${tsKey}` } : {}),
             });
             if (collection.isVoided) {
-              if (!collection.voidedAt) throw new BadRequestException("Có khoản thu nợ đã hủy thiếu ngày điều chỉnh. Vui lòng đối soát trước khi xuất báo cáo.");
+              if (!collection.voidedAt) throw new BadRequestException(`Khoản thu nợ đã hủy ${collection.reference ?? collection.id} (hồ sơ ${folio.folioNumber}) thiếu ngày điều chỉnh. Vui lòng đối soát trước khi xuất báo cáo.`);
               collections.push({ id: `${collection.id}:void`, date: collection.voidedAt, amount: collection.collectedAmount.neg(), method: collection.paymentMethod, reference: collection.reference });
             }
           }
         }
+        const folioAccountId = `folio:${folio.id}`;
         accounts.push({
-          id: `folio:${folio.id}`, source: "FOLIO", date: toYmd(folio.openedAt, timeZone), roomId: folio.roomId, roomNumber: folio.room.roomNumber,
-          documentNumber: folio.folioNumber, description: folio.stay.guestDisplayName, category: null, amount: null, notes: null,
+          id: folioAccountId, source: "FOLIO", date: toYmd(folio.openedAt, timeZone), roomId: folio.roomId, roomNumber: folio.room.roomNumber,
+          documentNumber: folio.folioNumber, description: folio.stay.guestDisplayName, category: null, amount: null, notes: resolveAccountNote(folioAccountId, null),
           declarationStatus: folio.stay.kbttGuestDeclarations[0]?.status ?? null, version: null, voidedAt: folio.voidedAt?.toISOString() ?? null,
           charges, collections, adjustments: folio.bookingPaymentAllocations.map((allocation) => ({ date: allocation.allocatedAt, amount: allocation.allocatedAmount.neg() })),
         });
@@ -160,7 +181,12 @@ export class HotelRevenueBookService {
       const depositGroups = new Map<string, typeof data.deposits>();
       const standaloneDeposits: typeof data.deposits = [];
       for (const deposit of data.deposits) {
-        if (deposit.status === "REFUNDED") throw new BadRequestException("Có tiền đặt cọc đã hoàn chưa có ngày hoàn chi tiết. Vui lòng đối soát khoản cọc trước khi xuất báo cáo.");
+        if (deposit.status === "REFUNDED") {
+          const depositDocRef = deposit.reservation?.reservationCode
+            ? `${deposit.reservation.reservationCode} (${deposit.transactionReference ?? deposit.id})`
+            : (deposit.transactionReference ?? deposit.id);
+          throw new BadRequestException(`Khoản đặt cọc ${depositDocRef} đã hoàn nhưng chưa có ngày hoàn chi tiết. Vui lòng đối soát khoản cọc trước khi xuất báo cáo.`);
+        }
         const splitKey = extractSplitKey((deposit as { idempotencyKey?: string | null }).idempotencyKey);
         if (splitKey) {
           const groupKey = `${deposit.reservationId ?? deposit.groupId ?? ""}:${splitKey}`;
@@ -172,11 +198,12 @@ export class HotelRevenueBookService {
         }
       }
       for (const deposit of standaloneDeposits) {
+        const depositAccountId = `deposit:${deposit.id}`;
         accounts.push({
-          id: `deposit:${deposit.id}`, source: "DEPOSIT", date: toYmd(deposit.receivedAt, timeZone), roomId: deposit.reservation?.roomId ?? null,
+          id: depositAccountId, source: "DEPOSIT", date: toYmd(deposit.receivedAt, timeZone), roomId: deposit.reservation?.roomId ?? null,
           roomNumber: deposit.reservation?.room?.roomNumber ?? null, documentNumber: deposit.reservation?.reservationCode ?? deposit.transactionReference,
           description: `Tiền đặt cọc${deposit.reservation?.guestDisplayName ? ` · ${deposit.reservation.guestDisplayName}` : ""}`, category: null, amount: null,
-          notes: deposit.notes, declarationStatus: null, version: null, voidedAt: null, charges: [],
+          notes: resolveAccountNote(depositAccountId, deposit.notes), declarationStatus: null, version: null, voidedAt: null, charges: [],
           collections: [{ id: deposit.id, date: deposit.receivedAt, amount: deposit.receivedAmount, method: deposit.paymentMethod, reference: deposit.transactionReference }],
           adjustments: deposit.allocations.map((allocation) => ({ date: allocation.allocatedAt, amount: allocation.allocatedAmount })),
         });
@@ -185,8 +212,9 @@ export class HotelRevenueBookService {
         const primary = groupList[0];
         const isSplitGroup = groupList.length > 1;
         const splitGroupId = isSplitGroup ? `deposit:${groupKey}` : null;
+        const depositGroupAccountId = isSplitGroup ? `deposit:split:${groupKey}` : `deposit:${primary.id}`;
         accounts.push({
-          id: isSplitGroup ? `deposit:split:${groupKey}` : `deposit:${primary.id}`,
+          id: depositGroupAccountId,
           source: "DEPOSIT",
           date: toYmd(primary.receivedAt, timeZone),
           roomId: primary.reservation?.roomId ?? null,
@@ -195,7 +223,7 @@ export class HotelRevenueBookService {
           description: `Tiền đặt cọc${primary.reservation?.guestDisplayName ? ` · ${primary.reservation.guestDisplayName}` : ""}`,
           category: null,
           amount: null,
-          notes: groupList.map((item) => item.notes).find(Boolean) ?? null,
+          notes: resolveAccountNote(depositGroupAccountId, groupList.map((item) => item.notes).find(Boolean) ?? null),
           declarationStatus: null,
           version: null,
           voidedAt: null,
@@ -220,7 +248,7 @@ export class HotelRevenueBookService {
         if (entry.voidedAt) charges.push({ date: new Date(Math.max(entry.voidedAt.getTime(), charges[0].date.getTime())), amount: entry.amount.neg(), category });
         accounts.push({
           id: entry.id, source: "MANUAL", date: businessDate, roomId: entry.roomId, roomNumber: entry.roomNumberSnapshot,
-          documentNumber: entry.documentNumber, description: entry.description, category, amount: entry.amount.toNumber(), notes: entry.notes,
+          documentNumber: entry.documentNumber, description: entry.description, category, amount: entry.amount.toNumber(), notes: resolveAccountNote(entry.id, entry.notes),
           declarationStatus: null, version: entry.version, voidedAt: entry.voidedAt?.toISOString() ?? null, charges,
           collections: entry.collections.map((collection) => {
             const splitKey = extractSplitKey(collection.idempotencyKey);
@@ -285,6 +313,7 @@ export class HotelRevenueBookService {
               method: collectionLegs[0].method,
               receivedAt: new Date(input.collection.receivedAt),
               reference: input.collection.reference || null,
+              destinationAccount: collectionLegs[0].destinationAccount,
               idempotencyKey: `initial:${requestHash}`,
               requestHash: fingerprint(input.collection),
               createdByUserId: userId,
@@ -294,6 +323,7 @@ export class HotelRevenueBookService {
               method: leg.method,
               receivedAt: new Date(input.collection!.receivedAt),
               reference: input.collection!.reference || null,
+              destinationAccount: leg.destinationAccount,
               idempotencyKey: `split:${requestHash.slice(0, 48)}:${idx}`,
               requestHash: fingerprint({ ...input.collection, splitIndex: idx }),
               createdByUserId: userId,
@@ -336,10 +366,15 @@ export class HotelRevenueBookService {
         const entry = await this.lockedEntry(tx, scope, id);
         if (entry.version !== input.version) throw changed();
         if (entry.voidedAt) throw new BadRequestException("Khoản phát sinh đã hủy không thể chỉnh sửa");
-        const collected = entry.collections.reduce((sum, value) => sum.add(value.amount), new Prisma.Decimal(0));
-        if (collected.gt(input.amount)) throw new BadRequestException("Số tiền phát sinh không được nhỏ hơn số tiền đã thu");
-        const updated = await tx.hotelRevenueEntry.update({ where: { id }, data: { date: plainDate(input.date), description: input.description, category: input.category, amount: input.amount, roomId: input.roomId || null, roomNumberSnapshot, documentNumber: input.documentNumber || null, notes: input.notes || null, version: { increment: 1 } } });
-        await this.audit(tx, userId, scope.hotel.tenantId, id, "HOTEL_REVENUE_ENTRY_UPDATED", { hotelId, before: { date: entry.date.toISOString().slice(0, 10), description: entry.description, category: entry.category, amount: entry.amount.toString(), roomId: entry.roomId, documentNumber: entry.documentNumber, notes: entry.notes, version: entry.version }, after: input });
+        if (!entry.amount.equals(new Prisma.Decimal(input.amount))) {
+          throw new BadRequestException("Không được chỉnh sửa số tiền của khoản đã ghi nhận. Nếu sai số tiền, vui lòng hủy khoản và tạo khoản mới.");
+        }
+        const entryDate = entry.date.toISOString().slice(0, 10);
+        if (entryDate !== input.date || entry.category !== input.category) {
+          throw new BadRequestException("Không được chỉnh sửa ngày phát sinh hoặc nhóm doanh thu của khoản đã ghi nhận. Vui lòng hủy khoản và tạo khoản mới.");
+        }
+        const updated = await tx.hotelRevenueEntry.update({ where: { id }, data: { description: input.description, roomId: input.roomId || null, roomNumberSnapshot, documentNumber: input.documentNumber || null, notes: input.notes || null, version: { increment: 1 } } });
+        await this.audit(tx, userId, scope.hotel.tenantId, id, "HOTEL_REVENUE_ENTRY_UPDATED", { hotelId, before: { date: entryDate, description: entry.description, category: entry.category, amount: entry.amount.toString(), roomId: entry.roomId, documentNumber: entry.documentNumber, notes: entry.notes, version: entry.version }, after: { ...input, date: entryDate, category: entry.category, amount: entry.amount.toNumber() } });
         return { id, version: updated.version };
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     } catch (error) { return this.storageError(error); }
@@ -373,6 +408,7 @@ export class HotelRevenueBookService {
                 method: leg.method,
                 receivedAt,
                 reference: input.reference || null,
+                destinationAccount: leg.destinationAccount,
                 idempotencyKey: `split:${safeKeyBase}:${idx}`,
                 requestHash,
                 createdByUserId: userId,
@@ -380,7 +416,7 @@ export class HotelRevenueBookService {
             });
           }
         } else {
-          await tx.hotelRevenueCollection.create({ data: { hotelId, entryId: id, amount: legs[0].amount, method: legs[0].method, receivedAt, reference: input.reference || null, idempotencyKey: input.idempotencyKey, requestHash, createdByUserId: userId } });
+          await tx.hotelRevenueCollection.create({ data: { hotelId, entryId: id, amount: legs[0].amount, method: legs[0].method, receivedAt, reference: input.reference || null, destinationAccount: legs[0].destinationAccount, idempotencyKey: input.idempotencyKey, requestHash, createdByUserId: userId } });
         }
         const updated = await tx.hotelRevenueEntry.update({ where: { id }, data: { version: { increment: 1 } } });
         await this.audit(tx, userId, scope.hotel.tenantId, id, "HOTEL_REVENUE_ENTRY_COLLECTED", { hotelId, input });
@@ -405,6 +441,148 @@ export class HotelRevenueBookService {
         const updated = await tx.hotelRevenueEntry.update({ where: { id }, data: { voidedAt: new Date(), voidReason: input.reason, version: { increment: 1 } } });
         await this.audit(tx, userId, scope.hotel.tenantId, id, "HOTEL_REVENUE_ENTRY_VOIDED", { hotelId, reason: input.reason });
         return { id, version: updated.version };
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    } catch (error) { return this.storageError(error); }
+  }
+
+  async updateNote(userId: string, roleId: string, hotelId: string, input: UpdateRevenueNote) {
+    const scope = await this.access.resolveRoomScope(userId, roleId, hotelId);
+    const actor = await this.access.loadActorContext(userId, roleId);
+    if (!actor.isSuperAdmin && !actor.permissions?.has("hotel.billing.manage")) {
+      throw new ForbiddenException("Không có quyền quản lý sổ doanh thu");
+    }
+    const cleanNote = input.notes?.trim() || "";
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        let authoritativeRoomId: string | null = null;
+        let legacyNote: string | null = null;
+
+        if (input.accountKey.startsWith("folio:")) {
+          const folioId = input.accountKey.slice("folio:".length);
+          const folio = await tx.folio.findFirst({
+            where: { id: folioId, hotelId },
+            select: { id: true, roomId: true },
+          });
+          if (!folio) {
+            throw new NotFoundException("Không tìm thấy hồ sơ thanh toán thuộc khách sạn này");
+          }
+          authoritativeRoomId = folio.roomId;
+          legacyNote = null;
+        } else if (input.accountKey.startsWith("deposit:")) {
+          if (input.accountKey.startsWith("deposit:split:")) {
+            const groupKey = input.accountKey.slice("deposit:split:".length);
+            const colonIdx = groupKey.lastIndexOf(":");
+            const targetEntityId = colonIdx >= 0 ? groupKey.slice(0, colonIdx) : "";
+            const splitKey = colonIdx >= 0 ? groupKey.slice(colonIdx + 1) : groupKey;
+
+            const depositWhere: Prisma.BookingPaymentWhereInput = {
+              hotelId,
+              idempotencyKey: { startsWith: `split:${splitKey}:` },
+            };
+            if (targetEntityId) {
+              depositWhere.OR = [
+                { reservationId: targetEntityId },
+                { groupId: targetEntityId },
+              ];
+            } else {
+              depositWhere.reservationId = null;
+              depositWhere.groupId = null;
+            }
+
+            const deposit = await tx.bookingPayment.findFirst({
+              where: depositWhere,
+              select: {
+                id: true,
+                notes: true,
+                reservationId: true,
+                groupId: true,
+                reservation: { select: { roomId: true } },
+              },
+            });
+            if (!deposit) {
+              throw new NotFoundException("Không tìm thấy khoản đặt cọc thuộc khách sạn này");
+            }
+            authoritativeRoomId = deposit.reservation?.roomId ?? null;
+            legacyNote = deposit.notes?.trim() || null;
+
+            await tx.bookingPayment.updateMany({
+              where: depositWhere,
+              data: { notes: cleanNote || null },
+            });
+          } else {
+            const depositId = input.accountKey.slice("deposit:".length);
+            const deposit = await tx.bookingPayment.findFirst({
+              where: { id: depositId, hotelId },
+              select: { id: true, notes: true, reservation: { select: { roomId: true } } },
+            });
+            if (!deposit) {
+              throw new NotFoundException("Không tìm thấy khoản đặt cọc thuộc khách sạn này");
+            }
+            authoritativeRoomId = deposit.reservation?.roomId ?? null;
+            legacyNote = deposit.notes?.trim() || null;
+
+            await tx.bookingPayment.update({
+              where: { id: deposit.id },
+              data: { notes: cleanNote || null },
+            });
+          }
+        } else {
+          const manualEntry = await tx.hotelRevenueEntry.findFirst({
+            where: { id: input.accountKey, hotelId },
+            select: { id: true, roomId: true, notes: true },
+          });
+          if (!manualEntry) {
+            throw new NotFoundException("Không tìm thấy khoản phát sinh thuộc khách sạn này");
+          }
+          authoritativeRoomId = manualEntry.roomId;
+          legacyNote = manualEntry.notes?.trim() || null;
+          await tx.hotelRevenueEntry.update({
+            where: { id: manualEntry.id },
+            data: { notes: cleanNote || null, version: { increment: 1 } },
+          });
+        }
+
+        // Authoritatively check room access: user cannot update notes on rooms they are not permitted for
+        this.access.assertRoomAccess(scope, authoritativeRoomId);
+
+        // Concurrent overwrite protection: check expected prior note against current persisted or legacy note
+        const existingNoteRecord = await tx.hotelRevenueNote.findUnique({
+          where: { hotelId_accountKey: { hotelId, accountKey: input.accountKey } },
+          select: { notes: true },
+        });
+        const currentPriorNote = existingNoteRecord
+          ? (existingNoteRecord.notes?.trim() || null)
+          : legacyNote;
+
+        if (input.expectedPriorNote !== undefined) {
+          const expected = input.expectedPriorNote?.trim() || null;
+          if (currentPriorNote !== expected) {
+            throw new ConflictException("Ghi chú đã được cập nhật từ thiết bị khác. Vui lòng tải lại sổ doanh thu.");
+          }
+        }
+
+        await tx.hotelRevenueNote.upsert({
+          where: { hotelId_accountKey: { hotelId, accountKey: input.accountKey } },
+          create: {
+            hotelId,
+            accountKey: input.accountKey,
+            roomId: authoritativeRoomId,
+            notes: cleanNote,
+            updatedByUserId: userId,
+          },
+          update: {
+            roomId: authoritativeRoomId,
+            notes: cleanNote,
+            updatedByUserId: userId,
+          },
+        });
+        await this.audit(tx, userId, scope.hotel.tenantId, input.accountKey, "HOTEL_REVENUE_NOTE_UPDATED", {
+          hotelId,
+          accountKey: input.accountKey,
+          roomId: authoritativeRoomId,
+          notes: cleanNote,
+        });
+        return { accountKey: input.accountKey, notes: cleanNote };
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     } catch (error) { return this.storageError(error); }
   }

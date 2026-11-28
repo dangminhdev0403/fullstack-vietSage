@@ -14,6 +14,7 @@ export const revenueBookSettlementStatusFilterSchema = z.enum(["SETTLED", "UNPAI
 export const revenueBookSplitItemSchema = z.object({
   method: z.enum(["CASH", "BANK_TRANSFER", "CARD", "OTHER"]),
   amount: money,
+  destinationAccount: optionalText(120),
 }).strict();
 function sumRevenueSplits(splits: Array<{ amount: number }>): number {
   return Math.round(splits.reduce((sum, item) => sum + item.amount, 0) * 100) / 100;
@@ -36,6 +37,7 @@ const revenueBookCollectionBaseSchema = z.object({
   receivedAt: z.iso.datetime({ offset: true }),
   amount: money.optional(),
   method: z.enum(["CASH", "BANK_TRANSFER", "CARD", "OTHER"]).optional(),
+  destinationAccount: optionalText(120),
   splits: z.array(revenueBookSplitItemSchema).min(1).max(4).optional(),
   reference: optionalText(120),
 }).strict();
@@ -74,6 +76,12 @@ export const collectRevenueEntrySchema = revenueBookCollectionBaseSchema
   .strict()
   .refine(isValidRevenueCollection, "Vui lòng nhập phương thức và số tiền thu hợp lệ");
 export const voidRevenueEntrySchema = z.object({ reason: text(500), version: z.number().int().nonnegative() }).strict();
+export const updateRevenueNoteSchema = z.object({
+  accountKey: text(160),
+  notes: z.string().trim().max(1000).nullable().optional(),
+  roomId: optionalText(120),
+  expectedPriorNote: z.string().trim().max(1000).nullable().optional(),
+}).strict();
 export const revenueEntryIdSchema = text(120);
 export type RevenueBookCategory = z.infer<typeof revenueBookCategorySchema>;
 export type RevenueBookPaymentMethodFilter = z.infer<typeof revenueBookPaymentMethodFilterSchema>;
@@ -84,3 +92,4 @@ export type CreateRevenueEntry = z.infer<typeof createRevenueEntrySchema>;
 export type UpdateRevenueEntry = z.infer<typeof updateRevenueEntrySchema>;
 export type CollectRevenueEntry = z.infer<typeof collectRevenueEntrySchema>;
 export type VoidRevenueEntry = z.infer<typeof voidRevenueEntrySchema>;
+export type UpdateRevenueNote = z.infer<typeof updateRevenueNoteSchema>;

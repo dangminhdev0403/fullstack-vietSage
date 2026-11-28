@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { HotelRevenueBookService } from "../application/hotel-revenue-book.service";
 import type { HotelAccessService } from "../application/hotel-access.service";
 import type { PrismaService } from "../../../prisma/prisma.service";
-import { collectRevenueEntrySchema, createRevenueEntrySchema, updateRevenueEntrySchema } from "../domain/schemas/hotel-revenue-book.schema";
+import { collectRevenueEntrySchema, createRevenueEntrySchema, updateRevenueEntrySchema, updateRevenueNoteSchema } from "../domain/schemas/hotel-revenue-book.schema";
 
 const D = (amount: string | number) => new Prisma.Decimal(amount);
 const collectionInput = () => collectRevenueEntrySchema.parse({ amount: 40, method: "CASH", receivedAt: "2026-11-13T02:00:00Z", idempotencyKey: "collect-once", version: 1 });
@@ -35,13 +35,39 @@ function setup() {
     loadActorContext: jest.fn().mockResolvedValue({ isSuperAdmin: false, permissions: new Set(["hotel.billing.manage"]) }),
     assertRoomAccess: jest.fn(),
   };
+  const notesStore: Array<{ hotelId: string; accountKey: string; roomId: string | null; notes: string }> = [];
   const tx = {
     $queryRaw: jest.fn().mockResolvedValue([{ id: entry.id }]),
-    folio: { findMany: jest.fn().mockResolvedValue([]) },
-    bookingPayment: { findMany: jest.fn().mockResolvedValue([]) },
+    folio: {
+      findMany: jest.fn().mockResolvedValue([]),
+      findFirst: jest.fn().mockImplementation(async ({ where }: { where: { id: string; hotelId: string } }) => {
+        if (where.id === "folio-1") return { id: "folio-1", roomId: "room-1" };
+        if (where.id === "folio-2") return { id: "folio-2", roomId: "foreign-room" };
+        return null;
+      }),
+    },
+    bookingPayment: {
+      findMany: jest.fn().mockResolvedValue([]),
+      findFirst: jest.fn().mockImplementation(async ({ where }: { where: Record<string, any> }) => {
+        if (where.id === "dep-1") return { id: "dep-1", notes: null, reservation: { roomId: "room-1" } };
+        if (where.id === "dep-legacy") return { id: "dep-legacy", notes: "Cọc chuyển khoản cũ", reservation: { roomId: "room-1" } };
+        if (where.idempotencyKey?.startsWith?.includes("depgrp")) {
+          return {
+            id: "dep-cash",
+            notes: "Cọc kết hợp",
+            reservationId: "res-1",
+            groupId: null,
+            reservation: { roomId: "room-1" },
+          };
+        }
+        return null;
+      }),
+      update: jest.fn().mockImplementation(async ({ where, data }: Record<string, any>) => ({ id: where.id, ...data })),
+      updateMany: jest.fn().mockImplementation(async ({ where, data }: Record<string, any>) => ({ count: 1 })),
+    },
     room: { findMany: jest.fn().mockResolvedValue([]), findFirst: jest.fn().mockResolvedValue({ roomNumber: "101" }) },
     hotelRevenueEntry: {
-      findFirst: jest.fn().mockImplementation(async () => entry),
+      findFirst: jest.fn().mockImplementation(async ({ where }: { where: { id: string } }) => where.id === entry.id ? entry : null),
       findUnique: jest.fn().mockResolvedValue(null),
       findMany: jest.fn().mockResolvedValue([]),
       create: jest.fn().mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({ ...entry, ...data, version: 1 })),
@@ -50,6 +76,24 @@ function setup() {
     hotelRevenueCollection: {
       findUnique: jest.fn().mockImplementation(async ({ where }: { where: { hotelId_idempotencyKey: { idempotencyKey: string } } }) => entry.collections.find((item) => item.idempotencyKey === where.hotelId_idempotencyKey.idempotencyKey) ?? null),
       create: jest.fn().mockImplementation(async ({ data }: { data: Record<string, unknown> }) => { const payment = { ...data, id: "collection-1", amount: D(data.amount as number), reference: null } as typeof entry.collections[number]; entry.collections.push(payment); return payment; }),
+    },
+    hotelRevenueNote: {
+      findUnique: jest.fn().mockImplementation(async ({ where }: { where: { hotelId_accountKey: { hotelId: string; accountKey: string } } }) => {
+        return notesStore.find((n) => n.hotelId === where.hotelId_accountKey.hotelId && n.accountKey === where.hotelId_accountKey.accountKey) ?? null;
+      }),
+      findMany: jest.fn().mockImplementation(async ({ where }: { where: { hotelId: string; roomId?: { in: string[] } } }) => {
+        return notesStore.filter((n) => n.hotelId === where.hotelId && (!where.roomId || (n.roomId && where.roomId.in.includes(n.roomId))));
+      }),
+      upsert: jest.fn().mockImplementation(async ({ create, update, where }: { create: Record<string, unknown>; update: Record<string, unknown>; where: { hotelId_accountKey: { hotelId: string; accountKey: string } } }) => {
+        const existingIdx = notesStore.findIndex((n) => n.hotelId === where.hotelId_accountKey.hotelId && n.accountKey === where.hotelId_accountKey.accountKey);
+        const record = { hotelId: where.hotelId_accountKey.hotelId, accountKey: where.hotelId_accountKey.accountKey, roomId: (create.roomId ?? update.roomId ?? null) as string | null, notes: (create.notes ?? update.notes ?? "") as string };
+        if (existingIdx >= 0) {
+          notesStore[existingIdx] = record;
+        } else {
+          notesStore.push(record);
+        }
+        return record;
+      }),
     },
     auditLog: { create: jest.fn().mockResolvedValue({ id: "audit-1" }) },
   };
@@ -103,15 +147,46 @@ describe("hotel revenue book workflows", () => {
     expect(entry.collections.reduce((sum, payment) => sum.add(payment.amount), D(0)).toNumber()).toBe(40);
   });
 
-  it("rejects overcollection, reducing charges below receipts, and voiding a paid entry", async () => {
+  it("rejects overcollection, modifying recorded financial fields, and voiding a paid entry", async () => {
     const { service, entry, tx } = setup();
     entry.collections.push({ id: "paid", amount: D(80), receivedAt: new Date("2026-11-13T01:00:00Z"), method: "CASH", reference: null, idempotencyKey: "previous", requestHash: "previous" });
     await expect(service.collect("user-a", "role-a", "hotel-a", entry.id, collectionInput())).rejects.toThrow("vượt quá");
-    const update = updateRevenueEntrySchema.parse({ date: "2026-11-13", description: entry.description, category: "LAUNDRY", amount: 50, version: 1 });
-    await expect(service.update("user-a", "role-a", "hotel-a", entry.id, update)).rejects.toThrow("nhỏ hơn");
+    const lowerAmount = updateRevenueEntrySchema.parse({ date: "2026-11-13", description: entry.description, category: "LAUNDRY", amount: 50, version: 1 });
+    const higherAmount = updateRevenueEntrySchema.parse({ date: "2026-11-13", description: entry.description, category: "LAUNDRY", amount: 150, version: 1 });
+    const changedCategory = updateRevenueEntrySchema.parse({ date: "2026-11-13", description: entry.description, category: "OTHER", amount: 100, version: 1 });
+    const changedDate = updateRevenueEntrySchema.parse({ date: "2026-11-14", description: entry.description, category: "LAUNDRY", amount: 100, version: 1 });
+    await expect(service.update("user-a", "role-a", "hotel-a", entry.id, lowerAmount)).rejects.toThrow("Không được chỉnh sửa số tiền");
+    await expect(service.update("user-a", "role-a", "hotel-a", entry.id, higherAmount)).rejects.toThrow("Không được chỉnh sửa số tiền");
+    await expect(service.update("user-a", "role-a", "hotel-a", entry.id, changedCategory)).rejects.toThrow("Không được chỉnh sửa ngày phát sinh hoặc nhóm doanh thu");
+    await expect(service.update("user-a", "role-a", "hotel-a", entry.id, changedDate)).rejects.toThrow("Không được chỉnh sửa ngày phát sinh hoặc nhóm doanh thu");
     await expect(service.void("user-a", "role-a", "hotel-a", entry.id, { version: 1, reason: "Nhập nhầm" })).rejects.toThrow("đã có tiền thu");
     expect(tx.hotelRevenueEntry.update).not.toHaveBeenCalled();
     expect(tx.hotelRevenueCollection.create).not.toHaveBeenCalled();
+  });
+
+  it("allows updating non-financial metadata without altering recorded financial fields", async () => {
+    const { service, entry, tx } = setup();
+    const update = updateRevenueEntrySchema.parse({
+      date: "2026-11-13",
+      description: "Giặt ủi ngoài danh mục (đã đối chiếu)",
+      category: "LAUNDRY",
+      amount: 100,
+      documentNumber: "PT-099",
+      notes: "Khách đã xác nhận",
+      version: 1,
+    });
+    await expect(service.update("user-a", "role-a", "hotel-a", entry.id, update)).resolves.toEqual({ id: entry.id, version: 2 });
+    expect(tx.hotelRevenueEntry.update).toHaveBeenCalledWith({
+      where: { id: entry.id },
+      data: {
+        description: "Giặt ủi ngoài danh mục (đã đối chiếu)",
+        roomId: null,
+        roomNumberSnapshot: null,
+        documentNumber: "PT-099",
+        notes: "Khách đã xác nhận",
+        version: { increment: 1 },
+      },
+    });
   });
 
   it("records an unpaid cancellation with audit and keeps repeat cancellation harmless", async () => {
@@ -269,5 +344,284 @@ describe("hotel revenue book workflows", () => {
     expect(depositEntries).toHaveLength(1);
     expect(depositEntries[0].collections).toHaveLength(2);
     expect(depositEntries[0].collections[0].splitGroupId).toBe(depositEntries[0].collections[1].splitGroupId);
+  });
+
+  it("persists durable notes scoped by hotel and assigned room with permission and audit", async () => {
+    const { service, tx, access } = setup();
+    const input = updateRevenueNoteSchema.parse({ accountKey: "folio:folio-1", notes: "Khách nợ 500k hẹn mai trả", roomId: "room-1" });
+    const result = await service.updateNote("user-a", "role-a", "hotel-a", input);
+    expect(result).toEqual({ accountKey: "folio:folio-1", notes: "Khách nợ 500k hẹn mai trả" });
+    expect(tx.hotelRevenueNote.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      where: { hotelId_accountKey: { hotelId: "hotel-a", accountKey: "folio:folio-1" } },
+      create: expect.objectContaining({ hotelId: "hotel-a", accountKey: "folio:folio-1", roomId: "room-1", notes: "Khách nợ 500k hẹn mai trả", updatedByUserId: "user-a" }),
+    }));
+    expect(tx.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ actorId: "user-a", tenantId: "tenant-a", action: "HOTEL_REVENUE_NOTE_UPDATED" }),
+    }));
+
+    // Denies room outside scope
+    access.assertRoomAccess.mockImplementation(() => { throw new NotFoundException("Phòng không thuộc phạm vi"); });
+    await expect(service.updateNote("user-a", "role-a", "hotel-a", { accountKey: "folio:folio-2", notes: "Note", roomId: "foreign-room" })).rejects.toThrow("Phòng không thuộc phạm vi");
+
+    // Denies when actor lacks permission
+    access.assertRoomAccess.mockImplementation(() => {});
+    access.loadActorContext.mockResolvedValue({ isSuperAdmin: false, permissions: new Set() });
+    await expect(service.updateNote("user-a", "role-a", "hotel-a", input)).rejects.toThrow("Không có quyền");
+  });
+
+  it("supports two-device readback where Device 1 persists a note and Device 2 reads it back in getBook, while room-restricted Device 3 is denied", async () => {
+    const { service, tx, access } = setup();
+    const date = new Date("2026-11-13T01:00:00Z");
+
+    const foliosFixture = [{
+      id: "folio-1", currency: "VND", roomId: "room-1", room: { roomNumber: "101" }, openedAt: date, folioNumber: "F-101", voidedAt: null,
+      stay: { guestDisplayName: "Trần Văn Nam", kbttGuestDeclarations: [] },
+      items: [{ itemType: "ROOM_CHARGE", nameSnapshot: "Tiền phòng", metadataSnapshotJson: null, serviceItem: null, postedAt: date, totalSnapshot: D(1000), discountAmountSnapshot: D(0), voidedAt: null }],
+      payments: [{ id: "pay-1", metadataJson: null, confirmedAt: date, paidAmount: D(1000), refundedAmount: D(0), method: "CASH", paymentNumber: "P-101", transactions: [] }],
+      bookingPaymentAllocations: [], hotelReceivables: [],
+    }];
+    tx.folio.findMany.mockImplementation(async ({ where }: { where: { roomId?: { in: string[] } } }) => {
+      if (where.roomId) {
+        return foliosFixture.filter((f) => where.roomId!.in.includes(f.roomId));
+      }
+      return foliosFixture;
+    });
+
+    // Device 1: User 1 writes a durable note for folio:folio-1
+    const updateResult = await service.updateNote("user-dev-1", "role-manager", "hotel-a", {
+      accountKey: "folio:folio-1",
+      notes: "Device 1: Khách đã xác nhận hóa đơn GTGT",
+    });
+    expect(updateResult).toEqual({ accountKey: "folio:folio-1", notes: "Device 1: Khách đã xác nhận hóa đơn GTGT" });
+
+    // Device 2: User 2 on another device reads back the book
+    const bookDev2 = await service.getBook("user-dev-2", "role-manager", "hotel-a", { from: "2026-11-13", to: "2026-11-13" });
+    const rowDev2 = bookDev2.entries.find((e) => e.id === "folio:folio-1");
+    expect(rowDev2).toBeDefined();
+    expect(rowDev2?.notes).toBe("Device 1: Khách đã xác nhận hóa đơn GTGT");
+
+    // Device 3: Room-restricted user (only permitted for room-2, not room-1)
+    access.resolveRoomScope.mockResolvedValueOnce({
+      hotel: { id: "hotel-a", tenantId: "tenant-a", name: "A21", timezone: "Asia/Ho_Chi_Minh" },
+      allowedRoomId: "room-2",
+      allowedRoomIds: ["room-2"],
+    });
+    const bookDev3 = await service.getBook("user-dev-3", "role-staff", "hotel-a", { from: "2026-11-13", to: "2026-11-13" });
+    // Device 3 cannot see folio:folio-1 because it belongs to room-1
+    expect(bookDev3.entries.find((e) => e.id === "folio:folio-1")).toBeUndefined();
+
+    // Device 3 attempts to update note on folio:folio-1 directly
+    access.resolveRoomScope.mockResolvedValueOnce({
+      hotel: { id: "hotel-a", tenantId: "tenant-a", name: "A21", timezone: "Asia/Ho_Chi_Minh" },
+      allowedRoomId: "room-2",
+      allowedRoomIds: ["room-2"],
+    });
+    access.assertRoomAccess.mockImplementationOnce((scope, roomId) => {
+      if (scope.allowedRoomIds && !scope.allowedRoomIds.includes(roomId)) {
+        throw new NotFoundException("Phòng không thuộc quyền hạn của bạn");
+      }
+    });
+    await expect(service.updateNote("user-dev-3", "role-staff", "hotel-a", {
+      accountKey: "folio:folio-1",
+      notes: "Device 3 malicious update",
+    })).rejects.toThrow("Phòng không thuộc quyền hạn của bạn");
+  });
+
+  it("isolates split deposit notes by exact booking and group id and enforces room scopes across single, multiple, empty and hotel-wide", async () => {
+    const { service, tx, access } = setup();
+    const accountKey = "deposit:split:res-1:depgrp";
+
+    // 1. Hotel-wide scope: succeeds and queries exact booking and split prefix
+    const hotelWideResult = await service.updateNote("user-a", "role-a", "hotel-a", {
+      accountKey,
+      notes: "Ghi chú cọc mới",
+      expectedPriorNote: "Cọc kết hợp",
+    });
+    expect(hotelWideResult).toEqual({ accountKey, notes: "Ghi chú cọc mới" });
+    expect(tx.bookingPayment.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        hotelId: "hotel-a",
+        idempotencyKey: { startsWith: "split:depgrp:" },
+        OR: [{ reservationId: "res-1" }, { groupId: "res-1" }],
+      }),
+    }));
+    expect(tx.bookingPayment.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        hotelId: "hotel-a",
+        idempotencyKey: { startsWith: "split:depgrp:" },
+      }),
+      data: { notes: "Ghi chú cọc mới" },
+    }));
+
+    // 2. Single-room scope matching room-1: succeeds
+    access.resolveRoomScope.mockResolvedValueOnce({
+      hotel: { id: "hotel-a", tenantId: "tenant-a", name: "A21", timezone: "Asia/Ho_Chi_Minh" },
+      allowedRoomId: "room-1",
+      allowedRoomIds: ["room-1"],
+    });
+    await expect(service.updateNote("user-staff-1", "role-staff", "hotel-a", {
+      accountKey,
+      notes: "Ghi chú từ staff room-1",
+      expectedPriorNote: "Ghi chú cọc mới",
+    })).resolves.toEqual({ accountKey, notes: "Ghi chú từ staff room-1" });
+
+    // 3. Multi-room scope including room-1: succeeds
+    access.resolveRoomScope.mockResolvedValueOnce({
+      hotel: { id: "hotel-a", tenantId: "tenant-a", name: "A21", timezone: "Asia/Ho_Chi_Minh" },
+      allowedRoomId: null,
+      allowedRoomIds: ["room-1", "room-2"],
+    });
+    await expect(service.updateNote("user-staff-12", "role-staff", "hotel-a", {
+      accountKey,
+      notes: "Ghi chú từ staff room-1-2",
+      expectedPriorNote: "Ghi chú từ staff room-1",
+    })).resolves.toEqual({ accountKey, notes: "Ghi chú từ staff room-1-2" });
+
+    // 4. Out-of-scope room (only room-2 permitted): fails with NotFoundException
+    access.resolveRoomScope.mockResolvedValueOnce({
+      hotel: { id: "hotel-a", tenantId: "tenant-a", name: "A21", timezone: "Asia/Ho_Chi_Minh" },
+      allowedRoomId: "room-2",
+      allowedRoomIds: ["room-2"],
+    });
+    access.assertRoomAccess.mockImplementationOnce(() => {
+      throw new NotFoundException("Phòng không thuộc phạm vi được phân công");
+    });
+    await expect(service.updateNote("user-staff-2", "role-staff", "hotel-a", {
+      accountKey,
+      notes: "Malicious note",
+      expectedPriorNote: "Ghi chú từ staff room-1-2",
+    })).rejects.toThrow("Phòng không thuộc phạm vi được phân công");
+
+    // 5. Empty allowed room set: fails with NotFoundException
+    access.resolveRoomScope.mockResolvedValueOnce({
+      hotel: { id: "hotel-a", tenantId: "tenant-a", name: "A21", timezone: "Asia/Ho_Chi_Minh" },
+      allowedRoomId: null,
+      allowedRoomIds: [],
+    });
+    access.assertRoomAccess.mockImplementationOnce(() => {
+      throw new NotFoundException("Phòng không thuộc phạm vi được phân công");
+    });
+    await expect(service.updateNote("user-staff-empty", "role-staff", "hotel-a", {
+      accountKey,
+      notes: "Malicious note empty",
+    })).rejects.toThrow("Phòng không thuộc phạm vi được phân công");
+  });
+
+  it("clears legacy notes on deposit and manual entries so getBook returns null instead of resurrecting them", async () => {
+    const { service, tx } = setup();
+    const date = new Date("2026-11-13T01:00:00Z");
+
+    // Standalone deposit with legacy note in bookingPayment
+    tx.bookingPayment.findMany.mockResolvedValueOnce([{
+      id: "dep-legacy", status: "COMPLETED", idempotencyKey: null, receivedAt: date, receivedAmount: D(500),
+      paymentMethod: "BANK_TRANSFER", transactionReference: "TX-LEGACY-01", notes: "Cọc chuyển khoản cũ",
+      reservationId: "res-legacy", groupId: null, reservation: { guestDisplayName: "Vũ Hải", reservationCode: "R-LEGACY", roomId: "room-1", room: { roomNumber: "101" } },
+      allocations: [],
+    }]);
+
+    // Initial getBook returns legacy note
+    const bookBefore = await service.getBook("user-a", "role-a", "hotel-a", { from: "2026-11-13", to: "2026-11-13" });
+    const depBefore = bookBefore.entries.find((e) => e.id === "deposit:dep-legacy")!;
+    expect(depBefore).toBeDefined();
+    expect(depBefore.notes).toBe("Cọc chuyển khoản cũ");
+
+    // User clears note
+    const clearResult = await service.updateNote("user-a", "role-a", "hotel-a", {
+      accountKey: "deposit:dep-legacy",
+      notes: "",
+      expectedPriorNote: "Cọc chuyển khoản cũ",
+    });
+    expect(clearResult).toEqual({ accountKey: "deposit:dep-legacy", notes: "" });
+    expect(tx.bookingPayment.update).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: "dep-legacy" },
+      data: { notes: null },
+    }));
+
+    // Subsequent getBook returns null rather than falling back to legacy note
+    tx.bookingPayment.findMany.mockResolvedValueOnce([{
+      id: "dep-legacy", status: "COMPLETED", idempotencyKey: null, receivedAt: date, receivedAmount: D(500),
+      paymentMethod: "BANK_TRANSFER", transactionReference: "TX-LEGACY-01", notes: "Cọc chuyển khoản cũ",
+      reservationId: "res-legacy", groupId: null, reservation: { guestDisplayName: "Vũ Hải", reservationCode: "R-LEGACY", roomId: "room-1", room: { roomNumber: "101" } },
+      allocations: [],
+    }]);
+    const bookAfter = await service.getBook("user-a", "role-a", "hotel-a", { from: "2026-11-13", to: "2026-11-13" });
+    const depAfter = bookAfter.entries.find((e) => e.id === "deposit:dep-legacy")!;
+    expect(depAfter).toBeDefined();
+    expect(depAfter.notes).toBeNull();
+  });
+
+  it("protects concurrent note overwrites with expectedPriorNote", async () => {
+    const { service } = setup();
+
+    // Device 1 writes initial note
+    await service.updateNote("user-dev-1", "role-a", "hotel-a", {
+      accountKey: "folio:folio-1",
+      notes: "Ghi chú từ Device 1",
+      expectedPriorNote: null,
+    });
+
+    // Device 2 with stale state (expectedPriorNote: null) tries to overwrite
+    await expect(service.updateNote("user-dev-2", "role-a", "hotel-a", {
+      accountKey: "folio:folio-1",
+      notes: "Ghi chú từ Device 2",
+      expectedPriorNote: null,
+    })).rejects.toThrow("Ghi chú đã được cập nhật từ thiết bị khác. Vui lòng tải lại sổ doanh thu.");
+
+    // Device 2 provides matched expectedPriorNote and succeeds
+    await expect(service.updateNote("user-dev-2", "role-a", "hotel-a", {
+      accountKey: "folio:folio-1",
+      notes: "Ghi chú Device 2 đã cập nhật",
+      expectedPriorNote: "Ghi chú từ Device 1",
+    })).resolves.toEqual({ accountKey: "folio:folio-1", notes: "Ghi chú Device 2 đã cập nhật" });
+
+    // Device 1 attempts to clear note passing now-stale expectedPriorNote
+    await expect(service.updateNote("user-dev-1", "role-a", "hotel-a", {
+      accountKey: "folio:folio-1",
+      notes: "",
+      expectedPriorNote: "Ghi chú từ Device 1",
+    })).rejects.toThrow("Ghi chú đã được cập nhật từ thiết bị khác. Vui lòng tải lại sổ doanh thu.");
+  });
+
+  it("surfaces exact record identifiers for incomplete refund and void reconciliation errors", async () => {
+    const { service, tx } = setup();
+    const date = new Date("2026-11-13T01:00:00Z");
+
+    // Incomplete payment refund
+    tx.folio.findMany.mockResolvedValueOnce([{
+      id: "folio-bad-refund", currency: "VND", roomId: "room-1", room: { roomNumber: "101" }, openedAt: date, folioNumber: "F-REFUND-01", voidedAt: null,
+      stay: { guestDisplayName: "Nguyễn An", kbttGuestDeclarations: [] },
+      items: [{ itemType: "ROOM_CHARGE", nameSnapshot: "Tiền phòng", metadataSnapshotJson: null, serviceItem: null, postedAt: date, totalSnapshot: D(500), discountAmountSnapshot: D(0), voidedAt: null }],
+      payments: [{ id: "pay-1", metadataJson: null, confirmedAt: date, paidAmount: D(500), refundedAmount: D(200), method: "BANK_TRANSFER", paymentNumber: "PAY-100", transactions: [] }],
+      bookingPaymentAllocations: [], hotelReceivables: [],
+    }]);
+    await expect(service.getBook("user-a", "role-a", "hotel-a", { from: "2026-11-13", to: "2026-11-13" })).rejects.toThrow(
+      "Khoản hoàn tiền của thanh toán PAY-100 (hồ sơ F-REFUND-01) chưa có lịch sử giao dịch đầy đủ. Vui lòng đối soát khoản hoàn tiền trước khi xuất báo cáo."
+    );
+
+    // Voided receivable collection missing voidedAt date
+    tx.folio.findMany.mockResolvedValueOnce([{
+      id: "folio-bad-void", currency: "VND", roomId: "room-1", room: { roomNumber: "101" }, openedAt: date, folioNumber: "F-VOID-02", voidedAt: null,
+      stay: { guestDisplayName: "Lê Bình", kbttGuestDeclarations: [] },
+      items: [{ itemType: "ROOM_CHARGE", nameSnapshot: "Tiền phòng", metadataSnapshotJson: null, serviceItem: null, postedAt: date, totalSnapshot: D(300), discountAmountSnapshot: D(0), voidedAt: null }],
+      payments: [],
+      bookingPaymentAllocations: [],
+      hotelReceivables: [{
+        id: "rec-1",
+        collections: [{ id: "col-1", collectedAt: date, collectedAmount: D(300), paymentMethod: "CASH", reference: "REC-REF-01", isVoided: true, voidedAt: null }],
+      }],
+    }]);
+    await expect(service.getBook("user-a", "role-a", "hotel-a", { from: "2026-11-13", to: "2026-11-13" })).rejects.toThrow(
+      "Khoản thu nợ đã hủy REC-REF-01 (hồ sơ F-VOID-02) thiếu ngày điều chỉnh. Vui lòng đối soát trước khi xuất báo cáo."
+    );
+
+    // Refunded deposit missing detail
+    tx.folio.findMany.mockResolvedValueOnce([]);
+    tx.bookingPayment.findMany.mockResolvedValueOnce([{
+      id: "dep-bad", status: "REFUNDED", receivedAt: date, receivedAmount: D(500), paymentMethod: "BANK_TRANSFER", transactionReference: "TX-DEP-999", notes: null,
+      reservation: null, allocations: [],
+    }]);
+    await expect(service.getBook("user-a", "role-a", "hotel-a", { from: "2026-11-13", to: "2026-11-13" })).rejects.toThrow(
+      "Khoản đặt cọc TX-DEP-999 đã hoàn nhưng chưa có ngày hoàn chi tiết. Vui lòng đối soát khoản cọc trước khi xuất báo cáo."
+    );
   });
 });

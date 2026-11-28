@@ -7,11 +7,14 @@ import {
   PaymentMethod,
   PaymentStatus,
   Prisma,
+  ReservationStatus,
   RoomStatus,
   UserRoleStatus,
 } from "@prisma/client";
 import { PrismaService } from "../../../prisma/prisma.service";
-import { HotelAccessService } from "./hotel-access.service";
+import { calculateReservationChargeTotal, type ReservationQuotedCharge } from "../../../common/pricing/reservation-charge-total";
+import { aggregateMarket, type MarketEvent, type MarketRoom, type MarketDimensions } from "./hotel-report-market";
+import { HotelAccessService, type HotelRoomScope } from "./hotel-access.service";
 import type {
   GetHotelReportsQuery,
   UpsertHotelRevenueTargetInput,
@@ -220,7 +223,7 @@ export interface HotelReportsData {
     totalStays: number;
     totalGuests: number;
     totalRoomNights: number;
-    occupancyRate: number;
+    occupancyRate: number | null;
     currentOccupancyRate: number;
     totalRevenue: number;
     roomRevenue: number;
@@ -239,7 +242,17 @@ export interface HotelReportsData {
     expenseRatio: number;
     netCashFlow: number;
     adr: number;
-    revpar: number;
+    revpar: number | null;
+    onBooksRooms?: number;
+    onBooksRoomNights?: number;
+    onBooksRevenue?: number;
+    onBooksRoomRevenue?: number;
+    projectedRoomNights?: number;
+    projectedRoomRevenue?: number;
+    onBooksOccupancyRate?: number | null;
+    onBooksAdr?: number;
+    availableRoomNights?: number | null;
+    totalAvailableRoomNights?: number | null;
   };
   revenueByDay: Array<{
     date: string;
@@ -254,7 +267,16 @@ export interface HotelReportsData {
     netProfit: number;
     roomsOccupied: number;
     adr: number;
-    occupancyRate: number;
+    occupancyRate: number | null;
+    availableRoomNights: number | null;
+    actualRooms: number;
+    actualRevenue: number;
+    projectedRooms: number;
+    projectedRevenue: number;
+    onBooksRooms: number;
+    onBooksRevenue: number;
+    onBooksOccupancyRate: number | null;
+    isFuture: boolean;
   }>;
   revenueByMonth: Array<{
     month: string;
@@ -269,7 +291,8 @@ export interface HotelReportsData {
     netProfit: number;
     bookingCount: number;
     roomsSold: number;
-    averageOccupancy: number;
+    averageOccupancy: number | null;
+    availableRoomNights: number | null;
     adr: number;
     previousMonthRevenue: number | null;
     momChangePercent: number | null;
@@ -298,6 +321,9 @@ export interface HotelReportsData {
     sharePercent: number;
   }>;
   revenueBySource: Array<{
+    actualRevenue: number;
+    projectedRevenue: number;
+    roomNights: number;
     sourceKey: string;
     sourceName: string;
     sourceType: "OTA" | "DIRECT" | "WALK_IN" | "TA" | "CORPORATE" | "OTHER";
@@ -339,6 +365,7 @@ export interface HotelReportsData {
     totalReceived: number;
     depositCount: number;
   };
+  marketDimensions: MarketDimensions;
   guestAnalytics: {
     nationalities: Array<{
       nationality: string;
@@ -378,6 +405,7 @@ export interface UpsertHotelRevenueTargetResult {
 
 type StayRecord = {
   id: string;
+  reservationId?: string | null;
   reservationCode: string;
   guestDisplayName: string;
   guestNationality: string | null;
@@ -393,8 +421,9 @@ type StayRecord = {
   closedByUserId: string | null;
   createdBy: { id: string; fullName: string | null; email: string } | null;
   room?: {
+    id?: string; roomNumber?: string; type?: string | null;
     price: Prisma.Decimal | number | null;
-    roomType: { basePrice: Prisma.Decimal | number | null } | null;
+    roomType: { id?: string; name?: string; basePrice: Prisma.Decimal | number | null } | null;
   } | null;
   occupants: Array<{
     id: string;
@@ -410,6 +439,7 @@ type StayRecord = {
     status: string;
     guestCount: number | null;
     createdByUserId: string | null;
+    chargeLines?: ReservationQuotedCharge[];
     sourceCategory?: any;
     sourcePartnerId?: string | null;
     bookingOwnerUserId?: string | null;
@@ -417,14 +447,93 @@ type StayRecord = {
   } | null;
 };
 
-function resolveStayNightlyRate(stay: StayRecord, fallbackAdr = 0): number {
-  return (
-    toNumber(stay.nightlyRateSnapshot) ||
-    toNumber(stay.baseNightlyRateSnapshot) ||
-    toNumber(stay.room?.price) ||
-    toNumber(stay.room?.roomType?.basePrice) ||
-    fallbackAdr
-  );
+type ReservationRecord = {
+  chargeLines?: ReservationQuotedCharge[];
+  projection?: NightProjection[];
+  roomTypeSnapshot?: string | null;
+  id: string;
+  reservationCode: string;
+  groupCode?: string | null;
+  guestDisplayName?: string;
+  status: string;
+  plannedCheckInAt: Date;
+  plannedCheckOutAt: Date;
+  nightlyRateSnapshot: Prisma.Decimal | number | null;
+  baseNightlyRateSnapshot: Prisma.Decimal | number | null;
+  guestCount?: number | null;
+  roomId?: string | null;
+  roomTypeId?: string | null;
+  sourceCategory?: any;
+  sourcePartnerId?: string | null;
+  bookingOwnerUserId?: string | null;
+  stay?: {
+    id: string;
+    status: string;
+  } | null;
+  room?: {
+    id?: string; roomNumber?: string; type?: string | null;
+    price: Prisma.Decimal | number | null;
+    roomType: { id?: string; name?: string; basePrice: Prisma.Decimal | number | null } | null;
+  } | null;
+  roomType?: {
+    id?: string; name?: string;
+    basePrice: Prisma.Decimal | number | null;
+  } | null;
+  sourcePartner?: {
+    id: string;
+    name: string;
+    category?: any;
+  } | null;
+};
+
+function scopedRoomIds(scope: HotelRoomScope): string[] | null {
+  if (scope.allowedRoomId != null) {
+    return scope.allowedRoomIds == null || scope.allowedRoomIds.includes(scope.allowedRoomId)
+      ? [scope.allowedRoomId] : [];
+  }
+  return scope.allowedRoomIds ?? null;
+}
+
+type Availability = Map<string, number | null>;
+
+function availableNights(from: Temporal.PlainDate, to: Temporal.PlainDate, rooms: number, days: Availability) {
+  let total = 0;
+  for (let d = from; Temporal.PlainDate.compare(d, to) <= 0; d = d.add({ days: 1 })) {
+    const key = d.toString();
+    const capacity = days.has(key) ? days.get(key)! : rooms;
+    if (capacity === null) return null;
+    total += capacity;
+  }
+  return total;
+}
+
+function occupancy(sold: number, capacity: number | null) {
+  return capacity === null ? null : capacity === 0 ? 0 : roundPercent1(100 * sold / capacity);
+}
+
+const marketRoomSelect = {
+  id: true, roomNumber: true, type: true, roomType: { select: { id: true, name: true } },
+} as const;
+
+const groupAttribution = {
+  select: { sourceCategory: true, bookingOwnerUserId: true, sourcePartner: { select: { id: true, name: true } } },
+} as const;
+const marketReservationSelect = {
+  group: groupAttribution,
+  reservationCode: true, groupCode: true, sourceCategory: true, bookingOwnerUserId: true,
+  sourcePartner: { select: { id: true, name: true } },
+} as const;
+
+const quoteLinesSelect = {
+  orderBy: [{ serviceDate: "asc" }, { createdAt: "asc" }, { id: "asc" }],
+  select: { lineType: true, serviceDate: true, totalSnapshot: true, currency: true },
+} satisfies Prisma.Reservation$chargeLinesArgs;
+
+type NightProjection = { date: string; amount: number };
+
+function projectedNights(res: ReservationRecord, timeZone: string): NightProjection[] {
+  return calculateReservationChargeTotal(res, timeZone).nightlyCharges
+    .map(({ date, amount }) => ({ date, amount: amount.toNumber() }));
 }
 
 @Injectable()
@@ -467,14 +576,21 @@ export class HotelReportsService {
         : twentyFourMonthsStartPlain;
     const queryWindowStartDate = plainDateStartUtc(queryWindowStartPlain, timeZone);
 
-    const roomWhere: Prisma.RoomWhereInput =
-      scope.allowedRoomId !== null ? { hotelId, id: scope.allowedRoomId } : { hotelId };
-    const stayWhere: Prisma.GuestStayWhereInput =
-      scope.allowedRoomId !== null ? { hotelId, roomId: scope.allowedRoomId } : { hotelId };
-    const paymentWhere: Prisma.PaymentWhereInput =
-      scope.allowedRoomId !== null
-        ? { hotelId, folio: { roomId: scope.allowedRoomId } }
-        : { hotelId };
+    const allowedIds = scopedRoomIds(scope);
+    const roomFilter = allowedIds === null ? {} : { roomId: { in: allowedIds } };
+    const roomWhere: Prisma.RoomWhereInput = {
+      hotelId, ...(allowedIds === null ? {} : { id: { in: allowedIds } }),
+    };
+    const stayWhere: Prisma.GuestStayWhereInput = { hotelId, ...roomFilter };
+    const paymentWhere: Prisma.PaymentWhereInput = {
+      hotelId, ...(allowedIds === null ? {} : { folio: roomFilter }),
+    };
+    const reservationWhere: Prisma.ReservationWhereInput = {
+      hotelId, ...roomFilter,
+      status: { in: [ReservationStatus.CONFIRMED, ReservationStatus.ARRIVAL_READY] },
+      plannedCheckInAt: { lte: endDate },
+      plannedCheckOutAt: { gte: queryWindowStartDate },
+    };
 
     const queryWindowDateOnlyStart = new Date(`${queryWindowStartPlain.toString()}T00:00:00.000Z`);
     const endDateOnly = new Date(`${endPlain.toString()}T00:00:00.000Z`);
@@ -497,6 +613,8 @@ export class HotelReportsService {
       allReceivableCollectionsRaw,
       hotelBrandRecord,
       actorContext,
+      allReservationsRaw,
+      roomCatalog,
     ] = await Promise.all([
       this.prisma.room.count({ where: roomWhere }),
       this.prisma.room.count({ where: { ...roomWhere, status: RoomStatus.OCCUPIED } }),
@@ -526,7 +644,7 @@ export class HotelReportsService {
           hotelId,
           voidedAt: null,
           postedAt: { gte: queryWindowStartDate, lte: endDate },
-          ...(scope.allowedRoomId !== null ? { roomId: scope.allowedRoomId } : {}),
+          ...(allowedIds === null ? {} : { folio: roomFilter }),
         },
         select: {
           id: true,
@@ -535,6 +653,12 @@ export class HotelReportsService {
           discountAmountSnapshot: true,
           postedAt: true,
           postedByUserId: true,
+          folio: { select: { room: { select: marketRoomSelect } } },
+          stay: { select: {
+            guestNationality: true,
+            occupants: { where: { isPrimary: true }, select: { nationality: true } },
+            reservation: { select: marketReservationSelect },
+          } },
         },
       }),
       this.prisma.guestStay.findMany({
@@ -554,6 +678,7 @@ export class HotelReportsService {
         },
         select: {
           id: true,
+          reservationId: true,
           reservationCode: true,
           guestDisplayName: true,
           guestNationality: true,
@@ -570,8 +695,8 @@ export class HotelReportsService {
           createdBy: { select: { id: true, fullName: true, email: true } },
           room: {
             select: {
-              price: true,
-              roomType: { select: { basePrice: true } },
+              ...marketRoomSelect, price: true,
+              roomType: { select: { id: true, name: true, basePrice: true } },
             },
           },
           occupants: {
@@ -594,12 +719,14 @@ export class HotelReportsService {
               sourceCategory: true,
               sourcePartnerId: true,
               bookingOwnerUserId: true,
+              group: groupAttribution,
+              chargeLines: quoteLinesSelect,
               sourcePartner: { select: { id: true, name: true, category: true } },
             },
           },
         },
       }),
-      this.prisma.hotelStaffAssignment.findMany({
+      allowedIds === null ? this.prisma.hotelStaffAssignment.findMany({
         where: {
           hotelId,
           status: HotelStaffAssignmentStatus.ACTIVE,
@@ -625,11 +752,12 @@ export class HotelReportsService {
             },
           },
         },
-      }),
+      }) : [],
       (this.prisma as any).hotelReceivable
         ? (this.prisma as any).hotelReceivable.findMany({
             where: {
               hotelId,
+              ...(allowedIds === null ? {} : { folio: roomFilter }),
               createdAt: { lte: endDate },
               OR: [
                 { createdAt: { gte: startDate, lte: endDate } },
@@ -673,8 +801,8 @@ export class HotelReportsService {
         ? (this.prisma as any).bookingPayment.findMany({
             where: {
               hotelId,
-              ...(scope.allowedRoomId !== null
-                ? { reservation: { roomId: scope.allowedRoomId } }
+              ...(allowedIds !== null
+                ? { reservation: roomFilter }
                 : {}),
               OR: [
                 { receivedAt: { gte: queryWindowStartDate, lte: endDate } },
@@ -706,6 +834,7 @@ export class HotelReportsService {
         id: string;
         date: Date;
         category: string;
+        room?: MarketRoom | null;
         amount: Prisma.Decimal | number;
         collections: Array<{ amount: Prisma.Decimal | number; receivedAt: Date }>;
       }>(
@@ -723,11 +852,12 @@ export class HotelReportsService {
                       },
                     },
                   ],
-                  ...(scope.allowedRoomId !== null ? { roomId: scope.allowedRoomId } : {}),
+                  ...roomFilter,
                 },
                 select: {
                   id: true,
                   date: true,
+                  room: { select: marketRoomSelect },
                   category: true,
                   amount: true,
                   collections: {
@@ -753,7 +883,7 @@ export class HotelReportsService {
                   hotelId,
                   voidedAt: null,
                   expenseDate: { gte: queryWindowDateOnlyStart, lte: endDateOnly },
-                  ...(scope.allowedRoomId !== null ? { roomId: scope.allowedRoomId } : {}),
+                  ...roomFilter,
                 },
                 select: {
                   id: true,
@@ -767,7 +897,7 @@ export class HotelReportsService {
           : null,
       ),
       optionalQuery<{ serviceDate: Date; amount: Prisma.Decimal | number }>(
-        scope.allowedRoomId === null && (this.prisma as any).platformBillableDay
+        allowedIds === null && (this.prisma as any).platformBillableDay
           ? () =>
               (this.prisma as any).platformBillableDay.findMany({
                 where: {
@@ -779,33 +909,133 @@ export class HotelReportsService {
           : null,
       ),
       optionalQuery<{ collectedAmount: Prisma.Decimal | number; collectedAt: Date }>(
-        scope.allowedRoomId === null && (this.prisma as any).receivableCollection
+        (this.prisma as any).receivableCollection
           ? () =>
               (this.prisma as any).receivableCollection.findMany({
                 where: {
                   hotelId,
                   isVoided: false,
+                  ...(allowedIds === null ? {} : { receivable: { folio: roomFilter } }),
                   collectedAt: { gte: queryWindowStartDate, lte: endDate },
                 },
                 select: { collectedAmount: true, collectedAt: true },
               })
           : null,
       ),
-      typeof (this.prisma as any).hotel?.findUnique === "function"
+      allowedIds === null && typeof (this.prisma as any).hotel?.findUnique === "function"
         ? (this.prisma as any).hotel.findUnique({
             where: { id: hotelId },
             select: { brandSettings: true },
           })
         : Promise.resolve(null),
-      scope.allowedRoomId === null &&
+      allowedIds === null &&
       typeof (this.hotelAccessService as any).loadActorContext === "function"
         ? this.hotelAccessService.loadActorContext(actorUserId, activeRoleId)
         : Promise.resolve(null),
+      optionalQuery<ReservationRecord>(
+        (this.prisma as any).reservation
+          ? () =>
+              (this.prisma as any).reservation.findMany({
+                where: reservationWhere,
+                select: {
+                  id: true,
+                  reservationCode: true,
+                  groupCode: true,
+                  guestDisplayName: true,
+                  status: true,
+                  plannedCheckInAt: true,
+                  plannedCheckOutAt: true,
+                  nightlyRateSnapshot: true,
+                  baseNightlyRateSnapshot: true,
+                  guestCount: true,
+                  group: groupAttribution,
+              chargeLines: quoteLinesSelect,
+                  roomTypeSnapshot: true,
+                  roomId: true,
+                  roomTypeId: true,
+                  sourceCategory: true,
+                  sourcePartnerId: true,
+                  bookingOwnerUserId: true,
+                  stay: {
+                    select: {
+                      id: true,
+                      status: true,
+                    },
+                  },
+                  room: {
+                    select: {
+                      ...marketRoomSelect, price: true,
+                      roomType: { select: { id: true, name: true, basePrice: true } },
+                    },
+                  },
+                  roomType: {
+                    select: {
+                      id: true, name: true, basePrice: true,
+                    },
+                  },
+                  sourcePartner: {
+                    select: {
+                      id: true,
+                      name: true,
+                      category: true,
+                    },
+                  },
+                },
+              })
+          : null,
+      ),
+      optionalQuery<{ type: string | null }>(
+        typeof (this.prisma as any).room?.findMany === "function"
+          ? () => this.prisma.room.findMany({ where: roomWhere, select: { type: true } })
+          : null,
+      ),
     ]);
 
-    const revenueTargets = extractRevenueTargets(hotelBrandRecord?.brandSettings);
+    const typeCounts = new Map<string, number>();
+    for (const room of roomCatalog) {
+      const key = room.type?.trim();
+      if (key) typeCounts.set(key, (typeCounts.get(key) ?? 0) + 1);
+    }
+    const capacityRows = await optionalQuery<{
+      date: Date;
+      roomType: string;
+      totalRooms: number;
+      blockedRooms: number;
+    }>(
+      typeof (this.prisma as any).channelDailyAvailability?.findMany === "function"
+        ? () =>
+            this.prisma.channelDailyAvailability.findMany({
+              where: {
+                hotelId,
+                date: { gte: queryWindowDateOnlyStart, lte: endDateOnly },
+                ...(allowedIds === null ? {} : { roomType: { in: [...typeCounts.keys()] } }),
+              },
+              select: { date: true, roomType: true, totalRooms: true, blockedRooms: true },
+            })
+        : null,
+    );
+    const capacityByDay: Availability = new Map();
+    for (const row of capacityRows) {
+      const key = row.date.toISOString().slice(0, 10);
+      const base = capacityByDay.has(key) ? capacityByDay.get(key)! : totalRooms;
+      if (base === null) continue;
+      const physical = typeCounts.get(row.roomType) ?? 0;
+      if (physical === 0) continue;
+      // ARI identifies a room type, not which individual rooms were blocked.
+      if (allowedIds !== null) {
+        if (row.blockedRooms >= row.totalRooms && row.blockedRooms > 0) {
+          capacityByDay.set(key, Math.max(0, base - physical));
+        } else if (row.blockedRooms > 0 || row.totalRooms < physical) {
+          capacityByDay.set(key, null);
+        }
+      } else {
+        const sellable = Math.min(physical, Math.max(0, row.totalRooms - row.blockedRooms));
+        capacityByDay.set(key, Math.max(0, base - physical + sellable));
+      }
+    }
+    const revenueTargets = allowedIds === null ? extractRevenueTargets(hotelBrandRecord?.brandSettings) : {};
     const canManageTargets =
-      scope.allowedRoomId === null &&
+      allowedIds === null &&
       Boolean(
         actorContext?.isSuperAdmin ||
           actorContext?.permissions?.has("hotel.billing.manage") === true,
@@ -865,11 +1095,10 @@ export class HotelReportsService {
     }
 
     // 2. Room Nights, Accrued Stay Room Revenue & Occupancy calculation in [startPlain, endPlain]
-    const daysInRange = Math.max(1, startPlain.until(endPlain, { largestUnit: "days" }).days + 1);
-    const availableRoomNights = totalRooms * daysInRange;
+    const availableRoomNights = availableNights(startPlain, endPlain, totalRooms, capacityByDay);
 
     let totalRoomNights = 0;
-    let accruedStayRoomRevenue = 0;
+
     for (const stay of stays) {
       const stayStart = stay.checkedInAt || stay.plannedCheckInAt;
       const stayEnd = stay.checkedOutAt || stay.plannedCheckOutAt;
@@ -881,9 +1110,65 @@ export class HotelReportsService {
       const nights = activeDatesInPeriod.length;
       if (nights > 0) {
         totalRoomNights += nights;
-        accruedStayRoomRevenue += resolveStayNightlyRate(stay, 0) * nights;
+
       }
     }
+
+    // Deduplicate bookings converted to stays and filter cancelled bookings
+    const convertedReservationIds = new Set<string>();
+    const convertedReservationCodes = new Set<string>();
+    for (const stay of allStays) {
+      if ((stay as any).reservationId) {
+        convertedReservationIds.add((stay as any).reservationId);
+      }
+      if (stay.reservation?.id) {
+        convertedReservationIds.add(stay.reservation.id);
+      }
+      if (stay.reservationCode) {
+        convertedReservationCodes.add(stay.reservationCode);
+      }
+    }
+
+    const unconvertedReservations = ((allReservationsRaw as ReservationRecord[]) ?? []).filter((res) => {
+      if (
+        res.status === ReservationStatus.CANCELLED ||
+        res.status === "CANCELLED" ||
+        res.status === ReservationStatus.NO_SHOW ||
+        res.status === "NO_SHOW"
+      ) {
+        return false;
+      }
+      if (res.stay != null && res.stay.id) {
+        return false;
+      }
+      if (convertedReservationIds.has(res.id)) {
+        return false;
+      }
+      if (res.status === ReservationStatus.CHECKED_IN || res.status === "CHECKED_IN") {
+        return false;
+      }
+      if (res.reservationCode && convertedReservationCodes.has(res.reservationCode)) {
+        return false;
+      }
+      return true;
+    });
+
+    const inPeriod = (date: string) => date >= startPlain.toString() && date <= endPlain.toString();
+    const activeUnconvertedReservations = unconvertedReservations
+      .filter((res) => res.plannedCheckInAt <= endDate && res.plannedCheckOutAt >= startDate)
+      .map((res) => ({ ...res, projection: projectedNights(res, timeZone).filter((n) => inPeriod(n.date)) }))
+      .filter((res) => res.projection.length > 0);
+    const forecastNights = activeUnconvertedReservations.flatMap((res) => res.projection);
+    const projectedRoomNights = forecastNights.length;
+    const projectedRoomRevenue = forecastNights.reduce((sum, night) => sum + night.amount, 0);
+
+    const onBooksRoomNights = totalRoomNights + projectedRoomNights;
+    const onBooksRoomRevenue = folioRoomRevenue + projectedRoomRevenue;
+    const onBooksOccupancyRate = occupancy(onBooksRoomNights, availableRoomNights);
+    const onBooksAdr =
+      onBooksRoomNights > 0
+        ? Math.round(onBooksRoomRevenue / onBooksRoomNights)
+        : 0;
 
     // 3. Reconcile collected payments vs folio / stay charges without fabricated 85%/15% ratios
     const totalCollected = succeededPayments.reduce((sum, p) => sum + toNumber(p.paidAmount), 0);
@@ -959,7 +1244,7 @@ export class HotelReportsService {
 
     const effectiveServiceRevenue = folioServiceRevenue;
     const effectiveOtherRevenue = folioOtherRevenue;
-    const effectiveRoomRevenue = folioRoomRevenue > 0 ? folioRoomRevenue : accruedStayRoomRevenue;
+    const effectiveRoomRevenue = folioRoomRevenue;
 
     // Cash receipts, including deposits, do not recognize additional earned revenue.
     const pmsTotalRevenue =
@@ -1003,25 +1288,12 @@ export class HotelReportsService {
           : 0;
     const netCashFlow = collectedRevenue - paidOperatingExpense;
 
-    const occupancyRate =
-      availableRoomNights > 0
-        ? Math.min(100, Math.round((totalRoomNights / availableRoomNights) * 1000) / 10)
-        : 0;
-
+    const occupancyRate = occupancy(totalRoomNights, availableRoomNights);
     const currentOccupancyRate =
-      totalRooms > 0 ? Math.min(100, Math.round((occupiedRoomsNow / totalRooms) * 1000) / 10) : 0;
-
-    // ADR = Room Revenue / Total Room Nights
-    const adr =
-      totalRoomNights > 0
-        ? Math.round((effectiveRoomRevenue || pmsTotalRevenue) / totalRoomNights)
-        : 0;
-
-    // RevPAR = Room Revenue / Available Room Nights
-    const revpar =
-      availableRoomNights > 0
-        ? Math.round((effectiveRoomRevenue || pmsTotalRevenue) / availableRoomNights)
-        : 0;
+      totalRooms > 0 ? roundPercent1((occupiedRoomsNow / totalRooms) * 100) : 0;
+    const adr = totalRoomNights > 0 ? Math.round(effectiveRoomRevenue / totalRoomNights) : 0;
+    const revpar = availableRoomNights === null ? null :
+      availableRoomNights > 0 ? Math.round(effectiveRoomRevenue / availableRoomNights) : 0;
 
     // Total guests in period
     let totalGuests = 0;
@@ -1044,6 +1316,8 @@ export class HotelReportsService {
       allExpensesRaw,
       allSaasBillableDaysRaw,
       allReceivableCollectionsRaw,
+      activeUnconvertedReservations,
+      capacityByDay,
     );
 
     // 5. Monthly Revenue Breakdown (uses full 24-month window datasets for MoM/YoY baselines, outputs 12 months)
@@ -1060,6 +1334,7 @@ export class HotelReportsService {
       allSaasBillableDaysRaw,
       allReceivableCollectionsRaw,
       revenueTargets,
+      capacityByDay,
     );
     const quarterlySummary = this.buildQuarterlySummary(revenueByMonth);
 
@@ -1072,13 +1347,45 @@ export class HotelReportsService {
     );
 
     // 7. Revenue by Booking Source
-    const revenueBySource = this.buildSourceBreakdown(
-      stays,
-      startPlain,
-      endPlain,
-      timeZone,
-      pmsTotalRevenue,
-      adr,
+    const marketEvents: MarketEvent[] = [];
+    for (const item of folioItems) {
+      const amount = item.itemType === FolioItemType.DISCOUNT
+        ? -Math.abs(toNumber(item.discountAmountSnapshot ?? item.totalSnapshot)) : toNumber(item.totalSnapshot);
+      marketEvents.push({
+        booking: item.stay?.reservation, room: item.folio?.room,
+        nationality: normalizeNationality(item.stay?.occupants?.[0]?.nationality ?? item.stay?.guestNationality),
+        actual: amount, actualRoom: item.itemType === FolioItemType.ROOM_CHARGE ? amount : 0,
+      });
+    }
+    for (const entry of manualEntriesInPeriod) marketEvents.push({ room: entry.room, actual: toNumber(entry.amount) });
+    for (const stay of stays) {
+      const dates = getStayActivePlainDates(
+        stay.checkedInAt ?? stay.plannedCheckInAt, stay.checkedOutAt ?? stay.plannedCheckOutAt, timeZone,
+      );
+      const occupants = stay.occupants ?? [];
+      marketEvents.push({
+        booking: stay.reservation, room: stay.room,
+        nationality: normalizeNationality(occupants.find((o) => o.isPrimary)?.nationality ?? stay.guestNationality),
+        sold: dates.filter((d) => inPeriod(d.toString())).length, bookings: 1,
+        guests: Math.max(1, occupants.length, stay.reservation?.guestCount ?? 0),
+      });
+    }
+    for (const res of activeUnconvertedReservations) {
+      marketEvents.push({
+        booking: res, room: res.room, roomType: res.roomType?.name ?? res.roomTypeSnapshot,
+        projected: res.projection.reduce((sum, night) => sum + night.amount, 0),
+        reserved: res.projection.length, bookings: 1, guests: Math.max(1, res.guestCount ?? 0),
+      });
+    }
+    const staffNameMap = new Map<string, string>(
+      staffAssignments.map(
+        (a: { userId: string; user?: { fullName?: string | null; email?: string | null } | null }) =>
+          [a.userId, a.user?.fullName ?? a.user?.email ?? ""] as [string, string],
+      ),
+    );
+    const { marketDimensions, revenueBySource, revenueByBookingOwner } = aggregateMarket(
+      marketEvents,
+      staffNameMap,
     );
 
     // 8. Revenue by Staff Member
@@ -1089,16 +1396,6 @@ export class HotelReportsService {
 
     // 10. Payment Methods Breakdown
     const paymentMethods = this.buildPaymentMethodsBreakdown(combinedDailyPayments);
-
-    // 11. Revenue by Booking Owner
-    const revenueByBookingOwner = this.buildBookingOwnerBreakdown(
-      stays,
-      timeZone,
-      startPlain,
-      endPlain,
-      adr,
-      staffAssignments,
-    );
 
     // 12. Receivables Summary
     const receivablesSummary = this.buildReceivablesSummary(allReceivablesRaw);
@@ -1148,6 +1445,16 @@ export class HotelReportsService {
         netCashFlow,
         adr,
         revpar,
+        onBooksRooms: onBooksRoomNights,
+        onBooksRoomNights,
+        onBooksRevenue: onBooksRoomRevenue,
+        onBooksRoomRevenue,
+        projectedRoomNights,
+        projectedRoomRevenue,
+        onBooksOccupancyRate,
+        onBooksAdr,
+        availableRoomNights,
+        totalAvailableRoomNights: availableRoomNights,
       },
       revenueByDay,
       revenueByMonth,
@@ -1157,6 +1464,7 @@ export class HotelReportsService {
       revenueBySource,
       revenueByStaff,
       revenueByBookingOwner,
+      marketDimensions,
       guestAnalytics,
       paymentMethods,
       receivablesSummary,
@@ -1175,7 +1483,7 @@ export class HotelReportsService {
       activeRoleId,
       hotelId,
     );
-    if (scope.allowedRoomId !== null) {
+    if (scopedRoomIds(scope) !== null) {
       throw new ForbiddenException(
         "Tài khoản chỉ được phân quyền theo phòng nên không thể cập nhật mục tiêu doanh thu khách sạn",
       );
@@ -1347,8 +1655,11 @@ export class HotelReportsService {
     }> = [],
     saasDays: Array<{ serviceDate: Date; amount: Prisma.Decimal | number }> = [],
     receivableCollections: Array<{ collectedAmount: Prisma.Decimal | number; collectedAt: Date }> = [],
+    unconvertedReservations: ReservationRecord[] = [],
+    capacityByDay: Availability = new Map(),
   ) {
     const days: HotelReportsData["revenueByDay"] = [];
+    const todayPlain = Temporal.Now.zonedDateTimeISO(timeZone).toPlainDate();
 
     const paymentMap = new Map<string, number>();
     for (const p of payments) {
@@ -1411,30 +1722,23 @@ export class HotelReportsService {
     }
 
     // Pre-index active stays per PlainDate key (YYYY-MM-DD in hotel timezone)
-    const stayOccupancyMap = new Map<
-      string,
-      { roomsOccupied: number; accruedRoomRevenue: number }
-    >();
+    const stayOccupancyMap = new Map<string, number>();
     for (const stay of stays) {
-      const sStart = stay.checkedInAt || stay.plannedCheckInAt;
-      const sEnd = stay.checkedOutAt || stay.plannedCheckOutAt;
-      const nightlyRate = resolveStayNightlyRate(stay, 0);
-      const activeDates = getStayActivePlainDates(sStart, sEnd, timeZone);
+      const activeDates = getStayActivePlainDates(
+        stay.checkedInAt ?? stay.plannedCheckInAt, stay.checkedOutAt ?? stay.plannedCheckOutAt, timeZone,
+      );
       for (const d of activeDates) {
-        if (
-          Temporal.PlainDate.compare(d, startPlain) < 0 ||
-          Temporal.PlainDate.compare(d, endPlain) > 0
-        ) {
-          continue;
-        }
         const key = d.toString();
-        const curr = stayOccupancyMap.get(key) || {
-          roomsOccupied: 0,
-          accruedRoomRevenue: 0,
-        };
-        curr.roomsOccupied += 1;
-        curr.accruedRoomRevenue += nightlyRate;
-        stayOccupancyMap.set(key, curr);
+        stayOccupancyMap.set(key, (stayOccupancyMap.get(key) ?? 0) + 1);
+      }
+    }
+    const reservationProjectionMap = new Map<string, { projectedRooms: number; projectedRevenue: number }>();
+    for (const res of unconvertedReservations) {
+      for (const night of res.projection ?? projectedNights(res, timeZone)) {
+        const current = reservationProjectionMap.get(night.date) ?? { projectedRooms: 0, projectedRevenue: 0 };
+        current.projectedRooms++;
+        current.projectedRevenue += night.amount;
+        reservationProjectionMap.set(night.date, current);
       }
     }
 
@@ -1444,9 +1748,12 @@ export class HotelReportsService {
       const dateKey = cursor.toString();
       const dayLabel = `${cursor.day}/${cursor.month}`;
 
-      const stayStat = stayOccupancyMap.get(dateKey);
-      const roomsOccupied = stayStat?.roomsOccupied || 0;
-      const accruedRoomRevenue = stayStat?.accruedRoomRevenue || 0;
+      const roomsOccupied = stayOccupancyMap.get(dateKey) ?? 0;
+      const capacity = capacityByDay.has(dateKey) ? capacityByDay.get(dateKey)! : totalRooms;
+
+      const resStat = reservationProjectionMap.get(dateKey);
+      const projectedRooms = resStat?.projectedRooms || 0;
+      const projectedRevenue = resStat?.projectedRevenue || 0;
 
       const dayTotalPaid = paymentMap.get(dateKey) || 0;
       const dayRoomCharge = roomChargeMap.get(dateKey) || 0;
@@ -1454,34 +1761,44 @@ export class HotelReportsService {
       const dayOtherCharge = otherChargeMap.get(dateKey) || 0;
       const dayManualRevenue = manualRevMap.get(dateKey) || 0;
 
-      const roomRevenue = dayRoomCharge > 0 ? dayRoomCharge : accruedRoomRevenue;
-      const serviceRevenue = dayServiceCharge;
-      const pmsRevenue = roomRevenue + serviceRevenue + dayOtherCharge;
-      const totalRevenue = pmsRevenue + dayManualRevenue;
+      const actualRooms = roomsOccupied;
+      const actualRevenue = dayRoomCharge;
+      const onBooksRooms = actualRooms + projectedRooms;
+      const onBooksRevenue = actualRevenue + projectedRevenue;
+      const onBooksOccupancyRate = occupancy(onBooksRooms, capacity);
+      const isFuture = Temporal.PlainDate.compare(cursor, todayPlain) > 0;
+      const dayRevenue = actualRevenue + dayServiceCharge + dayOtherCharge + dayManualRevenue;
       const collectedRevenue =
         dayTotalPaid + (manualColMap.get(dateKey) || 0) + (receivableColMap.get(dateKey) || 0);
       const expense = (expenseMap.get(dateKey) || 0) + (saasMap.get(dateKey) || 0);
       const paidExpense = paidExpenseMap.get(dateKey) || 0;
-      const netProfit = totalRevenue - expense;
-
-      const occ =
-        totalRooms > 0 ? Math.min(100, Math.round((roomsOccupied / totalRooms) * 1000) / 10) : 0;
-      const adr = roomsOccupied > 0 ? Math.round((roomRevenue || pmsRevenue) / roomsOccupied) : 0;
+      const netProfit = dayRevenue - expense;
+      const occ = occupancy(actualRooms, capacity);
+      const adr = actualRooms > 0 ? Math.round(actualRevenue / actualRooms) : 0;
 
       days.push({
         date: dateKey,
         dayLabel,
-        totalRevenue,
-        roomRevenue,
-        serviceRevenue,
+        totalRevenue: dayRevenue,
+        roomRevenue: actualRevenue,
+        serviceRevenue: dayServiceCharge,
         manualRevenue: dayManualRevenue,
         collectedRevenue,
         expense,
         paidExpense,
         netProfit,
-        roomsOccupied,
+        availableRoomNights: capacity,
+        roomsOccupied: actualRooms,
         adr,
         occupancyRate: occ,
+        actualRooms,
+        actualRevenue,
+        projectedRooms,
+        projectedRevenue,
+        onBooksRooms,
+        onBooksRevenue,
+        onBooksOccupancyRate,
+        isFuture,
       });
 
       cursor = cursor.add({ days: 1 });
@@ -1516,6 +1833,7 @@ export class HotelReportsService {
     saasDays: Array<{ serviceDate: Date; amount: Prisma.Decimal | number }> = [],
     receivableCollections: Array<{ collectedAmount: Prisma.Decimal | number; collectedAt: Date }> = [],
     revenueTargets: Record<string, number> = {},
+    capacityByDay: Availability = new Map(),
   ) {
     type BaseMonthlyItem = Omit<
       HotelReportsData["revenueByMonth"][number],
@@ -1538,7 +1856,7 @@ export class HotelReportsService {
       const monthEndPlain = i === 0 ? endPlain : ym.toPlainDate({ day: ym.daysInMonth });
       const monthStartYmd = monthStartPlain.toString();
       const monthEndYmd = monthEndPlain.toString();
-      const daysInMonth = ym.daysInMonth;
+
 
       let monthPaid = 0;
       for (const p of payments) {
@@ -1627,7 +1945,7 @@ export class HotelReportsService {
 
       let bookingCount = 0;
       let roomsSold = 0;
-      let accruedMonthRoomRevenue = 0;
+
       for (const stay of stays) {
         const sStart = stay.checkedInAt || stay.plannedCheckInAt;
         const sEnd = stay.checkedOutAt || stay.plannedCheckOutAt;
@@ -1639,11 +1957,11 @@ export class HotelReportsService {
         if (activeInMonth.length > 0) {
           bookingCount++;
           roomsSold += activeInMonth.length;
-          accruedMonthRoomRevenue += resolveStayNightlyRate(stay, 0) * activeInMonth.length;
+
         }
       }
 
-      const monthRoomRevenue = monthFolioRoom > 0 ? monthFolioRoom : accruedMonthRoomRevenue;
+      const monthRoomRevenue = monthFolioRoom;
       const monthServiceRevenue = monthFolioService;
       const monthPmsRevenue = monthRoomRevenue + monthServiceRevenue + monthFolioOther;
       const monthRevenue = monthPmsRevenue + monthManualRevenue;
@@ -1651,12 +1969,9 @@ export class HotelReportsService {
       const monthCollected = monthPaid + monthManualCollected + monthReceivableCollected;
       const monthNetProfit = monthRevenue - monthExpense;
 
-      const availableNights = totalRooms * daysInMonth;
-      const averageOccupancy =
-        availableNights > 0
-          ? Math.min(100, Math.round((roomsSold / availableNights) * 1000) / 10)
-          : 0;
-      const adr = roomsSold > 0 ? Math.round((monthRoomRevenue || monthPmsRevenue) / roomsSold) : 0;
+      const capacity = availableNights(monthStartPlain, monthEndPlain, totalRooms, capacityByDay);
+      const averageOccupancy = occupancy(roomsSold, capacity);
+      const adr = roomsSold > 0 ? Math.round(monthRoomRevenue / roomsSold) : 0;
 
       windowMonths.push({
         month: monthKey,
@@ -1672,6 +1987,7 @@ export class HotelReportsService {
         bookingCount,
         roomsSold,
         averageOccupancy,
+        availableRoomNights: capacity,
         adr,
       });
     }
@@ -1832,216 +2148,6 @@ export class HotelReportsService {
         sharePercent: totalExpense > 0 ? Math.round((val.amount / totalExpense) * 1000) / 10 : 0,
       }))
       .sort((a, b) => b.amount - a.amount);
-  }
-
-  private buildSourceBreakdown(
-    stays: StayRecord[],
-    startPlain: Temporal.PlainDate,
-    endPlain: Temporal.PlainDate,
-    timeZone: string,
-    totalRevenue: number,
-    baseAdr: number,
-  ) {
-    const sourcesMap = new Map<
-      string,
-      {
-        sourceKey: string;
-        sourceName: string;
-        sourceType: "OTA" | "DIRECT" | "WALK_IN" | "TA" | "CORPORATE" | "OTHER";
-        bookingCount: number;
-        guestCount: number;
-        roomNights: number;
-        revenue: number;
-      }
-    >();
-
-    const getOrCreate = (
-      key: string,
-      name: string,
-      type: "OTA" | "DIRECT" | "WALK_IN" | "TA" | "CORPORATE" | "OTHER",
-    ) => {
-      let entry = sourcesMap.get(key);
-      if (!entry) {
-        entry = {
-          sourceKey: key,
-          sourceName: name,
-          sourceType: type,
-          bookingCount: 0,
-          guestCount: 0,
-          roomNights: 0,
-          revenue: 0,
-        };
-        sourcesMap.set(key, entry);
-      }
-      return entry;
-    };
-
-    for (const stay of stays) {
-      const code = (stay.reservationCode || "").toUpperCase();
-      const group = (stay.reservation?.groupCode || "").toUpperCase();
-      const rate = resolveStayNightlyRate(stay, baseAdr);
-      const guests = Math.max(1, stay.occupants.length, stay.reservation?.guestCount || 1);
-
-      const sStart = stay.checkedInAt || stay.plannedCheckInAt;
-      const sEnd = stay.checkedOutAt || stay.plannedCheckOutAt;
-      const activeNights = Math.max(
-        1,
-        getStayActivePlainDates(sStart, sEnd, timeZone).filter(
-          (d) =>
-            Temporal.PlainDate.compare(d, startPlain) >= 0 &&
-            Temporal.PlainDate.compare(d, endPlain) <= 0,
-        ).length,
-      );
-
-      let target;
-      if (stay.reservation?.sourceCategory) {
-        const cat = String(stay.reservation.sourceCategory);
-        const partnerName = (stay.reservation as any).sourcePartner?.name;
-        if (cat === "OTA") {
-          target = getOrCreate(
-            partnerName ? `OTA_${partnerName.toUpperCase().replace(/\s+/g, "_")}` : "OTA_OTHER",
-            partnerName || "Kênh OTA",
-            "OTA",
-          );
-        } else if (cat === "TA" || cat === "TRAVEL_AGENCY") {
-          target = getOrCreate(
-            partnerName ? `TA_${partnerName.toUpperCase().replace(/\s+/g, "_")}` : "TA_OTHER",
-            partnerName ? `Đại lý du lịch - ${partnerName}` : "Đại lý du lịch (TA)",
-            "TA",
-          );
-        } else if (cat === "CORPORATE") {
-          target = getOrCreate(
-            partnerName
-              ? `CORP_${partnerName.toUpperCase().replace(/\s+/g, "_")}`
-              : "CORPORATE_OTHER",
-            partnerName ? `Doanh nghiệp - ${partnerName}` : "Khách hàng doanh nghiệp",
-            "CORPORATE",
-          );
-        } else if (cat === "DIRECT") {
-          target = getOrCreate("DIRECT", "Đặt phòng trực tiếp (Direct)", "DIRECT");
-        } else {
-          target = getOrCreate("OTHER", "Nguồn khác", "OTHER");
-        }
-      } else if (code.includes("BOOKING") || code.includes("BDC") || group.includes("BOOKING")) {
-        target = getOrCreate("OTA_BOOKING", "Booking.com", "OTA");
-      } else if (code.includes("AGODA") || group.includes("AGODA")) {
-        target = getOrCreate("OTA_AGODA", "Agoda", "OTA");
-      } else if (code.includes("AIRBNB") || group.includes("AIRBNB")) {
-        target = getOrCreate("OTA_AIRBNB", "Airbnb", "OTA");
-      } else if (code.startsWith("OTA-") || group.startsWith("CHANNEX:")) {
-        target = getOrCreate("OTA_OTHER", "Kênh OTA khác", "OTA");
-      } else if (code.startsWith("VSH_") || stay.reservation) {
-        target = getOrCreate("DIRECT", "Đặt phòng trực tiếp (Website / Hotline)", "DIRECT");
-      } else {
-        target = getOrCreate("WALK_IN", "Khách vãng lai tại quầy", "WALK_IN");
-      }
-
-      target.bookingCount += 1;
-      target.guestCount += guests;
-      target.roomNights += activeNights;
-      target.revenue += rate * activeNights;
-    }
-
-    if (sourcesMap.size === 0) {
-      sourcesMap.set("DIRECT", {
-        sourceKey: "DIRECT",
-        sourceName: "Đặt phòng trực tiếp",
-        sourceType: "DIRECT",
-        bookingCount: 0,
-        guestCount: 0,
-        roomNights: 0,
-        revenue: 0,
-      });
-    }
-
-    const list = Array.from(sourcesMap.values());
-    const rawSum = list.reduce((sum, item) => sum + item.revenue, 0);
-
-    return list
-      .map((item) => {
-        const share = rawSum > 0 ? Math.round((item.revenue / rawSum) * 1000) / 10 : 0;
-        const normalizedRevenue =
-          totalRevenue > 0 && rawSum > 0
-            ? Math.round((item.revenue / rawSum) * totalRevenue)
-            : item.revenue;
-        const adr =
-          item.roomNights > 0
-            ? Math.round(normalizedRevenue / item.roomNights)
-            : item.bookingCount > 0
-              ? Math.round(normalizedRevenue / item.bookingCount)
-              : baseAdr;
-
-        return {
-          sourceKey: item.sourceKey,
-          sourceName: item.sourceName,
-          sourceType: item.sourceType,
-          bookingCount: item.bookingCount,
-          guestCount: item.guestCount,
-          totalRevenue: normalizedRevenue,
-          sharePercent: share,
-          adr,
-        };
-      })
-      .sort((a, b) => b.totalRevenue - a.totalRevenue);
-  }
-
-  private buildBookingOwnerBreakdown(
-    stays: any[],
-    timeZone: string,
-    startPlain: Temporal.PlainDate,
-    endPlain: Temporal.PlainDate,
-    baseAdr: number,
-    staffAssignments: any[] = [],
-  ) {
-    const ownerMap = new Map<
-      string,
-      {
-        ownerUserId: string;
-        ownerName: string;
-        bookingCount: number;
-        roomNights: number;
-        revenue: number;
-      }
-    >();
-
-    for (const stay of stays) {
-      const ownerId = stay.reservation?.bookingOwnerUserId || "UNASSIGNED";
-      const assigned = staffAssignments.find((s) => s.userId === ownerId || s.user?.id === ownerId);
-      const ownerName =
-        ownerId === "UNASSIGNED"
-          ? "Chưa phân công"
-          : assigned?.user?.fullName || `Nhân viên #${ownerId.slice(-6)}`;
-
-      let entry = ownerMap.get(ownerId);
-      if (!entry) {
-        entry = {
-          ownerUserId: ownerId,
-          ownerName,
-          bookingCount: 0,
-          roomNights: 0,
-          revenue: 0,
-        };
-        ownerMap.set(ownerId, entry);
-      }
-
-      const rate = resolveStayNightlyRate(stay, baseAdr);
-      const sStart = stay.checkedInAt || stay.plannedCheckInAt;
-      const sEnd = stay.checkedOutAt || stay.plannedCheckOutAt;
-      const activeNights = Math.max(
-        1,
-        getStayActivePlainDates(sStart, sEnd, timeZone).filter(
-          (d) =>
-            Temporal.PlainDate.compare(d, startPlain) >= 0 &&
-            Temporal.PlainDate.compare(d, endPlain) <= 0,
-        ).length,
-      );
-
-      entry.bookingCount += 1;
-      entry.roomNights += activeNights;
-      entry.revenue += rate * activeNights;
-    }
-
-    return Array.from(ownerMap.values()).sort((a, b) => b.revenue - a.revenue);
   }
 
   private buildReceivablesSummary(receivables: any[]) {
