@@ -780,7 +780,9 @@ model Hotel {
   receivableCollections         ReceivableCollection[]
   confirmationTemplate          HotelConfirmationTemplate?
   revenueBookEntries            HotelRevenueEntry[]
+  revenueNotes                  HotelRevenueNote[]
   expenses                      HotelExpense[]
+  expensePayments               HotelExpensePayment[]
   housekeepingTasks             HousekeepingTask[]
   housekeepingNotifications     HousekeepingNotification[]
 }
@@ -1178,6 +1180,7 @@ model Room {
   @@index([hotelId, status])
   @@index([hotelId, roomTypeId])
   revenueBookEntries    HotelRevenueEntry[]
+  revenueNotes          HotelRevenueNote[]
   expenses              HotelExpense[]
 }
 
@@ -2971,6 +2974,7 @@ model BookingPayment {
   receivedAmount       Decimal                    @db.Decimal(12, 2)
   paymentMethod        PaymentMethod              @default(MANUAL)
   status               BookingPaymentStatus       @default(COMPLETED)
+  destinationAccount   String?                    @db.VarChar(120)
   transactionReference String?                    @db.VarChar(120)
   notes                String?
   idempotencyKey       String?                    @db.VarChar(120)
@@ -3050,6 +3054,10 @@ model ReceivableCollection {
   receivableId      String
   collectedAmount   Decimal         @db.Decimal(12, 2)
   paymentMethod     PaymentMethod   @default(MANUAL)
+  destinationAccount String?        @db.VarChar(120)
+  submissionKey     String?         @db.VarChar(120)
+  legIndex          Int?
+  requestHash       String?         @db.VarChar(64)
   collectedAt       DateTime        @default(now())
   collectedByUserId String?
   reference         String?         @db.VarChar(120)
@@ -3061,6 +3069,7 @@ model ReceivableCollection {
   hotel             Hotel           @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   receivable        HotelReceivable @relation(fields: [receivableId], references: [id], onDelete: Cascade)
 
+  @@unique([receivableId, submissionKey, legIndex])
   @@index([hotelId, receivableId])
   @@index([hotelId, collectedAt])
 }
@@ -3207,6 +3216,7 @@ model HotelRevenueCollection {
   method String @db.VarChar(30)
   receivedAt DateTime
   reference String? @db.VarChar(120)
+  destinationAccount String? @db.VarChar(120)
   idempotencyKey String @db.VarChar(120)
   requestHash String @db.VarChar(64)
   createdByUserId String
@@ -3216,6 +3226,23 @@ model HotelRevenueCollection {
   @@unique([hotelId, idempotencyKey])
   @@index([hotelId, receivedAt])
   @@index([entryId, receivedAt])
+}
+
+model HotelRevenueNote {
+  id              String   @id @default(cuid())
+  hotelId         String
+  accountKey      String   @db.VarChar(160)
+  roomId          String?
+  notes           String   @db.VarChar(1000)
+  updatedByUserId String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  hotel           Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  room            Room?    @relation(fields: [roomId], references: [id], onDelete: SetNull)
+
+  @@unique([hotelId, accountKey])
+  @@index([hotelId, accountKey])
+  @@index([hotelId, roomId])
 }
 
 model HotelExpense {
@@ -3231,6 +3258,7 @@ model HotelExpense {
   paidAmount         Decimal   @default(0) @db.Decimal(12, 2)
   paymentStatus      String    @default("PAID") @db.VarChar(20)
   paymentMethod      String?   @db.VarChar(30)
+  paymentAccount     String?   @db.VarChar(120)
   paidAt             DateTime?
   documentNumber     String?   @db.VarChar(80)
   notes              String?   @db.VarChar(1000)
@@ -3244,10 +3272,31 @@ model HotelExpense {
   updatedAt          DateTime  @updatedAt
   hotel              Hotel     @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   room               Room?     @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  payments           HotelExpensePayment[]
 
   @@unique([id, hotelId])
   @@unique([hotelId, idempotencyKey])
   @@index([hotelId, expenseDate])
   @@index([hotelId, category, expenseDate])
   @@index([hotelId, paymentStatus, expenseDate])
+}
+
+model HotelExpensePayment {
+  id              String       @id @default(cuid())
+  expenseId       String
+  hotelId         String
+  amount          Decimal      @db.Decimal(12, 2)
+  paymentMethod   String?      @db.VarChar(30)
+  paymentAccount  String?      @db.VarChar(120)
+  paidAt          DateTime     @default(now())
+  notes           String?      @db.VarChar(500)
+  requestHash     String?      @db.VarChar(64)
+  idempotencyKey  String?      @db.VarChar(120)
+  createdAt       DateTime     @default(now())
+  expense         HotelExpense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  hotel           Hotel        @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  @@unique([expenseId, idempotencyKey])
+  @@index([hotelId, paidAt])
+  @@index([expenseId])
 }
