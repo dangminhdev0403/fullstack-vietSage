@@ -8384,6 +8384,8 @@ export interface operations {
                 source?: "FOLIO" | "MANUAL" | "DEPOSIT" | "RECEIVABLE";
                 /** @description Lọc theo phương thức thanh toán đã thu trong kỳ */
                 paymentMethod?: "CASH" | "BANK_TRANSFER" | "CARD" | "OTHER";
+                /** @description Lọc theo nhóm dịch vụ đang kích hoạt của khách sạn */
+                serviceCategoryId?: string;
                 /** @description Lọc theo nhóm doanh thu */
                 category?: "ROOM" | "CHANNEL" | "MINIBAR" | "LAUNDRY" | "OTHER";
                 /** @description Ngày kết thúc YYYY-MM-DD, bao gồm ngày này; tối đa 366 ngày */
@@ -8424,6 +8426,11 @@ export interface operations {
                             /** Format: date */
                             to: string;
                             canManage: boolean;
+                            serviceCategories: {
+                                id: string;
+                                name: string;
+                                sortOrder: number;
+                            }[];
                             rooms: {
                                 id: string;
                                 number: string;
@@ -8434,9 +8441,13 @@ export interface operations {
                                 minibarRevenue: number;
                                 laundryRevenue: number;
                                 otherRevenue: number;
+                                otherServiceRevenue: number;
                                 revenueTotal: number;
                                 closingBalance: number;
                                 balanceAdjustment: number;
+                                serviceCategoryRevenues: {
+                                    [key: string]: number;
+                                };
                                 collectedTotal: number;
                                 cashTotal: number;
                                 bankTransferTotal: number;
@@ -8448,6 +8459,7 @@ export interface operations {
                                 minibarRevenue: number;
                                 laundryRevenue: number;
                                 otherRevenue: number;
+                                otherServiceRevenue: number;
                                 revenueTotal: number;
                                 closingBalance: number;
                                 balanceAdjustment: number;
@@ -8460,6 +8472,9 @@ export interface operations {
                                 roomId: string | null;
                                 documentNumber: string | null;
                                 notes: string | null;
+                                serviceCategoryRevenues: {
+                                    [key: string]: number;
+                                };
                                 id: string;
                                 /** @enum {string} */
                                 source: "FOLIO" | "MANUAL" | "DEPOSIT" | "RECEIVABLE";
@@ -8471,11 +8486,15 @@ export interface operations {
                                 revenueLines: {
                                     /** Format: date */
                                     date: string;
+                                    serviceCategoryRevenues: {
+                                        [key: string]: number;
+                                    };
                                     roomRevenue: number;
                                     channelRevenue: number;
                                     minibarRevenue: number;
                                     laundryRevenue: number;
                                     otherRevenue: number;
+                                    otherServiceRevenue: number;
                                     revenueTotal: number;
                                 }[];
                                 collections: {
@@ -9177,8 +9196,8 @@ export interface operations {
                 limit?: number;
                 page?: number;
                 includeOverdue?: boolean;
-                /** @description Danh sách đặt phòng mọi trạng thái. group-bookings chỉ lấy các thành viên đoàn. */
-                view?: "bookings" | "group-bookings";
+                /** @description Danh sách đặt phòng mọi trạng thái. individual-bookings chỉ lấy khách lẻ (groupCode null), group-bookings chỉ lấy thành viên đoàn. */
+                view?: "bookings" | "individual-bookings" | "group-bookings";
                 to?: string;
                 from?: string;
             };

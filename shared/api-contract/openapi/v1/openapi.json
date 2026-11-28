@@ -7231,6 +7231,15 @@
             }
           },
           {
+            "name": "serviceCategoryId",
+            "required": false,
+            "in": "query",
+            "description": "Lọc theo nhóm dịch vụ đang kích hoạt của khách sạn",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "category",
             "required": false,
             "in": "query",
@@ -7238,6 +7247,7 @@
             "schema": {
               "enum": [
                 "ROOM",
+                "CHANNEL",
                 "MINIBAR",
                 "LAUNDRY",
                 "OTHER"
@@ -7297,6 +7307,7 @@
                         "to",
                         "entries",
                         "summary",
+                        "serviceCategories",
                         "rooms",
                         "canManage"
                       ],
@@ -7327,6 +7338,28 @@
                         "canManage": {
                           "type": "boolean"
                         },
+                        "serviceCategories": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "required": [
+                              "id",
+                              "name",
+                              "sortOrder"
+                            ],
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "sortOrder": {
+                                "type": "integer"
+                              }
+                            }
+                          }
+                        },
                         "rooms": {
                           "type": "array",
                           "items": {
@@ -7349,13 +7382,15 @@
                           "type": "object",
                           "required": [
                             "roomRevenue",
+                            "channelRevenue",
                             "minibarRevenue",
                             "laundryRevenue",
                             "otherRevenue",
+                            "otherServiceRevenue",
                             "revenueTotal",
-                            "openingBalance",
                             "closingBalance",
                             "balanceAdjustment",
+                            "serviceCategoryRevenues",
                             "collectedTotal",
                             "cashTotal",
                             "bankTransferTotal",
@@ -7363,6 +7398,9 @@
                           ],
                           "properties": {
                             "roomRevenue": {
+                              "type": "number"
+                            },
+                            "channelRevenue": {
                               "type": "number"
                             },
                             "minibarRevenue": {
@@ -7374,10 +7412,10 @@
                             "otherRevenue": {
                               "type": "number"
                             },
-                            "revenueTotal": {
+                            "otherServiceRevenue": {
                               "type": "number"
                             },
-                            "openingBalance": {
+                            "revenueTotal": {
                               "type": "number"
                             },
                             "closingBalance": {
@@ -7385,6 +7423,12 @@
                             },
                             "balanceAdjustment": {
                               "type": "number"
+                            },
+                            "serviceCategoryRevenues": {
+                              "type": "object",
+                              "additionalProperties": {
+                                "type": "number"
+                              }
                             },
                             "collectedTotal": {
                               "type": "number"
@@ -7406,11 +7450,12 @@
                             "type": "object",
                             "required": [
                               "roomRevenue",
+                              "channelRevenue",
                               "minibarRevenue",
                               "laundryRevenue",
                               "otherRevenue",
+                              "otherServiceRevenue",
                               "revenueTotal",
-                              "openingBalance",
                               "closingBalance",
                               "balanceAdjustment",
                               "date",
@@ -7420,6 +7465,7 @@
                               "roomId",
                               "documentNumber",
                               "notes",
+                              "serviceCategoryRevenues",
                               "id",
                               "source",
                               "roomNumber",
@@ -7433,6 +7479,9 @@
                               "roomRevenue": {
                                 "type": "number"
                               },
+                              "channelRevenue": {
+                                "type": "number"
+                              },
                               "minibarRevenue": {
                                 "type": "number"
                               },
@@ -7442,10 +7491,10 @@
                               "otherRevenue": {
                                 "type": "number"
                               },
-                              "revenueTotal": {
+                              "otherServiceRevenue": {
                                 "type": "number"
                               },
-                              "openingBalance": {
+                              "revenueTotal": {
                                 "type": "number"
                               },
                               "closingBalance": {
@@ -7490,6 +7539,12 @@
                                 "nullable": true,
                                 "maxLength": 1000
                               },
+                              "serviceCategoryRevenues": {
+                                "type": "object",
+                                "additionalProperties": {
+                                  "type": "number"
+                                }
+                              },
                               "id": {
                                 "type": "string"
                               },
@@ -7526,9 +7581,12 @@
                                   "required": [
                                     "date",
                                     "roomRevenue",
+                                    "channelRevenue",
                                     "minibarRevenue",
                                     "laundryRevenue",
                                     "otherRevenue",
+                                    "otherServiceRevenue",
+                                    "serviceCategoryRevenues",
                                     "revenueTotal"
                                   ],
                                   "properties": {
@@ -7536,7 +7594,16 @@
                                       "type": "string",
                                       "format": "date"
                                     },
+                                    "serviceCategoryRevenues": {
+                                      "type": "object",
+                                      "additionalProperties": {
+                                        "type": "number"
+                                      }
+                                    },
                                     "roomRevenue": {
+                                      "type": "number"
+                                    },
+                                    "channelRevenue": {
                                       "type": "number"
                                     },
                                     "minibarRevenue": {
@@ -7546,6 +7613,9 @@
                                       "type": "number"
                                     },
                                     "otherRevenue": {
+                                      "type": "number"
+                                    },
+                                    "otherServiceRevenue": {
                                       "type": "number"
                                     },
                                     "revenueTotal": {
@@ -9659,10 +9729,11 @@
             "name": "view",
             "required": false,
             "in": "query",
-            "description": "Danh sách đặt phòng mọi trạng thái. group-bookings chỉ lấy các thành viên đoàn.",
+            "description": "Danh sách đặt phòng mọi trạng thái. individual-bookings chỉ lấy khách lẻ (groupCode null), group-bookings chỉ lấy thành viên đoàn.",
             "schema": {
               "enum": [
                 "bookings",
+                "individual-bookings",
                 "group-bookings"
               ],
               "type": "string"

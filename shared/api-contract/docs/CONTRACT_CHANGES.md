@@ -1,3 +1,9 @@
+## 2026-11-28 — Service category revenue columns and individual booking lookup
+
+- Revenue book adds serviceCategoryId filtering, ordered active serviceCategories, per-category serviceCategoryRevenues, and otherServiceRevenue for uncategorized or inactive categories. The response includes channelRevenue and removes openingBalance from displayed revenue aggregates.
+- Arrivals view accepts individual-bookings alongside bookings and group-bookings. Individual bookings exclude group members while preserving hotel and assigned-room scope.
+- OpenAPI JSON/YAML and frontend generated types synchronized. These changes use existing tables and require no database migration.
+
 ## 2026-11-26 — Cash movements ledger, receivable detail & submission idempotency, expense payment legs, revenue book notes, and unified booking lookup
 
 - **Daily cash movements & receivable detail (`GET /hotels/{hotelId}/billing/cash-movements`, `GET /hotels/{hotelId}/billing/receivables/{receivableId}`, `POST /hotels/{hotelId}/billing/receivables/{receivableId}/collect`)**:
