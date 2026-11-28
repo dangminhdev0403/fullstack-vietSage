@@ -4,12 +4,17 @@ export type PaymentSelectionMode = PaymentSingleMethod | "MIXED";
 export type PaymentSplitLeg = {
   method: "CASH" | "BANK_TRANSFER";
   amount: number;
+  receivingAccount?: string | null;
+  destinationAccount?: string | null;
 };
 
 export type PaymentSplitState = {
   mode: PaymentSelectionMode;
   cashAmount: string;
   bankTransferAmount: string;
+  destinationAccount?: string;
+  cashDestinationAccount?: string;
+  bankTransferDestinationAccount?: string;
 };
 
 export type PaymentSplitResolution =
@@ -20,6 +25,7 @@ export type PaymentSplitResolution =
       total: number;
       cashAmount: number;
       bankTransferAmount: number;
+      destinationAccount?: string;
       splits?: PaymentSplitLeg[];
       summaryLabel: string;
     }
@@ -46,6 +52,9 @@ export function createPaymentSplitState(
     mode: defaultMode,
     cashAmount: "",
     bankTransferAmount: "",
+    destinationAccount: "",
+    cashDestinationAccount: "",
+    bankTransferDestinationAccount: "",
   };
 }
 
@@ -180,6 +189,7 @@ export function resolvePaymentSplit(
       total: normalizedTotal,
       cashAmount: method === "CASH" ? normalizedTotal : 0,
       bankTransferAmount: method === "BANK_TRANSFER" ? normalizedTotal : 0,
+      destinationAccount: state.destinationAccount?.trim() || undefined,
       summaryLabel: SINGLE_METHOD_LABELS[method],
     };
   }
@@ -224,8 +234,20 @@ export function resolvePaymentSplit(
     cashAmount: cash,
     bankTransferAmount: bank,
     splits: [
-      { method: "CASH", amount: cash },
-      { method: "BANK_TRANSFER", amount: bank },
+      {
+        method: "CASH",
+        amount: cash,
+        ...(state.cashDestinationAccount?.trim()
+          ? { destinationAccount: state.cashDestinationAccount.trim() }
+          : {}),
+      },
+      {
+        method: "BANK_TRANSFER",
+        amount: bank,
+        ...(state.bankTransferDestinationAccount?.trim()
+          ? { destinationAccount: state.bankTransferDestinationAccount.trim() }
+          : {}),
+      },
     ],
     summaryLabel: `Tiền mặt ${formatVndCompact(cash, currency)} + Chuyển khoản ${formatVndCompact(bank, currency)}`,
   };

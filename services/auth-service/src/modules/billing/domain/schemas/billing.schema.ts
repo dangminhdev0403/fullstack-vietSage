@@ -114,12 +114,14 @@ export const paymentSplitItemSchema = z
       (val) => (typeof val === "string" && val.trim() !== "" ? Number(val) : val),
       z.number().finite().positive(),
     ),
+    destinationAccount: z.string().trim().max(120).optional(),
   })
   .strict();
 
 export type PaymentSplitItemInput = {
   method: PaymentMethod;
   amount: number;
+  destinationAccount?: string;
 };
 
 function hasUniqueSplitMethods(splits: Array<{ method: PaymentMethod }>): boolean {
@@ -141,6 +143,7 @@ export const confirmManualPaymentBodySchema = z
       )
       .optional(),
     splits: z.array(paymentSplitItemSchema).min(1).max(4).optional(),
+    destinationAccount: z.string().trim().max(120).optional(),
     clientRequestId: z.string().trim().min(1).optional(),
   })
   .strict()
@@ -198,6 +201,7 @@ export const createBookingPaymentBodySchema = z
     amount: z.coerce.number().positive().optional(),
     receivedAmount: z.coerce.number().positive().optional(),
     paymentMethod: counterPaymentMethodEnum.default(PaymentMethod.MANUAL),
+    destinationAccount: z.string().trim().max(120).optional(),
     splits: z.array(paymentSplitItemSchema).min(1).max(4).optional(),
     notes: z.string().trim().max(1000).optional(),
     idempotencyKey: z.string().trim().min(1).max(120).optional(),
@@ -260,11 +264,24 @@ export const collectReceivableBodySchema = z
     collectedAmount: z
       .preprocess(
         (val) => (typeof val === "string" && val.trim() !== "" ? Number(val) : val),
-        z.number().positive(),
+        z.number().finite().positive().max(9_999_999_999.99).multipleOf(0.01),
       )
       .optional(),
+    amount: z
+      .preprocess(
+        (val) => (typeof val === "string" && val.trim() !== "" ? Number(val) : val),
+        z.number().finite().positive().max(9_999_999_999.99).multipleOf(0.01),
+      )
+      .optional(),
+    collectedAt: z
+      .string()
+      .datetime({ offset: true })
+      .or(z.string().date())
+      .optional(),
     paymentMethod: counterPaymentMethodEnum.default(PaymentMethod.MANUAL),
-    splits: z.array(paymentSplitItemSchema).min(1).max(4).optional(),
+    destinationAccount: z.string().trim().max(120).optional(),
+    idempotencyKey: z.string().trim().min(1).max(120).optional(),
+    splits: z.array(paymentSplitItemSchema.extend({ destinationAccount: z.string().trim().max(120).optional() })).min(1).max(4).optional(),
     reference: z.string().trim().max(120).optional(),
     notes: z.string().trim().max(1000).optional(),
   })
@@ -275,15 +292,18 @@ export const collectReceivableBodySchema = z
   })
   .refine(
     (data) => {
+      if (data.amount !== undefined && data.collectedAmount !== undefined && data.collectedAmount !== data.amount) return false;
+      const total = data.collectedAmount ?? data.amount;
       if (data.splits && data.splits.length > 0) {
+        if (data.splits.length > 1 && data.destinationAccount) return false;
         const splitSum = sumSplitAmounts(data.splits);
         if (splitSum <= 0) return false;
-        if (data.collectedAmount !== undefined && Math.abs(splitSum - data.collectedAmount) >= 0.01) {
+        if (total !== undefined && splitSum !== total) {
           return false;
         }
         return true;
       }
-      return data.collectedAmount !== undefined && data.collectedAmount > 0;
+      return total !== undefined && total > 0;
     },
     {
       message: "Số tiền thu nợ và phần chia phương thức thanh toán phải khớp và lớn hơn 0",
@@ -303,6 +323,7 @@ export type CreateBookingPaymentInput = {
   amount?: number;
   receivedAmount?: number;
   paymentMethod?: PaymentMethod;
+  destinationAccount?: string;
   splits?: PaymentSplitItemInput[];
   notes?: string;
   idempotencyKey?: string;
@@ -319,9 +340,95 @@ export type TransferToReceivableInput = {
 };
 
 export type CollectReceivableInput = {
+  amount?: number;
+  collectedAt?: string;
   collectedAmount?: number;
   paymentMethod?: PaymentMethod;
-  splits?: PaymentSplitItemInput[];
+  splits?: (PaymentSplitItemInput & { destinationAccount?: string })[];
   reference?: string;
   notes?: string;
+  destinationAccount?: string;
+  idempotencyKey?: string;
+};
+
+export const listCashMovementsQuerySchema = z
+  .object({
+    from: z.string().trim().date("Ngày bắt đầu phải hợp lệ và có định dạng YYYY-MM-DD").optional(),
+    to: z.string().trim().date("Ngày kết thúc phải hợp lệ và có định dạng YYYY-MM-DD").optional(),
+    paymentMethod: z.string().trim().optional(),
+    destinationAccount: z.string().trim().optional(),
+    movementType: z.enum(["ALL", "RECEIPT", "DISBURSEMENT"]).optional().default("ALL"),
+    page: z.coerce.number().int().min(1).optional(),
+    pageSize: z.coerce.number().int().min(1).max(100).optional(),
+    q: z.string().trim().optional(),
+  })
+  .strict()
+  .refine((d) => !d.from || !d.to || d.from <= d.to, {
+    message: "Ngày bắt đầu không được lớn hơn ngày kết thúc",
+    path: ["from"],
+  });
+
+export type ListCashMovementsQuery = Partial<z.infer<typeof listCashMovementsQuerySchema>>;
+
+export type CashMovementType = "RECEIPT" | "DISBURSEMENT";
+export type CashMovementSourceType =
+  | "FRONT_DESK_PAYMENT"
+  | "ONLINE_PAYMENT"
+  | "BOOKING_DEPOSIT"
+  | "RECEIVABLE_COLLECTION"
+  | "HOTEL_EXPENSE"
+  | "MANUAL_COLLECTION"
+  | "PAYMENT_REFUND"
+  | "RECEIVABLE_REVERSAL";
+
+export type CashMovementItem = {
+  id: string;
+  movementType: CashMovementType;
+  sourceType: CashMovementSourceType;
+  transactionDate: string;
+  amount: number;
+  currency: string;
+  paymentMethod: string;
+  destinationAccount: string | null;
+  referenceCode: string | null;
+  description: string;
+  payerOrPayee: string | null;
+  roomNumber: string | null;
+  bookingCode: string | null;
+  stayId: string | null;
+  invoiceId: string | null;
+  folioId: string | null;
+  isLegacyAccount: boolean;
+};
+
+export type AccountBalanceSummary = {
+  accountName: string;
+  isLegacy: boolean;
+  cashIn: number;
+  cashOut: number;
+  netCash: number;
+  transactionCount: number;
+};
+
+export type CashMovementsResponse = {
+  hotelId: string;
+  from: string;
+  to: string;
+  currency: string;
+  timeZone: string;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  undatedExpensePayments: { amount: number; expenseCount: number };
+  summary: {
+    totalCashIn: number;
+    totalCashOut: number;
+    netCashFlow: number;
+    byMethod: Record<string, { cashIn: number; cashOut: number }>;
+    byAccount: AccountBalanceSummary[];
+    entryCount: number;
+    receiptCount: number;
+    disbursementCount: number;
+  };
+  items: CashMovementItem[];
 };

@@ -70,3 +70,65 @@ test("allocateGroupPaymentForInvoice preserves exact cash and bank totals across
   assert.deepEqual(alloc3, { method: "BANK_TRANSFER", amount: 800_000 });
   assert.deepEqual(budgets, { cash: 0, bank: 0 });
 });
+
+test("resolvePaymentSplit handles destinationAccount for single and mixed modes", () => {
+  // Single mode with user-provided destination
+  const singleWithDest = resolvePaymentSplit(
+    { mode: "BANK_TRANSFER", cashAmount: "", bankTransferAmount: "", destinationAccount: " Vietcombank - 0123456789 " },
+    500_000,
+  );
+  assert.equal(singleWithDest.ok, true);
+  if (singleWithDest.ok) {
+    assert.equal(singleWithDest.isMixed, false);
+    assert.equal(singleWithDest.destinationAccount, "Vietcombank - 0123456789");
+  }
+
+  // Single mode without destination - leaves undefined without fabricated defaults
+  const singleNoDest = resolvePaymentSplit(
+    { mode: "CASH", cashAmount: "", bankTransferAmount: "" },
+    500_000,
+  );
+  assert.equal(singleNoDest.ok, true);
+  if (singleNoDest.ok) {
+    assert.equal(singleNoDest.isMixed, false);
+    assert.equal(singleNoDest.destinationAccount, undefined);
+  }
+
+  // Mixed mode with distinct per-leg destinations
+  const mixedWithDest = resolvePaymentSplit(
+    {
+      mode: "MIXED",
+      cashAmount: "300000",
+      bankTransferAmount: "700000",
+      cashDestinationAccount: " Két lễ tân ca 1 ",
+      bankTransferDestinationAccount: " MB Bank - 99998888 ",
+    },
+    1_000_000,
+  );
+  assert.equal(mixedWithDest.ok, true);
+  if (mixedWithDest.ok) {
+    assert.equal(mixedWithDest.isMixed, true);
+    assert.deepEqual(mixedWithDest.splits, [
+      { method: "CASH", amount: 300_000, destinationAccount: "Két lễ tân ca 1" },
+      { method: "BANK_TRANSFER", amount: 700_000, destinationAccount: "MB Bank - 99998888" },
+    ]);
+  }
+
+  // Mixed mode with omitted destinations
+  const mixedNoDest = resolvePaymentSplit(
+    {
+      mode: "MIXED",
+      cashAmount: "400000",
+      bankTransferAmount: "600000",
+    },
+    1_000_000,
+  );
+  assert.equal(mixedNoDest.ok, true);
+  if (mixedNoDest.ok) {
+    assert.equal(mixedNoDest.isMixed, true);
+    assert.deepEqual(mixedNoDest.splits, [
+      { method: "CASH", amount: 400_000 },
+      { method: "BANK_TRANSFER", amount: 600_000 },
+    ]);
+  }
+});

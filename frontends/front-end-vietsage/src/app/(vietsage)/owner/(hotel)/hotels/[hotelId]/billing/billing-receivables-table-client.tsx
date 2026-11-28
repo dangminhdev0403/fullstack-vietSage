@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { Temporal } from "@js-temporal/polyfill";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import { staffRoomsRepository, type ReceivableItem } from "@/features/hotel-ops/repositories/staff-rooms-repository";
 import { useBillingReceivables } from "@/features/billing/hooks/use-billing-receivables";
@@ -13,6 +14,7 @@ import {
   resolvePaymentSplit,
   type PaymentSplitState,
 } from "@/features/billing/utils/payment-split";
+import { generateReceivableCollectionIdempotencyKey } from "@/features/billing/utils/idempotency";
 import { showErrorAlert, showSuccessAlert, showWarningAlert } from "@/libs/swal";
 
 type BillingReceivablesTableClientProps = {
@@ -212,7 +214,8 @@ export function BillingReceivablesTableClient({ hotelId }: BillingReceivablesTab
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 uppercase font-bold tracking-wider">
               <tr>
                 <th className="px-5 py-3.5 whitespace-nowrap">Đối tượng nợ</th>
-                <th className="px-4 py-3.5 whitespace-nowrap">Phân loại</th>
+                <th className="px-4 py-3.5 whitespace-nowrap">Đặt phòng &amp; Phòng</th>
+                <th className="px-4 py-3.5 whitespace-nowrap">Lưu trú</th>
                 <th className="px-4 py-3.5 whitespace-nowrap text-right">Nợ gốc</th>
                 <th className="px-4 py-3.5 whitespace-nowrap text-right">Còn phải thu</th>
                 <th className="px-4 py-3.5 whitespace-nowrap text-center">Trạng thái</th>
@@ -225,21 +228,60 @@ export function BillingReceivablesTableClient({ hotelId }: BillingReceivablesTab
                 const paid = Number(rec.paidAmount ?? 0);
                 const out = Number(rec.outstandingAmount ?? rec.balanceAmount ?? (orig - paid));
                 const statusInfo = statusLabels[rec.status] || { label: rec.status, tone: "bg-slate-100 text-slate-700 border-slate-200" };
+                const checkInStr = rec.stayDates?.checkIn ? rec.stayDates.checkIn.slice(0, 10) : "";
+                const checkOutStr = rec.stayDates?.checkOut ? rec.stayDates.checkOut.slice(0, 10) : "";
+                const collectionsCount = rec.collections?.length ?? 0;
 
                 return (
                   <tr key={rec.id} className="hover:bg-slate-50/70 transition-colors">
-                    {/* Debtor Name */}
+                    {/* Debtor Name & Partner */}
                     <td className="px-5 py-3.5">
-                      <div className="font-bold text-slate-900 text-sm">
+                      <div className="font-bold text-slate-900 text-sm text-balance">
                         {rec.debtorName}
+                      </div>
+                      <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                        <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700 whitespace-nowrap">
+                          {debtorTypeLabels[rec.debtorType || "GUEST"] || rec.debtorType}
+                        </span>
+                        {rec.debtorPartnerName ? (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 border border-blue-200 px-2 py-0.5 text-xs font-semibold text-blue-800 whitespace-nowrap">
+                            <VsIcon name="corporate_fare" className="text-xs" />
+                            <span>{rec.debtorPartnerName}</span>
+                          </span>
+                        ) : null}
                       </div>
                     </td>
 
-                    {/* Debtor Type */}
+                    {/* Booking Code & Room */}
                     <td className="px-4 py-3.5 whitespace-nowrap">
-                      <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">
-                        {debtorTypeLabels[rec.debtorType || "GUEST"] || rec.debtorType}
-                      </span>
+                      <div className="flex flex-col gap-1">
+                        {rec.bookingCode ? (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-indigo-50 border border-indigo-200 px-2 py-0.5 text-xs font-bold text-indigo-700 whitespace-nowrap">
+                            <VsIcon name="confirmation_number" className="text-xs" />
+                            <span>{rec.bookingCode}</span>
+                          </span>
+                        ) : (
+                          <span className="text-xs text-slate-400 font-medium">-</span>
+                        )}
+                        {rec.roomNumber ? (
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-700">
+                            <VsIcon name="meeting_room" className="text-xs text-slate-400" />
+                            <span>Phòng {rec.roomNumber}</span>
+                          </span>
+                        ) : null}
+                      </div>
+                    </td>
+
+                    {/* Stay Dates */}
+                    <td className="px-4 py-3.5 whitespace-nowrap">
+                      {checkInStr || checkOutStr ? (
+                        <div className="text-xs text-slate-600 font-medium">
+                          <div>{checkInStr || "..."}</div>
+                          <div className="text-slate-400">đến {checkOutStr || "..."}</div>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-400 font-medium">-</span>
+                      )}
                     </td>
 
                     {/* Original Amount */}
@@ -252,11 +294,19 @@ export function BillingReceivablesTableClient({ hotelId }: BillingReceivablesTab
                       {formatMoney(out, "VND")}
                     </td>
 
-                    {/* Status Badge */}
+                    {/* Status Badge & History count */}
                     <td className="px-4 py-3.5 whitespace-nowrap text-center">
-                      <span className={`inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-bold ${statusInfo.tone}`}>
-                        {statusInfo.label}
-                      </span>
+                      <div className="flex flex-col items-center gap-1">
+                        <span className={`inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-bold whitespace-nowrap ${statusInfo.tone}`}>
+                          {statusInfo.label}
+                        </span>
+                        {collectionsCount > 0 ? (
+                          <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 whitespace-nowrap">
+                            <VsIcon name="history" className="text-xs" />
+                            <span>Đã thu {collectionsCount} đợt</span>
+                          </span>
+                        ) : null}
+                      </div>
                     </td>
 
                     {/* Actions */}
@@ -322,16 +372,84 @@ function CollectReceivableModal({
   const paid = Number(receivable.paidAmount ?? 0);
   const outstanding = Number(receivable.outstandingAmount ?? receivable.balanceAmount ?? (orig - paid));
 
+  const todayStr = useMemo(() => {
+    try {
+      return Temporal.Now.plainDateISO("Asia/Ho_Chi_Minh").toString();
+    } catch {
+      return new Date().toISOString().slice(0, 10);
+    }
+  }, []);
+
   const [collectedAmount, setCollectedAmount] = useState<string>(String(outstanding));
+  const [collectionDate, setCollectionDate] = useState<string>(todayStr);
+  const [destinationAccount, setDestinationAccount] = useState<string>("");
+  const [isUnknownAccount, setIsUnknownAccount] = useState<boolean>(false);
+  const [splitCashAccount, setSplitCashAccount] = useState<string>("Két tiền mặt lễ tân");
+  const [splitCashUnknown, setSplitCashUnknown] = useState<boolean>(false);
+  const [splitBankAccount, setSplitBankAccount] = useState<string>("");
+  const [splitBankUnknown, setSplitBankUnknown] = useState<boolean>(false);
   const [paymentSplit, setPaymentSplit] = useState<PaymentSplitState>(() =>
     createPaymentSplitState("BANK_TRANSFER"),
   );
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [idempotencySalt, setIdempotencySalt] = useState<string>("");
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const num = Number(collectedAmount);
+  const num = Number(collectedAmount) || 0;
+  const splitCheck = resolvePaymentSplit(paymentSplit, num, "VND");
+
+  // Stable per-operation idempotency key directly tied to actual payload and dates
+  const idempotencyKey = useMemo(() => {
+    const effectiveMethod = splitCheck.ok
+      ? splitCheck.isMixed
+        ? "MIXED"
+        : splitCheck.method
+      : "MANUAL";
+    const effectiveAccount = isUnknownAccount ? null : destinationAccount.trim() || null;
+    const effectiveSplits =
+      splitCheck.ok && splitCheck.splits
+        ? splitCheck.splits.map((s) => ({
+            method: s.method,
+            amount: s.amount,
+            receivingAccount:
+              s.method === "CASH"
+                ? splitCashUnknown
+                  ? null
+                  : splitCashAccount.trim() || null
+                : splitBankUnknown
+                  ? null
+                  : splitBankAccount.trim() || null,
+          }))
+        : null;
+
+    return generateReceivableCollectionIdempotencyKey({
+      receivableId: receivable.id,
+      amount: num,
+      collectedAtDate: collectionDate,
+      method: effectiveMethod,
+      destinationAccount: effectiveAccount,
+      splits: effectiveSplits,
+      salt: idempotencySalt || undefined,
+    });
+  }, [
+    receivable.id,
+    num,
+    collectionDate,
+    splitCheck,
+    destinationAccount,
+    isUnknownAccount,
+    splitCashAccount,
+    splitCashUnknown,
+    splitBankAccount,
+    splitBankUnknown,
+    idempotencySalt,
+  ]);
+
+  async function handleSubmit(e?: React.FormEvent) {
+    if (e) e.preventDefault();
+    setSubmissionError(null);
+
     if (!num || num <= 0) {
       await showWarningAlert("Thiếu số tiền", "Vui lòng nhập số tiền thu nợ hợp lệ lớn hơn 0.");
       return;
@@ -340,32 +458,84 @@ function CollectReceivableModal({
       await showWarningAlert("Số tiền vượt quá", "Số tiền thu không được lớn hơn số tiền nợ còn lại.");
       return;
     }
-    const splitCheck = resolvePaymentSplit(paymentSplit, num, "VND");
+    if (!collectionDate || !/^\d{4}-\d{2}-\d{2}$/.test(collectionDate)) {
+      await showWarningAlert("Ngày thu nợ chưa hợp lệ", "Vui lòng chọn ngày thu tiền hợp lệ định dạng YYYY-MM-DD.");
+      return;
+    }
     if (!splitCheck.ok) {
       await showWarningAlert("Kiểm tra phân bổ thanh toán", splitCheck.error);
       return;
     }
+
+    // Require either explicit account, or explicit unknown checkbox if bank transfer is selected
+    if (splitCheck.method === "BANK_TRANSFER" && !splitCheck.isMixed && !isUnknownAccount && !destinationAccount.trim()) {
+      await showWarningAlert(
+        "Chưa chọn tài khoản nhận",
+        "Vui lòng nhập tài khoản ngân hàng nhận tiền hoặc chọn 'Chưa xác định tài khoản' để đối soát sau.",
+      );
+      return;
+    }
+
+    if (splitCheck.isMixed && !splitBankUnknown && !splitBankAccount.trim()) {
+      await showWarningAlert(
+        "Chưa chọn tài khoản ngân hàng",
+        "Thanh toán kết hợp có phần Chuyển khoản. Vui lòng nhập tài khoản nhận tiền hoặc chọn 'Chưa xác định tài khoản ngân hàng'.",
+      );
+      return;
+    }
+
+    const effectiveDestinationAccount = isUnknownAccount
+      ? undefined
+      : destinationAccount.trim() || undefined;
+
+    const resolvedSplits = splitCheck.isMixed && splitCheck.splits
+      ? splitCheck.splits.map((s) => {
+          const legAccount =
+            s.method === "CASH"
+              ? splitCashUnknown
+                ? undefined
+                : splitCashAccount.trim() || undefined
+              : splitBankUnknown
+                ? undefined
+                : splitBankAccount.trim() || undefined;
+          return {
+            method: s.method,
+            amount: s.amount,
+            ...(legAccount ? { destinationAccount: legAccount } : {}),
+          };
+        })
+      : undefined;
 
     setIsSubmitting(true);
     try {
       await staffRoomsRepository.collectReceivable(hotelId, receivable.id, {
         amount: num,
         collectedAmount: num,
+        collectedAt: `${collectionDate}T12:00:00+07:00`,
         paymentMethod: splitCheck.method === "OTHER" ? "MANUAL" : splitCheck.method,
-        ...(splitCheck.splits ? { splits: splitCheck.splits } : {}),
+        ...(resolvedSplits && resolvedSplits.length > 1
+          ? { splits: resolvedSplits }
+          : {
+              ...(effectiveDestinationAccount ? { destinationAccount: effectiveDestinationAccount } : {}),
+              ...(resolvedSplits ? { splits: resolvedSplits } : {}),
+            }),
+        idempotencyKey,
         notes: notes.trim() || undefined,
       });
 
+      const accountLabel = isUnknownAccount
+        ? "Chưa xác định tài khoản (Chờ đối soát)"
+        : effectiveDestinationAccount || "Quỹ tiền mặt / Mặc định";
+
       await showSuccessAlert(
         "Thu công nợ thành công",
-        `Đã ghi nhận thu ${formatMoney(num, "VND")} (${splitCheck.summaryLabel}) từ ${receivable.debtorName}.`,
+        `Đã ghi nhận thu ${formatMoney(num, "VND")} (${splitCheck.summaryLabel}) ngày ${collectionDate} vào ${accountLabel} từ ${receivable.debtorName}.`,
       );
       await onSuccess();
     } catch (err) {
-      await showErrorAlert(
-        "Không thể thu công nợ",
-        err instanceof Error ? err.message : "Đã có lỗi xảy ra khi ghi nhận thu nợ.",
-      );
+      const errMsg = err instanceof Error ? err.message : "Đã có lỗi xảy ra khi ghi nhận thu nợ.";
+      setSubmissionError(errMsg);
+      await showErrorAlert("Không thể thu công nợ", errMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -380,10 +550,10 @@ function CollectReceivableModal({
       <div className="my-auto flex flex-col w-full max-w-2xl rounded-2xl bg-white shadow-2xl border border-slate-200 text-slate-900 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <header className="flex items-center justify-between border-b border-slate-200 px-6 py-4 bg-slate-50 shrink-0">
           <div>
-            <h3 className="text-lg font-black tracking-tight text-slate-900">
+            <h3 className="text-lg font-black tracking-tight text-slate-900 text-balance">
               Thu tiền công nợ · {receivable.debtorName}
             </h3>
-            <p className="mt-0.5 text-xs text-slate-500 font-medium">
+            <p className="mt-0.5 text-xs text-slate-500 font-medium text-pretty">
               Kế toán ghi nhận thu tiền công nợ vào phần mềm và đối soát nguồn tiền
             </p>
           </div>
@@ -400,7 +570,7 @@ function CollectReceivableModal({
           {/* Debt Summary Pill */}
           <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3.5 flex flex-wrap items-center justify-between gap-3 text-xs">
             <div>
-              <span className="text-slate-600 font-medium">Đối tượng: </span>
+              <span className="text-slate-600 font-medium">Đối tượng nợ: </span>
               <strong className="text-slate-900">{receivable.debtorName}</strong>
             </div>
             <div className="text-right">
@@ -412,7 +582,8 @@ function CollectReceivableModal({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="sm:col-span-2">
+            {/* Amount input */}
+            <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
                 Số tiền thu đợt này (VND) <span className="text-rose-600">*</span>
               </label>
@@ -429,26 +600,190 @@ function CollectReceivableModal({
                 <button
                   type="button"
                   onClick={() => setCollectedAmount(String(outstanding))}
-                  className="text-xs text-blue-700 hover:underline font-bold"
+                  className="text-xs text-blue-700 hover:underline font-bold cursor-pointer"
                 >
                   Thu toàn bộ ({formatMoney(outstanding, "VND")})
                 </button>
               </div>
             </div>
 
+            {/* Collection Date input */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Ngày tiền về / Đối soát <span className="text-rose-600">*</span>
+              </label>
+              <input
+                type="date"
+                required
+                value={collectionDate}
+                onChange={(e) => setCollectionDate(e.target.value)}
+                className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-900 focus:border-blue-700 focus:outline-hidden"
+              />
+              <p className="mt-1 text-xs text-slate-400 font-medium">
+                Khớp với ngày tiền thực tế vào tài khoản / két
+              </p>
+            </div>
+
+            {/* Payment Method Split Input */}
             <div className="sm:col-span-2">
               <PaymentMethodSplitInput
                 label="Nguồn tiền thu"
                 required
                 value={paymentSplit}
                 onChange={setPaymentSplit}
-                totalAmount={Number(collectedAmount) || 0}
+                totalAmount={num}
                 allowedMethods={["CASH", "BANK_TRANSFER", "CARD"]}
                 disabled={isSubmitting}
                 idPrefix="collect-receivable-payment"
               />
             </div>
 
+            {/* Account receiving section: Single method vs Mixed legs */}
+            {!(splitCheck.ok && splitCheck.isMixed) ? (
+              <div className="sm:col-span-2 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-slate-700">
+                    Tài khoản / Nơi nhận tiền
+                  </label>
+                  <label className="inline-flex items-center gap-1.5 text-xs text-slate-600 font-medium cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isUnknownAccount}
+                      onChange={(e) => {
+                        setIsUnknownAccount(e.target.checked);
+                        if (e.target.checked) setDestinationAccount("");
+                      }}
+                      className="h-3.5 w-3.5 rounded border-slate-300 text-blue-800"
+                    />
+                    <span>Chưa xác định tài khoản (Chờ đối soát)</span>
+                  </label>
+                </div>
+
+                {!isUnknownAccount ? (
+                  <>
+                    <input
+                      type="text"
+                      value={destinationAccount}
+                      onChange={(e) => setDestinationAccount(e.target.value)}
+                      placeholder={
+                        paymentSplit.mode === "CASH"
+                          ? "VD: Két tiền mặt lễ tân, Quỹ tiền mặt ca 1..."
+                          : "VD: Vietcombank - 1012345678, Techcombank, ACB..."
+                      }
+                      className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-900 focus:border-blue-700 focus:outline-hidden"
+                    />
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-xs text-slate-400 font-medium">Gợi ý nhanh:</span>
+                      {(paymentSplit.mode === "CASH"
+                        ? ["Két tiền mặt lễ tân", "Quỹ tiền mặt quản lý"]
+                        : ["Vietcombank", "Techcombank", "ACB", "BIDV"]
+                      ).map((acc) => (
+                        <button
+                          key={acc}
+                          type="button"
+                          onClick={() => setDestinationAccount(acc)}
+                          className={`rounded-md border px-2 py-0.5 text-xs font-semibold transition cursor-pointer whitespace-nowrap ${
+                            destinationAccount === acc
+                              ? "bg-blue-50 border-blue-300 text-blue-800"
+                              : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                          }`}
+                        >
+                          {acc}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div className="rounded-xl border border-dashed border-amber-300 bg-amber-50/50 p-2.5 text-xs text-amber-800 flex items-center gap-2">
+                    <VsIcon name="info" className="text-sm shrink-0 text-amber-600" />
+                    <span>Khoản thu sẽ được ghi nhận với trạng thái tài khoản &ldquo;Chưa xác định&rdquo; để kế toán phân loại sau.</span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* Mixed Payment: Specific accounts per leg */
+              <div className="sm:col-span-2 space-y-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
+                <div className="text-xs font-bold text-slate-800">
+                  Tài khoản nhận theo từng phương thức kết hợp
+                </div>
+
+                {/* Cash leg */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-slate-700">1. Phần Tiền mặt</span>
+                    <label className="inline-flex items-center gap-1 text-slate-500 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={splitCashUnknown}
+                        onChange={(e) => {
+                          setSplitCashUnknown(e.target.checked);
+                          if (e.target.checked) setSplitCashAccount("");
+                        }}
+                        className="h-3 w-3 rounded border-slate-300 text-blue-800"
+                      />
+                      <span>Chưa xác định két</span>
+                    </label>
+                  </div>
+                  {!splitCashUnknown && (
+                    <input
+                      type="text"
+                      value={splitCashAccount}
+                      onChange={(e) => setSplitCashAccount(e.target.value)}
+                      placeholder="VD: Két tiền mặt lễ tân"
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-900"
+                    />
+                  )}
+                </div>
+
+                {/* Bank leg */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-slate-700">2. Phần Chuyển khoản</span>
+                    <label className="inline-flex items-center gap-1 text-slate-500 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={splitBankUnknown}
+                        onChange={(e) => {
+                          setSplitBankUnknown(e.target.checked);
+                          if (e.target.checked) setSplitBankAccount("");
+                        }}
+                        className="h-3 w-3 rounded border-slate-300 text-blue-800"
+                      />
+                      <span>Chưa xác định tài khoản ngân hàng</span>
+                    </label>
+                  </div>
+                  {!splitBankUnknown && (
+                    <>
+                      <input
+                        type="text"
+                        value={splitBankAccount}
+                        onChange={(e) => setSplitBankAccount(e.target.value)}
+                        placeholder="VD: Vietcombank, Techcombank..."
+                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-900"
+                      />
+                      <div className="flex flex-wrap items-center gap-1">
+                        {["Vietcombank", "Techcombank", "ACB"].map((acc) => (
+                          <button
+                            key={acc}
+                            type="button"
+                            onClick={() => setSplitBankAccount(acc)}
+                            className={`rounded border px-1.5 py-0.5 text-xs font-medium transition cursor-pointer whitespace-nowrap ${
+                              splitBankAccount === acc
+                                ? "bg-blue-50 border-blue-300 text-blue-800"
+                                : "bg-white border-slate-200 text-slate-600 hover:bg-slate-100"
+                            }`}
+                          >
+                            {acc}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Notes */}
             <div className="sm:col-span-2">
               <label className="block text-xs font-bold text-slate-700 mb-1">
                 Ghi chú thu nợ
@@ -457,12 +792,63 @@ function CollectReceivableModal({
                 type="text"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="VD: Đối tác chuyển khoản thanh toán đợt 1"
+                placeholder="VD: Đối tác chuyển khoản đợt 1, thanh toán qua Agoda"
                 className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-900 focus:border-blue-700 focus:outline-hidden"
               />
             </div>
           </div>
 
+          {/* Idempotency Key Indicator */}
+          <div className="rounded-lg bg-slate-50 border border-slate-200 px-3 py-1.5 flex items-center justify-between text-xs text-slate-500">
+            <div className="flex items-center gap-1.5 truncate">
+              <VsIcon name="lock" className="text-sm shrink-0 text-slate-400" />
+              <span className="font-medium text-slate-600">Khóa chống trùng:</span>
+              <code className="font-mono text-slate-700 truncate">{idempotencyKey}</code>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIdempotencySalt(Math.random().toString(36).slice(2, 7))}
+              title="Tạo mã muối mới cho giao dịch độc lập"
+              className="text-blue-700 hover:underline font-bold whitespace-nowrap ml-2 cursor-pointer"
+            >
+              Làm mới
+            </button>
+          </div>
+
+          {/* Error / Retry Controls Banner */}
+          {submissionError && (
+            <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800 space-y-2">
+              <div className="flex items-center gap-2 font-bold">
+                <VsIcon name="error" className="text-base text-rose-600 shrink-0" />
+                <span>Không thể hoàn tất thu nợ: {submissionError}</span>
+              </div>
+              <p className="text-slate-600 text-pretty">
+                Giao dịch chưa được ghi nhận hoặc gặp sự cố mạng. Bạn có thể thử lại an toàn với cùng khóa chống trùng lặp để tránh trùng phiếu, hoặc tạo mã mới.
+              </p>
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => handleSubmit()}
+                  disabled={isSubmitting}
+                  className="rounded-lg bg-rose-700 hover:bg-rose-800 text-white font-bold px-3 py-1.5 text-xs cursor-pointer disabled:opacity-50"
+                >
+                  Thử lại với cùng khóa chống trùng
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIdempotencySalt(Math.random().toString(36).slice(2, 7));
+                    setSubmissionError(null);
+                  }}
+                  className="rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 font-semibold px-3 py-1.5 text-xs cursor-pointer"
+                >
+                  Tạo mã giao dịch mới
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Footer Actions */}
           <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200">
             <button
               type="button"

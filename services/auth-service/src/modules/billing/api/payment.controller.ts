@@ -9,7 +9,7 @@ import {
   Query,
   Req,
 } from "@nestjs/common";
-import { ApiBody, ApiHeader, ApiOkResponse, ApiParam, ApiTags } from "@nestjs/swagger";
+import { ApiBody, ApiHeader, ApiOkResponse, ApiParam, ApiQuery, ApiTags } from "@nestjs/swagger";
 import { PaymentProvider } from "@prisma/client";
 import type { Request } from "express";
 import { timingSafeEqual } from "node:crypto";
@@ -25,6 +25,7 @@ import {
   confirmManualPaymentBodySchema,
   createBookingPaymentBodySchema,
   createPaymentSessionBodySchema,
+  listCashMovementsQuerySchema,
   paymentProviderParamSchema,
   paymentWebhookBodySchema,
   transferToReceivableBodySchema,
@@ -174,6 +175,59 @@ export class PaymentController {
     const hotelId = parseWithZod(billingIdParamSchema, hotelIdParam);
 
     return this.billingService.listReceivables(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      query,
+    );
+  }
+
+  @SuccessMessage("Lấy chi tiết công nợ thành công")
+  @RequirePermission("hotel.billing.view")
+  @ApiDescript("Chi tiết một khoản công nợ")
+  @ApiParam({ name: "hotelId", type: String })
+  @ApiParam({ name: "receivableId", type: String })
+  @ApiOkResponse({ description: "Chi tiết công nợ" })
+  @Get("hotels/:hotelId/billing/receivables/:receivableId")
+  async getReceivableDetail(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Param("receivableId") receivableIdParam: string,
+  ) {
+    const hotelId = parseWithZod(billingIdParamSchema, hotelIdParam);
+    const receivableId = parseWithZod(billingIdParamSchema, receivableIdParam);
+
+    return this.billingService.getReceivableDetail(
+      request.user.userId,
+      request.user.roleId,
+      hotelId,
+      receivableId,
+    );
+  }
+
+  @SuccessMessage("Lấy sổ thu chi thực tế thành công")
+  @RequirePermission("hotel.billing.view")
+  @ApiDescript("Xem sổ thu chi thực tế và dòng tiền hàng ngày theo tài khoản đích")
+  @ApiParam({ name: "hotelId", type: String })
+  @ApiQuery({ name: "from", required: false, type: String })
+  @ApiQuery({ name: "to", required: false, type: String })
+  @ApiQuery({ name: "paymentMethod", required: false, type: String })
+  @ApiQuery({ name: "destinationAccount", required: false, type: String })
+  @ApiQuery({ name: "movementType", required: false, enum: ["ALL", "RECEIPT", "DISBURSEMENT"] })
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "pageSize", required: false, type: Number })
+  @ApiQuery({ name: "q", required: false, type: String })
+  @ApiOkResponse({ description: "Danh sách và tổng hợp CashMovements" })
+  @Get("hotels/:hotelId/billing/cash-movements")
+  async getCashMovements(
+    @Req() request: RequestWithUser,
+    @Param("hotelId") hotelIdParam: string,
+    @Query() rawQuery: Record<string, string | undefined>,
+  ) {
+    const hotelId = parseWithZod(billingIdParamSchema, hotelIdParam);
+    const query = parseWithZod(listCashMovementsQuerySchema, rawQuery ?? {});
+
+    return this.billingService.getCashMovements(
       request.user.userId,
       request.user.roleId,
       hotelId,

@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import {
   BadRequestException,
   ConflictException,
@@ -48,14 +48,18 @@ import { BillingRepository } from "../infrastructure/repositories/billing.reposi
 import {
   addDaysYmd,
   diffCalendarDays,
+  startOfPlainDate,
   toYmd,
   VIETNAM_TIME_ZONE,
 } from "../../../common/time/vietnam-temporal";
 import { calculateReservationChargeTotal } from "../../../common/pricing/reservation-charge-total";
 import { RequestRealtimeEmitter, type HousekeepingTaskPayload } from "../../../request-realtime.emitter";
+import { readCashMovements } from "./cash-movements";
 import {
+  CashMovementsResponse,
   CollectReceivableInput,
   CreateBookingPaymentInput,
+  ListCashMovementsQuery,
   TransferToReceivableInput,
 } from "../domain/schemas/billing.schema";
 
@@ -398,11 +402,38 @@ export class BillingService {
       summary,
       items: result.rows.map((folio) => {
         const fin = resolveFolioFinancials(folio);
+        const primaryReceivable = (folio as any).hotelReceivables?.[0] ?? null;
+        const bookingCode =
+          folio.stay?.reservationCode ??
+          (folio.stay as any)?.reservation?.reservationCode ??
+          null;
+        const stayDates = {
+          checkIn: folio.stay?.checkedInAt ?? folio.stay?.plannedCheckInAt ?? null,
+          checkOut: folio.stay?.checkedOutAt ?? folio.stay?.plannedCheckOutAt ?? null,
+        };
+        const debtor = primaryReceivable
+          ? {
+              debtorName: primaryReceivable.debtorName,
+              debtorType: primaryReceivable.debtorType,
+              partnerName: primaryReceivable.debtorPartner?.name ?? null,
+              outstandingAmount: Number(primaryReceivable.outstandingAmount),
+              status: primaryReceivable.status,
+            }
+          : (folio.stay as any)?.reservation?.sourcePartner
+            ? {
+                debtorName: (folio.stay as any).reservation.sourcePartner.name,
+                debtorType: "PARTNER" as const,
+                partnerName: (folio.stay as any).reservation.sourcePartner.name,
+                outstandingAmount: fin.balanceAmount,
+                status: fin.balanceAmount > 0 ? "OPEN" : "SETTLED",
+              }
+            : null;
 
         return {
           ...folio,
           invoices: undefined,
           items: undefined,
+          hotelReceivables: undefined,
           invoiceId: fin.invoice?.id ?? null,
           invoice: fin.invoice,
           subtotal: fin.subtotal,
@@ -414,6 +445,9 @@ export class BillingService {
           postedRoomCharge: fin.hasRoomChargeItem ? fin.postedRoomCharge : null,
           estimatedRoomCharge: fin.estimatedRoomCharge,
           roomRateComparison: fin.estimatedRoomCharge?.rateComparison ?? null,
+          bookingCode,
+          stayDates,
+          debtor,
         };
       }),
     };
@@ -1685,7 +1719,8 @@ export class BillingService {
       note?: string;
       amount?: number;
       cashReceived?: number;
-      splits?: Array<{ method: PaymentMethod; amount: number }>;
+      splits?: Array<{ method: PaymentMethod; amount: number; destinationAccount?: string }>;
+      destinationAccount?: string;
       clientRequestId?: string;
     },
   ) {
@@ -1927,7 +1962,7 @@ export class BillingService {
           }
 
           let appliedAmount: Prisma.Decimal;
-          const legDecimals: Array<{ method: PaymentMethod; amount: Prisma.Decimal }> = [];
+          const legDecimals: Array<{ method: PaymentMethod; amount: Prisma.Decimal; destinationAccount?: string }> = [];
 
           if (isMultiSplit && normalizedSplits) {
             const rawSum = normalizedSplits.reduce(
@@ -1950,14 +1985,20 @@ export class BillingService {
                   idx === normalizedSplits.length - 1
                     ? new Prisma.Decimal(leg.amount).plus(adjustment)
                     : new Prisma.Decimal(leg.amount);
-                legDecimals.push({ method: leg.method, amount: dec });
+                const legDest =
+                  leg.destinationAccount?.trim() ||
+                  (normalizedSplits.length === 1 ? input.destinationAccount?.trim() : undefined);
+                legDecimals.push({ method: leg.method, amount: dec, destinationAccount: legDest });
               });
             } else if (rawSum.gt(invoice.balanceAmount)) {
               throw new BadRequestException("PAYMENT_AMOUNT_EXCEEDS_BALANCE");
             } else {
               appliedAmount = rawSum;
               for (const leg of normalizedSplits) {
-                legDecimals.push({ method: leg.method, amount: new Prisma.Decimal(leg.amount) });
+                const legDest =
+                  leg.destinationAccount?.trim() ||
+                  (normalizedSplits.length === 1 ? input.destinationAccount?.trim() : undefined);
+                legDecimals.push({ method: leg.method, amount: new Prisma.Decimal(leg.amount), destinationAccount: legDest });
               }
             }
           } else if (effectiveAmount !== undefined) {
@@ -2026,6 +2067,7 @@ export class BillingService {
                     splitIndex: idx,
                     splitCount: legDecimals.length,
                     splitTotal: appliedAmount.toString(),
+                    ...(leg.destinationAccount ? { destinationAccount: leg.destinationAccount } : {}),
                     ...(clientRequestId ? { clientRequestId } : {}),
                     ...(input.note ? { note: input.note } : {}),
                   },
@@ -2052,6 +2094,7 @@ export class BillingService {
                     rawPayloadJson: {
                       method: leg.method,
                       amount: leg.amount.toString(),
+                      ...(leg.destinationAccount ? { destinationAccount: leg.destinationAccount } : {}),
                       splitGroupId,
                       splitIndex: idx,
                       splitCount: legDecimals.length,
@@ -2086,6 +2129,7 @@ export class BillingService {
                 createdByUserId: actorUserId,
                 metadataJson: {
                   source: "front_desk",
+                  ...(input.destinationAccount ? { destinationAccount: input.destinationAccount.trim() } : {}),
                   ...(clientRequestId ? { clientRequestId } : {}),
                   ...(input.cashReceived !== undefined ? { cashReceived: input.cashReceived } : {}),
                   ...(changeAmount > 0 ? { changeAmount } : {}),
@@ -2114,6 +2158,7 @@ export class BillingService {
                   rawPayloadJson: {
                     method: effectiveMethod,
                     amount: appliedAmount.toString(),
+                    ...(input.destinationAccount?.trim() ? { destinationAccount: input.destinationAccount.trim() } : {}),
                     cashReceived: input.cashReceived,
                     changeAmount,
                     clientRequestId,
@@ -3638,13 +3683,20 @@ export class BillingService {
                 const row = existingSplitRows.find(
                   (item) => item.idempotencyKey === `split:${safeBase}:${idx}`,
                 );
+                const legDest =
+                  leg.destinationAccount?.trim() ||
+                  (normalizedSplits.length === 1 ? input.destinationAccount?.trim() : undefined);
+                const destMatches =
+                  legDest === undefined ||
+                  (row?.destinationAccount ?? undefined) === (legDest || undefined);
                 return (
                   Boolean(row) &&
                   row!.paymentMethod === leg.method &&
                   row!.receivedAmount.equals(new Prisma.Decimal(leg.amount)) &&
                   (!input.intent || row!.intent === input.intent) &&
                   (row!.reservationId ?? undefined) === (input.reservationId ?? undefined) &&
-                  (row!.groupId ?? undefined) === (input.groupId ?? undefined)
+                  (row!.groupId ?? undefined) === (input.groupId ?? undefined) &&
+                  destMatches
                 );
               });
             if (!allMatch) {
@@ -3674,13 +3726,17 @@ export class BillingService {
             const resMatches =
               (existing.reservationId ?? undefined) === (input.reservationId ?? undefined);
             const groupMatches = (existing.groupId ?? undefined) === (input.groupId ?? undefined);
+            const destMatches =
+              input.destinationAccount === undefined ||
+              (existing.destinationAccount ?? undefined) === (input.destinationAccount?.trim() || undefined);
 
             if (
               !amountMatches ||
               !methodMatches ||
               !intentMatches ||
               !resMatches ||
-              !groupMatches
+              !groupMatches ||
+              !destMatches
             ) {
               throw new ConflictException("IDEMPOTENCY_KEY_PAYLOAD_MISMATCH");
             }
@@ -3838,6 +3894,10 @@ export class BillingService {
             for (let idx = 0; idx < normalizedSplits.length; idx++) {
               const leg = normalizedSplits[idx];
               const legDecimal = new Prisma.Decimal(leg.amount);
+              const legDestination =
+                leg.destinationAccount?.trim() ||
+                (normalizedSplits.length === 1 ? input.destinationAccount?.trim() : null) ||
+                null;
               const createdLeg = await tx.bookingPayment.create({
                 data: {
                   hotelId,
@@ -3850,6 +3910,7 @@ export class BillingService {
                   receivedAmount: legDecimal,
                   paymentMethod: leg.method,
                   status: BookingPaymentStatus.COMPLETED,
+                  destinationAccount: legDestination,
                   notes: input.notes ?? null,
                   idempotencyKey: `split:${splitGroupId}:${idx}`,
                   createdByUserId: actorUserId,
@@ -3929,6 +3990,7 @@ export class BillingService {
         }
 
         try {
+          const singleDestination = input.destinationAccount?.trim() || null;
           const createdPayment = await tx.bookingPayment.create({
             data: {
               hotelId,
@@ -3942,6 +4004,7 @@ export class BillingService {
               receivedAmount: receivedDecimal,
               paymentMethod: effectivePaymentMethod ?? PaymentMethod.MANUAL,
               status: BookingPaymentStatus.COMPLETED,
+              destinationAccount: singleDestination,
               notes: input.notes ?? null,
               idempotencyKey: idempotencyKey || null,
               createdByUserId: actorUserId,
@@ -4048,15 +4111,35 @@ export class BillingService {
     },
   ) {
     await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    const scope = (await this.hotelAccessService.resolveRoomScope?.(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    )) ?? { hotel: {} as any, allowedRoomId: null, allowedRoomIds: null, mode: "HOTEL_WIDE" };
+
+    const scopedIds = scope.allowedRoomId
+      ? (scope.allowedRoomIds ?? [scope.allowedRoomId]).filter((id) => id === scope.allowedRoomId)
+      : (scope.allowedRoomIds ?? null);
 
     const page = Math.max(1, Number(query?.page) || 1);
     const limit = Math.min(100, Math.max(1, Number(query?.limit) || 20));
     const skip = (page - 1) * limit;
 
+    if (scopedIds !== null && scopedIds.length === 0) {
+      return { items: [], total: 0, page, limit, totalPages: 1 };
+    }
+
     const where: Prisma.HotelReceivableWhereInput = {
       hotelId,
       ...(query?.status ? { status: query.status } : {}),
       ...(query?.debtorType ? { debtorType: query.debtorType } : {}),
+      ...(scopedIds !== null
+        ? {
+            stay: {
+              roomId: { in: scopedIds },
+            },
+          }
+        : {}),
       ...(query?.q?.trim()
         ? {
             OR: [
@@ -4067,15 +4150,82 @@ export class BillingService {
         : {}),
     };
 
-    const [items, total] = await Promise.all([
+    const [rows, total] = await Promise.all([
       this.prisma.hotelReceivable.findMany({
         where,
+        include: {
+          stay: {
+            select: {
+              id: true,
+              reservationCode: true,
+              guestDisplayName: true,
+              status: true,
+              checkedInAt: true,
+              checkedOutAt: true,
+              plannedCheckInAt: true,
+              plannedCheckOutAt: true,
+              room: { select: { id: true, roomNumber: true } },
+              reservation: {
+                select: {
+                  id: true,
+                  reservationCode: true,
+                  sourceCategory: true,
+                  sourcePartner: { select: { id: true, name: true, code: true } },
+                },
+              },
+            },
+          },
+          folio: {
+            select: { id: true, folioNumber: true, totalAmount: true },
+          },
+          invoice: {
+            select: { id: true, invoiceNumber: true, totalAmount: true, paidAmount: true, balanceAmount: true },
+          },
+          debtorPartner: {
+            select: { id: true, name: true, code: true },
+          },
+          collections: {
+            where: { isVoided: false },
+            orderBy: { collectedAt: "desc" },
+          },
+        },
         orderBy: { createdAt: "desc" },
         skip,
         take: limit,
       }),
       this.prisma.hotelReceivable.count({ where }),
     ]);
+
+    const items = rows.map((rec) => {
+      const stay = rec.stay;
+      const bookingCode =
+        stay?.reservationCode ?? stay?.reservation?.reservationCode ?? null;
+      const stayDates = stay
+        ? {
+            checkIn: stay.checkedInAt ? stay.checkedInAt.toISOString() : stay.plannedCheckInAt ? stay.plannedCheckInAt.toISOString() : null,
+            checkOut: stay.checkedOutAt ? stay.checkedOutAt.toISOString() : stay.plannedCheckOutAt ? stay.plannedCheckOutAt.toISOString() : null,
+          }
+        : null;
+
+      return {
+        ...rec,
+        bookingCode,
+        roomNumber: stay?.room?.roomNumber ?? null,
+        stayDates,
+        invoiceNumber: rec.invoice?.invoiceNumber ?? null,
+        folioNumber: rec.folio?.folioNumber ?? null,
+        debtorPartnerName: rec.debtorPartner?.name ?? null,
+        collections: (rec.collections || []).map((c) => ({
+          id: c.id,
+          collectedAmount: Number(c.collectedAmount),
+          paymentMethod: c.paymentMethod,
+          destinationAccount: (c as any).destinationAccount ?? null,
+          collectedAt: c.collectedAt.toISOString(),
+          reference: c.reference,
+          notes: c.notes,
+        })),
+      };
+    });
 
     return {
       items,
@@ -4084,6 +4234,68 @@ export class BillingService {
       limit,
       totalPages: Math.ceil(total / limit) || 1,
     };
+  }
+
+  async getReceivableDetail(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    receivableId: string,
+  ) {
+    await this.hotelAccessService.assertHotelAccess(actorUserId, activeRoleId, hotelId);
+    const scope = (await this.hotelAccessService.resolveRoomScope?.(
+      actorUserId,
+      activeRoleId,
+      hotelId,
+    )) ?? { hotel: {} as any, allowedRoomId: null, mode: "HOTEL_WIDE" };
+
+    const rec = await this.prisma.hotelReceivable.findFirst({
+      where: { id: receivableId, hotelId },
+      include: {
+        stay: {
+          select: {
+            id: true,
+            roomId: true,
+            reservationCode: true,
+            guestDisplayName: true,
+            status: true,
+            checkedInAt: true,
+            checkedOutAt: true,
+            room: { select: { id: true, roomNumber: true } },
+          },
+        },
+        folio: { select: { id: true, folioNumber: true, totalAmount: true } },
+        invoice: { select: { id: true, invoiceNumber: true, totalAmount: true, paidAmount: true, balanceAmount: true } },
+        debtorPartner: { select: { id: true, name: true, code: true } },
+        collections: {
+          where: { isVoided: false },
+          orderBy: { collectedAt: "desc" },
+        },
+      },
+    });
+
+    if (!rec) {
+      throw new NotFoundException("Không tìm thấy công nợ");
+    }
+
+    const detailScopedIds = scope.allowedRoomId
+      ? (scope.allowedRoomIds ?? [scope.allowedRoomId]).filter((id) => id === scope.allowedRoomId)
+      : (scope.allowedRoomIds ?? null);
+    if (detailScopedIds !== null || rec.stay?.roomId) {
+      this.hotelAccessService.assertRoomAccess?.(scope, rec.stay?.roomId ?? null);
+    }
+
+    return rec;
+  }
+
+  async getCashMovements(
+    actorUserId: string,
+    activeRoleId: string,
+    hotelId: string,
+    query: ListCashMovementsQuery = {},
+  ): Promise<CashMovementsResponse> {
+    const scope = await this.hotelAccessService.resolveRoomScope(actorUserId, activeRoleId, hotelId);
+    return readCashMovements(this.prisma, hotelId, scope, query);
   }
 
   async transferStayToReceivable(
@@ -4264,6 +4476,16 @@ export class BillingService {
           }
         }
 
+        if (input.debtorPartnerId) {
+          const partner = await tx.bookingSourcePartner?.findFirst?.({
+            where: { id: input.debtorPartnerId, hotelId },
+            select: { id: true, name: true },
+          });
+          if (!partner) {
+            throw new BadRequestException("INVALID_DEBTOR_PARTNER");
+          }
+        }
+
         const debtorName = input.debtorName?.trim() || stay.guestDisplayName || "Khách lưu trú";
         const debtorType = input.debtorType ?? ReceivableDebtorType.GUEST;
 
@@ -4406,89 +4628,112 @@ export class BillingService {
     receivableId: string,
     input: CollectReceivableInput,
   ) {
-    const hotel = await this.hotelAccessService.assertHotelAccess(
-      actorUserId,
-      activeRoleId,
-      hotelId,
-    );
+    const scope = await this.hotelAccessService.resolveRoomScope(actorUserId, activeRoleId, hotelId);
+    const requestedDate = input.collectedAt
+      ? (input.collectedAt.length === 10
+          ? startOfPlainDate(input.collectedAt, scope.hotel.timezone)
+          : new Date(input.collectedAt))
+      : null;
+    if (requestedDate && !Number.isFinite(requestedDate.getTime())) {
+      throw new BadRequestException("Ngày thu tiền không hợp lệ");
+    }
+    const explicitTotal = input.collectedAmount ?? input.amount;
+    if (input.amount !== undefined && input.collectedAmount !== undefined && input.amount !== input.collectedAmount) {
+      throw new BadRequestException("Hai giá trị số tiền thu không khớp");
+    }
+    const splits = input.splits?.length ? input.splits : [{
+      method: input.paymentMethod ?? PaymentMethod.MANUAL,
+      amount: explicitTotal ?? 0,
+      destinationAccount: input.destinationAccount,
+    }];
+    if (new Set(splits.map((leg) => leg.method)).size !== splits.length) {
+      throw new BadRequestException("Không được trùng phương thức thanh toán khi thu nợ kết hợp");
+    }
+    if (splits.length > 1 && input.destinationAccount?.trim()) {
+      throw new BadRequestException("Chọn tài khoản nhận riêng cho từng phương thức");
+    }
+    const collectionLegs = splits.map((leg) => {
+      const amount = new Prisma.Decimal(leg.amount);
+      if (!amount.isFinite() || amount.lte(0) || amount.decimalPlaces() > 2 || amount.gt("9999999999.99")) {
+        throw new BadRequestException("Số tiền thu nợ phải lớn hơn 0 và có tối đa hai chữ số thập phân");
+      }
+      return {
+        method: leg.method,
+        amount,
+        destinationAccount: leg.destinationAccount?.trim() || (splits.length === 1 && input.destinationAccount?.trim()) || null,
+      };
+    });
+    const collectAmount = collectionLegs.reduce((sum, leg) => sum.add(leg.amount), new Prisma.Decimal(0));
+    if (explicitTotal !== undefined && !collectAmount.equals(explicitTotal)) {
+      throw new BadRequestException("Tổng tiền chia theo phương thức phải khớp số tiền thu nợ");
+    }
+    const submissionKey = input.idempotencyKey?.trim() || null;
+    const reference = input.reference?.trim() || null;
+    const notes = input.notes?.trim() || null;
+    const requestHash = submissionKey ? createHash("sha256").update(JSON.stringify({
+      legs: [...collectionLegs].sort((a, b) => a.method.localeCompare(b.method)),
+      collectedAt: requestedDate?.toISOString() ?? null,
+      reference,
+      notes,
+    })).digest("hex") : null;
 
+    // READ COMMITTED lets a waiting recorder see the first commit immediately after the row lock.
     return this.prisma.$transaction(
       async (tx) => {
-        const lockedRows =
-          typeof tx.$queryRaw === "function"
-            ? await tx.$queryRaw<
-                Array<{
-                  id: string;
-                  status: ReceivableStatus;
-                  outstandingAmount: Prisma.Decimal | number | string;
-                  paidAmount?: Prisma.Decimal | number | string;
-                }>
-              >`SELECT id, status, "outstandingAmount", "paidAmount" FROM "HotelReceivable" WHERE id = ${receivableId} AND "hotelId" = ${hotelId} FOR UPDATE`
-            : undefined;
+        const locked = await tx.$queryRaw<Array<{ id: string }>>
+          `SELECT id FROM "HotelReceivable" WHERE id = ${receivableId} AND "hotelId" = ${hotelId} FOR UPDATE`;
+        if (!locked.length) throw new NotFoundException("Không tìm thấy công nợ");
+        const receivable = await tx.hotelReceivable.findFirst({
+          where: { id: receivableId, hotelId },
+          include: { stay: { select: { roomId: true } } },
+        });
+        if (!receivable) throw new NotFoundException("Không tìm thấy công nợ");
+        this.hotelAccessService.assertRoomAccess(scope, receivable.stay?.roomId);
 
-        if (Array.isArray(lockedRows) && lockedRows.length === 0) {
-          throw new NotFoundException("Không tìm thấy công nợ");
+        if (submissionKey) {
+          const existing = await tx.receivableCollection.findMany({
+            where: { hotelId, receivableId, submissionKey },
+            orderBy: { legIndex: "asc" },
+          });
+          if (existing.length) {
+            if (existing.length !== collectionLegs.length || existing.some((leg) => leg.requestHash !== requestHash)) {
+              throw new ConflictException("CONCURRENT_SUBMISSION_CONFLICT");
+            }
+            return { receivable, collection: existing[0], collections: existing };
+          }
+          // Older rows stored the client key in reference only when no separate business reference was sent.
+          const legacy = await tx.receivableCollection.findMany({
+            where: { hotelId, receivableId, submissionKey: null, reference: reference ?? submissionKey },
+            orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+          });
+          if (legacy.length) {
+            const exact = !reference && legacy.length === collectionLegs.length && collectionLegs.every((leg) =>
+              legacy.some((row) => row.paymentMethod === leg.method && row.collectedAmount.equals(leg.amount) &&
+                row.destinationAccount === leg.destinationAccount && row.notes === notes &&
+                (!requestedDate || row.collectedAt.getTime() === requestedDate.getTime())),
+            );
+            if (!exact) throw new ConflictException("Mã tham chiếu trùng phiếu thu cũ. Vui lòng đối chiếu chứng từ trước khi lập phiếu.");
+            return { receivable, collection: legacy[0], collections: legacy };
+          }
         }
 
-        const lockedRow = Array.isArray(lockedRows) && lockedRows.length > 0 ? lockedRows[0] : null;
-        const receivable =
-          (await tx.hotelReceivable?.findFirst?.({
-            where: { id: receivableId, hotelId },
-          })) ?? (lockedRow as any);
-
-        if (!receivable) {
-          throw new NotFoundException("Không tìm thấy công nợ");
-        }
-
-        const currentStatus = lockedRow?.status ?? receivable.status;
-        if (currentStatus === ReceivableStatus.SETTLED) {
+        if (receivable.status === ReceivableStatus.SETTLED) {
           throw new BadRequestException("Công nợ đã được tất toán (SETTLED)");
         }
-        if (currentStatus === ReceivableStatus.WRITTEN_OFF) {
+        if (receivable.status === ReceivableStatus.WRITTEN_OFF) {
           throw new BadRequestException("Công nợ đã bị xóa sổ (WRITTEN_OFF)");
         }
 
         const currentOutstanding = new Prisma.Decimal(
-          lockedRow?.outstandingAmount ?? receivable.outstandingAmount ?? 0,
+          receivable.outstandingAmount,
         );
         const currentPaid = new Prisma.Decimal(
-          lockedRow?.paidAmount ??
             receivable.paidAmount ??
             (receivable.originalAmount
               ? new Prisma.Decimal(receivable.originalAmount).sub(currentOutstanding)
               : 0),
         );
 
-        const normalizedSplits =
-          input.splits && input.splits.length > 0 ? input.splits : null;
-        if (normalizedSplits) {
-          if (new Set(normalizedSplits.map((leg) => leg.method)).size !== normalizedSplits.length) {
-            throw new BadRequestException("Không được trùng phương thức thanh toán khi thu nợ kết hợp");
-          }
-          for (const leg of normalizedSplits) {
-            if (!Number.isFinite(leg.amount) || leg.amount <= 0) {
-              throw new BadRequestException("Số tiền từng phương thức thu nợ phải lớn hơn 0");
-            }
-          }
-        }
-
-        const collectAmount = normalizedSplits
-          ? normalizedSplits.reduce(
-              (sum, leg) => sum.add(new Prisma.Decimal(leg.amount)),
-              new Prisma.Decimal(0),
-            )
-          : new Prisma.Decimal(input.collectedAmount ?? 0);
-
-        if (
-          normalizedSplits &&
-          input.collectedAmount !== undefined &&
-          collectAmount.sub(new Prisma.Decimal(input.collectedAmount)).abs().gte("0.01")
-        ) {
-          throw new BadRequestException("Tổng tiền chia theo phương thức phải khớp số tiền thu nợ");
-        }
-        if (collectAmount.lte(0)) {
-          throw new BadRequestException("Số tiền thu nợ phải lớn hơn 0");
-        }
         if (collectAmount.gt(currentOutstanding)) {
           throw new BadRequestException("Số tiền thu nợ vượt quá số tiền nợ còn lại");
         }
@@ -4499,31 +4744,23 @@ export class BillingService {
           ? ReceivableStatus.SETTLED
           : ReceivableStatus.PARTIALLY_COLLECTED;
 
-        const collectedAt = new Date();
-        const collectionLegs = normalizedSplits
-          ? normalizedSplits.map((leg) => ({
-              method: leg.method,
-              amount: new Prisma.Decimal(leg.amount),
-            }))
-          : [
-              {
-                method: input.paymentMethod ?? PaymentMethod.MANUAL,
-                amount: collectAmount,
-              },
-            ];
-
+        const collectedAt = requestedDate ?? new Date();
         const createdCollections: Array<
           Awaited<ReturnType<typeof tx.receivableCollection.create>>
         > = [];
-        for (const leg of collectionLegs) {
+        for (const [legIndex, leg] of collectionLegs.entries()) {
           const created = await tx.receivableCollection.create({
             data: {
               hotelId,
               receivableId: receivable.id,
               collectedAmount: leg.amount,
               paymentMethod: leg.method,
-              reference: input.reference ?? null,
-              notes: input.notes ?? null,
+              destinationAccount: leg.destinationAccount,
+              submissionKey,
+              legIndex: submissionKey ? legIndex : null,
+              requestHash,
+              reference,
+              notes,
               collectedByUserId: actorUserId,
               collectedAt,
             },
@@ -4551,7 +4788,7 @@ export class BillingService {
           await (tx as any).auditLog.create({
             data: {
               actorId: actorUserId,
-              tenantId: (hotel as any)?.tenantId ?? receivable.hotel?.tenantId ?? hotelId,
+              tenantId: scope.hotel.tenantId,
               action: "HOTEL_RECEIVABLE_COLLECTED",
               entityType: "HotelReceivable",
               entityId: receivable.id,
@@ -4580,10 +4817,10 @@ export class BillingService {
         return {
           receivable: updatedReceivable,
           collection,
-          ...(createdCollections.length > 1 ? { collections: createdCollections } : {}),
+          collections: createdCollections,
         };
       },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted },
     );
   }
 }

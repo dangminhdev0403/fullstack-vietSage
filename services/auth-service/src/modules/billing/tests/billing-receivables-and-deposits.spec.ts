@@ -36,7 +36,11 @@ function createBillingService(
 ) {
   return new BillingService(
     repository as never,
-    { assertHotelAccess: jest.fn().mockResolvedValue(undefined) } as never,
+    {
+      assertHotelAccess: jest.fn().mockResolvedValue(undefined),
+      resolveRoomScope: jest.fn().mockResolvedValue({ hotel: { id: "hotel", tenantId: "tenant", timezone: "Asia/Ho_Chi_Minh" }, allowedRoomId: null }),
+      assertRoomAccess: jest.fn(),
+    } as never,
     prisma as never,
     { generateEntityCode: jest.fn().mockResolvedValue("CODE-001") } as never,
     { log: jest.fn(), warn: jest.fn() } as never,
@@ -476,6 +480,7 @@ describe("Billing Receivables & Deposits Suite", () => {
       );
 
       const txMock = {
+        $queryRaw: jest.fn().mockResolvedValue([{ id: receivableId }]),
         hotelReceivable: {
           findFirst: jest.fn().mockResolvedValue(existingReceivable),
           update: mockUpdateReceivable,
@@ -561,6 +566,7 @@ describe("Billing Receivables & Deposits Suite", () => {
       );
 
       const txMock = {
+        $queryRaw: jest.fn().mockResolvedValue([{ id: receivableId }]),
         hotelReceivable: {
           findFirst: jest.fn().mockResolvedValue(existingReceivable),
           update: mockUpdateReceivable,
@@ -627,6 +633,7 @@ describe("Billing Receivables & Deposits Suite", () => {
       };
 
       const txMock = {
+        $queryRaw: jest.fn().mockResolvedValue([{ id: receivableId }]),
         hotelReceivable: {
           findFirst: jest.fn().mockResolvedValue(existingReceivable),
         },
@@ -656,6 +663,7 @@ describe("Billing Receivables & Deposits Suite", () => {
       };
 
       const txMock = {
+        $queryRaw: jest.fn().mockResolvedValue([{ id: receivableId }]),
         hotelReceivable: {
           findFirst: jest.fn().mockResolvedValue(existingReceivable),
         },

@@ -1,9 +1,8 @@
 import { auth } from "@/auth";
 import { billingService } from "@/features/billing/service/billing-service-instance";
-import { hotelOpsService } from "@/features/hotel-ops/service/hotel-ops-service-instance";
 import { createAuthorizedApiExecutor } from "@/libs/server-api-auth";
 
-import { BillingTabSwitcher, type MonthlyFinanceSummary } from "./billing-tab-switcher";
+import { BillingTabSwitcher } from "./billing-tab-switcher";
 
 type PageProps = {
   params: Promise<{ hotelId: string }>;
@@ -22,28 +21,9 @@ export default async function OwnerBillingPage({ params, searchParams }: PagePro
   const callbackUrl = `/owner/hotels/${hotelId}/billing` as const;
   const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
 
-  const [foliosPage, monthlyReport] = await Promise.all([
-    authorizedApi("list billing folios", (accessToken) =>
-      billingService.listFolios(hotelId, { query: { page, limit: 20 }, accessToken }),
-    ),
-    authorizedApi("load billing monthly pnl summary", (accessToken) =>
-      hotelOpsService
-        .getReports(hotelId, { query: { range: "this_month" }, accessToken })
-        .catch(() => null),
-    ),
-  ]);
-
-  const monthlyFinanceSummary: MonthlyFinanceSummary | null = monthlyReport
-    ? {
-        totalRevenue: monthlyReport.summary.totalRevenue,
-        collectedRevenue: monthlyReport.summary.collectedRevenue ?? monthlyReport.summary.totalRevenue,
-        totalExpense: monthlyReport.summary.totalExpense ?? 0,
-        unpaidExpense: monthlyReport.summary.unpaidOperatingExpense ?? 0,
-        netProfit: monthlyReport.summary.netProfit ?? monthlyReport.summary.totalRevenue,
-        profitMargin: monthlyReport.summary.profitMargin ?? 0,
-        currency: monthlyReport.currency || "VND",
-      }
-    : null;
+  const foliosPage = await authorizedApi("list billing folios", (accessToken) =>
+    billingService.listFolios(hotelId, { query: { page, limit: 20 }, accessToken }),
+  );
 
   return (
     <div className="space-y-6">
@@ -60,7 +40,6 @@ export default async function OwnerBillingPage({ params, searchParams }: PagePro
       <BillingTabSwitcher
         hotelId={hotelId}
         foliosPage={foliosPage}
-        monthlyFinanceSummary={monthlyFinanceSummary}
       />
     </div>
   );

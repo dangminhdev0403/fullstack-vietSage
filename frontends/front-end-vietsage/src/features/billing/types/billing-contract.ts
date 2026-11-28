@@ -107,6 +107,15 @@ export type FolioListItem = FolioSummary & {
     subtotal: MoneyValue;
     roomNumber?: string | null;
   } | null;
+  bookingCode?: string | null;
+  stayDates?: { checkIn: string | null; checkOut: string | null } | null;
+  debtor?: {
+    debtorName: string;
+    debtorType: string;
+    partnerName?: string | null;
+    outstandingAmount: number;
+    status: string;
+  } | null;
 };
 
 export type FolioItem = {
@@ -261,10 +270,97 @@ export type ConfirmManualPaymentInput = {
   note?: string;
   amount?: number;
   clientRequestId?: string;
+  destinationAccount?: string;
 };
 
 export type ConfirmManualPaymentResult = {
   payment: Payment;
   invoice: InvoiceDetail;
   changeAmount?: number;
+};
+
+export type CashMovementType = "RECEIPT" | "DISBURSEMENT";
+export type CashMovementSourceType =
+  | "FRONT_DESK_PAYMENT"
+  | "ONLINE_PAYMENT"
+  | "BOOKING_DEPOSIT"
+  | "RECEIVABLE_COLLECTION"
+  | "HOTEL_EXPENSE"
+  | "MANUAL_COLLECTION"
+  | "PAYMENT_REFUND"
+  | "RECEIVABLE_REVERSAL";
+
+export type CashMovementItem = {
+  id: string;
+  movementType: CashMovementType;
+  sourceType: CashMovementSourceType;
+  transactionDate: string;
+  amount: number;
+  currency: string;
+  paymentMethod: string;
+  destinationAccount: string | null;
+  referenceCode: string | null;
+  description: string;
+  payerOrPayee: string | null;
+  roomNumber: string | null;
+  bookingCode: string | null;
+  stayId: string | null;
+  invoiceId: string | null;
+  folioId: string | null;
+  isLegacyAccount: boolean;
+};
+
+export type AccountBalanceSummary = {
+  accountName: string;
+  isLegacy: boolean;
+  cashIn: number;
+  cashOut: number;
+  netCash: number;
+  transactionCount: number;
+};
+
+export type CashMovementsResponse = {
+  hotelId: string;
+  from: string;
+  to: string;
+  currency: string;
+  timeZone: string;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  undatedExpensePayments: { amount: number; expenseCount: number };
+  summary: {
+    totalCashIn: number;
+    totalCashOut: number;
+    netCashFlow: number;
+    byMethod: Record<string, { cashIn: number; cashOut: number }>;
+    byAccount: AccountBalanceSummary[];
+    entryCount: number;
+    receiptCount: number;
+    disbursementCount: number;
+  };
+  items: CashMovementItem[];
+};
+
+export type PaymentSplitItemInput = {
+  method: "CASH" | "BANK_TRANSFER" | "CARD" | "MANUAL" | string;
+  amount: number;
+  receivingAccount?: string | null;
+  destinationAccount?: string | null;
+};
+
+export type CollectReceivableInput = {
+  amount?: number;
+  collectedAmount?: number;
+  collectedAt?: string | null;
+  paymentMethod?: "CASH" | "BANK_TRANSFER" | "CARD" | "QR" | "EWALLET" | "MANUAL" | string;
+  destinationAccount?: string | null;
+  receivingAccount?: string | null;
+  idempotencyKey?: string;
+  splits?: PaymentSplitItemInput[];
+  collectionSplits?: PaymentSplitItemInput[];
+  referenceCode?: string;
+  reference?: string;
+  notes?: string | null;
+  isUnknownAccount?: boolean;
 };

@@ -26,6 +26,16 @@ function toDisplayStatus(status?: string) {
   return status === "OPEN" ? "OPEN" : "CLOSED";
 }
 
+function formatShortDate(iso?: string | null): string {
+  if (!iso) return "—";
+  try {
+    const d = new Date(iso);
+    return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+  } catch {
+    return iso;
+  }
+}
+
 function getFolioInvoiceId(folio: FolioListItem): string | null {
   return folio.invoiceId ?? folio.billId ?? folio.invoice?.id ?? null;
 }
@@ -178,24 +188,31 @@ export function BillingFolioTableClient({
         <div className="overflow-x-auto">
           <table className="w-full min-w-[700px] text-left text-base">
             <colgroup>
-              <col className="w-[24%]" />
-              <col className="w-[24%]" />
+              <col className="w-[18%]" />
+              <col className="w-[22%]" />
+              <col className="w-[18%]" />
+              <col className="w-[14%]" />
               <col className="w-[16%]" />
-              <col className="w-[18%]" />
-              <col className="w-[18%]" />
+              <col className="w-[12%]" />
             </colgroup>
-            <thead className="border-b border-slate-200/80 bg-slate-50/90 text-sm sm:text-sm font-extrabold uppercase tracking-wider text-slate-600 dark:border-slate-800 dark:bg-slate-800/80 dark:text-slate-300">
+            <thead className="border-b border-slate-200/80 bg-slate-50/90 text-sm font-extrabold uppercase tracking-wider text-slate-600 dark:border-slate-800 dark:bg-slate-800/80 dark:text-slate-300">
               <tr>
-                <th className="px-6 py-4">Mã hóa đơn</th>
-                <th className="px-6 py-4">Phòng / Khách</th>
-                <th className="px-6 py-4 text-center">Trạng thái</th>
-                <th className="px-6 py-4 text-center">Tổng cộng</th>
-                <th className="px-6 py-4 text-center">Mở lúc</th>
+                <th className="px-5 py-4">Mã hóa đơn</th>
+                <th className="px-5 py-4">Phòng / Khách &amp; Đặt phòng</th>
+                <th className="px-5 py-4">Người trả / Con nợ</th>
+                <th className="px-4 py-4 text-center">Trạng thái</th>
+                <th className="px-5 py-4 text-right">Tổng &amp; Đã thu</th>
+                <th className="px-4 py-4 text-center">Lưu trú / Mở</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {filteredFolios.map((folio) => (
-                <tr
+              {filteredFolios.map((folio) => {
+                const paid = Number(folio.paidAmount ?? folio.invoice?.paidAmount ?? 0);
+                const balance = Number(folio.balanceAmount ?? folio.invoice?.balanceAmount ?? 0);
+                const hasDebtor = Boolean(folio.debtor);
+
+                return (
+                  <tr
                     key={folio.id}
                     tabIndex={0}
                     role="button"
@@ -209,33 +226,79 @@ export function BillingFolioTableClient({
                     }}
                     className="group cursor-pointer transition-colors duration-150 hover:bg-emerald-50/50 focus:outline-none focus-visible:bg-emerald-50/70 dark:hover:bg-slate-800/50"
                   >
-                    <td className="px-6 py-4">
-                      <div className="font-mono font-bold text-emerald-700 text-base sm:text-lg group-hover:underline dark:text-emerald-400">
+                    <td className="px-5 py-4">
+                      <div className="font-mono font-bold text-emerald-700 text-sm sm:text-base group-hover:underline dark:text-emerald-400">
                         {folio.folioNumber ?? folio.id}
                       </div>
-                    </td>
-                    <td className="px-6 py-4 text-slate-900 dark:text-white">
-                      <div className="font-bold text-base sm:text-lg">Phòng {folio.room?.roomNumber ?? "-"}</div>
-                      <div className="text-sm text-slate-500 dark:text-slate-400">{folio.stay?.guestNameSnapshot ?? "Khách lưu trú"}</div>
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <StatusBadge status={folio.status} />
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <div className="font-mono text-base sm:text-xl font-black tabular-nums text-slate-900 dark:text-white">
-                        {formatMoney(folio.total, folio.currency)}
-                      </div>
-                      {Number(folio.balanceAmount ?? folio.invoice?.balanceAmount ?? 0) > 0 && Number(folio.paidAmount ?? folio.invoice?.paidAmount ?? 0) > 0 ? (
-                        <div className="mt-1 text-xs font-semibold text-amber-700 whitespace-nowrap tabular-nums dark:text-amber-400">
-                          Đã thu {formatMoney(folio.paidAmount ?? folio.invoice?.paidAmount ?? 0, folio.currency)}
+                      {folio.invoice?.invoiceNumber && folio.invoice.invoiceNumber !== folio.folioNumber ? (
+                        <div className="text-xs text-slate-500 font-mono">
+                          HĐ: {folio.invoice.invoiceNumber}
                         </div>
                       ) : null}
                     </td>
-                    <td className="px-6 py-4 text-center text-sm sm:text-base font-medium text-slate-600 dark:text-slate-400">
-                      {formatDateTime(folio.openedAt ?? folio.createdAt)}
+                    <td className="px-5 py-4 text-slate-900 dark:text-white">
+                      <div className="font-bold text-sm sm:text-base flex items-center gap-1.5">
+                        <span>Phòng {folio.room?.roomNumber ?? "-"}</span>
+                        {folio.bookingCode ? (
+                          <span className="rounded bg-blue-50 border border-blue-200 px-1.5 py-0.2 font-mono text-xs font-bold text-blue-700 whitespace-nowrap">
+                            #{folio.bookingCode}
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="text-xs text-slate-500 dark:text-slate-400">
+                        {folio.stay?.guestDisplayName ?? folio.stay?.guestNameSnapshot ?? "Khách lưu trú"}
+                      </div>
+                    </td>
+                    <td className="px-5 py-4">
+                      {hasDebtor ? (
+                        <div>
+                          <span className="text-xs font-bold text-slate-900 dark:text-white block">
+                            {folio.debtor!.debtorName}
+                          </span>
+                          <span className="inline-flex rounded-md bg-amber-50 border border-amber-200 px-1.5 py-0.2 text-xs font-semibold text-amber-800 whitespace-nowrap mt-0.5">
+                            {folio.debtor!.debtorType === "PARTNER" ? "🏢 Đối tác/OTA" : "👤 Con nợ"}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-500 font-medium">Khách lẻ thanh toán</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-4 text-center">
+                      <StatusBadge status={folio.status} />
+                      {hasDebtor && folio.debtor!.outstandingAmount > 0 ? (
+                        <span className="text-xs font-bold text-rose-700 block mt-1 whitespace-nowrap">
+                          Nợ: {formatMoney(folio.debtor!.outstandingAmount, folio.currency)}
+                        </span>
+                      ) : null}
+                    </td>
+                    <td className="px-5 py-4 text-right">
+                      <div className="font-mono text-sm sm:text-base font-black tabular-nums text-slate-900 dark:text-white">
+                        {formatMoney(folio.total, folio.currency)}
+                      </div>
+                      {paid > 0 ? (
+                        <div className="text-xs font-semibold text-emerald-700 whitespace-nowrap tabular-nums dark:text-emerald-400">
+                          Đã thu: {formatMoney(paid, folio.currency)}
+                        </div>
+                      ) : null}
+                      {balance > 0 && !hasDebtor ? (
+                        <div className="text-xs font-semibold text-amber-700 whitespace-nowrap tabular-nums dark:text-amber-400">
+                          Còn thiếu: {formatMoney(balance, folio.currency)}
+                        </div>
+                      ) : null}
+                    </td>
+                    <td className="px-4 py-4 text-center text-xs text-slate-600 dark:text-slate-400">
+                      {folio.stayDates?.checkIn ? (
+                        <div className="font-semibold text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                          {formatShortDate(folio.stayDates.checkIn)} - {formatShortDate(folio.stayDates.checkOut)}
+                        </div>
+                      ) : null}
+                      <div className="text-slate-500 text-xs">
+                        {formatDateTime(folio.openedAt ?? folio.createdAt)}
+                      </div>
                     </td>
                   </tr>
-                ))}
+                );
+              })}
             </tbody>
           </table>
           {filteredFolios.length === 0 ? (

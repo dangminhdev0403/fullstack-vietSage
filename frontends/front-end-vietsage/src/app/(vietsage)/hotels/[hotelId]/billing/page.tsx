@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { DailyCashMovementsClient } from "@/features/billing/components/daily-cash-movements-client";
 import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { billingService } from "@/features/billing/service/billing-service-instance";
@@ -10,10 +12,10 @@ import { StaffBillingWorkspaceClient } from "./staff-billing-workspace-client";
 import { StaffSaasReminder } from "./staff-saas-reminder";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 
-type PageProps = { params: Promise<{ hotelId: string }> };
+type PageProps = { params: Promise<{ hotelId: string }>; searchParams: Promise<{ tab?: string }> };
 export const dynamic = "force-dynamic";
 
-export default async function StaffBillingPage({ params }: PageProps) {
+export default async function StaffBillingPage({ params, searchParams }: PageProps) {
   const { hotelId } = await Promise.resolve(params);
   const callbackUrl = `/hotels/${hotelId}/billing` as const;
   const session = await auth();
@@ -21,6 +23,16 @@ export default async function StaffBillingPage({ params }: PageProps) {
   const tokens = await requireHotelOpsServerTokens(callbackUrl);
   const context = await loadServerWorkspaceContext(callbackUrl, tokens.accessToken);
   if (!canUseHotelId(context, hotelId) || !context.permissions.includes("hotel.billing.view")) notFound();
+  if ((await searchParams).tab === "cashbook") {
+    return (
+      <div className="space-y-4">
+        <Link href={callbackUrl} className="inline-flex min-h-11 items-center gap-2 font-semibold text-[var(--primary)]">
+          <VsIcon name="arrow_back" /> Hóa đơn lưu trú
+        </Link>
+        <DailyCashMovementsClient hotelId={hotelId} />
+      </div>
+    );
+  }
   const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
   const hasRevenueProtectionPermission = context.permissions.includes("hotel.revenue-protection.view");
   const analyticsPromise = hasRevenueProtectionPermission

@@ -1290,6 +1290,21 @@ export class HotelOpsService {
     return unwrapApiEnvelope<unknown>(payload).data;
   }
 
+  async getCashMovements(
+    hotelId: string,
+    query?: Record<string, string | number | undefined>,
+    options: AuthRequestOptions = {},
+  ): Promise<unknown> {
+    const payload = await this.httpClient.request<unknown>({
+      method: "GET",
+      path: hotelPath(hotelId, "/billing/cash-movements"),
+      query,
+      accessToken: options.accessToken,
+      accessTokenExpiresAt: options.accessTokenExpiresAt,
+    });
+    return unwrapApiEnvelope<unknown>(payload).data;
+  }
+
   async transferStayToReceivable(
     hotelId: string,
     stayId: string,

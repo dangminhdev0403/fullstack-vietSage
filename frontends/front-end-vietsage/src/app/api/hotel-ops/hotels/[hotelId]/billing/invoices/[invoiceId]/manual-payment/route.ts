@@ -15,6 +15,7 @@ const paymentSplitSchema = z
   .object({
     method: paymentMethodEnum,
     amount: z.number().finite().positive(),
+    destinationAccount: z.string().trim().max(120).optional(),
   })
   .strict();
 
@@ -24,6 +25,7 @@ const schema = z
     note: z.string().trim().max(500).optional(),
     amount: z.number().finite().positive().optional(),
     splits: z.array(paymentSplitSchema).min(1).max(4).optional(),
+    destinationAccount: z.string().trim().max(120).optional(),
     clientRequestId: z.string().trim().min(1).optional(),
   })
   .strict()

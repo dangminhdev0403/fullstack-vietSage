@@ -43,6 +43,9 @@ export const folioListSelect = {
       reservation: {
         select: {
           id: true,
+          reservationCode: true,
+          sourceCategory: true,
+          sourcePartner: { select: { id: true, name: true, code: true } },
           nightlyRateSnapshot: true,
           baseNightlyRateSnapshot: true,
           chargeLines: {
@@ -75,6 +78,19 @@ export const folioListSelect = {
     where: { itemType: "ROOM_CHARGE", voidedAt: null },
     select: { id: true, totalSnapshot: true },
   },
+  hotelReceivables: {
+    select: {
+      id: true,
+      debtorName: true,
+      debtorType: true,
+      originalAmount: true,
+      paidAmount: true,
+      outstandingAmount: true,
+      status: true,
+      debtorPartner: { select: { id: true, name: true, code: true } },
+    },
+    take: 1,
+  },
 } satisfies Prisma.FolioSelect;
 
 export const folioDetailInclude = {
@@ -105,6 +121,9 @@ export const folioDetailInclude = {
       reservation: {
         select: {
           id: true,
+          reservationCode: true,
+          sourceCategory: true,
+          sourcePartner: { select: { id: true, name: true, code: true } },
           nightlyRateSnapshot: true,
           baseNightlyRateSnapshot: true,
           chargeLines: {

@@ -69,7 +69,12 @@ const booleanFromQuery = z.preprocess((val) => {
 
 const isoDateTimeOptional = z.preprocess(
   (val) => (typeof val === "string" && val.trim() === "" ? null : val),
-  z.string().datetime({ offset: true, message: "Thời điểm thanh toán không hợp lệ" }).nullable().optional(),
+  z
+    .string()
+    .datetime({ offset: true, message: "Thời điểm thanh toán không hợp lệ" })
+    .or(z.string().date("Ngày thanh toán phải hợp lệ và có định dạng YYYY-MM-DD"))
+    .nullable()
+    .optional(),
 );
 
 export const expenseIdParamSchema = z
@@ -127,6 +132,7 @@ const baseExpensePayloadShape = {
   paidAmount: nonNegativeMoney,
   paymentStatus: z.enum(EXPENSE_PAYMENT_STATUSES).default("PAID"),
   paymentMethod: z.enum(EXPENSE_PAYMENT_METHODS).nullable().optional(),
+  paymentAccount: optionalTrimmed(120),
   paidAt: isoDateTimeOptional,
   documentNumber: optionalTrimmed(80),
   notes: optionalTrimmed(1000),
@@ -154,8 +160,10 @@ export const payHotelExpenseSchema = z
     markFull: z.boolean().optional().default(false),
     payAmount: positiveMoney.optional(),
     paymentMethod: z.enum(EXPENSE_PAYMENT_METHODS).default("BANK_TRANSFER"),
+    paymentAccount: optionalTrimmed(120),
     paidAt: isoDateTimeOptional,
     notes: optionalTrimmed(1000),
+    idempotencyKey: z.string().trim().min(1).max(120).optional(),
   })
   .strict()
   .superRefine((data, ctx) => {

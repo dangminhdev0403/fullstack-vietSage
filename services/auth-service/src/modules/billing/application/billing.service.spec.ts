@@ -118,6 +118,7 @@ describe("BillingService - Commercial Ledger, Deposit Modes, Idempotency & Recei
     };
 
     mockHotelAccessService = {
+      assertRoomAccess: jest.fn(),
       assertHotelAccess: jest.fn().mockResolvedValue(undefined),
       resolveRoomScope: jest.fn().mockResolvedValue({
         hotel: { id: hotelId },
@@ -496,7 +497,7 @@ describe("BillingService - Commercial Ledger, Deposit Modes, Idempotency & Recei
   describe("AUD-07: collectReceivable row-level locking & audit trail", () => {
     const receivableId = "rec-200";
 
-    it("locks HotelReceivable FOR UPDATE in Serializable tx, updates paidAmount & outstandingAmount, and records AuditLog", async () => {
+    it("locks HotelReceivable FOR UPDATE in a row-locked transaction, updates paidAmount & outstandingAmount, and records AuditLog", async () => {
       mockTx.$queryRaw.mockResolvedValue([
         {
           id: receivableId,
@@ -538,7 +539,7 @@ describe("BillingService - Commercial Ledger, Deposit Modes, Idempotency & Recei
       expect(mockPrisma.$transaction).toHaveBeenCalledWith(
         expect.any(Function),
         expect.objectContaining({
-          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+          isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
         }),
       );
       expect(mockTx.$queryRaw).toHaveBeenCalledTimes(1);

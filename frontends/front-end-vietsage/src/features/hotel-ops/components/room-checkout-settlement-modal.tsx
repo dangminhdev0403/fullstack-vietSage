@@ -207,6 +207,7 @@ function CheckoutSettlementForm({
         confirmPayment: (invoiceId, amount) => staffRoomsRepository.confirmCheckoutPayment(hotelId, invoiceId, {
           method: amount ? resolvedMethod : "MANUAL",
           amount,
+          ...(amount && splitCheck?.destinationAccount ? { destinationAccount: splitCheck.destinationAccount } : {}),
           ...(amount && resolvedSplits ? { splits: resolvedSplits } : {}),
           note: paymentNote.trim() || "Thanh toán trả phòng tại quầy",
           clientRequestId: paymentAttempt.current!,

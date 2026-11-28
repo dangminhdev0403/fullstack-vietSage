@@ -20,11 +20,13 @@ import type {
 } from "@/features/hotel-ops/types/hotel-ops-contract";
 import type {
   BillingPage,
+  CashMovementsResponse,
   FolioItem,
   FolioListItem,
   FolioSummary,
   ConfirmManualPaymentResult,
 } from "@/features/billing/types/billing-contract";
+import { generateReceivableCollectionIdempotencyKey } from "@/features/billing/utils/idempotency";
 
 export type StaffRoomsListInput = Readonly<{
   page?: number;
@@ -132,6 +134,8 @@ export type ListBookingPaymentsQuery = {
 export type PaymentSplitPayloadItem = {
   method: "CASH" | "BANK_TRANSFER" | "CARD" | "MANUAL";
   amount: number;
+  receivingAccount?: string | null;
+  destinationAccount?: string | null;
 };
 
 export type CreateBookingPaymentInput = {
@@ -146,6 +150,7 @@ export type CreateBookingPaymentInput = {
   amount?: number;
   receivedAmount?: number;
   paymentMethod?: "CASH" | "BANK_TRANSFER" | "CARD" | "QR" | "EWALLET" | "MANUAL" | string;
+  destinationAccount?: string;
   splits?: PaymentSplitPayloadItem[];
   referenceCode?: string;
   notes?: string;
@@ -175,6 +180,21 @@ export type ReceivableItem = {
   notes?: string | null;
   transferredAt?: string | null;
   createdAt?: string;
+  bookingCode?: string | null;
+  roomNumber?: string | null;
+  stayDates?: { checkIn: string | null; checkOut: string | null } | null;
+  invoiceNumber?: string | null;
+  folioNumber?: string | null;
+  debtorPartnerName?: string | null;
+  collections?: Array<{
+    id: string;
+    collectedAmount: number;
+    paymentMethod: string;
+    destinationAccount?: string | null;
+    collectedAt: string;
+    reference?: string | null;
+    notes?: string | null;
+  }>;
 };
 
 export type ListReceivablesQuery = {
@@ -204,11 +224,16 @@ export type TransferStayToReceivableInput = {
 export type CollectReceivableInput = {
   amount?: number;
   collectedAmount?: number;
+  collectedAt?: string | null;
   paymentMethod?: "CASH" | "BANK_TRANSFER" | "CARD" | "QR" | "EWALLET" | "MANUAL" | string;
+  destinationAccount?: string | null;
+  receivingAccount?: string | null;
+  idempotencyKey?: string;
   splits?: PaymentSplitPayloadItem[];
+  collectionSplits?: PaymentSplitPayloadItem[];
   referenceCode?: string;
   reference?: string;
-  notes?: string;
+  notes?: string | null;
 };
 
 export const staffRoomsRepository = {
@@ -223,6 +248,7 @@ export const staffRoomsRepository = {
   async confirmCheckoutPayment(hotelId: string, invoiceId: string, input: {
     method?: "CASH" | "BANK_TRANSFER" | "CARD" | "MANUAL";
     amount?: number;
+    destinationAccount?: string;
     splits?: PaymentSplitPayloadItem[];
     note: string;
     clientRequestId: string;
@@ -829,6 +855,7 @@ export const staffRoomsRepository = {
       amount: splitSum ?? payload.amount,
       receivedAmount: splitSum ?? payload.receivedAmount ?? payload.amount,
       paymentMethod: mappedMethod,
+      ...(payload.destinationAccount?.trim() ? { destinationAccount: payload.destinationAccount.trim() } : {}),
       ...(hasSplits ? { splits: payload.splits } : {}),
       ...(payload.idempotencyKey ? { idempotencyKey: payload.idempotencyKey } : {}),
       notes: [payload.referenceCode ? `Tham chiếu: ${payload.referenceCode}` : "", payload.notes].filter(Boolean).join(" - ") || undefined,
@@ -917,19 +944,53 @@ export const staffRoomsRepository = {
     payload: CollectReceivableInput,
     signal?: AbortSignal,
   ): Promise<ReceivableItem> {
-    const hasSplits = Boolean(payload.splits && payload.splits.length > 0);
+    const rawSplits = payload.splits ?? payload.collectionSplits;
+    const hasSplits = Boolean(rawSplits && rawSplits.length > 0);
     const mappedMethod =
       payload.paymentMethod === "QR" ? "BANK_TRANSFER" :
-      payload.paymentMethod || (hasSplits ? payload.splits![0].method : "CASH");
+      payload.paymentMethod || (hasSplits ? rawSplits![0].method : "CASH");
     const splitSum = hasSplits
-      ? Math.round(payload.splits!.reduce((acc, item) => acc + item.amount, 0) * 100) / 100
+      ? Math.round(rawSplits!.reduce((acc, item) => acc + item.amount, 0) * 100) / 100
       : undefined;
+    const finalAmount = splitSum ?? payload.collectedAmount ?? payload.amount ?? 0;
+    const collectedAtDate = payload.collectedAt ? payload.collectedAt.slice(0, 10) : new Date().toISOString().slice(0, 10);
+    const resolvedAccount = payload.destinationAccount ?? payload.receivingAccount ?? undefined;
+
+    const normalizedSplits = hasSplits
+      ? rawSplits!.map((leg) => {
+          const legAcc = leg.receivingAccount ?? leg.destinationAccount ?? resolvedAccount ?? null;
+          return {
+            method: leg.method,
+            amount: leg.amount,
+            ...(legAcc ? { receivingAccount: legAcc, destinationAccount: legAcc } : {}),
+          };
+        })
+      : undefined;
+
+    const idempotencyKey =
+      payload.idempotencyKey?.trim() ||
+      generateReceivableCollectionIdempotencyKey({
+        receivableId,
+        amount: finalAmount,
+        collectedAtDate,
+        method: mappedMethod,
+        destinationAccount: resolvedAccount,
+        splits: normalizedSplits,
+      });
+
     const body = {
-      collectedAmount: splitSum ?? payload.collectedAmount ?? payload.amount,
+      collectedAmount: finalAmount,
+      amount: finalAmount,
       paymentMethod: mappedMethod,
-      ...(hasSplits ? { splits: payload.splits } : {}),
-      reference: payload.reference ?? payload.referenceCode,
-      notes: payload.notes,
+      ...(normalizedSplits
+        ? { splits: normalizedSplits, collectionSplits: normalizedSplits }
+        : {}),
+      destinationAccount: resolvedAccount,
+      receivingAccount: resolvedAccount,
+      ...(payload.collectedAt ? { collectedAt: payload.collectedAt } : {}),
+      idempotencyKey,
+      reference: payload.reference ?? payload.referenceCode ?? idempotencyKey,
+      notes: payload.notes || undefined,
     };
     const response = await requestInternalApiEnvelope<ReceivableItem>(
       `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/billing/receivables/${encodeURIComponent(receivableId)}/collect`,
@@ -938,6 +999,27 @@ export const staffRoomsRepository = {
         body,
         signal,
       },
+    );
+    return response.data;
+  },
+
+  async getCashMovements(
+    hotelId: string,
+    query?: { from?: string; to?: string; paymentMethod?: string; destinationAccount?: string; movementType?: string; q?: string },
+    signal?: AbortSignal,
+  ): Promise<CashMovementsResponse> {
+    const params = new URLSearchParams();
+    if (query?.from) params.set("from", query.from);
+    if (query?.to) params.set("to", query.to);
+    if (query?.paymentMethod) params.set("paymentMethod", query.paymentMethod);
+    if (query?.destinationAccount) params.set("destinationAccount", query.destinationAccount);
+    if (query?.movementType) params.set("movementType", query.movementType);
+    if (query?.q?.trim()) params.set("q", query.q.trim());
+
+    const queryStr = params.toString() ? `?${params.toString()}` : "";
+    const response = await requestInternalApiEnvelope<CashMovementsResponse>(
+      `/api/hotel-ops/hotels/${encodeURIComponent(hotelId)}/billing/cash-movements${queryStr}`,
+      { method: "GET", signal },
     );
     return response.data;
   },

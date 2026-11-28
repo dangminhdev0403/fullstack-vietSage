@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -1454,6 +1455,18 @@ export function StaffBillingWorkspaceClient({
               </span>
             )}
           </div>
+
+          {/* Shortcut to Cash Movements / Sổ thu chi */}
+          <Link
+            href={`/hotels/${encodeURIComponent(hotelId)}/billing?tab=cashbook`}
+            className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800 shadow-2xs transition cursor-pointer"
+          >
+            <div className="flex items-center gap-2">
+              <VsIcon name="account_balance_wallet" className="text-sm text-emerald-700" />
+              <span>Sổ thu chi quầy &amp; Dòng tiền</span>
+            </div>
+            <VsIcon name="chevron_right" className="text-sm text-slate-400" />
+          </Link>
 
           {/* Mode Switcher Toggle: Theo đoàn vs Phòng lẻ */}
           <div className="grid grid-cols-2 p-1 rounded-xl bg-[var(--surface-container-low,#f4efe6)] border border-[var(--outline-variant)]/60 text-xs font-bold">

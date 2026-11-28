@@ -260,6 +260,19 @@ export function PaymentMethodSplitInput({
                   ₫
                 </span>
               </div>
+              <input
+                id={`${prefix}-cash-dest`}
+                type="text"
+                disabled={disabled}
+                value={value.cashDestinationAccount ?? ""}
+                onChange={(e) => onChange({ ...value, cashDestinationAccount: e.target.value })}
+                placeholder="Két/TK tiền mặt (tùy chọn)"
+                className={
+                  isDark
+                    ? "mt-1.5 h-8 w-full rounded-lg border border-[#d4af37]/50 bg-[#140c03] px-2.5 text-xs text-[#fef08a] placeholder-[#fef08a]/40 outline-none focus:border-[#fbbf24]"
+                    : "mt-1.5 h-8 w-full rounded-lg border border-slate-300 bg-white px-2.5 text-xs text-slate-900 placeholder:text-slate-400 outline-none focus:border-emerald-600"
+                }
+              />
             </div>
 
             <div className="space-y-1">
@@ -298,6 +311,19 @@ export function PaymentMethodSplitInput({
                   ₫
                 </span>
               </div>
+              <input
+                id={`${prefix}-bank-dest`}
+                type="text"
+                disabled={disabled}
+                value={value.bankTransferDestinationAccount ?? ""}
+                onChange={(e) => onChange({ ...value, bankTransferDestinationAccount: e.target.value })}
+                placeholder="TK nhận chuyển khoản (tùy chọn)"
+                className={
+                  isDark
+                    ? "mt-1.5 h-8 w-full rounded-lg border border-[#d4af37]/50 bg-[#140c03] px-2.5 text-xs text-[#fef08a] placeholder-[#fef08a]/40 outline-none focus:border-[#fbbf24]"
+                    : "mt-1.5 h-8 w-full rounded-lg border border-slate-300 bg-white px-2.5 text-xs text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-600"
+                }
+              />
             </div>
           </div>
 
@@ -355,7 +381,33 @@ export function PaymentMethodSplitInput({
             ) : null}
           </div>
         </div>
-      ) : null}
+      ) : (
+        <div className="space-y-1 pt-0.5">
+          <label
+            htmlFor={`${prefix}-dest`}
+            className={
+              isDark
+                ? "block text-xs font-bold text-amber-100"
+                : "block text-xs font-bold text-slate-700"
+            }
+          >
+            Tài khoản nhận tiền (tùy chọn)
+          </label>
+          <input
+            id={`${prefix}-dest`}
+            type="text"
+            disabled={disabled}
+            value={value.destinationAccount ?? ""}
+            onChange={(e) => onChange({ ...value, destinationAccount: e.target.value })}
+            placeholder="VD: Két tiền mặt lễ tân, Vietcombank, Techcombank..."
+            className={
+              isDark
+                ? "h-9 w-full rounded-xl border border-[#d4af37]/60 bg-[#140c03] px-3 text-xs font-semibold text-[#fef08a] placeholder-[#fef08a]/40 outline-none focus:border-[#fbbf24] focus:ring-1 focus:ring-[#fbbf24] disabled:opacity-50"
+                : "h-9 w-full rounded-xl border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 disabled:bg-slate-100"
+            }
+          />
+        </div>
+      )}
     </div>
   );
 }

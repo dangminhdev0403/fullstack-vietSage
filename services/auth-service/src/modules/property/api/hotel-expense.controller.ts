@@ -33,7 +33,8 @@ const expenseProperties = {
   paidAmount: { ...moneySchema, minimum: 0, nullable: true, description: "Bỏ trống hoặc null để không chỉ định. PARTIAL yêu cầu lớn hơn 0 và nhỏ hơn amount; các trạng thái khác không được vượt amount." },
   paymentStatus: { type: "string", enum: [...EXPENSE_PAYMENT_STATUSES], default: "PAID" },
   paymentMethod: { type: "string", enum: [...EXPENSE_PAYMENT_METHODS], nullable: true },
-  paidAt: { type: "string", format: "date-time", nullable: true, description: "Thời điểm có múi giờ; chuỗi rỗng được coi là null." },
+  paymentAccount: { type: "string", nullable: true, maxLength: 120 },
+  paidAt: { type: "string", nullable: true, description: "Thời điểm ISO có múi giờ hoặc YYYY-MM-DD; chuỗi rỗng được coi là null." },
   documentNumber: { type: "string", nullable: true, maxLength: 80 },
   notes: { type: "string", nullable: true, maxLength: 1000 },
 };
@@ -211,8 +212,10 @@ export class HotelExpenseController {
       markFull: { type: "boolean", default: false },
       payAmount: expenseProperties.amount,
       paymentMethod: { type: "string", enum: [...EXPENSE_PAYMENT_METHODS], default: "BANK_TRANSFER" },
+      paymentAccount: expenseProperties.paymentAccount,
       paidAt: expenseProperties.paidAt,
       notes: expenseProperties.notes,
+      idempotencyKey: { type: "string", minLength: 1, maxLength: 120 },
     },
   } })
   @ApiOkResponse({ schema: mutationResponseSchema })

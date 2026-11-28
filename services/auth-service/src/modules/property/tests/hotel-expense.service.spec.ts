@@ -353,4 +353,163 @@ describe("HotelExpenseService", () => {
       }),
     ).rejects.toThrow(BadRequestException);
   });
+
+  it("R6: update() thay đổi paidAmount tạo dòng HotelExpensePayment tương ứng (tăng / giảm) và giữ sạch số dư cũ chưa có ngày", async () => {
+    const createdLegs: any[] = [];
+    mockTx.hotelExpensePayment = {
+      create: jest.fn().mockImplementation(({ data }) => {
+        createdLegs.push(data);
+        return Promise.resolve({ id: `leg-${createdLegs.length}`, ...data });
+      }),
+      findMany: jest.fn().mockImplementation(() => Promise.resolve(createdLegs)),
+      findFirst: jest.fn().mockResolvedValue(null),
+    };
+
+    // Legacy expense: paidAmount 200k with 0 existing legs, updated to paidAmount 450k -> creates +250k leg
+    mockTx.hotelExpense.findFirst.mockResolvedValue({
+      id: "exp-legacy",
+      hotelId: "hotel-1",
+      roomId: null,
+      expenseDate: new Date("2026-11-10T00:00:00.000Z"),
+      category: "UTILITIES",
+      title: "Tiền điện",
+      amount: new Prisma.Decimal(600000),
+      paidAmount: new Prisma.Decimal(200000),
+      paymentStatus: "PARTIAL",
+      paymentMethod: "BANK_TRANSFER",
+      paymentAccount: null,
+      version: 1,
+      voidedAt: null,
+    });
+    mockTx.hotelExpense.update.mockResolvedValue({ id: "exp-legacy", version: 2 });
+
+    await service.update("u1", "r1", "hotel-1", "exp-legacy", {
+      expenseDate: "2026-11-10",
+      category: "UTILITIES",
+      title: "Tiền điện",
+      amount: 600000,
+      paidAmount: 450000,
+      paymentStatus: "PARTIAL",
+      paymentMethod: "BANK_TRANSFER",
+      paymentAccount: "Tài khoản B",
+      paidAt: "2026-11-11",
+      version: 1,
+    });
+
+    expect(createdLegs).toHaveLength(1);
+    expect(new Prisma.Decimal(createdLegs[0].amount).toNumber()).toBe(250000);
+    expect(createdLegs[0].paymentAccount).toBe("Tài khoản B");
+
+    // Reducing paidAmount from 450k down to 350k reverses 100k from verified legs
+    mockTx.hotelExpense.findFirst.mockResolvedValue({
+      id: "exp-legacy",
+      hotelId: "hotel-1",
+      roomId: null,
+      expenseDate: new Date("2026-11-10T00:00:00.000Z"),
+      category: "UTILITIES",
+      title: "Tiền điện",
+      amount: new Prisma.Decimal(600000),
+      paidAmount: new Prisma.Decimal(450000),
+      paymentStatus: "PARTIAL",
+      paymentMethod: "BANK_TRANSFER",
+      paymentAccount: "Tài khoản B",
+      version: 2,
+      voidedAt: null,
+    });
+    mockTx.hotelExpense.update.mockResolvedValue({ id: "exp-legacy", version: 3 });
+
+    await service.update("u1", "r1", "hotel-1", "exp-legacy", {
+      expenseDate: "2026-11-10",
+      category: "UTILITIES",
+      title: "Tiền điện",
+      amount: 600000,
+      paidAmount: 350000,
+      paymentStatus: "PARTIAL",
+      paymentMethod: "BANK_TRANSFER",
+      paymentAccount: "Tài khoản B",
+      version: 2,
+    });
+
+    expect(createdLegs).toHaveLength(2);
+    expect(new Prisma.Decimal(createdLegs[1].amount).toNumber()).toBe(-100000);
+  });
+
+  it("R6: markPaid() không kế thừa ngầm tài khoản ngân hàng cũ sang giao dịch tiền mặt và chống trùng idempotencyKey", async () => {
+    const legs: any[] = [];
+    mockTx.hotelExpensePayment = {
+      create: jest.fn().mockImplementation(({ data }) => {
+        const leg = { id: `leg-${legs.length + 1}`, ...data };
+        legs.push(leg);
+        return Promise.resolve(leg);
+      }),
+      findFirst: jest.fn().mockImplementation(({ where }) =>
+        Promise.resolve(legs.find((l) => l.idempotencyKey === where.idempotencyKey) ?? null),
+      ),
+    };
+
+    mockTx.hotelExpense.findFirst.mockResolvedValue({
+      id: "exp-3",
+      hotelId: "hotel-1",
+      roomId: null,
+      amount: new Prisma.Decimal(600000),
+      paidAmount: new Prisma.Decimal(250000),
+      paymentStatus: "PARTIAL",
+      paymentMethod: "BANK_TRANSFER",
+      paymentAccount: "Vietcombank",
+      notes: null,
+      version: 1,
+      voidedAt: null,
+    });
+    mockTx.hotelExpense.update.mockResolvedValue({
+      id: "exp-3",
+      version: 2,
+      paidAmount: new Prisma.Decimal(600000),
+    });
+
+    await service.markPaid("u1", "r1", "hotel-1", "exp-3", {
+      version: 1,
+      markFull: true,
+      paymentMethod: "CASH",
+      paymentAccount: null,
+      paidAt: "2026-11-12",
+      idempotencyKey: "pay-key-1",
+    });
+
+    expect(legs).toHaveLength(1);
+    expect(legs[0].paymentMethod).toBe("CASH");
+    expect(legs[0].paymentAccount).toBeNull(); // Must NOT inherit Vietcombank!
+
+    // Replay same idempotencyKey even after status became PAID / version changed -> idempotent success
+    mockTx.hotelExpense.findFirst.mockResolvedValue({
+      id: "exp-3",
+      hotelId: "hotel-1",
+      roomId: null,
+      amount: new Prisma.Decimal(600000),
+      paidAmount: new Prisma.Decimal(600000),
+      paymentStatus: "PAID",
+      version: 2,
+      voidedAt: null,
+    });
+    const replayed = await service.markPaid("u1", "r1", "hotel-1", "exp-3", {
+      version: 1,
+      markFull: true,
+      paymentMethod: "CASH",
+      paymentAccount: null,
+      paidAt: "2026-11-12",
+      idempotencyKey: "pay-key-1",
+    });
+    expect(replayed).toEqual({ id: "exp-3", version: 2 });
+    expect(legs).toHaveLength(1);
+
+    // Same idempotencyKey with different payload -> ConflictException
+    await expect(
+      service.markPaid("u1", "r1", "hotel-1", "exp-3", {
+        version: 1,
+        markFull: false,
+        payAmount: 100000,
+        paymentMethod: "CASH",
+        idempotencyKey: "pay-key-1",
+      }),
+    ).rejects.toThrow(ConflictException);
+  });
 });

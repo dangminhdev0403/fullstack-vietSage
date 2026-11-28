@@ -8,7 +8,7 @@ import {
 import { createHash } from "node:crypto";
 import { Temporal } from "@js-temporal/polyfill";
 import { Prisma } from "@prisma/client";
-import { resolveTimeZone } from "../../../common/time/vietnam-temporal";
+import { resolveTimeZone, startOfPlainDate } from "../../../common/time/vietnam-temporal";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { HotelAccessService, type HotelRoomScope } from "./hotel-access.service";
 import {
@@ -46,20 +46,47 @@ function isMissingExpenseStorageError(error: unknown): boolean {
   return /HotelExpense|hotelExpense/i.test(msg) && /does not exist|findMany/i.test(msg);
 }
 
-function resolvePaymentAllocation(input: {
-  expenseDate: string;
-  amount: number;
-  paidAmount?: number;
-  paymentStatus: ExpensePaymentStatus;
-  paymentMethod?: ExpensePaymentMethod | null;
-  paidAt?: string | null;
-}) {
+function parsePaidAt(
+  raw: string | null | undefined,
+  rawTimeZone: string | null | undefined,
+  fallback: Date,
+): Date {
+  if (!raw) return fallback;
+  const trimmed = raw.trim();
+  if (!trimmed) return fallback;
+  const parsed =
+    trimmed.length === 10
+      ? startOfPlainDate(trimmed, resolveTimeZone(rawTimeZone))
+      : new Date(trimmed);
+  if (!Number.isFinite(parsed.getTime())) {
+    throw new BadRequestException("Thời điểm thanh toán không hợp lệ");
+  }
+  return parsed;
+}
+
+function resolvePaymentAllocation(
+  input: {
+    expenseDate: string;
+    amount: number;
+    paidAmount?: number;
+    paymentStatus: ExpensePaymentStatus;
+    paymentMethod?: ExpensePaymentMethod | null;
+    paymentAccount?: string | null;
+    paidAt?: string | null;
+  },
+  rawTimeZone?: string | null,
+) {
   if (input.paymentStatus === "PAID") {
     return {
       paidAmount: input.amount,
       paymentStatus: "PAID" as const,
       paymentMethod: input.paymentMethod ?? ("CASH" as const),
-      paidAt: input.paidAt ? new Date(input.paidAt) : new Date(`${input.expenseDate}T12:00:00.000Z`),
+      paymentAccount: input.paymentAccount?.trim() || null,
+      paidAt: parsePaidAt(
+        input.paidAt,
+        rawTimeZone,
+        startOfPlainDate(input.expenseDate, resolveTimeZone(rawTimeZone)),
+      ),
     };
   }
   if (input.paymentStatus === "UNPAID") {
@@ -67,6 +94,7 @@ function resolvePaymentAllocation(input: {
       paidAmount: 0,
       paymentStatus: "UNPAID" as const,
       paymentMethod: null,
+      paymentAccount: null,
       paidAt: null,
     };
   }
@@ -80,7 +108,8 @@ function resolvePaymentAllocation(input: {
     paidAmount: partialPaid,
     paymentStatus: "PARTIAL" as const,
     paymentMethod: input.paymentMethod ?? ("BANK_TRANSFER" as const),
-    paidAt: input.paidAt ? new Date(input.paidAt) : new Date(),
+    paymentAccount: input.paymentAccount?.trim() || null,
+    paidAt: parsePaidAt(input.paidAt, rawTimeZone, new Date()),
   };
 }
 
@@ -287,6 +316,7 @@ export class HotelExpenseService {
         unpaidAmount,
         paymentStatus: row.paymentStatus as ExpensePaymentStatus,
         paymentMethod: row.paymentMethod as ExpensePaymentMethod | null,
+        paymentAccount: (row as any).paymentAccount ?? null,
         paidAt: row.paidAt ? row.paidAt.toISOString() : null,
         documentNumber: row.documentNumber,
         notes: row.notes,
@@ -342,7 +372,7 @@ export class HotelExpenseService {
   ) {
     const scope = await this.access.resolveRoomScope(userId, roleId, hotelId);
     const roomNumberSnapshot = await this.resolveRoomSnapshot(scope, input.roomId);
-    const payment = resolvePaymentAllocation(input);
+    const payment = resolvePaymentAllocation(input, scope.hotel.timezone);
     const { idempotencyKey, ...hashPayload } = input;
     const requestHash = fingerprint(hashPayload);
 
@@ -372,6 +402,7 @@ export class HotelExpenseService {
               paidAmount: payment.paidAmount,
               paymentStatus: payment.paymentStatus,
               paymentMethod: payment.paymentMethod,
+              paymentAccount: payment.paymentAccount,
               paidAt: payment.paidAt,
               documentNumber: input.documentNumber || null,
               notes: input.notes || null,
@@ -380,6 +411,22 @@ export class HotelExpenseService {
               createdByUserId: userId,
             },
           });
+
+          if (payment.paidAmount > 0 && (tx as any).hotelExpensePayment?.create) {
+            await (tx as any).hotelExpensePayment.create({
+              data: {
+                expenseId: created.id,
+                hotelId,
+                amount: payment.paidAmount,
+                paymentMethod: payment.paymentMethod,
+                paymentAccount: payment.paymentAccount,
+                paidAt: payment.paidAt ?? new Date(),
+                notes: input.notes || null,
+                idempotencyKey: `${idempotencyKey}:init`,
+                requestHash,
+              },
+            });
+          }
 
           await this.writeAudit(tx, userId, scope.hotel.tenantId, created.id, "HOTEL_EXPENSE_CREATED", {
             hotelId,
@@ -418,7 +465,7 @@ export class HotelExpenseService {
   ) {
     const scope = await this.access.resolveRoomScope(userId, roleId, hotelId);
     const roomNumberSnapshot = await this.resolveRoomSnapshot(scope, input.roomId);
-    const payment = resolvePaymentAllocation(input);
+    const payment = resolvePaymentAllocation(input, scope.hotel.timezone);
 
     try {
       return await this.prisma.$transaction(
@@ -430,6 +477,10 @@ export class HotelExpenseService {
           if (entry.voidedAt) {
             throw new BadRequestException("Khoản chi đã hủy không thể chỉnh sửa");
           }
+
+          const prevPaid = new Prisma.Decimal(entry.paidAmount);
+          const nextPaid = new Prisma.Decimal(payment.paidAmount);
+          const delta = nextPaid.sub(prevPaid);
 
           const updated = await tx.hotelExpense.update({
             where: { id: expenseId },
@@ -444,12 +495,57 @@ export class HotelExpenseService {
               paidAmount: payment.paidAmount,
               paymentStatus: payment.paymentStatus,
               paymentMethod: payment.paymentMethod,
+              paymentAccount: payment.paymentAccount,
               paidAt: payment.paidAt,
               documentNumber: input.documentNumber || null,
               notes: input.notes || null,
               version: { increment: 1 },
             },
           });
+
+          if (!delta.isZero() && (tx as any).hotelExpensePayment?.create) {
+            if (delta.gt(0)) {
+              await (tx as any).hotelExpensePayment.create({
+                data: {
+                  expenseId,
+                  hotelId,
+                  amount: delta,
+                  paymentMethod: payment.paymentMethod ?? "OTHER",
+                  paymentAccount: payment.paymentAccount,
+                  paidAt: payment.paidAt ?? new Date(),
+                  notes: input.notes || "Điều chỉnh tăng số tiền đã thanh toán",
+                },
+              });
+            } else {
+              const existingLegs =
+                typeof (tx as any).hotelExpensePayment?.findMany === "function"
+                  ? await (tx as any).hotelExpensePayment.findMany({
+                      where: { hotelId, expenseId },
+                      select: { amount: true },
+                    })
+                  : [];
+              const verifiedSum = (existingLegs as Array<{ amount: Prisma.Decimal.Value }>).reduce(
+                (sum, leg) => sum.add(new Prisma.Decimal(leg.amount)),
+                new Prisma.Decimal(0),
+              );
+              if (verifiedSum.gt(0)) {
+                const reversal = Prisma.Decimal.max(delta, verifiedSum.neg());
+                if (!reversal.isZero()) {
+                  await (tx as any).hotelExpensePayment.create({
+                    data: {
+                      expenseId,
+                      hotelId,
+                      amount: reversal,
+                      paymentMethod: payment.paymentMethod ?? entry.paymentMethod ?? "OTHER",
+                      paymentAccount: payment.paymentAccount ?? (entry as any).paymentAccount ?? null,
+                      paidAt: payment.paidAt ?? new Date(),
+                      notes: input.notes || "Điều chỉnh giảm số tiền đã thanh toán",
+                    },
+                  });
+                }
+              }
+            }
+          }
 
           await this.writeAudit(tx, userId, scope.hotel.tenantId, expenseId, "HOTEL_EXPENSE_UPDATED", {
             hotelId,
@@ -486,11 +582,38 @@ export class HotelExpenseService {
     input: PayHotelExpenseInput,
   ) {
     const scope = await this.access.resolveRoomScope(userId, roleId, hotelId);
+    const submissionKey = input.idempotencyKey?.trim() || null;
+    const legAccount = input.paymentAccount?.trim() || null;
+    const paymentDate = parsePaidAt(input.paidAt, scope.hotel.timezone, new Date());
+    const requestHash = submissionKey
+      ? fingerprint({
+          markFull: Boolean(input.markFull),
+          payAmount: input.payAmount ?? null,
+          paymentMethod: input.paymentMethod,
+          paymentAccount: legAccount,
+          paidAt: input.paidAt ?? null,
+          notes: input.notes ?? null,
+        })
+      : null;
 
     try {
       return await this.prisma.$transaction(
         async (tx) => {
           const entry = await this.lockActiveExpense(tx, scope, expenseId);
+          if (submissionKey && typeof (tx as any).hotelExpensePayment?.findFirst === "function") {
+            const existingLeg = await (tx as any).hotelExpensePayment.findFirst({
+              where: { hotelId, expenseId, idempotencyKey: submissionKey },
+            });
+            if (existingLeg) {
+              if (existingLeg.requestHash !== requestHash) {
+                throw new ConflictException(
+                  "Yêu cầu thanh toán chi phí trùng mã nhưng nội dung khác nhau",
+                );
+              }
+              return { id: entry.id, version: entry.version };
+            }
+          }
+
           if (entry.version !== input.version) {
             throw new ConflictException("Khoản chi đã được cập nhật trước đó, vui lòng tải lại");
           }
@@ -525,11 +648,27 @@ export class HotelExpenseService {
               paidAmount: nextStatus === "PAID" ? totalAmount : nextPaid,
               paymentStatus: nextStatus,
               paymentMethod: input.paymentMethod,
-              paidAt: input.paidAt ? new Date(input.paidAt) : new Date(),
+              paymentAccount: legAccount,
+              paidAt: paymentDate,
               notes: mergedNotes ? mergedNotes.slice(0, 1000) : null,
               version: { increment: 1 },
             },
           });
+
+          if ((tx as any).hotelExpensePayment?.create) {
+            await (tx as any).hotelExpensePayment.create({
+              data: {
+                expenseId,
+                hotelId,
+                amount: applied,
+                paymentMethod: input.paymentMethod,
+                paymentAccount: legAccount,
+                paidAt: paymentDate,
+                notes: input.notes || null,
+                ...(submissionKey ? { idempotencyKey: submissionKey, requestHash } : {}),
+              },
+            });
+          }
 
           await this.writeAudit(tx, userId, scope.hotel.tenantId, expenseId, "HOTEL_EXPENSE_PAID", {
             hotelId,
@@ -537,6 +676,7 @@ export class HotelExpenseService {
             nextPaidAmount: num(updated.paidAmount),
             nextStatus,
             paymentMethod: input.paymentMethod,
+            paymentAccount: legAccount,
           });
 
           return { id: updated.id, version: updated.version };
@@ -544,6 +684,28 @@ export class HotelExpenseService {
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
       );
     } catch (error) {
+      if (
+        submissionKey &&
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002" &&
+        typeof (this.prisma as any).hotelExpensePayment?.findFirst === "function"
+      ) {
+        const existingLeg = await (this.prisma as any).hotelExpensePayment.findFirst({
+          where: { hotelId, expenseId, idempotencyKey: submissionKey },
+        });
+        if (existingLeg) {
+          if (existingLeg.requestHash !== requestHash) {
+            throw new ConflictException(
+              "Yêu cầu thanh toán chi phí trùng mã nhưng nội dung khác nhau",
+            );
+          }
+          const current = await this.prisma.hotelExpense.findFirst({
+            where: { id: expenseId, hotelId },
+            select: { id: true, version: true },
+          });
+          if (current) return { id: current.id, version: current.version };
+        }
+      }
       return this.storageError(error);
     }
   }
@@ -568,10 +730,41 @@ export class HotelExpenseService {
             throw new ConflictException("Khoản chi đã được cập nhật trước đó, vui lòng tải lại");
           }
 
+          const now = new Date();
+          if (
+            num(entry.paidAmount) > 0 &&
+            typeof (tx as any).hotelExpensePayment?.findMany === "function" &&
+            typeof (tx as any).hotelExpensePayment?.create === "function"
+          ) {
+            const existingLegs = await (tx as any).hotelExpensePayment.findMany({
+              where: { hotelId, expenseId },
+              select: { amount: true },
+            });
+            const verifiedSum = (existingLegs as Array<{ amount: Prisma.Decimal.Value }>).reduce(
+              (sum, leg) => sum.add(new Prisma.Decimal(leg.amount)),
+              new Prisma.Decimal(0),
+            );
+            if (verifiedSum.gt(0)) {
+              await (tx as any).hotelExpensePayment.create({
+                data: {
+                  expenseId,
+                  hotelId,
+                  amount: verifiedSum.neg(),
+                  paymentMethod: entry.paymentMethod ?? "OTHER",
+                  paymentAccount: (entry as any).paymentAccount ?? null,
+                  paidAt: now,
+                  notes: `Hoàn chi do hủy khoản chi: ${input.reason}`,
+                },
+              });
+            }
+          }
+
           const updated = await tx.hotelExpense.update({
             where: { id: expenseId },
             data: {
-              voidedAt: new Date(),
+              paidAmount: 0,
+              paymentStatus: "UNPAID",
+              voidedAt: now,
               voidReason: input.reason,
               version: { increment: 1 },
             },

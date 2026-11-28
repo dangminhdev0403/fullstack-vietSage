@@ -1,4 +1,5 @@
 import { requestInternalApiEnvelope } from "@/core/http/internal-api-client";
+import { generateExpenseIdempotencyKey } from "../utils/idempotency";
 import type {
   CreateHotelExpenseInput,
   HotelExpensesQuery,
@@ -33,12 +34,24 @@ export const hotelExpensesRepository = {
   },
 
   async create(hotelId: string, body: CreateHotelExpenseInput) {
+    const idempotencyKey =
+      body.idempotencyKey?.trim() ||
+      generateExpenseIdempotencyKey({
+        hotelId,
+        expenseDate: body.expenseDate,
+        category: body.category,
+        title: body.title,
+        amount: body.amount,
+        paymentStatus: body.paymentStatus,
+        paymentMethod: body.paymentMethod,
+        paymentAccount: body.paymentAccount,
+      });
     const res = await requestInternalApiEnvelope<{ id: string; version: number }>(
       basePath(hotelId),
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ ...body, idempotencyKey }),
       },
     );
     return res.data;

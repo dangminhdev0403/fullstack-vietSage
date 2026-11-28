@@ -19,6 +19,7 @@ import {
   type StayFolioContext,
   type TransferStayToReceivableInput,
 } from "@/features/hotel-ops/repositories/staff-rooms-repository";
+import type { CashMovementsResponse } from "@/features/billing/types/billing-contract";
 import type {
   BulkReservationInput,
   BulkReservationResult,
@@ -215,6 +216,25 @@ const baseStaffRoomsResource = createResource<{ hotelId: string }>()({
         ListReceivablesQuery | void
       >): Promise<HotelOpsPage<ReceivableItem>> =>
         staffRoomsRepository.listReceivables(scope.hotelId, input || undefined, signal),
+    }),
+    cashMovements: defineQuery({
+      inputKey: (input?: { from?: string; to?: string; paymentMethod?: string; destinationAccount?: string; movementType?: string; q?: string }) => [
+        input?.from ?? "",
+        input?.to ?? "",
+        input?.paymentMethod ?? "",
+        input?.destinationAccount ?? "",
+        input?.movementType ?? "",
+        input?.q ?? "",
+      ],
+      queryFn: ({
+        scope,
+        input,
+        signal,
+      }: ResourceQueryContext<
+        { hotelId: string },
+        { from?: string; to?: string; paymentMethod?: string; destinationAccount?: string; movementType?: string; q?: string } | void
+      >): Promise<CashMovementsResponse> =>
+        staffRoomsRepository.getCashMovements(scope.hotelId, input || undefined, signal),
     }),
     confirmationTemplate: defineQuery({
       inputKey: () => ["default"],
@@ -480,6 +500,20 @@ export const staffRoomsResource = Object.assign(baseStaffRoomsResource, {
         }
         const { hotelId, ...rest } = hotelIdOrInput;
         return baseStaffRoomsResource.bind({ hotelId }).queries.receivables.options(rest);
+      },
+    },
+    cashMovements: {
+      options: (
+        hotelIdOrInput: string | ({ hotelId: string } & { from?: string; to?: string; paymentMethod?: string; destinationAccount?: string; movementType?: string; q?: string }),
+        query?: { from?: string; to?: string; paymentMethod?: string; destinationAccount?: string; movementType?: string; q?: string },
+      ) => {
+        if (typeof hotelIdOrInput === "string") {
+          return baseStaffRoomsResource
+            .bind({ hotelId: hotelIdOrInput })
+            .queries.cashMovements.options(query);
+        }
+        const { hotelId, ...rest } = hotelIdOrInput;
+        return baseStaffRoomsResource.bind({ hotelId }).queries.cashMovements.options(rest);
       },
     },
     confirmationTemplate: {

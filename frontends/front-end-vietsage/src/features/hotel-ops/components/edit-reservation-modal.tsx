@@ -904,6 +904,7 @@ export function EditReservationModal({
             amount: depositDelta,
             receivedAmount: depositDelta,
             paymentMethod: depositSplitCheck.method === "OTHER" ? "MANUAL" : depositSplitCheck.method,
+            ...(depositSplitCheck.destinationAccount ? { destinationAccount: depositSplitCheck.destinationAccount } : {}),
             ...(depositSplitCheck.splits ? { splits: depositSplitCheck.splits } : {}),
             paymentType: "DEPOSIT",
             intent: "DEPOSIT",

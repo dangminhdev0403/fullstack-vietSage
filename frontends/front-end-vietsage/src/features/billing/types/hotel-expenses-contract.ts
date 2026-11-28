@@ -57,6 +57,7 @@ export type HotelExpenseItem = {
   unpaidAmount: number;
   paymentStatus: ExpensePaymentStatus;
   paymentMethod: ExpensePaymentMethod | null;
+  paymentAccount: string | null;
   paidAt: string | null;
   documentNumber: string | null;
   notes: string | null;
@@ -109,6 +110,7 @@ export type CreateHotelExpenseInput = {
   paidAmount?: number;
   paymentStatus: ExpensePaymentStatus;
   paymentMethod?: ExpensePaymentMethod | null;
+  paymentAccount?: string | null;
   paidAt?: string | null;
   documentNumber?: string | null;
   notes?: string | null;
@@ -124,8 +126,10 @@ export type PayHotelExpenseInput = {
   markFull?: boolean;
   payAmount?: number;
   paymentMethod: ExpensePaymentMethod;
+  paymentAccount?: string | null;
   paidAt?: string | null;
   notes?: string | null;
+  idempotencyKey?: string;
 };
 
 export type VoidHotelExpenseInput = {
