@@ -76,6 +76,7 @@ export const createReservationBodySchema = z
 
 export const listArrivalsQuerySchema = z
   .object({
+    view: z.enum(["bookings", "group-bookings"]).optional(),
     from: z.coerce.date().optional(),
     to: z.coerce.date().optional(),
     includeOverdue: z.coerce.boolean().optional(),

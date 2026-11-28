@@ -52,6 +52,15 @@ const reservationResponseSchema = {
     notes: { type: "string", nullable: true },
     nightlyRateSnapshot: { type: "string", nullable: true },
     reservationCode: { type: "string" },
+    groupCode: { type: "string", nullable: true },
+    stay: {
+      type: "object", nullable: true,
+      properties: {
+        status: { type: "string" },
+        checkedInAt: { type: "string", format: "date-time", nullable: true },
+        checkedOutAt: { type: "string", format: "date-time", nullable: true },
+      },
+    },
     guestDisplayName: { type: "string" },
     guestPhone: { type: "string", nullable: true },
     status: {
@@ -373,6 +382,7 @@ export class ReservationsController {
   @ApiParam({ name: "hotelId", type: String })
   @ApiQuery({ name: "from", required: false, type: String })
   @ApiQuery({ name: "to", required: false, type: String })
+  @ApiQuery({ name: "view", required: false, enum: ["bookings", "group-bookings"], description: "Danh sách đặt phòng mọi trạng thái. group-bookings chỉ lấy các thành viên đoàn." })
   @ApiQuery({ name: "includeOverdue", required: false, type: Boolean })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "limit", required: false, type: Number })

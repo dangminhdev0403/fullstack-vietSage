@@ -15,6 +15,8 @@ export function parseSidebarUrl(rawPath: string) {
 
     if (/^\/(?:owner\/)?hotels\/[^/]+\/front-desk$/.test(pathname) && tab === "kbtt") {
       searchParams.set("tab", "in-house");
+    } else if (/^\/(?:owner\/)?hotels\/[^/]+\/front-desk$/.test(pathname) && tab === "groups") {
+      searchParams.set("tab", "arrivals");
     }
 
     if (pathname === "/admin/dashboard" && tab === "permissions") {
@@ -153,6 +155,13 @@ function getSubNavCandidatesForItem(
         icon: "receipt_long",
       },
       {
+        key: "cashbook",
+        label: "Sổ thu chi thực tế",
+        tabValue: "cashbook",
+        matchTabValues: ["cashbook", "cash-movements", "cash_movements", "cashflow"],
+        icon: "account_balance",
+      },
+      {
         key: "expenses",
         label: "Chi phí & Phí SaaS",
         tabValue: "expenses",
@@ -168,8 +177,13 @@ function getSubNavCandidatesForItem(
     /^\/(?:owner\/)?hotels\/[^/]+\/reports$/.test(basePath)
   ) {
     return [
-      { key: "overview", label: "Tổng quan & KPIs", tabValue: "overview", icon: "dashboard" },
-      { key: "pnl", label: "Kết quả KD & Lãi lỗ", tabValue: "pnl", icon: "account_balance" },
+      {
+        key: "overview",
+        label: "Kết quả kinh doanh",
+        tabValue: "overview",
+        matchTabValues: ["overview", "pnl"],
+        icon: "dashboard",
+      },
       {
         key: "book",
         label: "Sổ doanh thu",
@@ -306,19 +320,11 @@ function getSubNavCandidatesForItem(
       },
       {
         key: "arrivals",
-        label: "Khách đặt trước",
+        label: "Khách hàng đặt phòng",
         tabValue: "arrivals",
         icon: "calendar_today",
         anyCapabilities: ["hotel.reservations.view"],
       },
-      {
-        key: "groups",
-        label: "Quản lý đoàn",
-        tabValue: "groups",
-        icon: "groups",
-        anyCapabilities: ["hotel.reservations.view"],
-      },
-
     ];
   }
 

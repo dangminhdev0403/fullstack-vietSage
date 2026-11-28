@@ -1633,4 +1633,115 @@ describe("ReservationsService ROOM_EXCLUSIVE scope & arrival rate fallbacks", ()
       totalAmount: 0,
     });
   });
+
+  describe("R8 booking lookup & room scope verification (ReservationsService)", () => {
+    it("forwards view: bookings and query q for past/current/future member & group lookup", async () => {
+      const repository = createRepository({
+        listArrivals: jest.fn().mockResolvedValue([1, [{
+          id: "res-hist",
+          plannedCheckInAt: new Date("2026-10-01T07:00:00Z"),
+          plannedCheckOutAt: new Date("2026-10-03T05:00:00Z"),
+          nightlyRateSnapshot: "1000000",
+          chargeLines: [],
+        }]]),
+      });
+      const access = {
+        assertHotelAccess: jest.fn().mockResolvedValue({ id: "hotel-1", tenantId: "tenant-1", timezone: "Asia/Ho_Chi_Minh" }),
+        resolveRoomScope: jest.fn().mockResolvedValue({
+          hotel: { id: "hotel-1", tenantId: "tenant-1", timezone: "Asia/Ho_Chi_Minh" },
+          allowedRoomId: null,
+        }),
+        assertRoomAccess: jest.fn(),
+      };
+      const service = new ReservationsService(repository as never, { generateEntityCode: jest.fn() } as never, access as never);
+
+      const result = await service.listArrivals("actor-1", "active-role", "hotel-1", {
+        q: "VS-HIST-001",
+        view: "bookings",
+        page: 1,
+        limit: 20,
+      });
+
+      expect(repository.listArrivals).toHaveBeenCalledWith(expect.objectContaining({
+        hotelId: "hotel-1",
+        q: "VS-HIST-001",
+        view: "bookings",
+      }));
+      expect(result.items).toHaveLength(1);
+    });
+
+    it("forwards empty roomIds array when staff has empty room scope preventing any room leak", async () => {
+      const repository = createRepository({
+        listArrivals: jest.fn().mockResolvedValue([0, []]),
+      });
+      const access = {
+        assertHotelAccess: jest.fn().mockResolvedValue({ id: "hotel-1", tenantId: "tenant-1", timezone: "Asia/Ho_Chi_Minh" }),
+        resolveRoomScope: jest.fn().mockResolvedValue({
+          hotel: { id: "hotel-1", tenantId: "tenant-1", timezone: "Asia/Ho_Chi_Minh" },
+          allowedRoomId: null,
+          allowedRoomIds: [],
+        }),
+        assertRoomAccess: jest.fn(),
+      };
+      const service = new ReservationsService(repository as never, { generateEntityCode: jest.fn() } as never, access as never);
+
+      const result = await service.listArrivals("actor-1", "active-role", "hotel-1", {
+        view: "bookings",
+        page: 1,
+        limit: 20,
+      });
+
+      expect(repository.listArrivals).toHaveBeenCalledWith(expect.objectContaining({
+        roomIds: [],
+      }));
+      expect(result.items).toHaveLength(0);
+      expect(result.total).toBe(0);
+    });
+
+    it("rejects getGroupReservation with ForbiddenException when group has rooms outside allowed roomIds", async () => {
+      const repository = createRepository({
+        findGroupByCode: jest.fn().mockResolvedValue({
+          groupCode: "GRP-MIXED",
+          reservations: [
+            { id: "res-1", roomId: "room-101" },
+            { id: "res-2", roomId: "room-999" }, // outside scope
+          ],
+        }),
+      });
+      const access = {
+        resolveRoomScope: jest.fn().mockResolvedValue({
+          hotel: { id: "hotel-1", tenantId: "tenant-1", timezone: "Asia/Ho_Chi_Minh" },
+          allowedRoomId: null,
+          allowedRoomIds: ["room-101"],
+        }),
+      };
+      const service = new ReservationsService(repository as never, { generateEntityCode: jest.fn() } as never, access as never);
+
+      await expect(service.getGroupReservation("actor-1", "active-role", "hotel-1", "GRP-MIXED"))
+        .rejects.toThrow("Tài khoản không có quyền truy cập thông tin đoàn có phòng ngoài phạm vi phân công");
+    });
+
+    it("rejects getGroupReservation with ForbiddenException when group has unassigned rooms under room-scoped staff", async () => {
+      const repository = createRepository({
+        findGroupByCode: jest.fn().mockResolvedValue({
+          groupCode: "GRP-UNASSIGNED",
+          reservations: [
+            { id: "res-1", roomId: "room-101" },
+            { id: "res-2", roomId: null }, // unassigned room
+          ],
+        }),
+      });
+      const access = {
+        resolveRoomScope: jest.fn().mockResolvedValue({
+          hotel: { id: "hotel-1", tenantId: "tenant-1", timezone: "Asia/Ho_Chi_Minh" },
+          allowedRoomId: null,
+          allowedRoomIds: ["room-101"],
+        }),
+      };
+      const service = new ReservationsService(repository as never, { generateEntityCode: jest.fn() } as never, access as never);
+
+      await expect(service.getGroupReservation("actor-1", "active-role", "hotel-1", "GRP-UNASSIGNED"))
+        .rejects.toThrow("Tài khoản không có quyền truy cập thông tin đoàn có phòng ngoài phạm vi phân công");
+    });
+  });
 });

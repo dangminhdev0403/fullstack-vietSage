@@ -39,9 +39,9 @@ export function FrontDeskSearchBar({
     if (range && (tab === "arrivals" || tab === "groups")) {
       params.set("range", range);
     }
+    params.delete("page");
     if (trimmed) {
       params.set("q", trimmed);
-      params.delete("page");
     } else {
       params.delete("q");
     }
@@ -76,10 +76,10 @@ export function FrontDeskSearchBar({
 
   const placeholderText =
     tab === "groups"
-      ? "Tìm theo mã đoàn, tên đoàn, người đại diện hoặc số điện thoại..."
+      ? "Tìm mã đoàn, mã đặt phòng hoặc tên khách..."
       : tab === "in-house"
         ? "Tìm theo tên khách, số điện thoại hoặc số phòng..."
-        : "Tìm theo tên khách, số điện thoại, mã đặt phòng hoặc số phòng...";
+        : "Tìm mã đặt phòng, mã đoàn, tên khách, số điện thoại hoặc phòng...";
 
   const hasSearch = Boolean(value.trim() || initialQuery);
 

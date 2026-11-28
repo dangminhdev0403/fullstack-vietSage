@@ -548,3 +548,44 @@ test("overdue actions remain hidden without management or check-in permission", 
   assert.equal(panel.buttons("Xử lý quá hạn").length, 0);
   assert.equal(panel.buttons("Hủy đặt phòng").length, 0);
 });
+
+test("archived checked-out reservation suppresses operational check-in, overdue, and edit actions", () => {
+  const panel = renderArrivalPanel({
+    arrival: {
+      status: "CHECKED_IN",
+      plannedCheckInAt: "2026-11-19T07:00:00.000Z",
+      plannedCheckOutAt: "2026-11-20T05:00:00.000Z",
+      stay: {
+        status: "CHECKED_OUT",
+        checkedOutAt: "2026-11-20T11:00:00.000Z",
+      },
+    },
+    canCheckInStay: true,
+    canManageReservations: true,
+  });
+  assert.equal(panel.buttons("Xử lý quá hạn").length, 0);
+  assert.equal(panel.buttons("Nhận phòng ngay").length, 0);
+  assert.equal(panel.buttons("Nhận phòng sớm").length, 0);
+  assert.equal(panel.buttons("Hủy đặt phòng").length, 0);
+  assert.equal(panel.buttons("Chỉnh sửa").length, 0);
+});
+
+test("archived cancelled or no-show reservation disables check-in and overdue actions", () => {
+  const cancelledPanel = renderArrivalPanel({
+    arrival: { status: "CANCELLED" },
+    canCheckInStay: true,
+    canManageReservations: true,
+  });
+  assert.equal(cancelledPanel.buttons("Xử lý quá hạn").length, 0);
+  assert.equal(cancelledPanel.buttons("Nhận phòng ngay").length, 0);
+  assert.equal(cancelledPanel.buttons("Chỉnh sửa").length, 0);
+
+  const noShowPanel = renderArrivalPanel({
+    arrival: { status: "NO_SHOW" },
+    canCheckInStay: true,
+    canManageReservations: true,
+  });
+  assert.equal(noShowPanel.buttons("Xử lý quá hạn").length, 0);
+  assert.equal(noShowPanel.buttons("Nhận phòng ngay").length, 0);
+  assert.equal(noShowPanel.buttons("Chỉnh sửa").length, 0);
+});

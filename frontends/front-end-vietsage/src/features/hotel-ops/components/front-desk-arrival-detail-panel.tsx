@@ -318,6 +318,14 @@ export function FrontDeskArrivalDetailPanel({
   }, [activeArrival.plannedCheckOutAt]);
   const isScheduleExpired = Number.isNaN(checkOutMs) || checkOutMs <= referenceNowMs;
 
+  const isCheckedOut =
+    activeArrival.stay?.status === "CHECKED_OUT" ||
+    Boolean(activeArrival.stay?.checkedOutAt);
+  const isArchived =
+    activeArrival.status === "CANCELLED" ||
+    activeArrival.status === "NO_SHOW" ||
+    isCheckedOut;
+
   const hasActiveStay = Boolean(
     assignedRoomLive?.activeStay &&
       !assignedRoomLive.activeStay.checkedOutAt &&
@@ -327,7 +335,8 @@ export function FrontDeskArrivalDetailPanel({
   );
   const isOverdueUncheckedInArrival =
     !hasActiveStay &&
-    ["PENDING", "CONFIRMED", "ARRIVAL_READY", "CHECKED_IN"].includes(activeArrival.status) &&
+    !isArchived &&
+    ["PENDING", "CONFIRMED", "ARRIVAL_READY"].includes(activeArrival.status) &&
     checkInYmd < todayYmd;
   const isToday = checkInYmd === todayYmd;
   const isFuture = checkInYmd > todayYmd;
@@ -640,6 +649,7 @@ export function FrontDeskArrivalDetailPanel({
         amount: splitCheck.isMixed ? splitCheck.total : numericAmount,
         receivedAmount: splitCheck.isMixed ? splitCheck.total : numericAmount,
         paymentMethod: splitCheck.method === "OTHER" ? "MANUAL" : splitCheck.method,
+        ...(splitCheck.destinationAccount ? { destinationAccount: splitCheck.destinationAccount } : {}),
         ...(splitCheck.splits ? { splits: splitCheck.splits } : {}),
         notes: depositNotes.trim() || undefined,
       });
@@ -700,6 +710,7 @@ export function FrontDeskArrivalDetailPanel({
         amount,
         collectedAmount: amount,
         paymentMethod: splitCheck.method === "OTHER" ? "MANUAL" : splitCheck.method,
+        ...(splitCheck.destinationAccount ? { destinationAccount: splitCheck.destinationAccount } : {}),
         ...(splitCheck.splits ? { splits: splitCheck.splits } : {}),
       });
       void refetchReceivables();
@@ -764,17 +775,21 @@ export function FrontDeskArrivalDetailPanel({
                     </button>
                   </span>
                 ) : null}
-                {arrival.status === "CANCELLED" ? (
+                {activeArrival.status === "CANCELLED" ? (
                   <span className="rounded-lg bg-rose-50 text-rose-800 border border-rose-300 px-3 py-1 text-sm font-black uppercase tracking-wider whitespace-nowrap">
-                    Đã hủy đặt phòng
+                    Đã hủy đặt phòng (Lưu trữ)
                   </span>
-                ) : arrival.status === "NO_SHOW" ? (
+                ) : activeArrival.status === "NO_SHOW" ? (
                   <span className="rounded-lg bg-slate-100 text-slate-800 border border-slate-300 px-3 py-1 text-sm font-black uppercase tracking-wider whitespace-nowrap">
-                    Vắng mặt
+                    Vắng mặt (Lưu trữ)
                   </span>
-                ) : arrival.status === "CHECKED_IN" ? (
-                  <span className="rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-300 px-3 py-1 text-sm font-black uppercase tracking-wider whitespace-nowrap">
-                    Đã nhận phòng
+                ) : activeArrival.status === "CHECKED_IN" ? (
+                  <span className={`rounded-lg px-3 py-1 text-sm font-black uppercase tracking-wider whitespace-nowrap border ${
+                    isCheckedOut
+                      ? "bg-slate-100 text-slate-700 border-slate-300"
+                      : "bg-emerald-50 text-emerald-800 border-emerald-300"
+                  }`}>
+                    {isCheckedOut ? "Đã trả phòng (Lưu trữ)" : "Đã nhận phòng"}
                   </span>
                 ) : isToday ? (
                   <span className="rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-300 px-3 py-1 text-sm font-black uppercase tracking-wider whitespace-nowrap">
@@ -789,9 +804,9 @@ export function FrontDeskArrivalDetailPanel({
                     Đến hạn nhận phòng
                   </span>
                 )}
-                {arrival.status === "CANCELLED" || arrival.status === "NO_SHOW" ? null : arrival.roomId ? (
+                {activeArrival.status === "CANCELLED" || activeArrival.status === "NO_SHOW" ? null : activeArrival.roomId ? (
                   <span className="rounded-lg bg-sky-50 text-sky-800 border border-sky-300 px-3 py-1 text-sm font-black uppercase tracking-wider whitespace-nowrap">
-                    Phòng {arrival.room?.roomNumber || "Đã gán"}
+                    Phòng {activeArrival.room?.roomNumber || "Đã gán"}
                   </span>
                 ) : (
                   <span className="rounded-lg bg-amber-50 text-amber-800 border border-amber-300 px-3 py-1 text-sm font-black uppercase tracking-wider whitespace-nowrap">
@@ -816,10 +831,9 @@ export function FrontDeskArrivalDetailPanel({
                     <span>Xử lý quá hạn</span>
                   </button>
                 ) : null
-              ) : arrival.status !== "CANCELLED" &&
-                arrival.status !== "NO_SHOW" &&
-                arrival.status !== "CHECKED_IN" &&
-                (arrival.roomId ? (
+              ) : !isArchived &&
+                activeArrival.status !== "CHECKED_IN" &&
+                (activeArrival.roomId ? (
                   canCheckInStay ? (
                     <button
                       type="button"
@@ -847,7 +861,7 @@ export function FrontDeskArrivalDetailPanel({
                     <span>Gán phòng ngay</span>
                   </button>
                 ))}
-              {arrival.groupCode && (
+              {activeArrival.groupCode && (
                 <button
                   type="button"
                   onClick={() => setIsGroupDrawerOpen(true)}
@@ -857,7 +871,7 @@ export function FrontDeskArrivalDetailPanel({
                   <span>Quản lý đoàn</span>
                 </button>
               )}
-              {canManageReservations && (
+              {canManageReservations && !isArchived && (
                 <button
                   type="button"
                   onClick={() => setIsEditModalOpen(true)}
@@ -904,7 +918,7 @@ export function FrontDeskArrivalDetailPanel({
                         Thông tin khách đặt phòng
                       </h3>
                     </div>
-                    {canManageReservations && (
+                    {canManageReservations && !isArchived && (
                       <button
                         type="button"
                         onClick={() => setIsEditModalOpen(true)}
@@ -1631,20 +1645,24 @@ export function FrontDeskArrivalDetailPanel({
                     <span>Xử lý quá hạn</span>
                   </button>
                 ) : null
-              ) : arrival.status === "CANCELLED" ? (
+              ) : activeArrival.status === "CANCELLED" ? (
                 <div className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl bg-rose-50 px-4 py-2 text-rose-800 text-sm font-bold border border-rose-300 whitespace-nowrap">
                   <VsIcon name="cancel" className="text-base text-rose-600" />
-                  <span>Đơn đặt phòng đã bị hủy</span>
+                  <span>Đơn đặt phòng đã bị hủy (Lưu trữ)</span>
                 </div>
-              ) : arrival.status === "NO_SHOW" ? (
+              ) : activeArrival.status === "NO_SHOW" ? (
                 <div className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl bg-slate-100 px-4 py-2 text-slate-800 text-sm font-bold border border-slate-300 whitespace-nowrap">
                   <VsIcon name="person_off" className="text-base text-slate-600" />
-                  <span>Vắng mặt</span>
+                  <span>Vắng mặt (Lưu trữ)</span>
                 </div>
-              ) : arrival.status === "CHECKED_IN" ? (
-                <div className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl bg-emerald-50 px-4 py-2 text-emerald-800 text-sm font-bold border border-emerald-300 whitespace-nowrap">
-                  <VsIcon name="check_circle" className="text-base text-emerald-600" />
-                  <span>Đã nhận phòng thành công</span>
+              ) : activeArrival.status === "CHECKED_IN" ? (
+                <div className={`inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl px-4 py-2 text-sm font-bold border whitespace-nowrap ${
+                  isCheckedOut
+                    ? "bg-slate-100 text-slate-800 border-slate-300"
+                    : "bg-emerald-50 text-emerald-800 border-emerald-300"
+                }`}>
+                  <VsIcon name={isCheckedOut ? "inventory_2" : "check_circle"} className={`text-base ${isCheckedOut ? "text-slate-600" : "text-emerald-600"}`} />
+                  <span>{isCheckedOut ? "Đã trả phòng (Lưu trữ)" : "Đã nhận phòng thành công"}</span>
                 </div>
               ) : arrival.roomId ? (
                 canCheckInStay ? (
@@ -1829,8 +1847,7 @@ export function FrontDeskArrivalDetailPanel({
           activeArrival.roomId &&
             !isScheduleExpired &&
             canCheckInStay &&
-            activeArrival.status !== "CANCELLED" &&
-            activeArrival.status !== "NO_SHOW" &&
+            !isArchived &&
             activeArrival.status !== "CHECKED_IN",
         )}
         onCheckIn={(updated) => {

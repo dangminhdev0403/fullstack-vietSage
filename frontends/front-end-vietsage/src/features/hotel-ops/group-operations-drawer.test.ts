@@ -121,19 +121,22 @@ test("GroupOperationsDrawer satisfies UI Design Gate standards", () => {
   assert.doesNotMatch(drawerSource, /02\s*\/\s*/);
 });
 
-test("FrontDeskPage has horizontal tab 'Quản lý đoàn' and FrontDeskGroupsTable enables clicking a group for details", () => {
-  // Horizontal tab in FrontDeskPage
+test("FrontDeskPage unifies bookings and groups under 'Khách hàng đặt phòng' with member and group operations", () => {
+  // Unified single entrance for individual and group bookings under 'Khách hàng đặt phòng'
+  assert.match(frontDeskPageSource, /<span>Khách hàng đặt phòng<\/span>/);
   assert.match(frontDeskPageSource, /tab === "groups"/);
-  assert.match(frontDeskPageSource, /<span>Quản lý đoàn<\/span>/);
-  assert.match(frontDeskPageSource, /<FrontDeskGroupsTable/);
+  assert.match(frontDeskPageSource, /view: tab === "groups" \? "group-bookings" : "bookings"/);
+  assert.match(frontDeskPageSource, /<FrontDeskArrivalsTable/);
 
-  // FrontDeskGroupsTable displays table of groups and opens detail drawer on click
+  // Group operations remain accessible through FrontDeskGroupsTable and FrontDeskArrivalDetailPanel
   assert.match(groupsTableSource, /export function FrontDeskGroupsTable/);
   assert.match(groupsTableSource, /buildFrontDeskGroupSummaries/);
   assert.match(groupsTableSource, /<table/);
   assert.match(groupsTableSource, /setActiveGroupCode\(group\.groupCode\)/);
   assert.match(groupsTableSource, /<GroupOperationsDrawer/);
   assert.match(groupsTableSource, /Xem chi tiết đoàn/);
+  assert.match(panelSource, /setIsGroupDrawerOpen\(true\)/);
+  assert.match(panelSource, /<GroupOperationsDrawer/);
 });
 
 test("GroupArrivalsListModal renders pre-booked groups with pagination and triggers group check-in", () => {

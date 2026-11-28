@@ -16,10 +16,12 @@ const ownerHotelItems: readonly DashboardNavItem[] = [
 test("front desk navigation exposes one shared guest entry with BCA capabilities", () => {
   const items = [{ key: "staff.front-desk", href: "/owner/hotels/hotel-1/front-desk", label: "Khách lưu trú", icon: "person" }] as const;
   const nav = resolveWorkspaceSubNavigation(items, { permissions: ["hotel.rooms.view", "hotel.reservations.view", "hotel.kbtt.declarations.view"] });
-  assert.deepEqual(nav[0].children?.map((item) => item.tabValue), ["in-house", "arrivals", "groups"]);
+  assert.deepEqual(nav[0].children?.map((item) => item.tabValue), ["in-house", "arrivals"]);
+  assert.equal(nav[0].children?.[1]?.label, "Khách hàng đặt phòng");
   const bcaNav = resolveWorkspaceSubNavigation(items, { permissions: ["hotel.kbtt.declarations.view", "hotel.reservations.view"] });
   assert.ok(bcaNav[0].children?.some((item) => item.tabValue === "in-house"));
   assert.equal(bcaNav[0].children?.some((item) => item.tabValue === "kbtt"), false);
+  assert.equal(bcaNav[0].children?.some((item) => item.tabValue === "groups"), false);
 });
 
 test("isNavItemActive highlights exact match for owner dashboard", () => {
@@ -109,7 +111,7 @@ test("legacy BCA tab bookmark resolves to the unified in-house sidebar", () => {
   assert.equal(parseSidebarUrl("/hotels/hotel-1/front-desk?tab=arrivals").searchParams.get("tab"), "arrivals");
 });
 
-test("owner.hotel.billing resolves to 2 consolidated sub-nav items and highlights multi-tab deep links", () => {
+test("owner.hotel.billing resolves to 3 consolidated sub-nav items including cashbook and highlights multi-tab deep links", () => {
   const billingHref = "/owner/hotels/hotel-1/billing" as const;
   const [billingItem] = resolveWorkspaceSubNavigation([
     {
@@ -136,6 +138,12 @@ test("owner.hotel.billing resolves to 2 consolidated sub-nav items and highlight
         icon: "receipt_long",
       },
       {
+        label: "Sổ thu chi thực tế",
+        tabValue: "cashbook",
+        matchTabValues: ["cashbook", "cash-movements", "cash_movements", "cashflow"],
+        icon: "account_balance",
+      },
+      {
         label: "Chi phí & Phí SaaS",
         tabValue: "expenses",
         matchTabValues: ["expenses", "saas"],
@@ -144,11 +152,19 @@ test("owner.hotel.billing resolves to 2 consolidated sub-nav items and highlight
     ],
   );
 
-  const [foliosGroup, expensesGroup] = children;
+  const [foliosGroup, cashbookGroup, expensesGroup] = children;
 
   // Default (no ?tab) and unknown tab fall back to Hóa đơn & Công nợ
   for (const activePath of [billingHref, `${billingHref}?tab=folios`, `${billingHref}?tab=receivables`, `${billingHref}?tab=unknown`]) {
     assert.equal(isSubNavItemActive(foliosGroup, billingHref, activePath, children), true, `Expected foliosGroup active for ${activePath}`);
+    assert.equal(isSubNavItemActive(cashbookGroup, billingHref, activePath, children), false, `Expected cashbookGroup inactive for ${activePath}`);
+    assert.equal(isSubNavItemActive(expensesGroup, billingHref, activePath, children), false, `Expected expensesGroup inactive for ${activePath}`);
+  }
+
+  // ?tab=cashbook and legacy aliases highlight Sổ thu chi thực tế exclusively
+  for (const activePath of [`${billingHref}?tab=cashbook`, `${billingHref}?tab=cash-movements`, `${billingHref}?tab=cashflow`]) {
+    assert.equal(isSubNavItemActive(cashbookGroup, billingHref, activePath, children), true, `Expected cashbookGroup active for ${activePath}`);
+    assert.equal(isSubNavItemActive(foliosGroup, billingHref, activePath, children), false, `Expected foliosGroup inactive for ${activePath}`);
     assert.equal(isSubNavItemActive(expensesGroup, billingHref, activePath, children), false, `Expected expensesGroup inactive for ${activePath}`);
   }
 
@@ -156,10 +172,11 @@ test("owner.hotel.billing resolves to 2 consolidated sub-nav items and highlight
   for (const activePath of [`${billingHref}?tab=expenses`, `${billingHref}?tab=saas`, `${billingHref}?tab=SAAS`]) {
     assert.equal(isSubNavItemActive(expensesGroup, billingHref, activePath, children), true, `Expected expensesGroup active for ${activePath}`);
     assert.equal(isSubNavItemActive(foliosGroup, billingHref, activePath, children), false, `Expected foliosGroup inactive for ${activePath}`);
+    assert.equal(isSubNavItemActive(cashbookGroup, billingHref, activePath, children), false, `Expected cashbookGroup inactive for ${activePath}`);
   }
 });
 
-test("owner.hotel.reports and staff.reports resolve to 4 consolidated sub-nav items with multi-tab active matching", () => {
+test("owner.hotel.reports and staff.reports resolve to 3 consolidated sub-nav items with multi-tab active matching", () => {
   const reportEntries: readonly DashboardNavItem[] = [
     {
       key: "owner.hotel.reports",
@@ -188,16 +205,10 @@ test("owner.hotel.reports and staff.reports resolve to 4 consolidated sub-nav it
       })),
       [
         {
-          label: "Tổng quan & KPIs",
+          label: "Kết quả kinh doanh",
           tabValue: "overview",
-          matchTabValues: undefined,
+          matchTabValues: ["overview", "pnl"],
           icon: "dashboard",
-        },
-        {
-          label: "Kết quả KD & Lãi lỗ",
-          tabValue: "pnl",
-          matchTabValues: undefined,
-          icon: "account_balance",
         },
         {
           label: "Sổ doanh thu",
@@ -219,9 +230,9 @@ test("owner.hotel.reports and staff.reports resolve to 4 consolidated sub-nav it
         .filter((child) => isSubNavItemActive(child, reportItem.href, path, children))
         .map((child) => child.label);
 
-    assert.deepEqual(activeLabelsFor(reportItem.href), ["Tổng quan & KPIs"]);
-    assert.deepEqual(activeLabelsFor(`${reportItem.href}?tab=overview`), ["Tổng quan & KPIs"]);
-    assert.deepEqual(activeLabelsFor(`${reportItem.href}?tab=pnl`), ["Kết quả KD & Lãi lỗ"]);
+    assert.deepEqual(activeLabelsFor(reportItem.href), ["Kết quả kinh doanh"]);
+    assert.deepEqual(activeLabelsFor(`${reportItem.href}?tab=overview`), ["Kết quả kinh doanh"]);
+    assert.deepEqual(activeLabelsFor(`${reportItem.href}?tab=pnl`), ["Kết quả kinh doanh"]);
 
     for (const tab of ["book", "daily", "monthly", "staff"]) {
       assert.deepEqual(

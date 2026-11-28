@@ -326,6 +326,7 @@ export class ReservationsService {
       roomId: scope.allowedRoomId ?? undefined,
       roomIds: scope.allowedRoomIds ?? undefined,
       q: query.q,
+      view: query.view,
     });
     const items = rawItems.map((r: any) => {
       let roomSubtotal = 0;

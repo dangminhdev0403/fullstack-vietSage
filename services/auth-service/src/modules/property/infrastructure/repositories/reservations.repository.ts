@@ -1028,11 +1028,13 @@ export class ReservationsRepository {
     roomId?: string;
     roomIds?: string[];
     q?: string;
+    view?: "bookings" | "group-bookings";
   }) {
     const q = input.q?.trim();
     const where: Prisma.ReservationWhereInput = {
       hotelId: input.hotelId,
-      status: { in: ACTIVE_RESERVATION_STATUSES },
+      ...(input.view ? {} : { status: { in: ACTIVE_RESERVATION_STATUSES } }),
+      ...(input.view === "group-bookings" ? { groupCode: { not: null } } : {}),
       ...(input.from && input.to
         ? { plannedCheckInAt: { gte: input.from, lt: input.to } }
         : input.from
@@ -1040,8 +1042,8 @@ export class ReservationsRepository {
           : input.to
             ? { plannedCheckInAt: { lt: input.to } }
             : {}),
-      ...(input.roomIds && input.roomIds.length > 0
-        ? { roomId: { in: input.roomIds } }
+      ...(input.roomIds !== undefined
+        ? { roomId: { in: input.roomIds, ...(input.roomId ? { equals: input.roomId } : {}) } }
         : input.roomId
           ? { roomId: input.roomId }
           : {}),
@@ -1068,10 +1070,12 @@ export class ReservationsRepository {
             },
           },
           roomType: true,
-          stay: true,
+          stay: input.view
+            ? { select: { status: true, checkedInAt: true, checkedOutAt: true } }
+            : true,
           chargeLines: true,
         },
-        orderBy: [{ plannedCheckInAt: "asc" }, { reservationCode: "asc" }],
+        orderBy: [{ plannedCheckInAt: "asc" }, { reservationCode: "asc" }, { id: "asc" }],
         skip: input.skip,
         take: input.take,
       }),

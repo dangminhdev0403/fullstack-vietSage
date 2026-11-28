@@ -163,7 +163,7 @@ export type ArrivalStatusDisplay = {
 };
 
 export function getArrivalStatusDisplay(
-  arrival: Pick<HotelArrival, "status"> & {
+  arrival: Pick<HotelArrival, "status" | "stay"> & {
     roomId?: string | null;
     plannedCheckInAt?: string | null;
   },
@@ -171,7 +171,7 @@ export function getArrivalStatusDisplay(
 ): ArrivalStatusDisplay {
   if (arrival.status === "CHECKED_IN") {
     return {
-      label: "Đã nhận phòng",
+      label: arrival.stay?.status === "CHECKED_OUT" ? "Đã trả phòng" : "Đã nhận phòng",
       badgeClass: "bg-slate-100 text-slate-700 border-slate-200",
       dotClass: "bg-slate-400",
     };

@@ -152,6 +152,107 @@ describe("ReservationsRepository arrival reads", () => {
     });
   });
 
+  describe("R8 booking lookup, historical query & room scope isolation (ReservationsRepository)", () => {
+    it("searches past, active, and future bookings across all statuses when view is bookings", async () => {
+      const prisma = {
+        reservation: {
+          count: jest.fn().mockResolvedValue(2),
+          findMany: jest.fn().mockResolvedValue([
+            { id: "res-past", reservationCode: "VS-PAST", status: "CHECKED_IN" },
+            { id: "res-future", reservationCode: "VS-FUT", status: "CONFIRMED" },
+          ]),
+        },
+      };
+      const repository = new ReservationsRepository(prisma as never);
+
+      await repository.listArrivals({
+        hotelId: "hotel-1",
+        view: "bookings",
+        q: "VS-",
+        skip: 0,
+        take: 20,
+      });
+
+      expect(prisma.reservation.count).toHaveBeenCalledWith({
+        where: expect.objectContaining({
+          hotelId: "hotel-1",
+          OR: expect.arrayContaining([
+            { reservationCode: { contains: "VS-", mode: "insensitive" } },
+          ]),
+        }),
+      });
+      const countArg = (prisma.reservation.count as jest.Mock).mock.calls[0][0];
+      expect(countArg.where.status).toBeUndefined();
+    });
+
+    it("filters to only group bookings with groupCode not null when view is group-bookings", async () => {
+      const prisma = {
+        reservation: {
+          count: jest.fn().mockResolvedValue(1),
+          findMany: jest.fn().mockResolvedValue([
+            { id: "res-grp", groupCode: "GRP-2026-01", reservationCode: "VS-G01" },
+          ]),
+        },
+      };
+      const repository = new ReservationsRepository(prisma as never);
+
+      await repository.listArrivals({
+        hotelId: "hotel-1",
+        view: "group-bookings",
+        skip: 0,
+        take: 20,
+      });
+
+      const countArg = (prisma.reservation.count as jest.Mock).mock.calls[0][0];
+      expect(countArg.where.groupCode).toEqual({ not: null });
+      expect(countArg.where.status).toBeUndefined();
+    });
+
+    it("enforces room scope without leak: roomIds empty array queries roomId in [] matching 0 rows", async () => {
+      const prisma = {
+        reservation: {
+          count: jest.fn().mockResolvedValue(0),
+          findMany: jest.fn().mockResolvedValue([]),
+        },
+      };
+      const repository = new ReservationsRepository(prisma as never);
+
+      await repository.listArrivals({
+        hotelId: "hotel-1",
+        roomIds: [],
+        view: "bookings",
+        skip: 0,
+        take: 20,
+      });
+
+      const countArg = (prisma.reservation.count as jest.Mock).mock.calls[0][0];
+      expect(countArg.where.roomId).toEqual({ in: [] });
+    });
+
+    it("enforces multi room scope: queries roomId in allowed roomIds without leaking unassigned or other rooms", async () => {
+      const prisma = {
+        reservation: {
+          count: jest.fn().mockResolvedValue(2),
+          findMany: jest.fn().mockResolvedValue([]),
+        },
+      };
+      const repository = new ReservationsRepository(prisma as never);
+
+      await repository.listArrivals({
+        hotelId: "hotel-1",
+        roomIds: ["room-101", "room-102"],
+        view: "bookings",
+        q: "GRP-MIXED",
+        skip: 0,
+        take: 20,
+      });
+
+      const countArg = (prisma.reservation.count as jest.Mock).mock.calls[0][0];
+      expect(countArg.where.roomId).toEqual({ in: ["room-101", "room-102"] });
+      expect(countArg.where.OR).toBeDefined();
+    });
+  });
+
   describe("Confirmation Queries (Lane C)", () => {
     it("returns reservation confirmation data when hotelId matches", async () => {
       const mockReservation = {

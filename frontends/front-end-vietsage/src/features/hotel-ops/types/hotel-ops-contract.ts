@@ -431,6 +431,7 @@ export type HotelDashboard = {
 };
 
 export type HotelArrival = {
+  stay?: { status: string; checkedInAt?: string | null; checkedOutAt?: string | null } | null;
   id: string;
   hotelId: string;
   roomId: string | null;
@@ -485,6 +486,7 @@ export type UpdateReservationInput = {
 };
 
 export type ListHotelArrivalsQuery = {
+  view?: "bookings" | "group-bookings";
   from?: string;
   to?: string;
   includeOverdue?: boolean;
