@@ -287,4 +287,34 @@ describe("hotel revenue book monetary projection", () => {
       revenueTotal: 2100000,
     });
   });
+
+  it("tracks dynamic serviceCategoryRevenues and otherServiceRevenue with exact cent reconciliation", () => {
+    const entry = projectBookAccount(account({
+      id: "folio:dynamic-services",
+      source: "FOLIO",
+      category: null,
+      amount: null,
+      charges: [
+        { date: from, amount: 1000000, category: "ROOM" },
+        { date: from, amount: 150000, category: "OTHER", serviceCategoryId: "cat-concierge" },
+        { date: from, amount: 65000, category: "MINIBAR", serviceCategoryId: "cat-drinks" },
+        { date: from, amount: 45000, category: "OTHER", serviceCategoryId: null },
+      ],
+      collections: [],
+    }), from, end, zone)!;
+
+    expect(entry.serviceCategoryRevenues).toEqual({ "cat-concierge": 150000, "cat-drinks": 65000 });
+    expect(entry.otherServiceRevenue).toBe(45000);
+    const serviceSum = Object.values(entry.serviceCategoryRevenues).reduce((a, b) => a + b, 0);
+    expect(entry.roomRevenue + entry.channelRevenue + serviceSum + entry.otherServiceRevenue).toBe(entry.revenueTotal);
+
+    expect(filterRevenueBookEntries([entry], { serviceCategoryId: "cat-concierge" })).toHaveLength(1);
+    expect(filterRevenueBookEntries([entry], { serviceCategoryId: "cat-laundry" })).toHaveLength(0);
+    expect(totalRevenueBook([entry])).toMatchObject({
+      roomRevenue: 1000000,
+      serviceCategoryRevenues: { "cat-concierge": 150000, "cat-drinks": 65000 },
+      otherServiceRevenue: 45000,
+      revenueTotal: 1260000,
+    });
+  });
 });

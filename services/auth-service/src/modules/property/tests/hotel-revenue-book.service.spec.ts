@@ -66,6 +66,7 @@ function setup() {
       updateMany: jest.fn().mockImplementation(async ({ where, data }: Record<string, any>) => ({ count: 1 })),
     },
     room: { findMany: jest.fn().mockResolvedValue([]), findFirst: jest.fn().mockResolvedValue({ roomNumber: "101" }) },
+    hotelServiceCategory: { findMany: jest.fn().mockResolvedValue([]) },
     hotelRevenueEntry: {
       findFirst: jest.fn().mockImplementation(async ({ where }: { where: { id: string } }) => where.id === entry.id ? entry : null),
       findUnique: jest.fn().mockResolvedValue(null),
@@ -666,5 +667,88 @@ describe("hotel revenue book workflows", () => {
     });
     const otaEntry = book.entries.find((e) => e.id === "folio:folio-ota")!;
     expect(otaEntry).toMatchObject({ roomRevenue: 0, channelRevenue: 1500000, laundryRevenue: 80000, revenueTotal: 1580000 });
+  });
+
+  it("aggregates active HotelServiceCategory revenue dynamically and routes inactive/unmatched services to otherServiceRevenue", async () => {
+    const { service, tx } = setup();
+    const date = new Date("2026-11-13T01:00:00Z");
+
+    tx.hotelServiceCategory.findMany.mockResolvedValue([
+      { id: "cat-roomsvc", name: "Dịch vụ phòng", sortOrder: 10 },
+      { id: "cat-laundry", name: "Giặt ủi", sortOrder: 40 },
+      { id: "cat-drinks", name: "Đồ uống", sortOrder: 80 },
+      { id: "cat-concierge", name: "Concierge", sortOrder: 100 },
+    ]);
+
+    tx.folio.findMany.mockResolvedValue([
+      {
+        id: "folio-svc-1", currency: "VND", roomId: "room-1", room: { roomNumber: "101" }, openedAt: date, folioNumber: "F-SVC-1", voidedAt: null,
+        stay: {
+          guestDisplayName: "Nguyễn Minh",
+          kbttGuestDeclarations: [],
+          reservation: { sourceCategory: "DIRECT", groupCode: null, group: null },
+        },
+        items: [
+          {
+            itemType: "ROOM_CHARGE", nameSnapshot: "Tiền phòng", metadataSnapshotJson: null, billingSourceSnapshot: {},
+            serviceItem: null, guestRequest: null, postedAt: date, totalSnapshot: D(1000000), discountAmountSnapshot: D(0), voidedAt: null,
+          },
+          {
+            itemType: "SERVICE", nameSnapshot: "Cocktail Mojito", metadataSnapshotJson: null, billingSourceSnapshot: {},
+            serviceItem: { categoryId: "cat-drinks", category: { id: "cat-drinks", name: "Đồ uống", status: "ACTIVE" } },
+            guestRequest: null, postedAt: date, totalSnapshot: D(120000), discountAmountSnapshot: D(0), voidedAt: null,
+          },
+          {
+            itemType: "SERVICE", nameSnapshot: "Thuê xe sân bay", metadataSnapshotJson: null, billingSourceSnapshot: { categoryName: "Concierge" },
+            serviceItem: null,
+            guestRequest: { serviceItem: { categoryId: "cat-concierge", category: { id: "cat-concierge", name: "Concierge", status: "ACTIVE" } } },
+            postedAt: date, totalSnapshot: D(350000), discountAmountSnapshot: D(0), voidedAt: null,
+          },
+          {
+            itemType: "SERVICE", nameSnapshot: "Spa cũ (đã tắt)", metadataSnapshotJson: null, billingSourceSnapshot: { categoryName: "Concierge" },
+            serviceItem: { categoryId: "cat-spa-inactive", category: { id: "cat-spa-inactive", name: "Spa", status: "INACTIVE" } },
+            guestRequest: null, postedAt: date, totalSnapshot: D(200000), discountAmountSnapshot: D(0), voidedAt: null,
+          },
+        ],
+        payments: [], bookingPaymentAllocations: [], hotelReceivables: [],
+      },
+    ]);
+
+    const fullBook = await service.getBook("user-a", "role-a", "hotel-a", { from: "2026-11-13", to: "2026-11-13" });
+    expect(fullBook.serviceCategories.map((c) => c.id)).toEqual(["cat-roomsvc", "cat-laundry", "cat-drinks", "cat-concierge"]);
+    expect(fullBook.summary).toMatchObject({
+      roomRevenue: 1000000,
+      channelRevenue: 0,
+      serviceCategoryRevenues: {
+        "cat-drinks": 120000,
+        "cat-concierge": 350000,
+      },
+      otherServiceRevenue: 200000,
+      revenueTotal: 1670000,
+    });
+    const entry = fullBook.entries[0];
+    expect(entry.serviceCategoryRevenues).toEqual({
+      "cat-drinks": 120000,
+      "cat-concierge": 350000,
+    });
+    expect(entry.otherServiceRevenue).toBe(200000);
+    expect(entry.revenueLines[0].serviceCategoryRevenues).toEqual({
+      "cat-drinks": 120000,
+      "cat-concierge": 350000,
+    });
+
+    const filteredByDrinks = await service.getBook("user-a", "role-a", "hotel-a", {
+      from: "2026-11-13",
+      to: "2026-11-13",
+      serviceCategoryId: "cat-drinks",
+    });
+    expect(filteredByDrinks.entries).toHaveLength(1);
+
+    const filteredByLaundry = await service.getBook("user-a", "role-a", "hotel-a", {
+      from: "2026-11-13",
+      to: "2026-11-13",
+      serviceCategoryId: "cat-laundry",
+    });
+    expect(filteredByLaundry.entries).toHaveLength(0);
   });
 });

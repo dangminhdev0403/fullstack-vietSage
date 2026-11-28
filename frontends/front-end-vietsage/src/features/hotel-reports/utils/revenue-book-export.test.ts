@@ -1,17 +1,24 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 // @ts-expect-error Node strip-types requires explicit extensions.
-import { buildRevenueBookWorkbook } from "./revenue-book-export.ts";
+import { buildRevenueBookWorkbook, otherServiceAmount } from "./revenue-book-export.ts";
 import type { RevenueBook, RevenueBookEntry } from "../types/revenue-book-contract";
+
+test("retains legacy service money while respecting an explicit modern zero", () => {
+  assert.equal(otherServiceAmount({ minibarRevenue: 0.1, laundryRevenue: 0.2, otherRevenue: 15 }), 15.3);
+  assert.equal(otherServiceAmount({ minibarRevenue: 20, otherServiceRevenue: 0 }), 0);
+  assert.equal(otherServiceAmount(undefined), 0);
+});
 
 function account(overrides: Partial<RevenueBookEntry> = {}): RevenueBookEntry {
   return {
     id: "folio-1", source: "FOLIO", date: "2026-10-01", roomId: "room-1", roomNumber: "101", documentNumber: "PT-001",
     description: "Lưu trú phòng 101", category: null, amount: null, roomRevenue: 1000, channelRevenue: 0, minibarRevenue: 0, laundryRevenue: 0, otherRevenue: 0,
+    serviceCategoryRevenues: {}, otherServiceRevenue: 0,
     revenueTotal: 1000, closingBalance: 500, balanceAdjustment: 0,
     revenueLines: [
-      { date: "2026-10-01", roomRevenue: 500, channelRevenue: 0, minibarRevenue: 0, laundryRevenue: 0, otherRevenue: 0, revenueTotal: 500 },
-      { date: "2026-10-02", roomRevenue: 500, channelRevenue: 0, minibarRevenue: 0, laundryRevenue: 0, otherRevenue: 0, revenueTotal: 500 },
+      { date: "2026-10-01", roomRevenue: 500, channelRevenue: 0, minibarRevenue: 0, laundryRevenue: 0, otherRevenue: 0, serviceCategoryRevenues: {}, otherServiceRevenue: 0, revenueTotal: 500 },
+      { date: "2026-10-02", roomRevenue: 500, channelRevenue: 0, minibarRevenue: 0, laundryRevenue: 0, otherRevenue: 0, serviceCategoryRevenues: {}, otherServiceRevenue: 0, revenueTotal: 500 },
     ],
     collections: [
       { id: "bank-1", receivedAt: "2026-10-01T17:30:00Z", amount: 300, method: "BANK_TRANSFER", reference: "CK-001" },
@@ -25,9 +32,12 @@ function account(overrides: Partial<RevenueBookEntry> = {}): RevenueBookEntry {
 function book(entries: RevenueBookEntry[] = [account()]): RevenueBook {
   return {
     hotelId: "hotel-1", hotelName: "Khách sạn VietSage", timeZone: "Asia/Ho_Chi_Minh", currency: "VND", from: "2026-10-01", to: "2026-10-31",
-    entries, rooms: [{ id: "room-1", number: "101" }], canManage: true,
+    entries,
+    serviceCategories: [{ id: "cat-laundry", name: "Giặt ủi", sortOrder: 40 }],
+    rooms: [{ id: "room-1", number: "101" }],
+    canManage: true,
     summary: {
-      roomRevenue: 1000, channelRevenue: 0, minibarRevenue: 0, laundryRevenue: 0, otherRevenue: 0, revenueTotal: 1000,
+      roomRevenue: 1000, channelRevenue: 0, minibarRevenue: 0, laundryRevenue: 0, otherRevenue: 0, serviceCategoryRevenues: {}, otherServiceRevenue: 0, revenueTotal: 1000,
       collectedTotal: 500, cashTotal: 200, bankTransferTotal: 300, otherCollectedTotal: 0, closingBalance: 500, balanceAdjustment: 0,
     },
   };
@@ -116,7 +126,7 @@ test("allocates revenue and receipts to their actual dates without duplicating m
 
 test("multiple same-day receipts retain one revenue row and exact cent totals", () => {
   const entry = account({
-    revenueLines: [{ date: "2026-10-01", roomRevenue: 1, channelRevenue: 0, minibarRevenue: 0, laundryRevenue: 0, otherRevenue: 0, revenueTotal: 1 }],
+    revenueLines: [{ date: "2026-10-01", roomRevenue: 1, channelRevenue: 0, minibarRevenue: 0, laundryRevenue: 0, otherRevenue: 0, serviceCategoryRevenues: {}, otherServiceRevenue: 0, revenueTotal: 1 }],
     collections: [
       { id: "a", amount: 0.1, method: "CASH", receivedAt: "2026-10-01T00:00:00Z", reference: null },
       { id: "b", amount: 0.2, method: "CARD", receivedAt: "2026-10-01T01:00:00Z", reference: null },
@@ -164,7 +174,7 @@ test("untrusted names remain escaped inline strings and cannot inject formulas o
 
 test("exports empty periods and credits using authoritative summary balances", () => {
   const report = book([]);
-  report.summary = { roomRevenue: 0, channelRevenue: 0, minibarRevenue: 0, laundryRevenue: 0, otherRevenue: 0, revenueTotal: 0, collectedTotal: 0, cashTotal: 0, bankTransferTotal: 0, otherCollectedTotal: 0, closingBalance: -500, balanceAdjustment: 0 };
+  report.summary = { roomRevenue: 0, channelRevenue: 0, minibarRevenue: 0, laundryRevenue: 0, otherRevenue: 0, serviceCategoryRevenues: {}, otherServiceRevenue: 0, revenueTotal: 0, collectedTotal: 0, cashTotal: 0, bankTransferTotal: 0, otherCollectedTotal: 0, closingBalance: -500, balanceAdjustment: 0 };
   const rows = rowsOf(report);
   assert.equal(rows.filter((row) => typeof row.A === "number").length, 0);
   assert.equal(rows.find((row) => row.A === "TỔNG KỲ")!.P, -500);
@@ -180,7 +190,7 @@ test("merges split cash + bank transfer payments onto one row and omits transfer
   const splitEntry = account({
     id: "folio-split",
     revenueLines: [
-      { date: "2026-10-02", roomRevenue: 1_000_000, channelRevenue: 0, minibarRevenue: 0, laundryRevenue: 0, otherRevenue: 0, revenueTotal: 1_000_000 },
+      { date: "2026-10-02", roomRevenue: 1_000_000, channelRevenue: 0, minibarRevenue: 0, laundryRevenue: 0, otherRevenue: 0, serviceCategoryRevenues: {}, otherServiceRevenue: 0, revenueTotal: 1_000_000 },
     ],
     collections: [
       { id: "leg-cash", receivedAt: "2026-10-02T07:25:00Z", amount: 400_000, method: "CASH", reference: "P-1", splitGroupId: "grp-1" },
@@ -194,7 +204,7 @@ test("merges split cash + bank transfer payments onto one row and omits transfer
     id: "folio-cash",
     roomNumber: "102",
     revenueLines: [
-      { date: "2026-10-02", roomRevenue: 500_000, channelRevenue: 0, minibarRevenue: 0, laundryRevenue: 0, otherRevenue: 0, revenueTotal: 500_000 },
+      { date: "2026-10-02", roomRevenue: 500_000, channelRevenue: 0, minibarRevenue: 0, laundryRevenue: 0, otherRevenue: 0, serviceCategoryRevenues: {}, otherServiceRevenue: 0, revenueTotal: 500_000 },
     ],
     collections: [
       { id: "only-cash", receivedAt: "2026-10-02T09:10:00Z", amount: 500_000, method: "CASH", reference: "P-3" },
@@ -206,7 +216,7 @@ test("merges split cash + bank transfer payments onto one row and omits transfer
 
   const report = book([splitEntry, cashOnlyEntry]);
   report.summary = {
-    roomRevenue: 1_500_000, channelRevenue: 0, minibarRevenue: 0, laundryRevenue: 0, otherRevenue: 0, revenueTotal: 1_500_000,
+    roomRevenue: 1_500_000, channelRevenue: 0, minibarRevenue: 0, laundryRevenue: 0, otherRevenue: 0, serviceCategoryRevenues: {}, otherServiceRevenue: 0, revenueTotal: 1_500_000,
     collectedTotal: 1_500_000, cashTotal: 900_000, bankTransferTotal: 600_000, otherCollectedTotal: 0,
     closingBalance: 0, balanceAdjustment: 0,
   };
@@ -235,6 +245,8 @@ test("folds minibar revenue into other revenue and ignores payment/time text ove
     minibarRevenue: 120_000,
     laundryRevenue: 50_000,
     otherRevenue: 30_000,
+    serviceCategoryRevenues: { "cat-laundry": 50_000 },
+    otherServiceRevenue: 150_000,
     revenueTotal: 1_200_000,
     closingBalance: 0,
     revenueLines: [
@@ -245,6 +257,8 @@ test("folds minibar revenue into other revenue and ignores payment/time text ove
         minibarRevenue: 120_000,
         laundryRevenue: 50_000,
         otherRevenue: 30_000,
+        serviceCategoryRevenues: { "cat-laundry": 50_000 },
+        otherServiceRevenue: 150_000,
         revenueTotal: 1_200_000,
       },
     ],
@@ -265,6 +279,8 @@ test("folds minibar revenue into other revenue and ignores payment/time text ove
     minibarRevenue: 120_000,
     laundryRevenue: 50_000,
     otherRevenue: 30_000,
+    serviceCategoryRevenues: { "cat-laundry": 50_000 },
+    otherServiceRevenue: 150_000,
     revenueTotal: 1_200_000,
     collectedTotal: 1_200_000,
     cashTotal: 1_200_000,
@@ -319,7 +335,7 @@ test("reconciles in-period room charge, supplemental minibar, deposit, and later
     closingBalance: 0,
     balanceAdjustment: -500_000,
     revenueLines: [
-      { date: "2026-10-02", roomRevenue: 1_500_000, channelRevenue: 0, minibarRevenue: 0, laundryRevenue: 0, otherRevenue: 0, revenueTotal: 1_500_000 },
+      { date: "2026-10-02", roomRevenue: 1_500_000, channelRevenue: 0, minibarRevenue: 0, laundryRevenue: 0, otherRevenue: 0, serviceCategoryRevenues: {}, otherServiceRevenue: 0, revenueTotal: 1_500_000 },
     ],
     collections: [
       { id: "bank-late", receivedAt: "2026-10-04T08:00:00Z", amount: 1_000_000, method: "BANK_TRANSFER", reference: "CK-101" },
@@ -336,11 +352,12 @@ test("reconciles in-period room charge, supplemental minibar, deposit, and later
     category: "MINIBAR",
     minibarRevenue: 250_000,
     otherRevenue: 0,
+    otherServiceRevenue: 250_000,
     revenueTotal: 250_000,
     closingBalance: 0,
     balanceAdjustment: 0,
     revenueLines: [
-      { date: "2026-10-02", roomRevenue: 0, channelRevenue: 0, minibarRevenue: 250_000, laundryRevenue: 0, otherRevenue: 0, revenueTotal: 250_000 },
+      { date: "2026-10-02", roomRevenue: 0, channelRevenue: 0, minibarRevenue: 250_000, laundryRevenue: 0, otherRevenue: 0, serviceCategoryRevenues: {}, otherServiceRevenue: 250_000, revenueTotal: 250_000 },
     ],
     collections: [
       { id: "cash-mb", receivedAt: "2026-10-02T10:00:00Z", amount: 250_000, method: "CASH", reference: null },
@@ -371,6 +388,8 @@ test("reconciles in-period room charge, supplemental minibar, deposit, and later
     minibarRevenue: 250_000,
     laundryRevenue: 0,
     otherRevenue: 0,
+    serviceCategoryRevenues: {},
+    otherServiceRevenue: 250_000,
     revenueTotal: 1_750_000,
     collectedTotal: 1_750_000,
     cashTotal: 250_000,
@@ -413,7 +432,7 @@ test("folds channelRevenue into roomRevenue by default and separates Doanh thu K
     revenueTotal: 1_200_000,
     closingBalance: 0,
     revenueLines: [
-      { date: "2026-10-06", roomRevenue: 0, channelRevenue: 1_200_000, minibarRevenue: 0, laundryRevenue: 0, otherRevenue: 0, revenueTotal: 1_200_000 },
+      { date: "2026-10-06", roomRevenue: 0, channelRevenue: 1_200_000, minibarRevenue: 0, laundryRevenue: 0, otherRevenue: 0, serviceCategoryRevenues: {}, otherServiceRevenue: 0, revenueTotal: 1_200_000 },
     ],
     collections: [
       { id: "ota-bank", receivedAt: "2026-10-06T05:00:00Z", amount: 1_200_000, method: "BANK_TRANSFER", reference: "OTA-1" },
@@ -427,7 +446,7 @@ test("folds channelRevenue into roomRevenue by default and separates Doanh thu K
     revenueTotal: 800_000,
     closingBalance: 0,
     revenueLines: [
-      { date: "2026-10-06", roomRevenue: 800_000, channelRevenue: 0, minibarRevenue: 0, laundryRevenue: 0, otherRevenue: 0, revenueTotal: 800_000 },
+      { date: "2026-10-06", roomRevenue: 800_000, channelRevenue: 0, minibarRevenue: 0, laundryRevenue: 0, otherRevenue: 0, serviceCategoryRevenues: {}, otherServiceRevenue: 0, revenueTotal: 800_000 },
     ],
     collections: [
       { id: "dir-cash", receivedAt: "2026-10-06T06:00:00Z", amount: 800_000, method: "CASH", reference: null },
@@ -440,6 +459,8 @@ test("folds channelRevenue into roomRevenue by default and separates Doanh thu K
     minibarRevenue: 0,
     laundryRevenue: 0,
     otherRevenue: 0,
+    serviceCategoryRevenues: {},
+    otherServiceRevenue: 0,
     revenueTotal: 2_000_000,
     collectedTotal: 2_000_000,
     cashTotal: 800_000,
@@ -475,4 +496,97 @@ test("folds channelRevenue into roomRevenue by default and separates Doanh thu K
   assert.equal(shownTotal.J, 2_000_000);
   assert.equal(shownTotal.O, 2_000_000);
   assert.equal(shownTotal.Q, 0);
+});
+
+test("renders dynamic active serviceCategories columns in Excel and folds hidden categories into other service revenue", () => {
+  const entry = account({
+    id: "folio-dynamic",
+    roomNumber: "301",
+    roomRevenue: 1_000_000,
+    channelRevenue: 0,
+    serviceCategoryRevenues: {
+      "cat-roomsvc": 100_000,
+      "cat-laundry": 80_000,
+      "cat-drinks": 60_000,
+      "cat-concierge": 200_000,
+    },
+    otherServiceRevenue: 50_000,
+    revenueTotal: 1_490_000,
+    closingBalance: 0,
+    revenueLines: [
+      {
+        date: "2026-10-08",
+        roomRevenue: 1_000_000,
+        channelRevenue: 0,
+        minibarRevenue: 60_000,
+        laundryRevenue: 80_000,
+        otherRevenue: 350_000,
+        serviceCategoryRevenues: {
+          "cat-roomsvc": 100_000,
+          "cat-laundry": 80_000,
+          "cat-drinks": 60_000,
+          "cat-concierge": 200_000,
+        },
+        otherServiceRevenue: 50_000,
+        revenueTotal: 1_490_000,
+      },
+    ],
+    collections: [
+      { id: "pay-dyn", receivedAt: "2026-10-08T04:00:00Z", amount: 1_490_000, method: "CASH", reference: null },
+    ],
+  });
+  const report = book([entry]);
+  report.serviceCategories = [
+    { id: "cat-roomsvc", name: "Dịch vụ phòng", sortOrder: 10 },
+    { id: "cat-laundry", name: "Giặt ủi", sortOrder: 40 },
+    { id: "cat-housekeeping", name: "Dọn phòng", sortOrder: 60 },
+    { id: "cat-maint", name: "Bảo trì", sortOrder: 70 },
+    { id: "cat-drinks", name: "Đồ uống", sortOrder: 80 },
+    { id: "cat-concierge", name: "Concierge", sortOrder: 100 },
+  ];
+  report.summary = {
+    roomRevenue: 1_000_000,
+    channelRevenue: 0,
+    minibarRevenue: 60_000,
+    laundryRevenue: 80_000,
+    otherRevenue: 350_000,
+    serviceCategoryRevenues: {
+      "cat-roomsvc": 100_000,
+      "cat-laundry": 80_000,
+      "cat-drinks": 60_000,
+      "cat-concierge": 200_000,
+    },
+    otherServiceRevenue: 50_000,
+    revenueTotal: 1_490_000,
+    collectedTotal: 1_490_000,
+    cashTotal: 1_490_000,
+    bankTransferTotal: 0,
+    otherCollectedTotal: 0,
+    closingBalance: 0,
+    balanceAdjustment: 0,
+  };
+
+  // All 6 active categories visible -> 23 columns (A..W):
+  // F=Tiền phòng, G=Dịch vụ phòng, H=Giặt ủi, I=Dọn phòng, J=Bảo trì, K=Đồ uống, L=Concierge, M=Dịch vụ khác, N=Tổng doanh thu
+  const fullSheet = unzip(buildRevenueBookWorkbook(report)).get("xl/worksheets/sheet1.xml")!;
+  assert.match(fullSheet, /dimension ref="A1:W/);
+  assert.match(fullSheet, /Dịch vụ phòng/);
+  assert.match(fullSheet, /Concierge/);
+  const fullRows = rowsOf(report);
+  const fullTotal = fullRows.find((row) => row.A === "TỔNG KỲ")!;
+  assert.equal(fullTotal.F, 1_000_000);
+  assert.equal(fullTotal.G, 100_000);
+  assert.equal(fullTotal.H, 80_000);
+  assert.equal(fullTotal.I, 0);
+  assert.equal(fullTotal.J, 0);
+  assert.equal(fullTotal.K, 60_000);
+  assert.equal(fullTotal.L, 200_000);
+  assert.equal(fullTotal.M, 50_000);
+  assert.equal(fullTotal.N, 1_490_000);
+
+  // Hide Concierge -> folds 200_000 into Dịch vụ khác (50_000 + 200_000 = 250_000)
+  const hiddenRows = rowsOf(report, { hiddenServiceCategoryIds: ["cat-concierge"] });
+  const hiddenTotal = hiddenRows.find((row) => row.A === "TỔNG KỲ")!;
+  assert.equal(hiddenTotal.L, 250_000);
+  assert.equal(hiddenTotal.M, 1_490_000);
 });

@@ -1,5 +1,10 @@
 import type { RevenueBookCategory } from "./schemas/hotel-revenue-book.schema";
 
+export interface RevenueBookServiceCategory {
+  id: string;
+  name: string;
+  sortOrder: number;
+}
 export interface RevenueBookCollection {
   id: string;
   receivedAt: string;
@@ -23,8 +28,20 @@ export interface RevenueBookEntry {
   minibarRevenue: number;
   laundryRevenue: number;
   otherRevenue: number;
+  serviceCategoryRevenues: Record<string, number>;
+  otherServiceRevenue: number;
   revenueTotal: number;
-  revenueLines: Array<{ date: string; roomRevenue: number; channelRevenue: number; minibarRevenue: number; laundryRevenue: number; otherRevenue: number; revenueTotal: number }>;
+  revenueLines: Array<{
+    date: string;
+    roomRevenue: number;
+    channelRevenue: number;
+    minibarRevenue: number;
+    laundryRevenue: number;
+    otherRevenue: number;
+    serviceCategoryRevenues: Record<string, number>;
+    otherServiceRevenue: number;
+    revenueTotal: number;
+  }>;
   balanceAdjustment: number;
   closingBalance: number;
   collections: RevenueBookCollection[];
@@ -39,6 +56,8 @@ export interface RevenueBookTotals {
   minibarRevenue: number;
   laundryRevenue: number;
   otherRevenue: number;
+  serviceCategoryRevenues: Record<string, number>;
+  otherServiceRevenue: number;
   revenueTotal: number;
   collectedTotal: number;
   cashTotal: number;
@@ -56,6 +75,7 @@ export interface RevenueBook {
   to: string;
   entries: RevenueBookEntry[];
   summary: RevenueBookTotals;
+  serviceCategories: RevenueBookServiceCategory[];
   rooms: Array<{ id: string; number: string }>;
   canManage: boolean;
 }

@@ -11,7 +11,8 @@ import { collectRevenueEntrySchema, createRevenueEntrySchema, revenueBookQuerySc
 import { hotelIdParamSchema } from "../domain/schemas/shared.schema";
 
 interface RevenueRequest extends Request { user: AuthenticatedUser }
-const moneyProperties = Object.fromEntries(["roomRevenue", "channelRevenue", "minibarRevenue", "laundryRevenue", "otherRevenue", "revenueTotal", "closingBalance", "balanceAdjustment"].map((key) => [key, { type: "number" }]));
+const moneyProperties = Object.fromEntries(["roomRevenue", "channelRevenue", "minibarRevenue", "laundryRevenue", "otherRevenue", "otherServiceRevenue", "revenueTotal", "closingBalance", "balanceAdjustment"].map((key) => [key, { type: "number" }]));
+const serviceCategoryRevenuesProperty = { type: "object", additionalProperties: { type: "number" } };
 const splitItemProperties = { method: { type: "string", enum: ["CASH", "BANK_TRANSFER", "CARD", "OTHER"] }, amount: { type: "number", minimum: 0, exclusiveMinimum: true }, destinationAccount: { type: "string", nullable: true, maxLength: 120 } };
 const collectionProperties = { receivedAt: { type: "string", format: "date-time" }, amount: { type: "number", minimum: 0, exclusiveMinimum: true }, method: { type: "string", enum: ["CASH", "BANK_TRANSFER", "CARD", "OTHER"] }, reference: { type: "string", nullable: true, maxLength: 120 }, destinationAccount: { type: "string", nullable: true, maxLength: 120 }, splitGroupId: { type: "string", nullable: true } };
 const collectionInputProperties = { receivedAt: { type: "string", format: "date-time" }, amount: { type: "number", minimum: 0, exclusiveMinimum: true }, method: { type: "string", enum: ["CASH", "BANK_TRANSFER", "CARD", "OTHER"] }, destinationAccount: { type: "string", nullable: true, maxLength: 120 }, splits: { type: "array", minItems: 1, maxItems: 4, items: { type: "object", required: ["method", "amount"], properties: splitItemProperties } }, reference: { type: "string", nullable: true, maxLength: 120 } };
@@ -19,15 +20,16 @@ const entryProperties = { date: { type: "string", format: "date" }, description:
 const mutationResponse = (status = 200, message = "Đã cập nhật sổ doanh thu") => successEnvelopeSchema({ type: "object", required: ["id", "version"], properties: { id: { type: "string" }, version: { type: "integer" } } }, status, message);
 const noteResponse = successEnvelopeSchema({ type: "object", required: ["accountKey", "notes"], properties: { accountKey: { type: "string" }, notes: { type: "string" } } }, 200, "Đã cập nhật ghi chú sổ doanh thu");
 const bookResponse = successEnvelopeSchema({
-  type: "object", required: ["hotelId", "hotelName", "timeZone", "currency", "from", "to", "entries", "summary", "rooms", "canManage"],
+  type: "object", required: ["hotelId", "hotelName", "timeZone", "currency", "from", "to", "entries", "summary", "serviceCategories", "rooms", "canManage"],
   properties: {
     hotelId: { type: "string" }, hotelName: { type: "string" }, timeZone: { type: "string" }, currency: { type: "string", enum: ["VND"] }, from: { type: "string", format: "date" }, to: { type: "string", format: "date" }, canManage: { type: "boolean" },
+    serviceCategories: { type: "array", items: { type: "object", required: ["id", "name", "sortOrder"], properties: { id: { type: "string" }, name: { type: "string" }, sortOrder: { type: "integer" } } } },
     rooms: { type: "array", items: { type: "object", required: ["id", "number"], properties: { id: { type: "string" }, number: { type: "string" } } } },
-    summary: { type: "object", required: [...Object.keys(moneyProperties), "collectedTotal", "cashTotal", "bankTransferTotal", "otherCollectedTotal"], properties: { ...moneyProperties, collectedTotal: { type: "number" }, cashTotal: { type: "number" }, bankTransferTotal: { type: "number" }, otherCollectedTotal: { type: "number" } } },
-    entries: { type: "array", items: { type: "object", required: [...Object.keys(moneyProperties), ...Object.keys(entryProperties), "id", "source", "roomNumber", "declarationStatus", "version", "voidedAt", "revenueLines", "collections"], properties: {
-      ...moneyProperties, ...entryProperties, id: { type: "string" }, source: { type: "string", enum: ["FOLIO", "MANUAL", "DEPOSIT", "RECEIVABLE"] }, roomNumber: { type: "string", nullable: true },
+    summary: { type: "object", required: [...Object.keys(moneyProperties), "serviceCategoryRevenues", "collectedTotal", "cashTotal", "bankTransferTotal", "otherCollectedTotal"], properties: { ...moneyProperties, serviceCategoryRevenues: serviceCategoryRevenuesProperty, collectedTotal: { type: "number" }, cashTotal: { type: "number" }, bankTransferTotal: { type: "number" }, otherCollectedTotal: { type: "number" } } },
+    entries: { type: "array", items: { type: "object", required: [...Object.keys(moneyProperties), ...Object.keys(entryProperties), "serviceCategoryRevenues", "id", "source", "roomNumber", "declarationStatus", "version", "voidedAt", "revenueLines", "collections"], properties: {
+      ...moneyProperties, ...entryProperties, serviceCategoryRevenues: serviceCategoryRevenuesProperty, id: { type: "string" }, source: { type: "string", enum: ["FOLIO", "MANUAL", "DEPOSIT", "RECEIVABLE"] }, roomNumber: { type: "string", nullable: true },
       category: { ...entryProperties.category, nullable: true }, amount: { type: "number", nullable: true }, declarationStatus: { type: "string", nullable: true }, version: { type: "integer", nullable: true }, voidedAt: { type: "string", format: "date-time", nullable: true },
-      revenueLines: { type: "array", items: { type: "object", required: ["date", "roomRevenue", "channelRevenue", "minibarRevenue", "laundryRevenue", "otherRevenue", "revenueTotal"], properties: { date: { type: "string", format: "date" }, ...Object.fromEntries(Object.entries(moneyProperties).filter(([key]) => !["closingBalance", "balanceAdjustment"].includes(key))) } } },
+      revenueLines: { type: "array", items: { type: "object", required: ["date", "roomRevenue", "channelRevenue", "minibarRevenue", "laundryRevenue", "otherRevenue", "otherServiceRevenue", "serviceCategoryRevenues", "revenueTotal"], properties: { date: { type: "string", format: "date" }, serviceCategoryRevenues: serviceCategoryRevenuesProperty, ...Object.fromEntries(Object.entries(moneyProperties).filter(([key]) => !["closingBalance", "balanceAdjustment"].includes(key))) } } },
       collections: { type: "array", items: { type: "object", required: ["id", "receivedAt", "amount", "method", "reference"], properties: { id: { type: "string" }, ...collectionProperties, amount: { type: "number" }, method: { type: "string" } } } },
     } } },
   },
@@ -45,6 +47,7 @@ export class HotelRevenueBookController {
   @ApiQuery({ name: "from", type: String, required: false, description: "Ngày bắt đầu YYYY-MM-DD; bỏ cả hai ngày để xem tháng hiện tại theo giờ khách sạn" })
   @ApiQuery({ name: "to", type: String, required: false, description: "Ngày kết thúc YYYY-MM-DD, bao gồm ngày này; tối đa 366 ngày" })
   @ApiQuery({ name: "category", enum: ["ROOM", "CHANNEL", "MINIBAR", "LAUNDRY", "OTHER"], required: false, description: "Lọc theo nhóm doanh thu" })
+  @ApiQuery({ name: "serviceCategoryId", type: String, required: false, description: "Lọc theo nhóm dịch vụ đang kích hoạt của khách sạn" })
   @ApiQuery({ name: "paymentMethod", enum: ["CASH", "BANK_TRANSFER", "CARD", "OTHER"], required: false, description: "Lọc theo phương thức thanh toán đã thu trong kỳ" })
   @ApiQuery({ name: "source", enum: ["FOLIO", "MANUAL", "DEPOSIT", "RECEIVABLE"], required: false, description: "Lọc theo nguồn chứng từ" })
   @ApiQuery({ name: "settlementStatus", enum: ["SETTLED", "UNPAID", "OVERPAID"], required: false, description: "Lọc theo trạng thái thanh toán cuối kỳ" })

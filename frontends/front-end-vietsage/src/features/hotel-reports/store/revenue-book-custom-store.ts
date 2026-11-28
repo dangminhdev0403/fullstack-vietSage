@@ -35,10 +35,13 @@ interface RevenueBookCustomState {
   textOverrides: Record<string, string>;
   // key: `${hotelId}` -> whether "Doanh thu kênh bán" column is enabled (default false)
   showChannelRevenueByHotel: Record<string, boolean>;
+  // key: `${hotelId}` -> active service category IDs explicitly hidden by user
+  hiddenServiceCategoryIdsByHotel: Record<string, string[]>;
 
   // Actions
   setShowChannelRevenue: (hotelId: string, show: boolean) => void;
   getShowChannelRevenue: (hotelId: string) => boolean;
+  toggleServiceCategoryColumn: (hotelId: string, categoryId: string) => void;
   setNote: (hotelId: string, rowKey: string, note: string) => void;
   getNote: (hotelId: string, rowKey: string) => string | undefined;
   setDescription: (hotelId: string, rowKey: string, description: string) => void;
@@ -66,6 +69,7 @@ export const useRevenueBookCustomStore = create<RevenueBookCustomState>()(
       descriptionsByRow: {},
       textOverrides: {},
       showChannelRevenueByHotel: {},
+      hiddenServiceCategoryIdsByHotel: {},
 
       setShowChannelRevenue: (hotelId, show) => {
         set((state) => ({
@@ -78,6 +82,22 @@ export const useRevenueBookCustomStore = create<RevenueBookCustomState>()(
 
       getShowChannelRevenue: (hotelId) => {
         return Boolean(get().showChannelRevenueByHotel[hotelId]);
+      },
+
+      toggleServiceCategoryColumn: (hotelId, categoryId) => {
+        set((state) => {
+          const current = state.hiddenServiceCategoryIdsByHotel[hotelId] ?? [];
+          const exists = current.includes(categoryId);
+          const next = exists
+            ? current.filter((id) => id !== categoryId)
+            : [...current, categoryId];
+          return {
+            hiddenServiceCategoryIdsByHotel: {
+              ...state.hiddenServiceCategoryIdsByHotel,
+              [hotelId]: next,
+            },
+          };
+        });
       },
 
       setNote: (hotelId, rowKey, note) => {
@@ -177,13 +197,14 @@ export const useRevenueBookCustomStore = create<RevenueBookCustomState>()(
     }),
     {
       name: "vietsage_revenue_book_custom_columns",
-      version: 3,
+      version: 4,
       storage: createJSONStorage(() => safeStorage),
       partialize: (state) => ({
         notesByRow: state.notesByRow,
         descriptionsByRow: state.descriptionsByRow,
         textOverrides: state.textOverrides,
         showChannelRevenueByHotel: state.showChannelRevenueByHotel,
+        hiddenServiceCategoryIdsByHotel: state.hiddenServiceCategoryIdsByHotel,
       }),
       migrate: (persistedState) => {
         const legacy = (persistedState ?? {}) as {
@@ -191,6 +212,7 @@ export const useRevenueBookCustomStore = create<RevenueBookCustomState>()(
           descriptionsByRow?: Record<string, string>;
           textOverrides?: Record<string, string>;
           showChannelRevenueByHotel?: Record<string, boolean>;
+          hiddenServiceCategoryIdsByHotel?: Record<string, string[]>;
         };
         const showChannelRevenueByHotel: Record<string, boolean> = {};
         if (
@@ -202,6 +224,21 @@ export const useRevenueBookCustomStore = create<RevenueBookCustomState>()(
           )) {
             if (typeof enabled === "boolean") {
               showChannelRevenueByHotel[hotelId] = enabled;
+            }
+          }
+        }
+        const hiddenServiceCategoryIdsByHotel: Record<string, string[]> = {};
+        if (
+          legacy.hiddenServiceCategoryIdsByHotel &&
+          typeof legacy.hiddenServiceCategoryIdsByHotel === "object"
+        ) {
+          for (const [hotelId, ids] of Object.entries(
+            legacy.hiddenServiceCategoryIdsByHotel,
+          )) {
+            if (Array.isArray(ids)) {
+              hiddenServiceCategoryIdsByHotel[hotelId] = ids.filter(
+                (id): id is string => typeof id === "string" && Boolean(id.trim()),
+              );
             }
           }
         }
@@ -217,6 +254,7 @@ export const useRevenueBookCustomStore = create<RevenueBookCustomState>()(
               : {},
           textOverrides: sanitizeTextOverrides(legacy.textOverrides),
           showChannelRevenueByHotel,
+          hiddenServiceCategoryIdsByHotel,
         };
       },
     },

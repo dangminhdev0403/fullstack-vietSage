@@ -2,6 +2,7 @@
 
 import { useMemo, useState, type FormEvent } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Temporal } from "@js-temporal/polyfill";
 import { HttpError } from "@/core/http/http-error";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import {
@@ -23,8 +24,10 @@ import type {
 import {
   ReportsGroupSegmentedBar,
   ReportsPrimaryMobileNav,
+  ReportsWorkspaceHeader,
+  type ReportQuickRange,
 } from "./reports-navigation-bars";
-import { addMoney } from "../utils/revenue-book-export";
+import { addMoney, otherServiceAmount } from "../utils/revenue-book-export";
 import { RevenueBookDialog } from "./revenue-book-dialog";
 import { RevenueBookSpreadsheet } from "./revenue-book-spreadsheet";
 import {
@@ -115,6 +118,36 @@ function parseFilterParam<T extends string>(
   return options.some((opt) => opt.value === raw) ? (raw as T) : undefined;
 }
 
+function resolveQuickRangeDates(range: ReportQuickRange): {
+  from: string;
+  to: string;
+} {
+  const today = Temporal.Now.plainDateISO("Asia/Ho_Chi_Minh");
+  if (range === "7d") {
+    return {
+      from: today.subtract({ days: 6 }).toString(),
+      to: today.toString(),
+    };
+  }
+  if (range === "last_month") {
+    const prevMonth = today.subtract({ months: 1 });
+    return {
+      from: prevMonth.with({ day: 1 }).toString(),
+      to: prevMonth.with({ day: prevMonth.daysInMonth }).toString(),
+    };
+  }
+  if (range === "this_year") {
+    return {
+      from: today.with({ month: 1, day: 1 }).toString(),
+      to: today.toString(),
+    };
+  }
+  return {
+    from: today.with({ day: 1 }).toString(),
+    to: today.toString(),
+  };
+}
+
 export function RevenueBookWorkspace({ hotelId }: { hotelId: string }) {
   const pathname = usePathname();
   const params = useSearchParams();
@@ -127,6 +160,7 @@ export function RevenueBookWorkspace({ hotelId }: { hotelId: string }) {
         params.get("category"),
         CATEGORY_FILTER_OPTIONS,
       ),
+      serviceCategoryId: params.get("serviceCategoryId") || undefined,
       paymentMethod: parseFilterParam(
         params.get("paymentMethod"),
         PAYMENT_METHOD_FILTER_OPTIONS,
@@ -142,6 +176,9 @@ export function RevenueBookWorkspace({ hotelId }: { hotelId: string }) {
   const query = useRevenueBook(hotelId, queryInput);
   const showChannelRevenue = useRevenueBookCustomStore((state) =>
     Boolean(state.showChannelRevenueByHotel[hotelId]),
+  );
+  const hiddenServiceCategoryIds = useRevenueBookCustomStore(
+    (state) => state.hiddenServiceCategoryIdsByHotel[hotelId],
   );
   const book = query.data;
   const [from, setFrom] = useState<string | null>(null);
@@ -165,10 +202,29 @@ export function RevenueBookWorkspace({ hotelId }: { hotelId: string }) {
   const currency = book?.currency ?? "VND";
   const navFrom = queryInput.from ?? book?.from;
   const navTo = queryInput.to ?? book?.to;
+  const effectiveFrom = from ?? queryInput.from ?? book?.from ?? "";
+  const effectiveTo = to ?? queryInput.to ?? book?.to ?? "";
+  const activeQuickRange = useMemo<ReportQuickRange | null>(() => {
+    const currentFrom = queryInput.from ?? book?.from;
+    const currentTo = queryInput.to ?? book?.to;
+    if (!currentFrom || !currentTo) return null;
+    for (const key of ["7d", "this_month", "last_month", "this_year"] as const) {
+      const candidate = resolveQuickRangeDates(key);
+      if (candidate.from === currentFrom && candidate.to === currentTo) {
+        return key;
+      }
+    }
+    return null;
+  }, [queryInput.from, queryInput.to, book?.from, book?.to]);
 
   const activeFilterSummary = useMemo(() => {
     const labels: string[] = [];
-    if (queryInput.category) {
+    if (queryInput.serviceCategoryId) {
+      const catLabel = book?.serviceCategories?.find(
+        (cat) => cat.id === queryInput.serviceCategoryId,
+      )?.name;
+      labels.push(`Nhóm dịch vụ: ${catLabel ?? queryInput.serviceCategoryId}`);
+    } else if (queryInput.category) {
       const label = CATEGORY_FILTER_OPTIONS.find(
         (opt) => opt.value === queryInput.category,
       )?.label;
@@ -194,12 +250,28 @@ export function RevenueBookWorkspace({ hotelId }: { hotelId: string }) {
     }
     return labels;
   }, [
+    book?.serviceCategories,
     queryInput.category,
+    queryInput.serviceCategoryId,
     queryInput.paymentMethod,
     queryInput.source,
     queryInput.settlementStatus,
   ]);
   const hasActiveServerFilters = activeFilterSummary.length > 0;
+
+  function updateCategoryFilter(value: string) {
+    const next = new URLSearchParams(params.toString());
+    next.set("tab", "book");
+    next.delete("category");
+    next.delete("serviceCategoryId");
+    if (value.startsWith("svc:")) {
+      next.set("serviceCategoryId", value.slice(4));
+    } else if (value) {
+      next.set("category", value);
+    }
+    setSelectedId(null);
+    router.replace(`${pathname}?${next.toString()}`, { scroll: false });
+  }
 
   function updateServerFilter(
     key: "category" | "paymentMethod" | "source" | "settlementStatus",
@@ -220,9 +292,24 @@ export function RevenueBookWorkspace({ hotelId }: { hotelId: string }) {
     const next = new URLSearchParams(params.toString());
     next.set("tab", "book");
     next.delete("category");
+    next.delete("serviceCategoryId");
     next.delete("paymentMethod");
     next.delete("source");
     next.delete("settlementStatus");
+    setSelectedId(null);
+    router.replace(`${pathname}?${next.toString()}`, { scroll: false });
+  }
+
+  function applyQuickRange(range: ReportQuickRange) {
+    const { from: nextFrom, to: nextTo } = resolveQuickRangeDates(range);
+    setRangeError("");
+    setFrom(null);
+    setTo(null);
+    const next = new URLSearchParams(params.toString());
+    next.set("tab", "book");
+    next.set("range", range);
+    next.set("from", nextFrom);
+    next.set("to", nextTo);
     setSelectedId(null);
     router.replace(`${pathname}?${next.toString()}`, { scroll: false });
   }
@@ -238,6 +325,7 @@ export function RevenueBookWorkspace({ hotelId }: { hotelId: string }) {
     setRangeError("");
     const next = new URLSearchParams(params.toString());
     next.set("tab", "book");
+    next.delete("range");
     next.set("from", nextFrom);
     next.set("to", nextTo);
     setSelectedId(null);
@@ -249,7 +337,10 @@ export function RevenueBookWorkspace({ hotelId }: { hotelId: string }) {
       setExporting(true);
       const { exportRevenueBook } =
         await import("../utils/revenue-book-export");
-      exportRevenueBook(book, { showChannelRevenue });
+      exportRevenueBook(book, {
+        showChannelRevenue,
+        hiddenServiceCategoryIds,
+      });
     } catch (error) {
       await showErrorAlert("Không thể xuất Excel", errorMessage(error));
     } finally {
@@ -348,47 +439,69 @@ export function RevenueBookWorkspace({ hotelId }: { hotelId: string }) {
         </div>
       )}
 
-      <header className="flex flex-wrap items-start justify-between gap-4 print:hidden">
-        <div>
-          <h1 className="text-2xl font-semibold text-balance">Sổ doanh thu</h1>
-          {book && (
-            <p className="mt-1 text-base text-[var(--on-surface-variant)] text-pretty">
-              {book.hotelName}
-            </p>
-          )}
-        </div>
-        <div className="flex flex-wrap gap-2">
+      <ReportsWorkspaceHeader
+        title="Sổ doanh thu"
+        hotelName={book?.hotelName}
+        periodLabel={
+          navFrom && navTo
+            ? `${formatDateVi(navFrom)} – ${formatDateVi(navTo)}`
+            : undefined
+        }
+        isUpdating={query.isFetching && !query.isPending}
+        activeRange={activeQuickRange}
+        onSelectRange={applyQuickRange}
+        fromValue={effectiveFrom}
+        toValue={effectiveTo}
+        onFromChange={setFrom}
+        onToChange={setTo}
+        onSubmitCustomRange={applyRange}
+        isSubmitting={query.isFetching}
+        extraFilterAction={
           <button
             type="button"
-            disabled={!book || query.isFetching}
-            onClick={() => window.print()}
-            className={revenueButtonClass}
+            disabled={query.isFetching}
+            onClick={() => void query.refetch()}
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-slate-300 bg-white px-3 text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
+            aria-label="Cập nhật sổ doanh thu"
+            title="Cập nhật dữ liệu"
           >
-            <VsIcon name="print" className="text-xl" />
-            In / Xuất PDF
+            <VsIcon name="refresh" className="text-lg" />
           </button>
-          <button
-            type="button"
-            disabled={!book || query.isFetching || exporting}
-            onClick={() => void download()}
-            className={revenueButtonClass}
-          >
-            <VsIcon name="download" className="text-xl" />
-            {exporting ? "Đang xuất…" : "Xuất Excel cả kỳ"}
-          </button>
-          {book?.canManage && (
+        }
+        actions={
+          <>
             <button
               type="button"
-              disabled={query.busy || query.isFetching}
-              onClick={() => setEditor({ mode: "create" })}
-              className={revenuePrimaryClass}
+              disabled={!book || query.isFetching}
+              onClick={() => window.print()}
+              className="inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
             >
-              <VsIcon name="add" className="text-xl" />
-              Thêm khoản phát sinh
+              <VsIcon name="print" className="text-lg" />
+              In / Xuất PDF
             </button>
-          )}
-        </div>
-      </header>
+            <button
+              type="button"
+              disabled={!book || query.isFetching || exporting}
+              onClick={() => void download()}
+              className="inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
+            >
+              <VsIcon name="download" className="text-lg" />
+              {exporting ? "Đang xuất…" : "Xuất Excel"}
+            </button>
+            {book?.canManage && (
+              <button
+                type="button"
+                disabled={query.busy || query.isFetching}
+                onClick={() => setEditor({ mode: "create" })}
+                className="inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-emerald-800 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-900 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
+              >
+                <VsIcon name="add" className="text-lg" />
+                Thêm khoản phát sinh
+              </button>
+            )}
+          </>
+        }
+      />
 
       <ReportsPrimaryMobileNav
         activeTab="book"
@@ -403,93 +516,35 @@ export function RevenueBookWorkspace({ hotelId }: { hotelId: string }) {
         to={navTo}
       />
 
-      <form
-        onSubmit={applyRange}
-        className="flex flex-wrap items-end gap-3 print:hidden"
-      >
-        <label className="space-y-1">
-          <span className="block text-sm font-medium">Từ ngày</span>
-          <input
-            required
-            type="date"
-            value={from ?? queryInput.from ?? book?.from ?? ""}
-            onChange={(event) => setFrom(event.target.value)}
-            className={revenueInputClass}
-          />
-        </label>
-        <label className="space-y-1">
-          <span className="block text-sm font-medium">Đến ngày</span>
-          <input
-            required
-            type="date"
-            value={to ?? queryInput.to ?? book?.to ?? ""}
-            onChange={(event) => setTo(event.target.value)}
-            className={revenueInputClass}
-          />
-        </label>
-        <button
-          type="submit"
-          disabled={query.isFetching}
-          className={revenueButtonClass}
-        >
-          Xem báo cáo
-        </button>
-        <button
-          type="button"
-          disabled={query.isFetching}
-          onClick={() => void query.refetch()}
-          className={revenueButtonClass}
-          aria-label="Cập nhật sổ doanh thu"
-        >
-          <VsIcon name="refresh" className="text-xl" />
-        </button>
-      </form>
-
       {/* Server-Backed Filter Bar */}
       <section
         aria-label="Bộ lọc sổ doanh thu"
         className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-xs print:hidden"
       >
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-            <VsIcon name="filter_list" className="text-lg text-emerald-700" />
-            <span>Bộ lọc bút toán</span>
-            {hasActiveServerFilters && (
-              <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-800 whitespace-nowrap">
-                {activeFilterSummary.length} đang lọc
-              </span>
-            )}
-          </div>
-          {hasActiveServerFilters && (
-            <button
-              type="button"
-              disabled={query.isFetching}
-              onClick={clearServerFilters}
-              className="inline-flex min-h-11 items-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:opacity-50"
-            >
-              <VsIcon name="filter_alt_off" className="text-lg" />
-              Xóa bộ lọc
-            </button>
-          )}
-        </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <label className="space-y-1">
             <span className="block text-sm font-medium text-slate-700">
               Loại doanh thu
             </span>
             <select
-              value={queryInput.category ?? ""}
-              disabled={query.isFetching}
-              onChange={(event) =>
-                updateServerFilter("category", event.target.value)
+              value={
+                queryInput.serviceCategoryId
+                  ? `svc:${queryInput.serviceCategoryId}`
+                  : (queryInput.category ?? "")
               }
-              className={revenueInputClass}
+              disabled={query.isFetching}
+              onChange={(event) => updateCategoryFilter(event.target.value)}
+              className="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 outline-none focus:border-emerald-600 focus-visible:ring-2 focus-visible:ring-emerald-600/20 disabled:bg-slate-100"
             >
-              {CATEGORY_FILTER_OPTIONS.map((option) => (
-                <option key={option.value || "all"} value={option.value}>
-                  {option.label}
+              <option value="">Tất cả</option>
+              <option value="ROOM">Tiền phòng</option>
+              <option value="CHANNEL">Doanh thu kênh bán</option>
+              {(book?.serviceCategories ?? []).map((cat) => (
+                <option key={cat.id} value={`svc:${cat.id}`}>
+                  {cat.name}
                 </option>
               ))}
+              <option value="OTHER">Dịch vụ khác</option>
             </select>
           </label>
           <label className="space-y-1">
@@ -502,7 +557,7 @@ export function RevenueBookWorkspace({ hotelId }: { hotelId: string }) {
               onChange={(event) =>
                 updateServerFilter("paymentMethod", event.target.value)
               }
-              className={revenueInputClass}
+              className="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 outline-none focus:border-emerald-600 focus-visible:ring-2 focus-visible:ring-emerald-600/20 disabled:bg-slate-100"
             >
               {PAYMENT_METHOD_FILTER_OPTIONS.map((option) => (
                 <option key={option.value || "all"} value={option.value}>
@@ -521,7 +576,7 @@ export function RevenueBookWorkspace({ hotelId }: { hotelId: string }) {
               onChange={(event) =>
                 updateServerFilter("source", event.target.value)
               }
-              className={revenueInputClass}
+              className="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 outline-none focus:border-emerald-600 focus-visible:ring-2 focus-visible:ring-emerald-600/20 disabled:bg-slate-100"
             >
               {SOURCE_FILTER_OPTIONS.map((option) => (
                 <option key={option.value || "all"} value={option.value}>
@@ -540,7 +595,7 @@ export function RevenueBookWorkspace({ hotelId }: { hotelId: string }) {
               onChange={(event) =>
                 updateServerFilter("settlementStatus", event.target.value)
               }
-              className={revenueInputClass}
+              className="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 outline-none focus:border-emerald-600 focus-visible:ring-2 focus-visible:ring-emerald-600/20 disabled:bg-slate-100"
             >
               {SETTLEMENT_FILTER_OPTIONS.map((option) => (
                 <option key={option.value || "all"} value={option.value}>
@@ -550,6 +605,22 @@ export function RevenueBookWorkspace({ hotelId }: { hotelId: string }) {
             </select>
           </label>
         </div>
+        {hasActiveServerFilters && (
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
+            <span className="text-xs font-semibold text-emerald-800 whitespace-nowrap">
+              Đang lọc: {activeFilterSummary.join(" · ")}
+            </span>
+            <button
+              type="button"
+              disabled={query.isFetching}
+              onClick={clearServerFilters}
+              className="inline-flex min-h-9 items-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:opacity-50"
+            >
+              <VsIcon name="filter_alt_off" className="text-base" />
+              Xóa bộ lọc
+            </button>
+          </div>
+        )}
       </section>
 
       {rangeError && (
@@ -597,9 +668,6 @@ export function RevenueBookWorkspace({ hotelId }: { hotelId: string }) {
               <div className="mt-2 text-2xl font-bold tracking-tight text-slate-900 tabular-nums">
                 {money(book.summary.revenueTotal, currency)}
               </div>
-              <p className="mt-1 text-xs text-slate-500 text-pretty">
-                Tổng doanh thu dịch vụ & tiền phòng
-              </p>
             </div>
 
             {/* Card 2: Đã thu trong kỳ */}
@@ -615,9 +683,6 @@ export function RevenueBookWorkspace({ hotelId }: { hotelId: string }) {
               <div className="mt-2 text-2xl font-bold tracking-tight text-emerald-700 tabular-nums">
                 {money(book.summary.collectedTotal, currency)}
               </div>
-              <p className="mt-1 text-xs text-slate-500 text-pretty">
-                Tiền mặt, chuyển khoản & các nguồn thu khác
-              </p>
             </div>
 
             {/* Card 3: Số dư cuối kỳ */}
@@ -655,31 +720,17 @@ export function RevenueBookWorkspace({ hotelId }: { hotelId: string }) {
               </div>
               <p className="mt-1 text-xs text-slate-500 text-pretty">
                 {book.summary.closingBalance < 0
-                  ? "Khách trả trước hoặc còn dư tiền đặt cọc"
-                  : "Tổng công nợ còn phải thu của khách"}
+                  ? "Khách trả trước hoặc dư đặt cọc"
+                  : "Công nợ còn phải thu"}
               </p>
             </div>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-between gap-4 print:hidden">
-            <label className="block w-full max-w-sm space-y-1">
-              <span className="block text-sm font-medium">
-                Tìm nội dung, phòng hoặc chứng từ
-              </span>
-              <input
-                type="search"
-                value={filter}
-                onChange={(event) => setFilter(event.target.value)}
-                className={revenueInputClass}
-                placeholder="Nhập số phòng, tên khách, chứng từ..."
-              />
-            </label>
           </div>
 
           <RevenueBookSpreadsheet
             book={book}
             currency={currency}
             filter={filter}
+            onFilterChange={setFilter}
             canManage={Boolean(book.canManage)}
             onSelectEntry={(id) => setSelectedId(id)}
             onUpdateNote={handleUpdateNote}
@@ -765,10 +816,13 @@ function RevenueEntryDetail({
     ...(showChannelRevenue || entry.channelRevenue !== 0
       ? [["Doanh thu kênh bán", money(entry.channelRevenue, book.currency)]]
       : []),
-    ["Giặt ủi", money(entry.laundryRevenue, book.currency)],
+    ...(book.serviceCategories ?? []).map((cat) => [
+      cat.name,
+      money(entry.serviceCategoryRevenues?.[cat.id] ?? 0, book.currency),
+    ]),
     [
       "Dịch vụ khác",
-      money(addMoney(entry.otherRevenue, entry.minibarRevenue), book.currency),
+      money(otherServiceAmount(entry), book.currency),
     ],
     [
       "Phân bổ cọc / Chuyển công nợ",

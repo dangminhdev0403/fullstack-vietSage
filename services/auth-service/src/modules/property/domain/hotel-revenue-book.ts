@@ -16,12 +16,22 @@ export type RevenueBookBucket = RevenueBookCategory | "CHANNEL";
 
 export interface RevenueBookFilters {
   category?: RevenueBookCategoryFilter;
+  serviceCategoryId?: string | null;
   paymentMethod?: RevenueBookPaymentMethodFilter;
   source?: RevenueBookSourceFilter;
   settlementStatus?: RevenueBookSettlementStatusFilter;
 }
 
-export type MoneyEvent = { date: Date; amount: Prisma.Decimal | number; category?: RevenueBookBucket; id?: string; method?: string; reference?: string | null; splitGroupId?: string | null };
+export type MoneyEvent = {
+  date: Date;
+  amount: Prisma.Decimal | number;
+  category?: RevenueBookBucket;
+  serviceCategoryId?: string | null;
+  id?: string;
+  method?: string;
+  reference?: string | null;
+  splitGroupId?: string | null;
+};
 export type BookAccount = Pick<RevenueBookEntry, "id" | "source" | "date" | "roomId" | "roomNumber" | "documentNumber" | "description" | "category" | "amount" | "notes" | "declarationStatus" | "version" | "voidedAt"> & {
   charges: MoneyEvent[];
   collections: MoneyEvent[];
@@ -29,10 +39,13 @@ export type BookAccount = Pick<RevenueBookEntry, "id" | "source" | "date" | "roo
 };
 const decimal = (value: Prisma.Decimal | number) => new Prisma.Decimal(value);
 const sum = (events: MoneyEvent[]) => events.reduce((total, event) => total.add(event.amount), new Prisma.Decimal(0));
+export function normalizeServiceCategoryName(name: string): string {
+  return name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/đ/g, "d").trim().replace(/\s+/g, " ");
+}
 export function revenueCategory(itemType: string, name: string, explicit?: unknown): RevenueBookCategory {
   if (explicit === "ROOM" || explicit === "MINIBAR" || explicit === "LAUNDRY" || explicit === "OTHER") return explicit;
   if (itemType === "ROOM_CHARGE") return "ROOM";
-  const normalized = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/đ/g, "d");
+  const normalized = normalizeServiceCategoryName(name);
   if (/minibar|nuoc uong|beverage|do uong/.test(normalized)) return "MINIBAR";
   if (/giat|laundry/.test(normalized)) return "LAUNDRY";
   return "OTHER";
@@ -58,23 +71,72 @@ export function projectBookAccount(account: BookAccount, from: Date, end: Date, 
   const adjustment = sum(adjustments);
   if (!charges.length && !collections.length && adjustment.isZero()) return null;
   const closing = revenueTotal.sub(collectedTotal).add(adjustment);
-  const lines = new Map<string, { ROOM: Prisma.Decimal; CHANNEL: Prisma.Decimal; MINIBAR: Prisma.Decimal; LAUNDRY: Prisma.Decimal; OTHER: Prisma.Decimal }>();
+  const lines = new Map<string, {
+    ROOM: Prisma.Decimal;
+    CHANNEL: Prisma.Decimal;
+    MINIBAR: Prisma.Decimal;
+    LAUNDRY: Prisma.Decimal;
+    OTHER: Prisma.Decimal;
+    otherService: Prisma.Decimal;
+    byServiceCategory: Map<string, Prisma.Decimal>;
+  }>();
+  const entryServiceCategories = new Map<string, Prisma.Decimal>();
+  let entryOtherService = decimal(0);
   for (const charge of charges) {
     const key = toYmd(charge.date, timeZone);
-    const line = lines.get(key) ?? { ROOM: decimal(0), CHANNEL: decimal(0), MINIBAR: decimal(0), LAUNDRY: decimal(0), OTHER: decimal(0) };
+    const line = lines.get(key) ?? {
+      ROOM: decimal(0),
+      CHANNEL: decimal(0),
+      MINIBAR: decimal(0),
+      LAUNDRY: decimal(0),
+      OTHER: decimal(0),
+      otherService: decimal(0),
+      byServiceCategory: new Map<string, Prisma.Decimal>(),
+    };
     const category = charge.category ?? "OTHER";
     line[category] = line[category].add(charge.amount);
+    if (category !== "ROOM" && category !== "CHANNEL") {
+      if (charge.serviceCategoryId) {
+        line.byServiceCategory.set(
+          charge.serviceCategoryId,
+          (line.byServiceCategory.get(charge.serviceCategoryId) ?? decimal(0)).add(charge.amount),
+        );
+        entryServiceCategories.set(
+          charge.serviceCategoryId,
+          (entryServiceCategories.get(charge.serviceCategoryId) ?? decimal(0)).add(charge.amount),
+        );
+      } else {
+        line.otherService = line.otherService.add(charge.amount);
+        entryOtherService = entryOtherService.add(charge.amount);
+      }
+    }
     lines.set(key, line);
   }
+  const mapToNumbers = (source: Map<string, Prisma.Decimal>): Record<string, number> => {
+    const out: Record<string, number> = {};
+    for (const [id, value] of source.entries()) {
+      if (!value.isZero()) out[id] = value.toNumber();
+    }
+    return out;
+  };
   const byCategory = (category: RevenueBookBucket) => sum(charges.filter((charge) => (charge.category ?? "OTHER") === category)).toNumber();
   return {
     id: account.id, source: account.source, date: account.date, roomId: account.roomId, roomNumber: account.roomNumber,
     documentNumber: account.documentNumber, description: account.description, category: account.category, amount: account.amount,
     notes: account.notes, declarationStatus: account.declarationStatus, version: account.version, voidedAt: account.voidedAt,
     roomRevenue: byCategory("ROOM"), channelRevenue: byCategory("CHANNEL"), minibarRevenue: byCategory("MINIBAR"), laundryRevenue: byCategory("LAUNDRY"), otherRevenue: byCategory("OTHER"),
+    serviceCategoryRevenues: mapToNumbers(entryServiceCategories),
+    otherServiceRevenue: entryOtherService.toNumber(),
     revenueTotal: revenueTotal.toNumber(), closingBalance: closing.toNumber(), balanceAdjustment: adjustment.toNumber(),
     revenueLines: [...lines.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([date, line]) => ({
-      date, roomRevenue: line.ROOM.toNumber(), channelRevenue: line.CHANNEL.toNumber(), minibarRevenue: line.MINIBAR.toNumber(), laundryRevenue: line.LAUNDRY.toNumber(), otherRevenue: line.OTHER.toNumber(),
+      date,
+      roomRevenue: line.ROOM.toNumber(),
+      channelRevenue: line.CHANNEL.toNumber(),
+      minibarRevenue: line.MINIBAR.toNumber(),
+      laundryRevenue: line.LAUNDRY.toNumber(),
+      otherRevenue: line.OTHER.toNumber(),
+      serviceCategoryRevenues: mapToNumbers(line.byServiceCategory),
+      otherServiceRevenue: line.otherService.toNumber(),
       revenueTotal: line.ROOM.add(line.CHANNEL).add(line.MINIBAR).add(line.LAUNDRY).add(line.OTHER).toNumber(),
     })),
     collections: collections.sort((a, b) => a.date.getTime() - b.date.getTime()).map((collection) => ({
@@ -90,6 +152,9 @@ export function filterRevenueBookEntries(
   return entries.filter((entry) => {
     if (filters.source && entry.source !== filters.source) {
       return false;
+    }
+    if (filters.serviceCategoryId) {
+      if ((entry.serviceCategoryRevenues[filters.serviceCategoryId] ?? 0) === 0) return false;
     }
     if (filters.category) {
       const matchesCategory =
@@ -118,9 +183,18 @@ export function filterRevenueBookEntries(
   });
 }
 export function totalRevenueBook(entries: RevenueBookEntry[]): RevenueBookTotals {
-  const fields = ["roomRevenue", "channelRevenue", "minibarRevenue", "laundryRevenue", "otherRevenue", "revenueTotal", "closingBalance", "balanceAdjustment"] as const;
-  const totals: RevenueBookTotals = { roomRevenue: 0, channelRevenue: 0, minibarRevenue: 0, laundryRevenue: 0, otherRevenue: 0, revenueTotal: 0, collectedTotal: 0, cashTotal: 0, bankTransferTotal: 0, otherCollectedTotal: 0, closingBalance: 0, balanceAdjustment: 0 };
+  const fields = ["roomRevenue", "channelRevenue", "minibarRevenue", "laundryRevenue", "otherRevenue", "otherServiceRevenue", "revenueTotal", "closingBalance", "balanceAdjustment"] as const;
+  const totals: RevenueBookTotals = { roomRevenue: 0, channelRevenue: 0, minibarRevenue: 0, laundryRevenue: 0, otherRevenue: 0, serviceCategoryRevenues: {}, otherServiceRevenue: 0, revenueTotal: 0, collectedTotal: 0, cashTotal: 0, bankTransferTotal: 0, otherCollectedTotal: 0, closingBalance: 0, balanceAdjustment: 0 };
   for (const field of fields) totals[field] = entries.reduce((total, entry) => total.add(entry[field]), decimal(0)).toNumber();
+  const serviceCategoryTotals = new Map<string, Prisma.Decimal>();
+  for (const entry of entries) {
+    for (const [categoryId, amount] of Object.entries(entry.serviceCategoryRevenues)) {
+      serviceCategoryTotals.set(categoryId, (serviceCategoryTotals.get(categoryId) ?? decimal(0)).add(amount));
+    }
+  }
+  for (const [categoryId, total] of serviceCategoryTotals.entries()) {
+    if (!total.isZero()) totals.serviceCategoryRevenues[categoryId] = total.toNumber();
+  }
   for (const collection of entries.flatMap((entry) => entry.collections)) {
     totals.collectedTotal = decimal(totals.collectedTotal).add(collection.amount).toNumber();
     const field = collection.method === "CASH" ? "cashTotal" : collection.method === "BANK_TRANSFER" ? "bankTransferTotal" : "otherCollectedTotal";

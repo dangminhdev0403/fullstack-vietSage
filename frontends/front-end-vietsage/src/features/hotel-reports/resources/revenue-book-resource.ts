@@ -26,6 +26,7 @@ export const revenueBookResource = createResource<Scope>()({
         input.from ?? "",
         input.to ?? "",
         input.category ?? "",
+        input.serviceCategoryId ?? "",
         input.paymentMethod ?? "",
         input.source ?? "",
         input.settlementStatus ?? "",

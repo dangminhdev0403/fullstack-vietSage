@@ -17,6 +17,7 @@ export type RevenueBook = Omit<RawRevenueBook, "entries"> & {
   entries: RevenueBookEntry[];
 };
 export type RevenueBookRevenueLine = RevenueBookEntry["revenueLines"][number];
+export type RevenueBookServiceCategory = RevenueBook["serviceCategories"][number];
 export type RevenueBookTotals = RevenueBook["summary"];
 type RawCreateRevenueEntryInput = operations["HotelRevenueBookController_create"]["requestBody"]["content"]["application/json"];
 type RawCollectRevenueInput = operations["HotelRevenueBookController_collect"]["requestBody"]["content"]["application/json"];
@@ -47,6 +48,7 @@ export type VoidRevenueEntryInput = operations["HotelRevenueBookController_void"
 export type RevenueEntryFields = Omit<UpdateRevenueEntryInput, "version">;
 export type RevenueBookQuery = Omit<NonNullable<BookOperation["parameters"]["query"]>, "category"> & {
   category?: RevenueBookCategoryFilter;
+  serviceCategoryId?: string;
   paymentMethod?: RevenuePaymentMethod;
   source?: RevenueBookSource;
   settlementStatus?: RevenueSettlementStatus;

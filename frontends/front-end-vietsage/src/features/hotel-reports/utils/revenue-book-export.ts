@@ -1,6 +1,16 @@
 import type { RevenueBook, RevenueBookCollection, RevenueBookEntry } from "../types/revenue-book-contract";
 
-export type Revenue = Pick<RevenueBookEntry, "roomRevenue" | "channelRevenue" | "minibarRevenue" | "laundryRevenue" | "otherRevenue" | "revenueTotal">;
+export type Revenue = Pick<
+  RevenueBookEntry,
+  | "roomRevenue"
+  | "channelRevenue"
+  | "minibarRevenue"
+  | "laundryRevenue"
+  | "otherRevenue"
+  | "otherServiceRevenue"
+  | "serviceCategoryRevenues"
+  | "revenueTotal"
+>;
 export type Collection = RevenueBookCollection;
 export type MergedPayment = {
   id: string;
@@ -23,9 +33,33 @@ export type Activity = {
 };
 type Cell = string | number | null | undefined;
 const encoder = new TextEncoder();
-const columns = "ABCDEFGHIJKLMNOPQRS";
-const emptyRevenue = (): Revenue => ({ roomRevenue: 0, channelRevenue: 0, minibarRevenue: 0, laundryRevenue: 0, otherRevenue: 0, revenueTotal: 0 });
+function columnName(index: number): string {
+  let n = index + 1;
+  let label = "";
+  while (n > 0) {
+    const rem = (n - 1) % 26;
+    label = String.fromCharCode(65 + rem) + label;
+    n = Math.floor((n - 1) / 26);
+  }
+  return label;
+}
+const emptyRevenue = (): Revenue => ({
+  roomRevenue: 0,
+  channelRevenue: 0,
+  minibarRevenue: 0,
+  laundryRevenue: 0,
+  otherRevenue: 0,
+  otherServiceRevenue: 0,
+  serviceCategoryRevenues: {},
+  revenueTotal: 0,
+});
 export const addMoney = (left: number, right: number) => (Math.round(left * 100) + Math.round(right * 100)) / 100;
+export function otherServiceAmount(revenue: Partial<Revenue> | undefined): number {
+  return revenue?.otherServiceRevenue ?? addMoney(
+    addMoney(revenue?.minibarRevenue ?? 0, revenue?.laundryRevenue ?? 0),
+    revenue?.otherRevenue ?? 0,
+  );
+}
 export const declarationLabels: Record<string, string> = {
   DRAFT: "Bản nháp", READY: "Chờ gửi", SENDING: "Đang gửi", SUBMITTED: "Đã khai báo",
   FAILED: "Gửi thất bại", UNKNOWN: "Chưa xác định", CANCELLED: "Đã hủy",
@@ -37,7 +71,7 @@ function escapeXml(value: string): string {
 }
 
 function cell(value: Cell, column: number, row: number, total = false): string {
-  const address = `${columns[column]}${row}`;
+  const address = `${columnName(column)}${row}`;
   if (typeof value === "number") {
     if (!Number.isFinite(value)) throw new Error("Báo cáo có số tiền không hợp lệ.");
     return `<c r="${address}" s="${total ? 5 : column === 0 ? 6 : 3}"><v>${value}</v></c>`;
@@ -155,7 +189,19 @@ export function buildActivities(book: RevenueBook): Activity[] {
     for (const line of entry.revenueLines) {
       const group = day(line.date);
       group.hasRevenue = true;
-      for (const key of Object.keys(group.revenue) as Array<keyof Revenue>) group.revenue[key] = addMoney(group.revenue[key], line[key]);
+      group.revenue.roomRevenue = addMoney(group.revenue.roomRevenue, line.roomRevenue);
+      group.revenue.channelRevenue = addMoney(group.revenue.channelRevenue, line.channelRevenue);
+      group.revenue.minibarRevenue = addMoney(group.revenue.minibarRevenue, line.minibarRevenue);
+      group.revenue.laundryRevenue = addMoney(group.revenue.laundryRevenue, line.laundryRevenue);
+      group.revenue.otherRevenue = addMoney(group.revenue.otherRevenue, line.otherRevenue);
+      group.revenue.otherServiceRevenue = addMoney(group.revenue.otherServiceRevenue, otherServiceAmount(line));
+      group.revenue.revenueTotal = addMoney(group.revenue.revenueTotal, line.revenueTotal);
+      for (const [categoryId, amount] of Object.entries(line.serviceCategoryRevenues ?? {})) {
+        group.revenue.serviceCategoryRevenues[categoryId] = addMoney(
+          group.revenue.serviceCategoryRevenues[categoryId] ?? 0,
+          amount,
+        );
+      }
     }
     for (const collection of entry.collections) day(localParts(collection.receivedAt, book.timeZone).date).collections.push(collection);
     const ownActivities: Activity[] = [];
@@ -184,6 +230,7 @@ export type RevenueBookExportOverrides = {
   notesByRow?: Record<string, string>;
   textOverrides?: Record<string, string>;
   showChannelRevenue?: boolean;
+  hiddenServiceCategoryIds?: string[];
 };
 
 function sheetXml(
@@ -191,8 +238,17 @@ function sheetXml(
   overrides?: RevenueBookExportOverrides,
 ): string {
   const includeChannel = Boolean(overrides?.showChannelRevenue);
-  const col = (index: number) => columns[index];
-  const revEndIdx = includeChannel ? 9 : 8;
+  const hiddenCategorySet = new Set(overrides?.hiddenServiceCategoryIds ?? []);
+  const visibleServiceCategories = (book.serviceCategories ?? []).filter(
+    (category) => !hiddenCategorySet.has(category.id),
+  );
+  const visibleCategoryIds = new Set(
+    visibleServiceCategories.map((category) => category.id),
+  );
+  const col = columnName;
+  const revColCount =
+    1 + (includeChannel ? 1 : 0) + visibleServiceCategories.length + 1 + 1;
+  const revEndIdx = 5 + revColCount - 1;
   const payStartIdx = revEndIdx + 1;
   const payEndIdx = payStartIdx + 3;
   const paidTotalIdx = payEndIdx + 1;
@@ -229,7 +285,7 @@ function sheetXml(
   const headers: Cell[][] = [
     [
       "TT", "Ngày/Tháng", "Số phòng", "Số chứng từ (Hóa đơn/Phiếu thu)", "Diễn giải",
-      "Doanh thu", ...Array<null>(includeChannel ? 4 : 3).fill(null),
+      "Doanh thu", ...Array<null>(revColCount - 1).fill(null),
       "Khách hàng thanh toán", null, null, null,
       "Tổng tiền thanh toán", "Thanh toán khác", "Còn nợ", "Khai báo", "Ghi chú",
     ],
@@ -237,26 +293,27 @@ function sheetXml(
       null, null, null, null, null,
       "Doanh thu Tiền phòng",
       ...(includeChannel ? ["Doanh thu Kênh bán"] : []),
-      "Doanh thu Giặt ủi", "Doanh thu Dịch vụ khác", "Tổng doanh thu hằng ngày",
+      ...visibleServiceCategories.map((category) => category.name),
+      "Doanh thu Dịch vụ khác", "Tổng doanh thu hằng ngày",
       "Ngày tháng thanh toán", "Số tiền", null, null,
       null, null, null, null, null,
     ],
     [
       null, null, null, null, null,
-      ...Array<null>(includeChannel ? 5 : 4).fill(null),
+      ...Array<null>(revColCount).fill(null),
       null, "Tiền mặt", "Chuyển khoản", null,
       null, null, null, null, null,
     ],
     [
       null, null, null, null, null,
-      ...Array<null>(includeChannel ? 5 : 4).fill(null),
+      ...Array<null>(revColCount).fill(null),
       null, null, "Giờ CK", "Số tiền",
       null, null, null, null, null,
     ],
   ];
   for (const values of headers) {
     rowNumber++;
-    rows.push(`<row r="${rowNumber}" ht="30" customHeight="1">${Array.from({ length: totalCols }, (_, index) => `<c r="${columns[index]}${rowNumber}" s="2" t="inlineStr"><is><t>${escapeXml(String(values[index] ?? ""))}</t></is></c>`).join("")}</row>`);
+    rows.push(`<row r="${rowNumber}" ht="30" customHeight="1">${Array.from({ length: totalCols }, (_, index) => `<c r="${col(index)}${rowNumber}" s="2" t="inlineStr"><is><t>${escapeXml(String(values[index] ?? ""))}</t></is></c>`).join("")}</row>`);
   }
   for (const index of [0, 1, 2, 3, 4, paidTotalIdx, otherPayIdx, closingIdx, declIdx, noteIdx]) {
     merges.push(`${col(index)}5:${col(index)}8`);
@@ -266,6 +323,22 @@ function sheetXml(
   }
   merges.push(`${col(payStartIdx + 1)}7:${col(payStartIdx + 1)}8`);
 
+  const projectServiceBuckets = (
+    serviceCategoryRevenues: Record<string, number> | undefined,
+    baseOtherServiceRevenue: number,
+  ) => {
+    const visibleAmounts: Record<string, number> = {};
+    let otherRev = baseOtherServiceRevenue;
+    for (const [categoryId, amount] of Object.entries(serviceCategoryRevenues ?? {})) {
+      if (visibleCategoryIds.has(categoryId)) {
+        visibleAmounts[categoryId] = amount;
+      } else {
+        otherRev = addMoney(otherRev, amount);
+      }
+    }
+    return { visibleAmounts, otherRev };
+  };
+
   let date = "";
   let dayRevenue = emptyRevenue();
   let dayCash = 0;
@@ -274,9 +347,13 @@ function sheetXml(
   let sequence = 0;
   const subtotal = () => {
     if (!date) return;
-    const revCells = includeChannel
-      ? [dayRevenue.roomRevenue, dayRevenue.channelRevenue, dayRevenue.laundryRevenue, dayRevenue.otherRevenue, dayRevenue.revenueTotal]
-      : [addMoney(dayRevenue.roomRevenue, dayRevenue.channelRevenue), dayRevenue.laundryRevenue, dayRevenue.otherRevenue, dayRevenue.revenueTotal];
+    const revCells: Cell[] = [
+      includeChannel ? dayRevenue.roomRevenue : addMoney(dayRevenue.roomRevenue, dayRevenue.channelRevenue),
+      ...(includeChannel ? [dayRevenue.channelRevenue] : []),
+      ...visibleServiceCategories.map((cat) => dayRevenue.serviceCategoryRevenues[cat.id] ?? 0),
+      dayRevenue.otherServiceRevenue,
+      dayRevenue.revenueTotal,
+    ];
     const r = addRow([`Cộng ngày ${dateLabel(date)}`, null, null, null, null, ...revCells, null, dayCash, null, dayBank, addMoney(addMoney(dayCash, dayBank), dayOther), dayOther], true);
     merges.push(`A${r}:E${r}`);
   };
@@ -317,8 +394,10 @@ function sheetXml(
 
     const roomRev = revenue?.roomRevenue ?? 0;
     const channelRev = revenue?.channelRevenue ?? 0;
-    const laundryRev = revenue?.laundryRevenue ?? 0;
-    const otherRev = addMoney(revenue?.otherRevenue ?? 0, revenue?.minibarRevenue ?? 0);
+    const { visibleAmounts, otherRev } = projectServiceBuckets(
+      revenue?.serviceCategoryRevenues,
+      otherServiceAmount(revenue),
+    );
     const totalRev = revenue?.revenueTotal ?? 0;
 
     const refText = payment?.references.length
@@ -326,9 +405,13 @@ function sheetXml(
       : collection?.reference ?? null;
     const notes = [customNote ?? entry.notes, entry.voidedAt ? "Đã hủy khoản phát sinh" : null, refText ? `Tham chiếu: ${refText}` : null].filter(Boolean).join("; ");
     const hasPayment = Boolean(payment || collection);
-    const revCells = includeChannel
-      ? [revenue ? roomRev : null, revenue ? channelRev : null, revenue ? laundryRev : null, revenue ? otherRev : null, revenue ? totalRev : null]
-      : [revenue ? addMoney(roomRev, channelRev) : null, revenue ? laundryRev : null, revenue ? otherRev : null, revenue ? totalRev : null];
+    const revCells: Cell[] = [
+      revenue ? (includeChannel ? roomRev : addMoney(roomRev, channelRev)) : null,
+      ...(includeChannel ? [revenue ? channelRev : null] : []),
+      ...visibleServiceCategories.map((cat) => (revenue ? (visibleAmounts[cat.id] ?? 0) : null)),
+      revenue ? otherRev : null,
+      revenue ? totalRev : null,
+    ];
     addRow([
       ++sequence, activity.date ? dateLabel(activity.date) : null, effectiveRoom, effectiveDoc, customDesc ?? entry.description,
       ...revCells,
@@ -339,8 +422,13 @@ function sheetXml(
     if (revenue) {
       dayRevenue.roomRevenue = addMoney(dayRevenue.roomRevenue, roomRev);
       dayRevenue.channelRevenue = addMoney(dayRevenue.channelRevenue, channelRev);
-      dayRevenue.laundryRevenue = addMoney(dayRevenue.laundryRevenue, laundryRev);
-      dayRevenue.otherRevenue = addMoney(dayRevenue.otherRevenue, otherRev);
+      for (const cat of visibleServiceCategories) {
+        dayRevenue.serviceCategoryRevenues[cat.id] = addMoney(
+          dayRevenue.serviceCategoryRevenues[cat.id] ?? 0,
+          visibleAmounts[cat.id] ?? 0,
+        );
+      }
+      dayRevenue.otherServiceRevenue = addMoney(dayRevenue.otherServiceRevenue, otherRev);
       dayRevenue.revenueTotal = addMoney(dayRevenue.revenueTotal, totalRev);
     }
     dayCash = addMoney(dayCash, cash);
@@ -349,12 +437,27 @@ function sheetXml(
   }
   subtotal();
   const s = book.summary;
-  const totalRevCells = includeChannel
-    ? [s.roomRevenue, s.channelRevenue, s.laundryRevenue, addMoney(s.otherRevenue, s.minibarRevenue), s.revenueTotal]
-    : [addMoney(s.roomRevenue, s.channelRevenue), s.laundryRevenue, addMoney(s.otherRevenue, s.minibarRevenue), s.revenueTotal];
+  const summaryBuckets = projectServiceBuckets(
+    s.serviceCategoryRevenues,
+    otherServiceAmount(s),
+  );
+  const totalRevCells: Cell[] = [
+    includeChannel ? s.roomRevenue : addMoney(s.roomRevenue, s.channelRevenue),
+    ...(includeChannel ? [s.channelRevenue] : []),
+    ...visibleServiceCategories.map((cat) => summaryBuckets.visibleAmounts[cat.id] ?? 0),
+    summaryBuckets.otherRev,
+    s.revenueTotal,
+  ];
   const totalRow = addRow(["TỔNG KỲ", null, null, null, null, ...totalRevCells, null, s.cashTotal, null, s.bankTransferTotal, s.collectedTotal, s.otherCollectedTotal, s.closingBalance], true, 28);
   merges.push(`A${totalRow}:E${totalRow}`);
-  const widths = [6, 14, 12, 26, 38, 18, ...(includeChannel ? [20] : []), 18, 18, 20, 18, 18, 12, 18, 20, 18, 20, 18, 38];
+  const widths = [
+    6, 14, 12, 26, 38,
+    18,
+    ...(includeChannel ? [20] : []),
+    ...visibleServiceCategories.map(() => 18),
+    18, 20,
+    18, 18, 12, 18, 20, 18, 20, 18, 38,
+  ];
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><dimension ref="A1:${lastCol}${rowNumber}"/><sheetViews><sheetView workbookViewId="0"><pane ySplit="8" topLeftCell="A9" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><sheetFormatPr defaultRowHeight="24"/><cols>${widths.map((width, index) => `<col min="${index + 1}" max="${index + 1}" width="${width}" customWidth="1"/>`).join("")}</cols><sheetData>${rows.join("")}</sheetData><mergeCells count="${merges.length}">${merges.map((ref) => `<mergeCell ref="${ref}"/>`).join("")}</mergeCells><printOptions horizontalCentered="1"/><pageMargins left="0.25" right="0.25" top="0.4" bottom="0.4" header="0.2" footer="0.2"/><pageSetup paperSize="8" orientation="landscape" fitToWidth="1" fitToHeight="0"/></worksheet>`;
 }
 

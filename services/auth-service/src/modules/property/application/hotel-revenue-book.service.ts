@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { createHash } from "node:crypto";
 import { addDaysYmd, resolveTimeZone, startOfPlainDate, todayYmd, toYmd } from "../../../common/time/vietnam-temporal";
 import { PrismaService } from "../../../prisma/prisma.service";
-import { assertBookLimit, filterRevenueBookEntries, isSalesChannelBooking, projectBookAccount, revenueCategory, totalRevenueBook, type BookAccount, type MoneyEvent } from "../domain/hotel-revenue-book";
+import { assertBookLimit, filterRevenueBookEntries, isSalesChannelBooking, normalizeServiceCategoryName, projectBookAccount, revenueCategory, totalRevenueBook, type BookAccount, type MoneyEvent } from "../domain/hotel-revenue-book";
 import type { RevenueBook } from "../domain/hotel-revenue-book.types";
 import type { CollectRevenueEntry, CreateRevenueEntry, RevenueBookCategory, RevenueBookQuery, UpdateRevenueEntry, UpdateRevenueNote, VoidRevenueEntry } from "../domain/schemas/hotel-revenue-book.schema";
 import { HotelAccessService, type HotelRoomScope } from "./hotel-access.service";
@@ -62,7 +62,7 @@ export class HotelRevenueBookService {
     const instantWindow = { gte: start, lt: end };
     try {
       const data = await this.prisma.$transaction(async (tx) => {
-        const [folios, deposits, manual, rooms, persistedNotes] = await Promise.all([
+        const [folios, deposits, manual, rooms, persistedNotes, serviceCategories] = await Promise.all([
           tx.folio.findMany({
             where: {
               hotelId, ...roomFilter, openedAt: { lt: end },
@@ -90,7 +90,27 @@ export class HotelRevenueBookService {
                   },
                 },
               },
-              items: { where: { OR: [{ postedAt: instantWindow }, { voidedAt: instantWindow }] }, include: { serviceItem: { select: { category: { select: { name: true } } } } } },
+              items: {
+                where: { OR: [{ postedAt: instantWindow }, { voidedAt: instantWindow }] },
+                include: {
+                  serviceItem: {
+                    select: {
+                      categoryId: true,
+                      category: { select: { id: true, name: true, status: true } },
+                    },
+                  },
+                  guestRequest: {
+                    select: {
+                      serviceItem: {
+                        select: {
+                          categoryId: true,
+                          category: { select: { id: true, name: true, status: true } },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
               payments: { where: { confirmedAt: { lt: end }, status: { in: ["SUCCEEDED", "REFUNDED"] }, OR: [{ confirmedAt: instantWindow }, { transactions: { some: { status: "REFUNDED" } } }] }, include: { transactions: { where: { status: "REFUNDED" } } } },
               bookingPaymentAllocations: { where: { allocatedAt: instantWindow, bookingPayment: { status: { in: ["COMPLETED", "ALLOCATED"] } } } },
               hotelReceivables: { include: { collections: { where: { OR: [{ collectedAt: instantWindow }, { isVoided: true, voidedAt: instantWindow }] } } } },
@@ -114,9 +134,14 @@ export class HotelRevenueBookService {
           }),
           tx.room.findMany({ where: { hotelId, ...(roomIds === null ? {} : { id: { in: roomIds } }) }, select: { id: true, roomNumber: true }, orderBy: { roomNumber: "asc" }, take: 10001 }),
           tx.hotelRevenueNote.findMany({ where: { hotelId, ...roomFilter }, select: { accountKey: true, notes: true } }),
+          tx.hotelServiceCategory.findMany({
+            where: { hotelId, status: "ACTIVE" },
+            select: { id: true, name: true, sortOrder: true },
+            orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+          }),
         ]);
         assertBookLimit(folios.length); assertBookLimit(deposits.length); assertBookLimit(manual.length); assertBookLimit(rooms.length);
-        return { folios, deposits, manual, rooms, persistedNotes };
+        return { folios, deposits, manual, rooms, persistedNotes, serviceCategories };
       }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
       const noteMap = new Map<string, string | null>();
       for (const n of data.persistedNotes) {
@@ -128,17 +153,48 @@ export class HotelRevenueBookService {
         }
         return legacyNote?.trim() || null;
       };
+      const activeCategoryIds = new Set(data.serviceCategories.map((cat) => cat.id));
+      const activeCategoryByName = new Map<string, string>();
+      for (const cat of data.serviceCategories) {
+        const normalized = normalizeServiceCategoryName(cat.name);
+        if (!activeCategoryByName.has(normalized)) activeCategoryByName.set(normalized, cat.id);
+      }
+      const matchActiveManualCategoryId = (category: RevenueBookCategory): string | null => {
+        if (category === "LAUNDRY") {
+          const hit = data.serviceCategories.find((cat) => /giat|laundry/.test(normalizeServiceCategoryName(cat.name)));
+          return hit?.id ?? null;
+        }
+        if (category === "MINIBAR") {
+          const hit = data.serviceCategories.find((cat) => /minibar|nuoc uong|beverage|do uong/.test(normalizeServiceCategoryName(cat.name)));
+          return hit?.id ?? null;
+        }
+        return null;
+      };
+      const resolveFolioItemServiceCategoryId = (item: typeof data.folios[number]["items"][number]): string | null => {
+        const directCategoryId = item.serviceItem?.category?.id ?? item.serviceItem?.categoryId;
+        if (directCategoryId) return activeCategoryIds.has(directCategoryId) ? directCategoryId : null;
+        const reqCategoryId = item.guestRequest?.serviceItem?.category?.id ?? item.guestRequest?.serviceItem?.categoryId;
+        if (reqCategoryId) return activeCategoryIds.has(reqCategoryId) ? reqCategoryId : null;
+        const snapshotName = jsonText(item.billingSourceSnapshot, "categoryName");
+        if (snapshotName) {
+          const matched = activeCategoryByName.get(normalizeServiceCategoryName(snapshotName));
+          if (matched) return matched;
+        }
+        return null;
+      };
       const accounts: BookAccount[] = [];
       for (const folio of data.folios) {
         if (folio.currency !== "VND") throw new BadRequestException("Báo cáo hiện hỗ trợ VND. Vui lòng đối soát riêng hồ sơ dùng loại tiền khác.");
         const isChannelBooking = isSalesChannelBooking(folio.stay.reservation);
         const charges: MoneyEvent[] = [];
         for (const item of folio.items) {
-          const baseCategory = revenueCategory(item.itemType, item.serviceItem?.category.name ?? item.nameSnapshot, jsonText(item.metadataSnapshotJson, "reportCategory"));
+          const linkedCategoryName = item.serviceItem?.category?.name ?? item.guestRequest?.serviceItem?.category?.name ?? jsonText(item.billingSourceSnapshot, "categoryName");
+          const baseCategory = revenueCategory(item.itemType, linkedCategoryName ?? item.nameSnapshot, jsonText(item.metadataSnapshotJson, "reportCategory"));
           const category = isChannelBooking && baseCategory === "ROOM" ? "CHANNEL" : baseCategory;
+          const serviceCategoryId = category === "ROOM" || category === "CHANNEL" ? null : resolveFolioItemServiceCategoryId(item);
           const amount = item.itemType === "DISCOUNT" ? new Prisma.Decimal(item.discountAmountSnapshot.isZero() ? item.totalSnapshot : item.discountAmountSnapshot).abs().neg() : item.totalSnapshot;
-          charges.push({ date: item.postedAt, amount, category });
-          if (item.voidedAt && item.voidedAt < end) charges.push({ date: item.voidedAt, amount: amount.neg(), category });
+          charges.push({ date: item.postedAt, amount, category, serviceCategoryId });
+          if (item.voidedAt && item.voidedAt < end) charges.push({ date: item.voidedAt, amount: amount.neg(), category, serviceCategoryId });
         }
         const collections: MoneyEvent[] = [];
         for (const payment of folio.payments) {
@@ -258,8 +314,9 @@ export class HotelRevenueBookService {
       for (const entry of data.manual) {
         const businessDate = entry.date.toISOString().slice(0, 10);
         const category = entry.category as RevenueBookCategory;
-        const charges: MoneyEvent[] = [{ date: startOfPlainDate(businessDate, timeZone), amount: entry.amount, category }];
-        if (entry.voidedAt) charges.push({ date: new Date(Math.max(entry.voidedAt.getTime(), charges[0].date.getTime())), amount: entry.amount.neg(), category });
+        const serviceCategoryId = category === "ROOM" ? null : matchActiveManualCategoryId(category);
+        const charges: MoneyEvent[] = [{ date: startOfPlainDate(businessDate, timeZone), amount: entry.amount, category, serviceCategoryId }];
+        if (entry.voidedAt) charges.push({ date: new Date(Math.max(entry.voidedAt.getTime(), charges[0].date.getTime())), amount: entry.amount.neg(), category, serviceCategoryId });
         accounts.push({
           id: entry.id, source: "MANUAL", date: businessDate, roomId: entry.roomId, roomNumber: entry.roomNumberSnapshot,
           documentNumber: entry.documentNumber, description: entry.description, category, amount: entry.amount.toNumber(), notes: resolveAccountNote(entry.id, entry.notes),
@@ -282,6 +339,7 @@ export class HotelRevenueBookService {
       const entries = filterRevenueBookEntries(rawEntries, query);
       return {
         hotelId, hotelName: scope.hotel.name, timeZone, currency: "VND", from, to, entries, summary: totalRevenueBook(entries),
+        serviceCategories: data.serviceCategories,
         rooms: data.rooms.map((room) => ({ id: room.id, number: room.roomNumber })),
         canManage: actor.isSuperAdmin || actor.permissions?.has("hotel.billing.manage") === true,
       };

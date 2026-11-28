@@ -20,8 +20,9 @@ import { useUpsertRevenueTarget } from "@/features/hotel-reports/hooks/use-reven
 import {
   ReportsGroupSegmentedBar,
   ReportsPrimaryMobileNav,
-  buildReportTabHref,
+  ReportsWorkspaceHeader,
   type ReportClientTab,
+  type ReportQuickRange,
 } from "@/features/hotel-reports/components/reports-navigation-bars";
 import type {
   DailyRevenueItem,
@@ -90,16 +91,6 @@ const SUB_TABS: Array<{
     icon: "public",
     description: "Phân tích cơ cấu quốc tịch, thời gian lưu trú và nhân khẩu học.",
   },
-];
-
-const RANGE_OPTIONS: Array<{
-  key: NonNullable<GetHotelReportsQuery["range"]>;
-  label: string;
-}> = [
-  { key: "7d", label: "7 ngày qua" },
-  { key: "this_month", label: "Tháng này" },
-  { key: "last_month", label: "Tháng trước" },
-  { key: "this_year", label: "Năm nay" },
 ];
 
 const WEEKDAY_VI: Record<number, string> = {
@@ -259,9 +250,6 @@ export function HotelReportsWorkspaceClient({
   }
   const reports = initialReports;
 
-  const fromInputId = useId();
-  const toInputId = useId();
-
   const currentRange =
     (searchParams.get("range") as GetHotelReportsQuery["range"]) ||
     initialReports.range ||
@@ -341,11 +329,26 @@ export function HotelReportsWorkspaceClient({
   const navFrom = customFrom || initialFromPlain || undefined;
   const navTo = customTo || initialToPlain || undefined;
   const activeTabMeta = SUB_TABS.find((t) => t.id === activeTab) ?? SUB_TABS[0];
-  const isRevenueGroupSubTab =
-    activeTab === "daily" || activeTab === "monthly" || activeTab === "staff";
+  const isPerformanceGroup = activeTab === "overview" || activeTab === "pnl";
+  const workspaceTitle = isPerformanceGroup
+    ? "Kết quả kinh doanh"
+    : activeTab === "sources" || activeTab === "demographics"
+      ? "Kênh & Thị trường"
+      : "Sổ doanh thu";
+  const activeQuickRange: ReportQuickRange | null =
+    reports.range === "custom"
+      ? null
+      : currentRange === "30d"
+        ? "this_month"
+        : currentRange === "7d" ||
+            currentRange === "this_month" ||
+            currentRange === "last_month" ||
+            currentRange === "this_year"
+          ? currentRange
+          : null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Clean Printable Report Header */}
       <div className="hidden border-b-2 border-slate-900 pb-4 print:block">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -397,123 +400,42 @@ export function HotelReportsWorkspaceClient({
         </dl>
       </div>
 
-      {/* Workspace Header */}
-      <header className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm md:p-6 print:hidden dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="space-y-1.5">
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3.5 py-1 text-xs font-bold uppercase tracking-wider text-emerald-800 whitespace-nowrap dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300">
-              <span className="h-2 w-2 rounded-full bg-emerald-600" />
-              <span>Kỳ báo cáo: {formattedStart} – {formattedEnd}</span>
-              {isPending && (
-                <span className="ml-1 text-emerald-700 animate-pulse">
-                  • Đang cập nhật...
-                </span>
-              )}
-            </div>
-            <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 md:text-3xl text-balance dark:text-white">
-              Báo cáo &amp; Phân tích vận hành — {reports.hotelName}
-            </h1>
-          </div>
-
-          {/* Date Range Controls */}
-          <div className="flex flex-col gap-3 sm:items-end">
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              {pathname.startsWith("/owner") && (
-                <Link
-                  href={`/owner/hotels/${encodeURIComponent(hotelId)}/billing?tab=expenses`}
-                  className="inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-rose-200 bg-rose-50/70 px-4 py-2 text-sm font-semibold text-rose-800 hover:bg-rose-100/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300"
-                >
-                  <VsIcon name="account_balance_wallet" className="text-lg" />
-                  Chi phí vận hành
-                </Link>
-              )}
-              {!isRevenueGroupSubTab && (
-                <Link
-                  href={buildReportTabHref(pathname, "book", navFrom, navTo)}
-                  className="inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-                >
-                  <VsIcon name="receipt_long" className="text-lg" />
-                  Sổ doanh thu
-                </Link>
-              )}
-              <button
-                type="button"
-                onClick={() => window.print()}
-                className="inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 print:hidden dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+      {/* Unified Workspace Header */}
+      <ReportsWorkspaceHeader
+        title={workspaceTitle}
+        hotelName={reports.hotelName}
+        periodLabel={`${formattedStart} – ${formattedEnd}`}
+        isUpdating={isPending}
+        activeRange={activeQuickRange}
+        onSelectRange={handleRangeChange}
+        fromValue={customFrom}
+        toValue={customTo}
+        onFromChange={setCustomFrom}
+        onToChange={setCustomTo}
+        onSubmitCustomRange={handleApplyCustomDates}
+        isSubmitting={isPending}
+        actions={
+          <>
+            {isPerformanceGroup && pathname.startsWith("/owner") && (
+              <Link
+                href={`/owner/hotels/${encodeURIComponent(hotelId)}/billing?tab=expenses`}
+                className="inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-rose-200 bg-rose-50/70 px-4 py-2 text-sm font-semibold text-rose-800 hover:bg-rose-100/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300"
               >
-                <VsIcon name="print" className="text-lg" />
-                In / Xuất PDF
-              </button>
-            </div>
-            <div
-              role="group"
-              aria-label="Chọn nhanh kỳ báo cáo"
-              className="flex flex-wrap sm:flex-nowrap items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-100/90 p-1.5 dark:border-slate-800 dark:bg-slate-800/80"
+                <VsIcon name="account_balance_wallet" className="text-lg" />
+                Chi phí vận hành
+              </Link>
+            )}
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
             >
-              {RANGE_OPTIONS.map((opt) => {
-                const active =
-                  reports.range !== "custom" &&
-                  (currentRange === opt.key || (currentRange === "30d" && opt.key === "this_month"));
-                return (
-                  <button
-                    key={opt.key}
-                    type="button"
-                    disabled={isPending}
-                    onClick={() => handleRangeChange(opt.key)}
-                    className={`rounded-lg px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs sm:text-sm font-semibold transition-all duration-150 whitespace-nowrap ${
-                      active
-                        ? "bg-emerald-800 font-bold text-white shadow-sm dark:bg-emerald-600"
-                        : "text-slate-700 hover:bg-white/80 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700"
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Custom Date Filter */}
-            <form
-              onSubmit={handleApplyCustomDates}
-              className="flex flex-wrap items-center gap-2 text-sm"
-            >
-              <label
-                htmlFor={fromInputId}
-                className="font-semibold text-slate-700 whitespace-nowrap dark:text-slate-300"
-              >
-                Từ ngày:
-              </label>
-              <input
-                id={fromInputId}
-                type="date"
-                value={customFrom}
-                onChange={(e) => setCustomFrom(e.target.value)}
-                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-900 focus:border-emerald-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-              />
-              <label
-                htmlFor={toInputId}
-                className="font-semibold text-slate-700 whitespace-nowrap dark:text-slate-300"
-              >
-                Đến:
-              </label>
-              <input
-                id={toInputId}
-                type="date"
-                value={customTo}
-                onChange={(e) => setCustomTo(e.target.value)}
-                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-900 focus:border-emerald-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-              />
-              <button
-                type="submit"
-                disabled={isPending || !customFrom || !customTo || customFrom > customTo}
-                className="rounded-lg bg-primary px-3.5 py-1.5 text-sm font-semibold text-on-primary hover:bg-primary-container disabled:opacity-50 transition-colors whitespace-nowrap"
-              >
-                Lọc theo ngày
-              </button>
-            </form>
-          </div>
-        </div>
-      </header>
+              <VsIcon name="print" className="text-lg" />
+              In / Xuất PDF
+            </button>
+          </>
+        }
+      />
 
       {/* Shared 2-Tier Reports Navigation */}
       <ReportsPrimaryMobileNav
@@ -1757,9 +1679,6 @@ function DailyRevenuePanel({ reports }: { reports: HotelReportsData }) {
             <h2 className="text-lg font-bold text-slate-900 md:text-xl text-balance dark:text-white">
               Biểu đồ biến động doanh thu &amp; công suất phòng từng ngày
             </h2>
-            <p className="mt-1 text-sm text-slate-600 text-pretty dark:text-slate-400">
-              Chiều cao cột phản ánh đúng chỉ số đang chọn bên phải để dễ dàng phát hiện ngày cao điểm hoặc thấp điểm.
-            </p>
           </div>
 
           <div className="inline-flex rounded-xl border border-slate-200 bg-slate-100 p-1 dark:border-slate-800 dark:bg-slate-800">
@@ -1927,9 +1846,6 @@ function DailyRevenuePanel({ reports }: { reports: HotelReportsData }) {
             <h2 className="text-lg font-bold text-slate-900 md:text-xl text-balance dark:text-white">
               Bảng đối soát chi tiết doanh thu theo ngày
             </h2>
-            <p className="mt-0.5 text-sm text-slate-600 text-pretty dark:text-slate-400">
-              Bấm vào tiêu đề cột bất kỳ để sắp xếp tăng/giảm. Mặc định hiển thị ngày mới nhất lên đầu.
-            </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">

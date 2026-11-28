@@ -59,6 +59,7 @@ export const revenueBookQuerySchema = z.object({
   from: date.optional(),
   to: date.optional(),
   category: revenueBookCategoryFilterSchema.optional(),
+  serviceCategoryId: optionalText(120),
   paymentMethod: revenueBookPaymentMethodFilterSchema.optional(),
   source: revenueBookSourceFilterSchema.optional(),
   settlementStatus: revenueBookSettlementStatusFilterSchema.optional(),

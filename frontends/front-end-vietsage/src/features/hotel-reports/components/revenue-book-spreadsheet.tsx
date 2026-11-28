@@ -9,6 +9,7 @@ import {
   buildActivities,
   declarationLabels,
   localParts,
+  otherServiceAmount,
   type Activity,
 } from "../utils/revenue-book-export";
 
@@ -31,6 +32,7 @@ interface RevenueBookSpreadsheetProps {
   book: RevenueBook;
   currency: string;
   filter: string;
+  onFilterChange?: (value: string) => void;
   canManage: boolean;
   onSelectEntry: (id: string) => void;
   onUpdateNote?: (
@@ -47,7 +49,7 @@ type DayGroup = {
   subtotal: {
     roomRevenue: number;
     channelRevenue: number;
-    laundryRevenue: number;
+    serviceCategoryRevenues: Record<string, number>;
     otherRevenue: number;
     revenueTotal: number;
     cash: number;
@@ -59,7 +61,11 @@ type DayGroup = {
   };
 };
 
-function resolveActivityAmounts(act: Activity, showChannelRevenue: boolean) {
+function resolveActivityAmounts(
+  act: Activity,
+  showChannelRevenue: boolean,
+  visibleServiceCategoryIds: Set<string>,
+) {
   const { revenue, collection, payment } = act;
   const rawRoomRevenue = revenue?.roomRevenue ?? 0;
   const rawChannelRevenue = revenue?.channelRevenue ?? 0;
@@ -67,12 +73,20 @@ function resolveActivityAmounts(act: Activity, showChannelRevenue: boolean) {
     ? rawRoomRevenue
     : addMoney(rawRoomRevenue, rawChannelRevenue);
   const channelRevenue = showChannelRevenue ? rawChannelRevenue : 0;
-  const laundryRevenue = revenue?.laundryRevenue ?? 0;
-  // Fold minibar/beverage service charges into "Dịch vụ khác" so row totals always reconcile with backend revenueTotal.
-  const otherRevenue = addMoney(
-    revenue?.otherRevenue ?? 0,
-    revenue?.minibarRevenue ?? 0,
-  );
+
+  const serviceCategoryRevenues: Record<string, number> = {};
+  let otherRevenue = otherServiceAmount(revenue);
+  if (revenue?.serviceCategoryRevenues) {
+    for (const [categoryId, amount] of Object.entries(
+      revenue.serviceCategoryRevenues,
+    )) {
+      if (visibleServiceCategoryIds.has(categoryId)) {
+        serviceCategoryRevenues[categoryId] = amount;
+      } else {
+        otherRevenue = addMoney(otherRevenue, amount);
+      }
+    }
+  }
   const revenueTotal = revenue?.revenueTotal ?? 0;
 
   const paidTotal = payment?.totalAmount ?? collection?.amount ?? 0;
@@ -97,7 +111,7 @@ function resolveActivityAmounts(act: Activity, showChannelRevenue: boolean) {
   return {
     roomRevenue,
     channelRevenue,
-    laundryRevenue,
+    serviceCategoryRevenues,
     otherRevenue,
     revenueTotal,
     cash,
@@ -111,6 +125,7 @@ export function RevenueBookSpreadsheet({
   book,
   currency,
   filter,
+  onFilterChange,
   canManage,
   onSelectEntry,
   onUpdateNote,
@@ -121,9 +136,33 @@ export function RevenueBookSpreadsheet({
   const setShowChannelRevenue = useRevenueBookCustomStore(
     (state) => state.setShowChannelRevenue,
   );
+  const hiddenServiceCategoryIds = useRevenueBookCustomStore(
+    (state) => state.hiddenServiceCategoryIdsByHotel[book.hotelId],
+  );
+  const toggleServiceCategoryColumn = useRevenueBookCustomStore(
+    (state) => state.toggleServiceCategoryColumn,
+  );
+  const activeServiceCategories = useMemo(
+    () => book.serviceCategories ?? [],
+    [book.serviceCategories],
+  );
+  const hiddenServiceCategorySet = useMemo(
+    () => new Set(hiddenServiceCategoryIds ?? []),
+    [hiddenServiceCategoryIds],
+  );
+  const visibleServiceCategories = useMemo(
+    () =>
+      activeServiceCategories.filter(
+        (category) => !hiddenServiceCategorySet.has(category.id),
+      ),
+    [activeServiceCategories, hiddenServiceCategorySet],
+  );
+  const visibleServiceCategoryIds = useMemo(
+    () => new Set(visibleServiceCategories.map((category) => category.id)),
+    [visibleServiceCategories],
+  );
   const [visibleColumns, setVisibleColumns] = useState({
     docNumber: true,
-    laundry: true,
     otherRevenue: true,
     otherPayment: true,
     declaration: false,
@@ -161,7 +200,7 @@ export function RevenueBookSpreadsheet({
           subtotal: {
             roomRevenue: 0,
             channelRevenue: 0,
-            laundryRevenue: 0,
+            serviceCategoryRevenues: {},
             otherRevenue: 0,
             revenueTotal: 0,
             cash: 0,
@@ -176,7 +215,11 @@ export function RevenueBookSpreadsheet({
       }
       currentGroup.activities.push(act);
 
-      const amounts = resolveActivityAmounts(act, showChannelRevenue);
+      const amounts = resolveActivityAmounts(
+        act,
+        showChannelRevenue,
+        visibleServiceCategoryIds,
+      );
       currentGroup.subtotal.roomRevenue = addMoney(
         currentGroup.subtotal.roomRevenue,
         amounts.roomRevenue,
@@ -185,10 +228,14 @@ export function RevenueBookSpreadsheet({
         currentGroup.subtotal.channelRevenue,
         amounts.channelRevenue,
       );
-      currentGroup.subtotal.laundryRevenue = addMoney(
-        currentGroup.subtotal.laundryRevenue,
-        amounts.laundryRevenue,
-      );
+      for (const [categoryId, amount] of Object.entries(
+        amounts.serviceCategoryRevenues,
+      )) {
+        currentGroup.subtotal.serviceCategoryRevenues[categoryId] = addMoney(
+          currentGroup.subtotal.serviceCategoryRevenues[categoryId] ?? 0,
+          amount,
+        );
+      }
       currentGroup.subtotal.otherRevenue = addMoney(
         currentGroup.subtotal.otherRevenue,
         amounts.otherRevenue,
@@ -222,19 +269,30 @@ export function RevenueBookSpreadsheet({
       }
     }
     return groups;
-  }, [filteredActivities, showChannelRevenue]);
+  }, [filteredActivities, showChannelRevenue, visibleServiceCategoryIds]);
 
   // Period totals: authoritative backend summary when unfiltered; exact filtered sum when searching.
   const grandTotals = useMemo(() => {
     if (!filter.trim()) {
       const s = book.summary;
+      const serviceCategoryRevenues: Record<string, number> = {};
+      let otherRevenue = otherServiceAmount(s);
+      for (const [categoryId, amount] of Object.entries(
+        s.serviceCategoryRevenues ?? {},
+      )) {
+        if (visibleServiceCategoryIds.has(categoryId)) {
+          serviceCategoryRevenues[categoryId] = amount;
+        } else {
+          otherRevenue = addMoney(otherRevenue, amount);
+        }
+      }
       return {
         roomRevenue: showChannelRevenue
           ? s.roomRevenue
           : addMoney(s.roomRevenue, s.channelRevenue),
         channelRevenue: showChannelRevenue ? s.channelRevenue : 0,
-        laundryRevenue: s.laundryRevenue,
-        otherRevenue: addMoney(s.otherRevenue, s.minibarRevenue),
+        serviceCategoryRevenues,
+        otherRevenue,
         revenueTotal: s.revenueTotal,
         cashTotal: s.cashTotal,
         bankTotal: s.bankTransferTotal,
@@ -246,7 +304,7 @@ export function RevenueBookSpreadsheet({
 
     let roomRevenue = 0;
     let channelRevenue = 0;
-    let laundryRevenue = 0;
+    const serviceCategoryRevenues: Record<string, number> = {};
     let otherRevenue = 0;
     let revenueTotal = 0;
     let cashTotal = 0;
@@ -258,7 +316,14 @@ export function RevenueBookSpreadsheet({
     for (const group of dayGroups) {
       roomRevenue = addMoney(roomRevenue, group.subtotal.roomRevenue);
       channelRevenue = addMoney(channelRevenue, group.subtotal.channelRevenue);
-      laundryRevenue = addMoney(laundryRevenue, group.subtotal.laundryRevenue);
+      for (const [categoryId, amount] of Object.entries(
+        group.subtotal.serviceCategoryRevenues,
+      )) {
+        serviceCategoryRevenues[categoryId] = addMoney(
+          serviceCategoryRevenues[categoryId] ?? 0,
+          amount,
+        );
+      }
       otherRevenue = addMoney(otherRevenue, group.subtotal.otherRevenue);
       revenueTotal = addMoney(revenueTotal, group.subtotal.revenueTotal);
       cashTotal = addMoney(cashTotal, group.subtotal.cash);
@@ -271,7 +336,7 @@ export function RevenueBookSpreadsheet({
     return {
       roomRevenue,
       channelRevenue,
-      laundryRevenue,
+      serviceCategoryRevenues,
       otherRevenue,
       revenueTotal,
       cashTotal,
@@ -280,12 +345,18 @@ export function RevenueBookSpreadsheet({
       otherPaidTotal,
       closingBalance,
     };
-  }, [filter, book.summary, dayGroups, showChannelRevenue]);
+  }, [
+    filter,
+    book.summary,
+    dayGroups,
+    showChannelRevenue,
+    visibleServiceCategoryIds,
+  ]);
 
   const revenueColSpan =
     1 +
     (showChannelRevenue ? 1 : 0) +
-    (visibleColumns.laundry ? 1 : 0) +
+    visibleServiceCategories.length +
     (visibleColumns.otherRevenue ? 1 : 0) +
     1;
 
@@ -409,11 +480,30 @@ export function RevenueBookSpreadsheet({
 
   return (
     <div className="space-y-3">
-      {/* Column Visibility Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)] p-3.5 shadow-xs print:hidden">
+      {/* Search & Column Visibility Toolbar */}
+      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-xs lg:flex-row lg:items-center lg:justify-between print:hidden">
+        {onFilterChange ? (
+          <div className="relative w-full lg:max-w-sm">
+            <label className="sr-only" htmlFor="revenue-book-search">
+              Tìm nội dung, phòng hoặc chứng từ
+            </label>
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+              <VsIcon name="search" className="text-lg" />
+            </div>
+            <input
+              id="revenue-book-search"
+              type="search"
+              value={filter}
+              onChange={(event) => onFilterChange(event.target.value)}
+              className="min-h-11 w-full rounded-xl border border-slate-300 bg-white pl-10 pr-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/20"
+              placeholder="Tìm số phòng, tên khách, chứng từ..."
+            />
+          </div>
+        ) : null}
+
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-semibold text-[var(--on-surface-variant)] uppercase tracking-wide whitespace-nowrap">
-            Hiển thị cột:
+          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">
+            Cột:
           </span>
 
           <button
@@ -432,20 +522,27 @@ export function RevenueBookSpreadsheet({
             <span>Doanh thu kênh bán</span>
           </button>
 
-          <button
-            type="button"
-            onClick={() =>
-              setVisibleColumns((p) => ({ ...p, laundry: !p.laundry }))
-            }
-            className={`inline-flex items-center gap-1 rounded-xl px-2.5 py-1 text-xs font-medium whitespace-nowrap transition-colors cursor-pointer ${
-              visibleColumns.laundry
-                ? "bg-sky-50 text-sky-800 border border-sky-200 shadow-xs"
-                : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50"
-            }`}
-          >
-            <span>{visibleColumns.laundry ? "✓" : "+"}</span>
-            <span>Giặt ủi</span>
-          </button>
+          {activeServiceCategories.map((category) => {
+            const isVisible = !hiddenServiceCategorySet.has(category.id);
+            return (
+              <button
+                key={category.id}
+                type="button"
+                onClick={() =>
+                  toggleServiceCategoryColumn(book.hotelId, category.id)
+                }
+                className={`inline-flex items-center gap-1 rounded-xl px-2.5 py-1 text-xs font-medium whitespace-nowrap transition-colors cursor-pointer ${
+                  isVisible
+                    ? "bg-sky-50 text-sky-800 border border-sky-200 shadow-xs"
+                    : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50"
+                }`}
+                title={`Bật/Tắt cột nhóm dịch vụ ${category.name}`}
+              >
+                <span>{isVisible ? "✓" : "+"}</span>
+                <span>{category.name}</span>
+              </button>
+            );
+          })}
           <button
             type="button"
             onClick={() =>
@@ -514,11 +611,6 @@ export function RevenueBookSpreadsheet({
             <span>Khai báo tạm trú</span>
           </button>
         </div>
-
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-800 whitespace-nowrap">
-          <VsIcon name="lock" className="text-sm" />
-          Số liệu tiền tệ tự động đồng bộ
-        </span>
       </div>
 
       {/* Spreadsheet Grid Container */}
@@ -600,14 +692,15 @@ export function RevenueBookSpreadsheet({
                   Doanh thu kênh bán
                 </th>
               )}
-              {visibleColumns.laundry && (
+              {visibleServiceCategories.map((category) => (
                 <th
+                  key={category.id}
                   rowSpan={3}
                   className="px-2 py-1.5 w-24 bg-sky-50/90 text-sky-900"
                 >
-                  Giặt ủi
+                  {category.name}
                 </th>
-              )}
+              ))}
               {visibleColumns.otherRevenue && (
                 <th
                   rowSpan={3}
@@ -728,6 +821,7 @@ export function RevenueBookSpreadsheet({
                       const amounts = resolveActivityAmounts(
                         act,
                         showChannelRevenue,
+                        visibleServiceCategoryIds,
                       );
 
                       const bankLocal = payment?.bankTransferAt
@@ -811,12 +905,17 @@ export function RevenueBookSpreadsheet({
                             </td>
                           )}
 
-                          {/* Doanh thu Giặt ủi (Read-only system value) */}
-                          {visibleColumns.laundry && (
-                            <td className="px-2 py-2 text-right tabular-nums text-slate-800">
-                              {renderReadOnlyMoney(amounts.laundryRevenue)}
+                          {/* Doanh thu theo nhóm dịch vụ đang kích hoạt */}
+                          {visibleServiceCategories.map((category) => (
+                            <td
+                              key={category.id}
+                              className="px-2 py-2 text-right tabular-nums text-slate-800"
+                            >
+                              {renderReadOnlyMoney(
+                                amounts.serviceCategoryRevenues[category.id] ?? 0,
+                              )}
                             </td>
-                          )}
+                          ))}
 
                           {/* Doanh thu Dịch vụ khác (Read-only system value) */}
                           {visibleColumns.otherRevenue && (
@@ -938,17 +1037,23 @@ export function RevenueBookSpreadsheet({
                             {money(sub.channelRevenue, currency)}
                           </td>
                         )}
-                        {visibleColumns.laundry && (
-                          <td className="px-2 py-1.5 text-right tabular-nums">
-                            {money(sub.laundryRevenue, currency)}
+                        {visibleServiceCategories.map((category) => (
+                          <td
+                            key={category.id}
+                            className="px-2 py-1.5 text-right tabular-nums"
+                          >
+                            {money(
+                              sub.serviceCategoryRevenues[category.id] ?? 0,
+                              currency,
+                            )}
                           </td>
-                        )}
+                        ))}
                         {visibleColumns.otherRevenue && (
                           <td className="px-2 py-1.5 text-right tabular-nums">
                             {money(sub.otherRevenue, currency)}
                           </td>
                         )}
-                        <td className="px-2 py-1.5 text-right tabular-nums text-slate-950 font-extrabold bg-sky-200/60">
+                        <td className="px-2 py-1.5 text-right tabular-nums text-sky-950 font-extrabold bg-sky-200/60">
                           {money(sub.revenueTotal, currency)}
                         </td>
                         <td className="px-2 py-1.5 text-center text-slate-400">
@@ -1013,11 +1118,17 @@ export function RevenueBookSpreadsheet({
                   {money(grandTotals.channelRevenue, currency)}
                 </td>
               )}
-              {visibleColumns.laundry && (
-                <td className="px-2 py-2.5 text-right tabular-nums">
-                  {money(grandTotals.laundryRevenue, currency)}
+              {visibleServiceCategories.map((category) => (
+                <td
+                  key={category.id}
+                  className="px-2 py-2.5 text-right tabular-nums"
+                >
+                  {money(
+                    grandTotals.serviceCategoryRevenues[category.id] ?? 0,
+                    currency,
+                  )}
                 </td>
-              )}
+              ))}
               {visibleColumns.otherRevenue && (
                 <td className="px-2 py-2.5 text-right tabular-nums">
                   {money(grandTotals.otherRevenue, currency)}

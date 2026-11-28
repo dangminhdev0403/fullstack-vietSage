@@ -24,6 +24,9 @@ export const revenueBookRepository = {
     if (input.from) params.set("from", input.from);
     if (input.to) params.set("to", input.to);
     if (input.category) params.set("category", input.category);
+    if (input.serviceCategoryId) {
+      params.set("serviceCategoryId", input.serviceCategoryId);
+    }
     if (input.paymentMethod) params.set("paymentMethod", input.paymentMethod);
     if (input.source) params.set("source", input.source);
     if (input.settlementStatus) {
