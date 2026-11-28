@@ -5244,6 +5244,13 @@ paths:
                                     type: string
                                     nullable: true
                                     maxLength: 120
+                                  destinationAccount:
+                                    type: string
+                                    nullable: true
+                                    maxLength: 120
+                                  splitGroupId:
+                                    type: string
+                                    nullable: true
                 required:
                   - status
                   - error
@@ -5308,8 +5315,6 @@ paths:
                   type: object
                   required:
                     - receivedAt
-                    - amount
-                    - method
                   properties:
                     receivedAt:
                       type: string
@@ -5325,6 +5330,35 @@ paths:
                         - BANK_TRANSFER
                         - CARD
                         - OTHER
+                    destinationAccount:
+                      type: string
+                      nullable: true
+                      maxLength: 120
+                    splits:
+                      type: array
+                      minItems: 1
+                      maxItems: 4
+                      items:
+                        type: object
+                        required:
+                          - method
+                          - amount
+                        properties:
+                          method:
+                            type: string
+                            enum:
+                              - CASH
+                              - BANK_TRANSFER
+                              - CARD
+                              - OTHER
+                          amount:
+                            type: number
+                            minimum: 0
+                            exclusiveMinimum: true
+                          destinationAccount:
+                            type: string
+                            nullable: true
+                            maxLength: 120
                     reference:
                       type: string
                       nullable: true
@@ -5479,8 +5513,6 @@ paths:
               type: object
               required:
                 - receivedAt
-                - amount
-                - method
                 - idempotencyKey
                 - version
               properties:
@@ -5498,6 +5530,35 @@ paths:
                     - BANK_TRANSFER
                     - CARD
                     - OTHER
+                destinationAccount:
+                  type: string
+                  nullable: true
+                  maxLength: 120
+                splits:
+                  type: array
+                  minItems: 1
+                  maxItems: 4
+                  items:
+                    type: object
+                    required:
+                      - method
+                      - amount
+                    properties:
+                      method:
+                        type: string
+                        enum:
+                          - CASH
+                          - BANK_TRANSFER
+                          - CARD
+                          - OTHER
+                      amount:
+                        type: number
+                        minimum: 0
+                        exclusiveMinimum: true
+                      destinationAccount:
+                        type: string
+                        nullable: true
+                        maxLength: 120
                 reference:
                   type: string
                   nullable: true
@@ -5602,6 +5663,73 @@ paths:
                         type: string
                       version:
                         type: integer
+                required:
+                  - status
+                  - error
+                  - message
+                  - data
+      tags: *a19
+  /hotels/{hotelId}/reports/revenue-book/notes:
+    patch:
+      operationId: HotelRevenueBookController_updateNote
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - accountKey
+              properties:
+                accountKey:
+                  type: string
+                  maxLength: 160
+                notes:
+                  type: string
+                  nullable: true
+                  maxLength: 1000
+                roomId:
+                  type: string
+                  nullable: true
+                expectedPriorNote:
+                  type: string
+                  nullable: true
+                  maxLength: 1000
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    example: 200
+                  error:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                    example: null
+                  message:
+                    type: string
+                    example: Đã cập nhật ghi chú sổ doanh thu
+                  data:
+                    type: object
+                    required:
+                      - accountKey
+                      - notes
+                    properties:
+                      accountKey:
+                        type: string
+                      notes:
+                        type: string
                 required:
                   - status
                   - error
@@ -5788,6 +5916,7 @@ paths:
                             - paidAmount
                             - paymentStatus
                             - paymentMethod
+                            - paymentAccount
                             - paidAt
                             - documentNumber
                             - notes
@@ -5833,11 +5962,15 @@ paths:
                                 - CARD
                                 - OTHER
                               nullable: true
+                            paymentAccount:
+                              type: string
+                              nullable: true
+                              maxLength: 120
                             paidAt:
                               type: string
-                              format: date-time
                               nullable: true
-                              description: Thời điểm có múi giờ; chuỗi rỗng được coi là null.
+                              description: Thời điểm ISO có múi giờ hoặc YYYY-MM-DD; chuỗi rỗng được coi là
+                                null.
                             documentNumber:
                               type: string
                               nullable: true
@@ -5966,11 +6099,15 @@ paths:
                     - CARD
                     - OTHER
                   nullable: true
+                paymentAccount:
+                  type: string
+                  nullable: true
+                  maxLength: 120
                 paidAt:
                   type: string
-                  format: date-time
                   nullable: true
-                  description: Thời điểm có múi giờ; chuỗi rỗng được coi là null.
+                  description: Thời điểm ISO có múi giờ hoặc YYYY-MM-DD; chuỗi rỗng được coi là
+                    null.
                 documentNumber:
                   type: string
                   nullable: true
@@ -6102,11 +6239,15 @@ paths:
                     - CARD
                     - OTHER
                   nullable: true
+                paymentAccount:
+                  type: string
+                  nullable: true
+                  maxLength: 120
                 paidAt:
                   type: string
-                  format: date-time
                   nullable: true
-                  description: Thời điểm có múi giờ; chuỗi rỗng được coi là null.
+                  description: Thời điểm ISO có múi giờ hoặc YYYY-MM-DD; chuỗi rỗng được coi là
+                    null.
                 documentNumber:
                   type: string
                   nullable: true
@@ -6208,15 +6349,23 @@ paths:
                     - CARD
                     - OTHER
                   default: BANK_TRANSFER
+                paymentAccount:
+                  type: string
+                  nullable: true
+                  maxLength: 120
                 paidAt:
                   type: string
-                  format: date-time
                   nullable: true
-                  description: Thời điểm có múi giờ; chuỗi rỗng được coi là null.
+                  description: Thời điểm ISO có múi giờ hoặc YYYY-MM-DD; chuỗi rỗng được coi là
+                    null.
                 notes:
                   type: string
                   nullable: true
                   maxLength: 1000
+                idempotencyKey:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
       responses:
         "200":
           description: ""
@@ -6481,6 +6630,23 @@ paths:
                     nullable: true
                   reservationCode:
                     type: string
+                  groupCode:
+                    type: string
+                    nullable: true
+                  stay:
+                    type: object
+                    nullable: true
+                    properties:
+                      status:
+                        type: string
+                      checkedInAt:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      checkedOutAt:
+                        type: string
+                        format: date-time
+                        nullable: true
                   guestDisplayName:
                     type: string
                   guestPhone:
@@ -6531,6 +6697,16 @@ paths:
           in: query
           schema:
             type: boolean
+        - name: view
+          required: false
+          in: query
+          description: Danh sách đặt phòng mọi trạng thái. group-bookings chỉ lấy các
+            thành viên đoàn.
+          schema:
+            enum:
+              - bookings
+              - group-bookings
+            type: string
         - name: to
           required: false
           in: query
@@ -6592,6 +6768,23 @@ paths:
                           nullable: true
                         reservationCode:
                           type: string
+                        groupCode:
+                          type: string
+                          nullable: true
+                        stay:
+                          type: object
+                          nullable: true
+                          properties:
+                            status:
+                              type: string
+                            checkedInAt:
+                              type: string
+                              format: date-time
+                              nullable: true
+                            checkedOutAt:
+                              type: string
+                              format: date-time
+                              nullable: true
                         guestDisplayName:
                           type: string
                         guestPhone:
@@ -6683,6 +6876,23 @@ paths:
                     nullable: true
                   reservationCode:
                     type: string
+                  groupCode:
+                    type: string
+                    nullable: true
+                  stay:
+                    type: object
+                    nullable: true
+                    properties:
+                      status:
+                        type: string
+                      checkedInAt:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      checkedOutAt:
+                        type: string
+                        format: date-time
+                        nullable: true
                   guestDisplayName:
                     type: string
                   guestPhone:
@@ -6888,6 +7098,23 @@ paths:
                     nullable: true
                   reservationCode:
                     type: string
+                  groupCode:
+                    type: string
+                    nullable: true
+                  stay:
+                    type: object
+                    nullable: true
+                    properties:
+                      status:
+                        type: string
+                      checkedInAt:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      checkedOutAt:
+                        type: string
+                        format: date-time
+                        nullable: true
                   guestDisplayName:
                     type: string
                   guestPhone:
@@ -6966,6 +7193,23 @@ paths:
                     nullable: true
                   reservationCode:
                     type: string
+                  groupCode:
+                    type: string
+                    nullable: true
+                  stay:
+                    type: object
+                    nullable: true
+                    properties:
+                      status:
+                        type: string
+                      checkedInAt:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      checkedOutAt:
+                        type: string
+                        format: date-time
+                        nullable: true
                   guestDisplayName:
                     type: string
                   guestPhone:
@@ -7230,6 +7474,23 @@ paths:
                           nullable: true
                         reservationCode:
                           type: string
+                        groupCode:
+                          type: string
+                          nullable: true
+                        stay:
+                          type: object
+                          nullable: true
+                          properties:
+                            status:
+                              type: string
+                            checkedInAt:
+                              type: string
+                              format: date-time
+                              nullable: true
+                            checkedOutAt:
+                              type: string
+                              format: date-time
+                              nullable: true
                         guestDisplayName:
                           type: string
                         guestPhone:
@@ -7629,6 +7890,23 @@ paths:
                           nullable: true
                         reservationCode:
                           type: string
+                        groupCode:
+                          type: string
+                          nullable: true
+                        stay:
+                          type: object
+                          nullable: true
+                          properties:
+                            status:
+                              type: string
+                            checkedInAt:
+                              type: string
+                              format: date-time
+                              nullable: true
+                            checkedOutAt:
+                              type: string
+                              format: date-time
+                              nullable: true
                         guestDisplayName:
                           type: string
                         guestPhone:
@@ -8958,6 +9236,81 @@ paths:
       responses:
         "200":
           description: Danh sách HotelReceivable
+      tags: *a44
+  /hotels/{hotelId}/billing/receivables/{receivableId}:
+    get:
+      operationId: PaymentController_getReceivableDetail
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: receivableId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Chi tiết công nợ
+      tags: *a44
+  /hotels/{hotelId}/billing/cash-movements:
+    get:
+      operationId: PaymentController_getCashMovements
+      parameters:
+        - name: hotelId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: q
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: pageSize
+          required: false
+          in: query
+          schema:
+            type: number
+        - name: page
+          required: false
+          in: query
+          schema:
+            type: number
+        - name: movementType
+          required: false
+          in: query
+          schema:
+            enum:
+              - ALL
+              - RECEIPT
+              - DISBURSEMENT
+            type: string
+        - name: destinationAccount
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: paymentMethod
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: to
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: from
+          required: false
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Danh sách và tổng hợp CashMovements
       tags: *a44
   /hotels/{hotelId}/billing/stays/{stayId}/transfer-to-receivable:
     post:

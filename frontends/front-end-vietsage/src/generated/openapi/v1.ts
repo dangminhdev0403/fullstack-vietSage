@@ -1089,6 +1089,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/hotels/{hotelId}/reports/revenue-book/notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["HotelRevenueBookController_updateNote"];
+        trace?: never;
+    };
     "/hotels/{hotelId}/expenses": {
         parameters: {
             query?: never;
@@ -1705,6 +1721,38 @@ export interface paths {
             cookie?: never;
         };
         get: operations["PaymentController_listReceivables"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/billing/receivables/{receivableId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["PaymentController_getReceivableDetail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotelId}/billing/cash-movements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["PaymentController_getCashMovements"];
         put?: never;
         post?: never;
         delete?: never;
@@ -8436,6 +8484,8 @@ export interface operations {
                                     amount: number;
                                     method: string;
                                     reference: string | null;
+                                    destinationAccount?: string | null;
+                                    splitGroupId?: string | null;
                                 }[];
                             }[];
                         };
@@ -8469,9 +8519,16 @@ export interface operations {
                     collection?: {
                         /** Format: date-time */
                         receivedAt: string;
-                        amount: number;
+                        amount?: number;
                         /** @enum {string} */
-                        method: "CASH" | "BANK_TRANSFER" | "CARD" | "OTHER";
+                        method?: "CASH" | "BANK_TRANSFER" | "CARD" | "OTHER";
+                        destinationAccount?: string | null;
+                        splits?: {
+                            /** @enum {string} */
+                            method: "CASH" | "BANK_TRANSFER" | "CARD" | "OTHER";
+                            amount: number;
+                            destinationAccount?: string | null;
+                        }[];
                         reference?: string | null;
                     };
                 };
@@ -8566,9 +8623,16 @@ export interface operations {
                 "application/json": {
                     /** Format: date-time */
                     receivedAt: string;
-                    amount: number;
+                    amount?: number;
                     /** @enum {string} */
-                    method: "CASH" | "BANK_TRANSFER" | "CARD" | "OTHER";
+                    method?: "CASH" | "BANK_TRANSFER" | "CARD" | "OTHER";
+                    destinationAccount?: string | null;
+                    splits?: {
+                        /** @enum {string} */
+                        method: "CASH" | "BANK_TRANSFER" | "CARD" | "OTHER";
+                        amount: number;
+                        destinationAccount?: string | null;
+                    }[];
                     reference?: string | null;
                     version: number;
                     idempotencyKey: string;
@@ -8635,6 +8699,49 @@ export interface operations {
                         data: {
                             id: string;
                             version: number;
+                        };
+                    };
+                };
+            };
+        };
+    };
+    HotelRevenueBookController_updateNote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    accountKey: string;
+                    notes?: string | null;
+                    roomId?: string | null;
+                    expectedPriorNote?: string | null;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example 200 */
+                        status: number;
+                        /** @example null */
+                        error: {
+                            [key: string]: unknown;
+                        } | null;
+                        /** @example Đã cập nhật ghi chú sổ doanh thu */
+                        message: string;
+                        data: {
+                            accountKey: string;
+                            notes: string;
                         };
                     };
                 };
@@ -8715,10 +8822,8 @@ export interface operations {
                                 paymentStatus: "PAID" | "PARTIAL" | "UNPAID";
                                 /** @enum {string|null} */
                                 paymentMethod: "CASH" | "BANK_TRANSFER" | "CARD" | "OTHER" | null;
-                                /**
-                                 * Format: date-time
-                                 * @description Thời điểm có múi giờ; chuỗi rỗng được coi là null.
-                                 */
+                                paymentAccount: string | null;
+                                /** @description Thời điểm ISO có múi giờ hoặc YYYY-MM-DD; chuỗi rỗng được coi là null. */
                                 paidAt: string | null;
                                 documentNumber: string | null;
                                 notes: string | null;
@@ -8780,10 +8885,8 @@ export interface operations {
                     paymentStatus?: "PAID" | "PARTIAL" | "UNPAID";
                     /** @enum {string|null} */
                     paymentMethod?: "CASH" | "BANK_TRANSFER" | "CARD" | "OTHER" | null;
-                    /**
-                     * Format: date-time
-                     * @description Thời điểm có múi giờ; chuỗi rỗng được coi là null.
-                     */
+                    paymentAccount?: string | null;
+                    /** @description Thời điểm ISO có múi giờ hoặc YYYY-MM-DD; chuỗi rỗng được coi là null. */
                     paidAt?: string | null;
                     documentNumber?: string | null;
                     notes?: string | null;
@@ -8846,10 +8949,8 @@ export interface operations {
                     paymentStatus?: "PAID" | "PARTIAL" | "UNPAID";
                     /** @enum {string|null} */
                     paymentMethod?: "CASH" | "BANK_TRANSFER" | "CARD" | "OTHER" | null;
-                    /**
-                     * Format: date-time
-                     * @description Thời điểm có múi giờ; chuỗi rỗng được coi là null.
-                     */
+                    paymentAccount?: string | null;
+                    /** @description Thời điểm ISO có múi giờ hoặc YYYY-MM-DD; chuỗi rỗng được coi là null. */
                     paidAt?: string | null;
                     documentNumber?: string | null;
                     notes?: string | null;
@@ -8904,12 +9005,11 @@ export interface operations {
                      * @enum {string}
                      */
                     paymentMethod?: "CASH" | "BANK_TRANSFER" | "CARD" | "OTHER";
-                    /**
-                     * Format: date-time
-                     * @description Thời điểm có múi giờ; chuỗi rỗng được coi là null.
-                     */
+                    paymentAccount?: string | null;
+                    /** @description Thời điểm ISO có múi giờ hoặc YYYY-MM-DD; chuỗi rỗng được coi là null. */
                     paidAt?: string | null;
                     notes?: string | null;
+                    idempotencyKey?: string;
                 } | unknown | {
                     /** @enum {unknown} */
                     markFull: true;
@@ -9048,6 +9148,14 @@ export interface operations {
                         notes?: string | null;
                         nightlyRateSnapshot?: string | null;
                         reservationCode: string;
+                        groupCode?: string | null;
+                        stay?: {
+                            status?: string;
+                            /** Format: date-time */
+                            checkedInAt?: string | null;
+                            /** Format: date-time */
+                            checkedOutAt?: string | null;
+                        } | null;
                         guestDisplayName: string;
                         guestPhone?: string | null;
                         /** @enum {string} */
@@ -9068,6 +9176,8 @@ export interface operations {
                 limit?: number;
                 page?: number;
                 includeOverdue?: boolean;
+                /** @description Danh sách đặt phòng mọi trạng thái. group-bookings chỉ lấy các thành viên đoàn. */
+                view?: "bookings" | "group-bookings";
                 to?: string;
                 from?: string;
             };
@@ -9098,6 +9208,14 @@ export interface operations {
                             notes?: string | null;
                             nightlyRateSnapshot?: string | null;
                             reservationCode: string;
+                            groupCode?: string | null;
+                            stay?: {
+                                status?: string;
+                                /** Format: date-time */
+                                checkedInAt?: string | null;
+                                /** Format: date-time */
+                                checkedOutAt?: string | null;
+                            } | null;
                             guestDisplayName: string;
                             guestPhone?: string | null;
                             /** @enum {string} */
@@ -9149,6 +9267,14 @@ export interface operations {
                         notes?: string | null;
                         nightlyRateSnapshot?: string | null;
                         reservationCode: string;
+                        groupCode?: string | null;
+                        stay?: {
+                            status?: string;
+                            /** Format: date-time */
+                            checkedInAt?: string | null;
+                            /** Format: date-time */
+                            checkedOutAt?: string | null;
+                        } | null;
                         guestDisplayName: string;
                         guestPhone?: string | null;
                         /** @enum {string} */
@@ -9263,6 +9389,14 @@ export interface operations {
                         notes?: string | null;
                         nightlyRateSnapshot?: string | null;
                         reservationCode: string;
+                        groupCode?: string | null;
+                        stay?: {
+                            status?: string;
+                            /** Format: date-time */
+                            checkedInAt?: string | null;
+                            /** Format: date-time */
+                            checkedOutAt?: string | null;
+                        } | null;
                         guestDisplayName: string;
                         guestPhone?: string | null;
                         /** @enum {string} */
@@ -9309,6 +9443,14 @@ export interface operations {
                         notes?: string | null;
                         nightlyRateSnapshot?: string | null;
                         reservationCode: string;
+                        groupCode?: string | null;
+                        stay?: {
+                            status?: string;
+                            /** Format: date-time */
+                            checkedInAt?: string | null;
+                            /** Format: date-time */
+                            checkedOutAt?: string | null;
+                        } | null;
                         guestDisplayName: string;
                         guestPhone?: string | null;
                         /** @enum {string} */
@@ -9431,6 +9573,14 @@ export interface operations {
                             notes?: string | null;
                             nightlyRateSnapshot?: string | null;
                             reservationCode: string;
+                            groupCode?: string | null;
+                            stay?: {
+                                status?: string;
+                                /** Format: date-time */
+                                checkedInAt?: string | null;
+                                /** Format: date-time */
+                                checkedOutAt?: string | null;
+                            } | null;
                             guestDisplayName: string;
                             guestPhone?: string | null;
                             /** @enum {string} */
@@ -9681,6 +9831,14 @@ export interface operations {
                             notes?: string | null;
                             nightlyRateSnapshot?: string | null;
                             reservationCode: string;
+                            groupCode?: string | null;
+                            stay?: {
+                                status?: string;
+                                /** Format: date-time */
+                                checkedInAt?: string | null;
+                                /** Format: date-time */
+                                checkedOutAt?: string | null;
+                            } | null;
                             guestDisplayName: string;
                             guestPhone?: string | null;
                             /** @enum {string} */
@@ -10634,6 +10792,56 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Danh sách HotelReceivable */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PaymentController_getReceivableDetail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotelId: string;
+                receivableId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Chi tiết công nợ */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PaymentController_getCashMovements: {
+        parameters: {
+            query?: {
+                q?: string;
+                pageSize?: number;
+                page?: number;
+                movementType?: "ALL" | "RECEIPT" | "DISBURSEMENT";
+                destinationAccount?: string;
+                paymentMethod?: string;
+                to?: string;
+                from?: string;
+            };
+            header?: never;
+            path: {
+                hotelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Danh sách và tổng hợp CashMovements */
             200: {
                 headers: {
                     [name: string]: unknown;

@@ -1,3 +1,18 @@
+## 2026-11-26 — Cash movements ledger, receivable detail & submission idempotency, expense payment legs, revenue book notes, and unified booking lookup
+
+- **Daily cash movements & receivable detail (`GET /hotels/{hotelId}/billing/cash-movements`, `GET /hotels/{hotelId}/billing/receivables/{receivableId}`, `POST /hotels/{hotelId}/billing/receivables/{receivableId}/collect`)**:
+  - Added hotel-scoped `GET /hotels/{hotelId}/billing/cash-movements` with query filters (`from`, `to`, `paymentMethod`, `destinationAccount`, `movementType`, `page`, `pageSize`, `q`), returning business-day (`Asia/Ho_Chi_Minh`) actual receipts/disbursements, account breakdown with explicit unknown legacy bucket, and separated `undatedExpensePayments`.
+  - Added `GET /hotels/{hotelId}/billing/receivables/{receivableId}` and extended `POST .../collect` with separate `idempotencyKey` (`submissionKey`/`legIndex`/`requestHash`), per-leg `destinationAccount`, and `collectedAt`.
+  - Added optional `destinationAccount` across booking deposits (`BookingPayment`), counter checkout (`Payment.metadataJson`), and supplemental manual collections (`HotelRevenueCollection`).
+- **Hotel expenses (`POST/PATCH /hotels/{hotelId}/expenses`, `POST /hotels/{hotelId}/expenses/{expenseId}/pay`)**:
+  - Added `paymentAccount` on expense create/update/pay payloads and `idempotencyKey` on expense payment settlement; all mutations that change `paidAmount` record verified `HotelExpensePayment` legs.
+- **Revenue book persisted notes (`PATCH /hotels/{hotelId}/reports/revenue-book/notes`)**:
+  - Added hotel-scoped persisted notes endpoint with `accountKey`, `notes`, optional `roomId`, and optimistic concurrency guard `expectedPriorNote`.
+- **Unified booking lookup (`GET /hotels/{hotelId}/arrivals`) & market reports (`GET /hotels/{hotelId}/reports`)**:
+  - Added optional `view` query parameter (`bookings | group-bookings`) for past/current/future reservation and group lookup.
+  - Separated actual earned revenue/P&L from on-books projected revenue (`projectedRoomNights`, `projectedRoomRevenue`, `onBooksRoomNights`, `onBooksRoomRevenue`), added `marketDimensions` (`nationality`, `roomType`, `room`, `partner`, `owner`), and accounted for `blockedRooms` in `availableRoomNights`.
+- Synchronized `shared/api-contract/openapi/v1/openapi.json`, `openapi.yaml`, and `frontends/front-end-vietsage/src/generated/openapi/v1.ts` (323 paths verified).
+
 ## 2026-11-23 — Revenue book multi-filters, monthly MoM/YoY comparisons, and monthly revenue targets
 
 - **Revenue book server-side filters (`GET /hotels/{hotelId}/reports/revenue-book`)**:
