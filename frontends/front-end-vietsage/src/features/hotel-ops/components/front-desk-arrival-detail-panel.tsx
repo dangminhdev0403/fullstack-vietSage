@@ -282,6 +282,14 @@ export function FrontDeskArrivalDetailPanel({
   const bookingPayments = bookingPaymentsPage?.items ?? [];
   const receivables = receivablesPage?.items ?? [];
 
+  const referenceNowMs = useMemo(() => {
+    if (priorityAlerts?.generatedAt) {
+      const parsed = new Date(priorityAlerts.generatedAt).getTime();
+      if (!Number.isNaN(parsed)) return parsed;
+    }
+    return Date.now();
+  }, [priorityAlerts?.generatedAt]);
+
   if (!isOpen || !arrival) {
     return null;
   }
@@ -305,17 +313,7 @@ export function FrontDeskArrivalDetailPanel({
 
   const checkInYmd = hotelDate.format(new Date(activeArrival.plannedCheckInAt));
   const checkOutYmd = hotelDate.format(new Date(activeArrival.plannedCheckOutAt));
-  const referenceNowMs = useMemo(() => {
-    if (priorityAlerts?.generatedAt) {
-      const parsed = new Date(priorityAlerts.generatedAt).getTime();
-      if (!Number.isNaN(parsed)) return parsed;
-    }
-    return Date.now();
-  }, [priorityAlerts?.generatedAt]);
-  const checkOutMs = useMemo(() => {
-    if (!activeArrival.plannedCheckOutAt) return NaN;
-    return new Date(activeArrival.plannedCheckOutAt).getTime();
-  }, [activeArrival.plannedCheckOutAt]);
+  const checkOutMs = new Date(activeArrival.plannedCheckOutAt).getTime();
   const isScheduleExpired = Number.isNaN(checkOutMs) || checkOutMs <= referenceNowMs;
 
   const isCheckedOut =

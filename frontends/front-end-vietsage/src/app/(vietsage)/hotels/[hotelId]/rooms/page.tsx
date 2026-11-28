@@ -89,14 +89,14 @@ export default async function StaffRoomsPage({
 
   try {
     const authorizedApi = createAuthorizedApiExecutor({ session, callbackUrl });
-    const effectiveInitialStatus = initialStatus;
+    const effectiveInitialStatus = initialStatus?.toUpperCase();
     const res = await authorizedApi("list staff rooms", (accessToken) =>
       hotelOpsService.listRooms(hotelId, {
         query: {
           page: 1,
           limit: 100,
-          ...(effectiveInitialStatus
-            ? { status: effectiveInitialStatus.toUpperCase() }
+          ...(effectiveInitialStatus && effectiveInitialStatus !== "ALL"
+            ? { status: effectiveInitialStatus }
             : {}),
           ...(!isHousekeeping && initialBusinessDate
             ? { businessDate: initialBusinessDate }
@@ -184,6 +184,7 @@ export default async function StaffRoomsPage({
           hotelId={hotelId}
           baseRoutePrefix={baseRoutePrefix}
           initialRoomsPage={roomsPage}
+          hasFullRoomScope={isPrivileged}
           canManageRooms={!isHousekeeping && context.permissions.includes("hotel.rooms.manage")}
           canManageReservations={
             !isHousekeeping &&
