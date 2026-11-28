@@ -4,6 +4,7 @@ import { toYmd } from "../../../common/time/vietnam-temporal";
 import type { RevenueBookEntry, RevenueBookTotals } from "./hotel-revenue-book.types";
 import type {
   RevenueBookCategory,
+  RevenueBookCategoryFilter,
   RevenueBookPaymentMethodFilter,
   RevenueBookSettlementStatusFilter,
   RevenueBookSourceFilter,
@@ -11,14 +12,16 @@ import type {
 
 const STANDARD_PAYMENT_METHODS = new Set(["CASH", "BANK_TRANSFER", "CARD"]);
 
+export type RevenueBookBucket = RevenueBookCategory | "CHANNEL";
+
 export interface RevenueBookFilters {
-  category?: RevenueBookCategory;
+  category?: RevenueBookCategoryFilter;
   paymentMethod?: RevenueBookPaymentMethodFilter;
   source?: RevenueBookSourceFilter;
   settlementStatus?: RevenueBookSettlementStatusFilter;
 }
 
-export type MoneyEvent = { date: Date; amount: Prisma.Decimal | number; category?: RevenueBookCategory; id?: string; method?: string; reference?: string | null; splitGroupId?: string | null };
+export type MoneyEvent = { date: Date; amount: Prisma.Decimal | number; category?: RevenueBookBucket; id?: string; method?: string; reference?: string | null; splitGroupId?: string | null };
 export type BookAccount = Pick<RevenueBookEntry, "id" | "source" | "date" | "roomId" | "roomNumber" | "documentNumber" | "description" | "category" | "amount" | "notes" | "declarationStatus" | "version" | "voidedAt"> & {
   charges: MoneyEvent[];
   collections: MoneyEvent[];
@@ -34,34 +37,45 @@ export function revenueCategory(itemType: string, name: string, explicit?: unkno
   if (/giat|laundry/.test(normalized)) return "LAUNDRY";
   return "OTHER";
 }
+export function isSalesChannelBooking(booking?: {
+  sourceCategory?: string | null;
+  groupCode?: string | null;
+  group?: { sourceCategory?: string | null; groupCode?: string | null } | null;
+} | null): boolean {
+  const category = booking?.sourceCategory ?? booking?.group?.sourceCategory ?? null;
+  if (category === "OTA" || category === "TRAVEL_AGENCY") return true;
+  if (category) return false;
+  const groupCode = booking?.groupCode ?? booking?.group?.groupCode ?? null;
+  return Boolean(groupCode?.startsWith("CHANNEX:"));
+}
 export function projectBookAccount(account: BookAccount, from: Date, end: Date, timeZone: string): RevenueBookEntry | null {
   const inPeriod = (event: MoneyEvent) => event.date >= from && event.date < end;
-  const before = (events: MoneyEvent[], boundary: Date) => sum(events.filter((event) => event.date < boundary));
   const charges = account.charges.filter(inPeriod);
   const collections = account.collections.filter(inPeriod);
-  const adjustments = account.adjustments ?? [];
-  const opening = before(account.charges, from).sub(before(account.collections, from)).add(before(adjustments, from));
-  const closing = before(account.charges, end).sub(before(account.collections, end)).add(before(adjustments, end));
-  const adjustment = sum(adjustments.filter(inPeriod));
-  if (!charges.length && !collections.length && adjustment.isZero() && opening.isZero() && closing.isZero()) return null;
-  const lines = new Map<string, { ROOM: Prisma.Decimal; MINIBAR: Prisma.Decimal; LAUNDRY: Prisma.Decimal; OTHER: Prisma.Decimal }>();
+  const adjustments = (account.adjustments ?? []).filter(inPeriod);
+  const revenueTotal = sum(charges);
+  const collectedTotal = sum(collections);
+  const adjustment = sum(adjustments);
+  if (!charges.length && !collections.length && adjustment.isZero()) return null;
+  const closing = revenueTotal.sub(collectedTotal).add(adjustment);
+  const lines = new Map<string, { ROOM: Prisma.Decimal; CHANNEL: Prisma.Decimal; MINIBAR: Prisma.Decimal; LAUNDRY: Prisma.Decimal; OTHER: Prisma.Decimal }>();
   for (const charge of charges) {
     const key = toYmd(charge.date, timeZone);
-    const line = lines.get(key) ?? { ROOM: decimal(0), MINIBAR: decimal(0), LAUNDRY: decimal(0), OTHER: decimal(0) };
+    const line = lines.get(key) ?? { ROOM: decimal(0), CHANNEL: decimal(0), MINIBAR: decimal(0), LAUNDRY: decimal(0), OTHER: decimal(0) };
     const category = charge.category ?? "OTHER";
     line[category] = line[category].add(charge.amount);
     lines.set(key, line);
   }
-  const byCategory = (category: RevenueBookCategory) => sum(charges.filter((charge) => (charge.category ?? "OTHER") === category)).toNumber();
+  const byCategory = (category: RevenueBookBucket) => sum(charges.filter((charge) => (charge.category ?? "OTHER") === category)).toNumber();
   return {
     id: account.id, source: account.source, date: account.date, roomId: account.roomId, roomNumber: account.roomNumber,
     documentNumber: account.documentNumber, description: account.description, category: account.category, amount: account.amount,
     notes: account.notes, declarationStatus: account.declarationStatus, version: account.version, voidedAt: account.voidedAt,
-    roomRevenue: byCategory("ROOM"), minibarRevenue: byCategory("MINIBAR"), laundryRevenue: byCategory("LAUNDRY"), otherRevenue: byCategory("OTHER"),
-    revenueTotal: sum(charges).toNumber(), openingBalance: opening.toNumber(), closingBalance: closing.toNumber(), balanceAdjustment: adjustment.toNumber(),
+    roomRevenue: byCategory("ROOM"), channelRevenue: byCategory("CHANNEL"), minibarRevenue: byCategory("MINIBAR"), laundryRevenue: byCategory("LAUNDRY"), otherRevenue: byCategory("OTHER"),
+    revenueTotal: revenueTotal.toNumber(), closingBalance: closing.toNumber(), balanceAdjustment: adjustment.toNumber(),
     revenueLines: [...lines.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([date, line]) => ({
-      date, roomRevenue: line.ROOM.toNumber(), minibarRevenue: line.MINIBAR.toNumber(), laundryRevenue: line.LAUNDRY.toNumber(), otherRevenue: line.OTHER.toNumber(),
-      revenueTotal: line.ROOM.add(line.MINIBAR).add(line.LAUNDRY).add(line.OTHER).toNumber(),
+      date, roomRevenue: line.ROOM.toNumber(), channelRevenue: line.CHANNEL.toNumber(), minibarRevenue: line.MINIBAR.toNumber(), laundryRevenue: line.LAUNDRY.toNumber(), otherRevenue: line.OTHER.toNumber(),
+      revenueTotal: line.ROOM.add(line.CHANNEL).add(line.MINIBAR).add(line.LAUNDRY).add(line.OTHER).toNumber(),
     })),
     collections: collections.sort((a, b) => a.date.getTime() - b.date.getTime()).map((collection) => ({
       id: collection.id!, receivedAt: collection.date.toISOString(), amount: decimal(collection.amount).toNumber(), method: collection.method ?? "OTHER", reference: collection.reference ?? null,
@@ -81,6 +95,7 @@ export function filterRevenueBookEntries(
       const matchesCategory =
         entry.category === filters.category ||
         (filters.category === "ROOM" && entry.roomRevenue !== 0) ||
+        (filters.category === "CHANNEL" && entry.channelRevenue !== 0) ||
         (filters.category === "MINIBAR" && entry.minibarRevenue !== 0) ||
         (filters.category === "LAUNDRY" && entry.laundryRevenue !== 0) ||
         (filters.category === "OTHER" && entry.otherRevenue !== 0);
@@ -103,8 +118,8 @@ export function filterRevenueBookEntries(
   });
 }
 export function totalRevenueBook(entries: RevenueBookEntry[]): RevenueBookTotals {
-  const fields = ["roomRevenue", "minibarRevenue", "laundryRevenue", "otherRevenue", "revenueTotal", "openingBalance", "closingBalance", "balanceAdjustment"] as const;
-  const totals: RevenueBookTotals = { roomRevenue: 0, minibarRevenue: 0, laundryRevenue: 0, otherRevenue: 0, revenueTotal: 0, collectedTotal: 0, cashTotal: 0, bankTransferTotal: 0, otherCollectedTotal: 0, openingBalance: 0, closingBalance: 0, balanceAdjustment: 0 };
+  const fields = ["roomRevenue", "channelRevenue", "minibarRevenue", "laundryRevenue", "otherRevenue", "revenueTotal", "closingBalance", "balanceAdjustment"] as const;
+  const totals: RevenueBookTotals = { roomRevenue: 0, channelRevenue: 0, minibarRevenue: 0, laundryRevenue: 0, otherRevenue: 0, revenueTotal: 0, collectedTotal: 0, cashTotal: 0, bankTransferTotal: 0, otherCollectedTotal: 0, closingBalance: 0, balanceAdjustment: 0 };
   for (const field of fields) totals[field] = entries.reduce((total, entry) => total.add(entry[field]), decimal(0)).toNumber();
   for (const collection of entries.flatMap((entry) => entry.collections)) {
     totals.collectedTotal = decimal(totals.collectedTotal).add(collection.amount).toNumber();

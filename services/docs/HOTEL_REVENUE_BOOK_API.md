@@ -15,13 +15,13 @@ Base: `/hotels/{hotelId}/reports/revenue-book`.
 | POST | `/entries/{entryId}/void` | `hotel.billing.manage` | `reason`, `version` |
 | PATCH | `/notes` | `hotel.billing.manage` | `accountKey`, optional `notes` (max 1000) and `roomId` |
 
-Dates use `YYYY-MM-DD`. Receipt times are ISO instants with an offset. No dates defaults to the hotel's local month-start through today. The inclusive range is limited to 366 days; books exceeding 10,000 accounts are rejected instead of truncated. Amounts are positive VND numbers with at most two decimal places. Categories are `ROOM`, `MINIBAR`, `LAUNDRY`, `OTHER`; manual collection methods are `CASH`, `BANK_TRANSFER`, `CARD`, `OTHER`.
+Dates use `YYYY-MM-DD`. Receipt times are ISO instants with an offset. No dates defaults to the hotel's local month-start through today. The inclusive range is limited to 366 days; books exceeding 10,000 accounts are rejected instead of truncated. Amounts are positive VND numbers with at most two decimal places. Manual categories are `ROOM`, `MINIBAR`, `LAUNDRY`, `OTHER`; query category filter also supports `CHANNEL` (room revenue from OTA/Travel Agency/Channex reservations, separated into `channelRevenue`); manual collection methods are `CASH`, `BANK_TRANSFER`, `CARD`, `OTHER`.
 
-`GET` returns hotel/period metadata, permitted room choices, `canManage`, account `entries` and `summary`. Entries contain daily `revenueLines`, dated `collections`, category totals, opening/closing balances and non-cash `balanceAdjustment`. Mutations return `{id, version}`. Clients invalidate the hotel-scoped book resource after success. Automatic entries are edited through their originating workflows; only manual additions are editable here. Hotel and assigned-room restrictions are enforced on reads, writes and idempotency replays.
+`GET` returns hotel/period metadata, permitted room choices, `canManage`, account `entries` and `summary`. Entries contain daily `revenueLines`, dated `collections`, category totals, period `closingBalance` and non-cash `balanceAdjustment`. Mutations return `{id, version}`. Clients invalidate the hotel-scoped book resource after success. Automatic entries are edited through their originating workflows; only manual additions are editable here. Hotel and assigned-room restrictions are enforced on reads, writes and idempotency replays.
 
 ## Reconciliation
 
-- `closingBalance = openingBalance + revenueTotal - collectedTotal + balanceAdjustment`. Negative balances represent advances/credit and are retained.
+- `closingBalance = revenueTotal - collectedTotal + balanceAdjustment`. Negative balances represent advances/credit and are retained. Prior-period carry-over (`openingBalance`) is excluded; only in-period activity is projected.
 - Charges use their actual posting/business date; receipt dates never create revenue. Voids reverse revenue on their dated event, no earlier than recognition of a future manual charge.
 - Booking deposits appear once at receipt. Their synthetic folio payments do not count as new cash. Allocation credits the folio and debits the deposit account through non-cash adjustments.
 - Receivable collections remain attached to the originating folio, so a debt transfer does not create revenue or another cash receipt.

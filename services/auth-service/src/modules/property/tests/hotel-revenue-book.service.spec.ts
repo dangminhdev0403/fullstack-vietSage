@@ -624,4 +624,47 @@ describe("hotel revenue book workflows", () => {
       "Khoản đặt cọc TX-DEP-999 đã hoàn nhưng chưa có ngày hoàn chi tiết. Vui lòng đối soát khoản cọc trước khi xuất báo cáo."
     );
   });
+
+  it("splits room charges from OTA/TA/Channex stays into channelRevenue while preserving direct roomRevenue and services", async () => {
+    const { service, tx } = setup();
+    const date = new Date("2026-11-13T01:00:00Z");
+
+    tx.folio.findMany.mockResolvedValueOnce([
+      {
+        id: "folio-ota", currency: "VND", roomId: "room-1", room: { roomNumber: "101" }, openedAt: date, folioNumber: "F-OTA", voidedAt: null,
+        stay: {
+          guestDisplayName: "Khách Agoda",
+          kbttGuestDeclarations: [],
+          reservation: { sourceCategory: "OTA", groupCode: null, group: null },
+        },
+        items: [
+          { itemType: "ROOM_CHARGE", nameSnapshot: "Tiền phòng", metadataSnapshotJson: null, serviceItem: null, postedAt: date, totalSnapshot: D(1500000), discountAmountSnapshot: D(0), voidedAt: null },
+          { itemType: "SERVICE", nameSnapshot: "Giặt ủi", metadataSnapshotJson: null, serviceItem: null, postedAt: date, totalSnapshot: D(80000), discountAmountSnapshot: D(0), voidedAt: null },
+        ],
+        payments: [], bookingPaymentAllocations: [], hotelReceivables: [],
+      },
+      {
+        id: "folio-direct", currency: "VND", roomId: "room-2", room: { roomNumber: "102" }, openedAt: date, folioNumber: "F-DIR", voidedAt: null,
+        stay: {
+          guestDisplayName: "Khách trực tiếp",
+          kbttGuestDeclarations: [],
+          reservation: { sourceCategory: "DIRECT", groupCode: null, group: null },
+        },
+        items: [
+          { itemType: "ROOM_CHARGE", nameSnapshot: "Tiền phòng", metadataSnapshotJson: null, serviceItem: null, postedAt: date, totalSnapshot: D(900000), discountAmountSnapshot: D(0), voidedAt: null },
+        ],
+        payments: [], bookingPaymentAllocations: [], hotelReceivables: [],
+      },
+    ]);
+
+    const book = await service.getBook("user-a", "role-a", "hotel-a", { from: "2026-11-13", to: "2026-11-13" });
+    expect(book.summary).toMatchObject({
+      roomRevenue: 900000,
+      channelRevenue: 1500000,
+      laundryRevenue: 80000,
+      revenueTotal: 2480000,
+    });
+    const otaEntry = book.entries.find((e) => e.id === "folio:folio-ota")!;
+    expect(otaEntry).toMatchObject({ roomRevenue: 0, channelRevenue: 1500000, laundryRevenue: 80000, revenueTotal: 1580000 });
+  });
 });

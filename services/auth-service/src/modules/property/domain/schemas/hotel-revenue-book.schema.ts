@@ -8,6 +8,7 @@ const money = z.number().finite().positive("Số tiền phải lớn hơn 0").ma
 const text = (max: number) => z.string().trim().min(1).max(max);
 const optionalText = (max: number) => z.string().trim().max(max).nullable().optional();
 export const revenueBookCategorySchema = z.enum(["ROOM", "MINIBAR", "LAUNDRY", "OTHER"]);
+export const revenueBookCategoryFilterSchema = z.enum(["ROOM", "CHANNEL", "MINIBAR", "LAUNDRY", "OTHER"]);
 export const revenueBookPaymentMethodFilterSchema = z.enum(["CASH", "BANK_TRANSFER", "CARD", "OTHER"]);
 export const revenueBookSourceFilterSchema = z.enum(["FOLIO", "MANUAL", "DEPOSIT", "RECEIVABLE"]);
 export const revenueBookSettlementStatusFilterSchema = z.enum(["SETTLED", "UNPAID", "OVERPAID"]);
@@ -57,7 +58,7 @@ const fields = {
 export const revenueBookQuerySchema = z.object({
   from: date.optional(),
   to: date.optional(),
-  category: revenueBookCategorySchema.optional(),
+  category: revenueBookCategoryFilterSchema.optional(),
   paymentMethod: revenueBookPaymentMethodFilterSchema.optional(),
   source: revenueBookSourceFilterSchema.optional(),
   settlementStatus: revenueBookSettlementStatusFilterSchema.optional(),
@@ -84,6 +85,7 @@ export const updateRevenueNoteSchema = z.object({
 }).strict();
 export const revenueEntryIdSchema = text(120);
 export type RevenueBookCategory = z.infer<typeof revenueBookCategorySchema>;
+export type RevenueBookCategoryFilter = z.infer<typeof revenueBookCategoryFilterSchema>;
 export type RevenueBookPaymentMethodFilter = z.infer<typeof revenueBookPaymentMethodFilterSchema>;
 export type RevenueBookSourceFilter = z.infer<typeof revenueBookSourceFilterSchema>;
 export type RevenueBookSettlementStatusFilter = z.infer<typeof revenueBookSettlementStatusFilterSchema>;

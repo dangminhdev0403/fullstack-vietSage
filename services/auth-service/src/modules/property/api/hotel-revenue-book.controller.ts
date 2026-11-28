@@ -11,7 +11,7 @@ import { collectRevenueEntrySchema, createRevenueEntrySchema, revenueBookQuerySc
 import { hotelIdParamSchema } from "../domain/schemas/shared.schema";
 
 interface RevenueRequest extends Request { user: AuthenticatedUser }
-const moneyProperties = Object.fromEntries(["roomRevenue", "minibarRevenue", "laundryRevenue", "otherRevenue", "revenueTotal", "openingBalance", "closingBalance", "balanceAdjustment"].map((key) => [key, { type: "number" }]));
+const moneyProperties = Object.fromEntries(["roomRevenue", "channelRevenue", "minibarRevenue", "laundryRevenue", "otherRevenue", "revenueTotal", "closingBalance", "balanceAdjustment"].map((key) => [key, { type: "number" }]));
 const splitItemProperties = { method: { type: "string", enum: ["CASH", "BANK_TRANSFER", "CARD", "OTHER"] }, amount: { type: "number", minimum: 0, exclusiveMinimum: true }, destinationAccount: { type: "string", nullable: true, maxLength: 120 } };
 const collectionProperties = { receivedAt: { type: "string", format: "date-time" }, amount: { type: "number", minimum: 0, exclusiveMinimum: true }, method: { type: "string", enum: ["CASH", "BANK_TRANSFER", "CARD", "OTHER"] }, reference: { type: "string", nullable: true, maxLength: 120 }, destinationAccount: { type: "string", nullable: true, maxLength: 120 }, splitGroupId: { type: "string", nullable: true } };
 const collectionInputProperties = { receivedAt: { type: "string", format: "date-time" }, amount: { type: "number", minimum: 0, exclusiveMinimum: true }, method: { type: "string", enum: ["CASH", "BANK_TRANSFER", "CARD", "OTHER"] }, destinationAccount: { type: "string", nullable: true, maxLength: 120 }, splits: { type: "array", minItems: 1, maxItems: 4, items: { type: "object", required: ["method", "amount"], properties: splitItemProperties } }, reference: { type: "string", nullable: true, maxLength: 120 } };
@@ -27,7 +27,7 @@ const bookResponse = successEnvelopeSchema({
     entries: { type: "array", items: { type: "object", required: [...Object.keys(moneyProperties), ...Object.keys(entryProperties), "id", "source", "roomNumber", "declarationStatus", "version", "voidedAt", "revenueLines", "collections"], properties: {
       ...moneyProperties, ...entryProperties, id: { type: "string" }, source: { type: "string", enum: ["FOLIO", "MANUAL", "DEPOSIT", "RECEIVABLE"] }, roomNumber: { type: "string", nullable: true },
       category: { ...entryProperties.category, nullable: true }, amount: { type: "number", nullable: true }, declarationStatus: { type: "string", nullable: true }, version: { type: "integer", nullable: true }, voidedAt: { type: "string", format: "date-time", nullable: true },
-      revenueLines: { type: "array", items: { type: "object", required: ["date", "roomRevenue", "minibarRevenue", "laundryRevenue", "otherRevenue", "revenueTotal"], properties: { date: { type: "string", format: "date" }, ...Object.fromEntries(Object.entries(moneyProperties).filter(([key]) => !["openingBalance", "closingBalance", "balanceAdjustment"].includes(key))) } } },
+      revenueLines: { type: "array", items: { type: "object", required: ["date", "roomRevenue", "channelRevenue", "minibarRevenue", "laundryRevenue", "otherRevenue", "revenueTotal"], properties: { date: { type: "string", format: "date" }, ...Object.fromEntries(Object.entries(moneyProperties).filter(([key]) => !["closingBalance", "balanceAdjustment"].includes(key))) } } },
       collections: { type: "array", items: { type: "object", required: ["id", "receivedAt", "amount", "method", "reference"], properties: { id: { type: "string" }, ...collectionProperties, amount: { type: "number" }, method: { type: "string" } } } },
     } } },
   },
@@ -44,7 +44,7 @@ export class HotelRevenueBookController {
   @SuccessMessage("Đã tải sổ doanh thu")
   @ApiQuery({ name: "from", type: String, required: false, description: "Ngày bắt đầu YYYY-MM-DD; bỏ cả hai ngày để xem tháng hiện tại theo giờ khách sạn" })
   @ApiQuery({ name: "to", type: String, required: false, description: "Ngày kết thúc YYYY-MM-DD, bao gồm ngày này; tối đa 366 ngày" })
-  @ApiQuery({ name: "category", enum: ["ROOM", "MINIBAR", "LAUNDRY", "OTHER"], required: false, description: "Lọc theo nhóm doanh thu" })
+  @ApiQuery({ name: "category", enum: ["ROOM", "CHANNEL", "MINIBAR", "LAUNDRY", "OTHER"], required: false, description: "Lọc theo nhóm doanh thu" })
   @ApiQuery({ name: "paymentMethod", enum: ["CASH", "BANK_TRANSFER", "CARD", "OTHER"], required: false, description: "Lọc theo phương thức thanh toán đã thu trong kỳ" })
   @ApiQuery({ name: "source", enum: ["FOLIO", "MANUAL", "DEPOSIT", "RECEIVABLE"], required: false, description: "Lọc theo nguồn chứng từ" })
   @ApiQuery({ name: "settlementStatus", enum: ["SETTLED", "UNPAID", "OVERPAID"], required: false, description: "Lọc theo trạng thái thanh toán cuối kỳ" })

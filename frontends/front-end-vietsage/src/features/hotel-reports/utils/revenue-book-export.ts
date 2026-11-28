@@ -1,6 +1,6 @@
 import type { RevenueBook, RevenueBookCollection, RevenueBookEntry } from "../types/revenue-book-contract";
 
-export type Revenue = Pick<RevenueBookEntry, "roomRevenue" | "minibarRevenue" | "laundryRevenue" | "otherRevenue" | "revenueTotal">;
+export type Revenue = Pick<RevenueBookEntry, "roomRevenue" | "channelRevenue" | "minibarRevenue" | "laundryRevenue" | "otherRevenue" | "revenueTotal">;
 export type Collection = RevenueBookCollection;
 export type MergedPayment = {
   id: string;
@@ -24,7 +24,7 @@ export type Activity = {
 type Cell = string | number | null | undefined;
 const encoder = new TextEncoder();
 const columns = "ABCDEFGHIJKLMNOPQRS";
-const emptyRevenue = (): Revenue => ({ roomRevenue: 0, minibarRevenue: 0, laundryRevenue: 0, otherRevenue: 0, revenueTotal: 0 });
+const emptyRevenue = (): Revenue => ({ roomRevenue: 0, channelRevenue: 0, minibarRevenue: 0, laundryRevenue: 0, otherRevenue: 0, revenueTotal: 0 });
 export const addMoney = (left: number, right: number) => (Math.round(left * 100) + Math.round(right * 100)) / 100;
 export const declarationLabels: Record<string, string> = {
   DRAFT: "Bản nháp", READY: "Chờ gửi", SENDING: "Đang gửi", SUBMITTED: "Đã khai báo",
@@ -183,18 +183,33 @@ export type RevenueBookExportOverrides = {
   descriptionsByRow?: Record<string, string>;
   notesByRow?: Record<string, string>;
   textOverrides?: Record<string, string>;
+  showChannelRevenue?: boolean;
 };
 
 function sheetXml(
   book: RevenueBook,
   overrides?: RevenueBookExportOverrides,
 ): string {
+  const includeChannel = Boolean(overrides?.showChannelRevenue);
+  const col = (index: number) => columns[index];
+  const revEndIdx = includeChannel ? 9 : 8;
+  const payStartIdx = revEndIdx + 1;
+  const payEndIdx = payStartIdx + 3;
+  const paidTotalIdx = payEndIdx + 1;
+  const otherPayIdx = paidTotalIdx + 1;
+  const closingIdx = otherPayIdx + 1;
+  const declIdx = closingIdx + 1;
+  const noteIdx = declIdx + 1;
+  const totalCols = noteIdx + 1;
+  const lastCol = col(noteIdx);
+
   const rows: string[] = [];
   const merges = [
-    "A1:R1", "A2:R2", "A3:R3", "A4:O4", "Q4:R4", "A5:O5", "Q5:R5",
-    "F6:I6", "J6:M6",
-    "K7:M7",
-    "L8:M8",
+    `A1:${lastCol}1`, `A2:${lastCol}2`, `A3:${lastCol}3`,
+    `A4:${col(closingIdx - 1)}4`, `${col(declIdx)}4:${lastCol}4`,
+    `F5:${col(revEndIdx)}5`, `${col(payStartIdx)}5:${col(payEndIdx)}5`,
+    `${col(payStartIdx + 1)}6:${col(payEndIdx)}6`,
+    `${col(payStartIdx + 2)}7:${col(payEndIdx)}7`,
   ];
   let rowNumber = 0;
   const addRow = (values: Cell[], total = false, height?: number) => {
@@ -210,41 +225,46 @@ function sheetXml(
   title(book.hotelName.toLocaleUpperCase("vi-VN"));
   title(periodTitle(book.from, book.to), 30);
   title(`Từ ${dateLabel(book.from)} đến ${dateLabel(book.to)} · ${book.currency}`, 22);
-  addRow(["Công nợ đầu kỳ", ...Array<null>(14).fill(null), book.summary.openingBalance, book.currency], true);
-  addRow(["Điều chỉnh công nợ không qua thu tiền", ...Array<null>(14).fill(null), book.summary.balanceAdjustment, "", ""], true);
+  addRow(["Điều chỉnh công nợ không qua thu tiền", ...Array<null>(closingIdx - 1).fill(null), book.summary.balanceAdjustment, "", ""], true);
   const headers: Cell[][] = [
     [
       "TT", "Ngày/Tháng", "Số phòng", "Số chứng từ (Hóa đơn/Phiếu thu)", "Diễn giải",
-      "Doanh thu", null, null, null,
+      "Doanh thu", ...Array<null>(includeChannel ? 4 : 3).fill(null),
       "Khách hàng thanh toán", null, null, null,
       "Tổng tiền thanh toán", "Thanh toán khác", "Còn nợ", "Khai báo", "Ghi chú",
     ],
     [
       null, null, null, null, null,
-      "Doanh thu Tiền phòng", "Doanh thu Giặt ủi", "Doanh thu Dịch vụ khác", "Tổng doanh thu hằng ngày",
+      "Doanh thu Tiền phòng",
+      ...(includeChannel ? ["Doanh thu Kênh bán"] : []),
+      "Doanh thu Giặt ủi", "Doanh thu Dịch vụ khác", "Tổng doanh thu hằng ngày",
       "Ngày tháng thanh toán", "Số tiền", null, null,
       null, null, null, null, null,
     ],
     [
       null, null, null, null, null,
-      null, null, null, null,
+      ...Array<null>(includeChannel ? 5 : 4).fill(null),
       null, "Tiền mặt", "Chuyển khoản", null,
       null, null, null, null, null,
     ],
     [
       null, null, null, null, null,
-      null, null, null, null,
+      ...Array<null>(includeChannel ? 5 : 4).fill(null),
       null, null, "Giờ CK", "Số tiền",
       null, null, null, null, null,
     ],
   ];
   for (const values of headers) {
     rowNumber++;
-    rows.push(`<row r="${rowNumber}" ht="30" customHeight="1">${Array.from({ length: 18 }, (_, index) => `<c r="${columns[index]}${rowNumber}" s="2" t="inlineStr"><is><t>${escapeXml(String(values[index] ?? ""))}</t></is></c>`).join("")}</row>`);
+    rows.push(`<row r="${rowNumber}" ht="30" customHeight="1">${Array.from({ length: totalCols }, (_, index) => `<c r="${columns[index]}${rowNumber}" s="2" t="inlineStr"><is><t>${escapeXml(String(values[index] ?? ""))}</t></is></c>`).join("")}</row>`);
   }
-  for (const column of ["A", "B", "C", "D", "E", "N", "O", "P", "Q", "R"]) merges.push(`${column}6:${column}9`);
-  for (const column of ["F", "G", "H", "I", "J"]) merges.push(`${column}7:${column}9`);
-  merges.push("K8:K9");
+  for (const index of [0, 1, 2, 3, 4, paidTotalIdx, otherPayIdx, closingIdx, declIdx, noteIdx]) {
+    merges.push(`${col(index)}5:${col(index)}8`);
+  }
+  for (let index = 5; index <= payStartIdx; index++) {
+    merges.push(`${col(index)}6:${col(index)}8`);
+  }
+  merges.push(`${col(payStartIdx + 1)}7:${col(payStartIdx + 1)}8`);
 
   let date = "";
   let dayRevenue = emptyRevenue();
@@ -254,7 +274,10 @@ function sheetXml(
   let sequence = 0;
   const subtotal = () => {
     if (!date) return;
-    const r = addRow([`Cộng ngày ${dateLabel(date)}`, null, null, null, null, dayRevenue.roomRevenue, dayRevenue.laundryRevenue, dayRevenue.otherRevenue, dayRevenue.revenueTotal, null, dayCash, null, dayBank, addMoney(addMoney(dayCash, dayBank), dayOther), dayOther], true);
+    const revCells = includeChannel
+      ? [dayRevenue.roomRevenue, dayRevenue.channelRevenue, dayRevenue.laundryRevenue, dayRevenue.otherRevenue, dayRevenue.revenueTotal]
+      : [addMoney(dayRevenue.roomRevenue, dayRevenue.channelRevenue), dayRevenue.laundryRevenue, dayRevenue.otherRevenue, dayRevenue.revenueTotal];
+    const r = addRow([`Cộng ngày ${dateLabel(date)}`, null, null, null, null, ...revCells, null, dayCash, null, dayBank, addMoney(addMoney(dayCash, dayBank), dayOther), dayOther], true);
     merges.push(`A${r}:E${r}`);
   };
   for (const activity of buildActivities(book)) {
@@ -293,6 +316,7 @@ function sheetXml(
     const bankTime = bank !== 0 ? bankLocal?.time ?? null : null;
 
     const roomRev = revenue?.roomRevenue ?? 0;
+    const channelRev = revenue?.channelRevenue ?? 0;
     const laundryRev = revenue?.laundryRevenue ?? 0;
     const otherRev = addMoney(revenue?.otherRevenue ?? 0, revenue?.minibarRevenue ?? 0);
     const totalRev = revenue?.revenueTotal ?? 0;
@@ -300,17 +324,21 @@ function sheetXml(
     const refText = payment?.references.length
       ? payment.references.join(", ")
       : collection?.reference ?? null;
-    const notes = [customNote ?? entry.notes, !activity.date ? "Số dư chuyển sang" : null, entry.voidedAt ? "Đã hủy khoản phát sinh" : null, refText ? `Tham chiếu: ${refText}` : null].filter(Boolean).join("; ");
+    const notes = [customNote ?? entry.notes, entry.voidedAt ? "Đã hủy khoản phát sinh" : null, refText ? `Tham chiếu: ${refText}` : null].filter(Boolean).join("; ");
     const hasPayment = Boolean(payment || collection);
+    const revCells = includeChannel
+      ? [revenue ? roomRev : null, revenue ? channelRev : null, revenue ? laundryRev : null, revenue ? otherRev : null, revenue ? totalRev : null]
+      : [revenue ? addMoney(roomRev, channelRev) : null, revenue ? laundryRev : null, revenue ? otherRev : null, revenue ? totalRev : null];
     addRow([
       ++sequence, activity.date ? dateLabel(activity.date) : null, effectiveRoom, effectiveDoc, customDesc ?? entry.description,
-      revenue ? roomRev : null, revenue ? laundryRev : null, revenue ? otherRev : null, revenue ? totalRev : null,
+      ...revCells,
       paymentDate, hasPayment ? cash : null, bankTime, hasPayment ? bank : null,
       hasPayment ? paid : null, hasPayment ? other : null, activity.closing,
       entry.declarationStatus ? declarationLabels[entry.declarationStatus] ?? "Chưa xác định" : null, notes,
     ]);
     if (revenue) {
       dayRevenue.roomRevenue = addMoney(dayRevenue.roomRevenue, roomRev);
+      dayRevenue.channelRevenue = addMoney(dayRevenue.channelRevenue, channelRev);
       dayRevenue.laundryRevenue = addMoney(dayRevenue.laundryRevenue, laundryRev);
       dayRevenue.otherRevenue = addMoney(dayRevenue.otherRevenue, otherRev);
       dayRevenue.revenueTotal = addMoney(dayRevenue.revenueTotal, totalRev);
@@ -321,10 +349,13 @@ function sheetXml(
   }
   subtotal();
   const s = book.summary;
-  const totalRow = addRow(["TỔNG KỲ", null, null, null, null, s.roomRevenue, s.laundryRevenue, addMoney(s.otherRevenue, s.minibarRevenue), s.revenueTotal, null, s.cashTotal, null, s.bankTransferTotal, s.collectedTotal, s.otherCollectedTotal, s.closingBalance], true, 28);
+  const totalRevCells = includeChannel
+    ? [s.roomRevenue, s.channelRevenue, s.laundryRevenue, addMoney(s.otherRevenue, s.minibarRevenue), s.revenueTotal]
+    : [addMoney(s.roomRevenue, s.channelRevenue), s.laundryRevenue, addMoney(s.otherRevenue, s.minibarRevenue), s.revenueTotal];
+  const totalRow = addRow(["TỔNG KỲ", null, null, null, null, ...totalRevCells, null, s.cashTotal, null, s.bankTransferTotal, s.collectedTotal, s.otherCollectedTotal, s.closingBalance], true, 28);
   merges.push(`A${totalRow}:E${totalRow}`);
-  const widths = [6, 14, 12, 26, 38, 18, 18, 18, 20, 18, 18, 12, 18, 20, 18, 20, 18, 38];
-  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><dimension ref="A1:R${rowNumber}"/><sheetViews><sheetView workbookViewId="0"><pane ySplit="9" topLeftCell="A10" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><sheetFormatPr defaultRowHeight="24"/><cols>${widths.map((width, index) => `<col min="${index + 1}" max="${index + 1}" width="${width}" customWidth="1"/>`).join("")}</cols><sheetData>${rows.join("")}</sheetData><mergeCells count="${merges.length}">${merges.map((ref) => `<mergeCell ref="${ref}"/>`).join("")}</mergeCells><printOptions horizontalCentered="1"/><pageMargins left="0.25" right="0.25" top="0.4" bottom="0.4" header="0.2" footer="0.2"/><pageSetup paperSize="8" orientation="landscape" fitToWidth="1" fitToHeight="0"/></worksheet>`;
+  const widths = [6, 14, 12, 26, 38, 18, ...(includeChannel ? [20] : []), 18, 18, 20, 18, 18, 12, 18, 20, 18, 20, 18, 38];
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><dimension ref="A1:${lastCol}${rowNumber}"/><sheetViews><sheetView workbookViewId="0"><pane ySplit="8" topLeftCell="A9" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><sheetFormatPr defaultRowHeight="24"/><cols>${widths.map((width, index) => `<col min="${index + 1}" max="${index + 1}" width="${width}" customWidth="1"/>`).join("")}</cols><sheetData>${rows.join("")}</sheetData><mergeCells count="${merges.length}">${merges.map((ref) => `<mergeCell ref="${ref}"/>`).join("")}</mergeCells><printOptions horizontalCentered="1"/><pageMargins left="0.25" right="0.25" top="0.4" bottom="0.4" header="0.2" footer="0.2"/><pageSetup paperSize="8" orientation="landscape" fitToWidth="1" fitToHeight="0"/></worksheet>`;
 }
 
 const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="1"><numFmt numFmtId="164" formatCode="#,##0.00;[Red]-#,##0.00"/></numFmts><fonts count="3"><font><sz val="12"/><name val="Times New Roman"/></font><font><b/><sz val="16"/><name val="Times New Roman"/></font><font><b/><sz val="12"/><name val="Times New Roman"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFE2E8F0"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"><color rgb="FFCBD5E1"/></left><right style="thin"><color rgb="FFCBD5E1"/></right><top style="thin"><color rgb="FFCBD5E1"/></top><bottom style="thin"><color rgb="FFCBD5E1"/></bottom><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="7"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="0" fontId="2" fillId="2" borderId="1" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf numFmtId="164" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyAlignment="1"><alignment horizontal="right" vertical="top"/></xf><xf numFmtId="0" fontId="2" fillId="2" borderId="1" xfId="0" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf><xf numFmtId="164" fontId="2" fillId="2" borderId="1" xfId="0" applyNumberFormat="1" applyAlignment="1"><alignment horizontal="right" vertical="center"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
@@ -379,7 +410,7 @@ export function buildRevenueBookWorkbook(
   return zip({
     "[Content_Types].xml": '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>',
     "_rels/.rels": '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>',
-    "xl/workbook.xml": '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Sổ doanh thu" sheetId="1" r:id="rId1"/></sheets><definedNames><definedName name="_xlnm.Print_Titles" localSheetId="0">\'Sổ doanh thu\'!$1:$9</definedName></definedNames></workbook>',
+    "xl/workbook.xml": '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Sổ doanh thu" sheetId="1" r:id="rId1"/></sheets><definedNames><definedName name="_xlnm.Print_Titles" localSheetId="0">\'Sổ doanh thu\'!$1:$8</definedName></definedNames></workbook>',
     "xl/_rels/workbook.xml.rels": '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>',
     "xl/styles.xml": styles,
     "xl/worksheets/sheet1.xml": sheetXml(book, overrides),

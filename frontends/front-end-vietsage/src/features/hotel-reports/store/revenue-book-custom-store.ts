@@ -33,8 +33,12 @@ interface RevenueBookCustomState {
   descriptionsByRow: Record<string, string>;
   // key: `${hotelId}:${field}:${rowKey}` -> non-financial text override (roomNumber, docNumber)
   textOverrides: Record<string, string>;
+  // key: `${hotelId}` -> whether "Doanh thu kênh bán" column is enabled (default false)
+  showChannelRevenueByHotel: Record<string, boolean>;
 
   // Actions
+  setShowChannelRevenue: (hotelId: string, show: boolean) => void;
+  getShowChannelRevenue: (hotelId: string) => boolean;
   setNote: (hotelId: string, rowKey: string, note: string) => void;
   getNote: (hotelId: string, rowKey: string) => string | undefined;
   setDescription: (hotelId: string, rowKey: string, description: string) => void;
@@ -61,6 +65,20 @@ export const useRevenueBookCustomStore = create<RevenueBookCustomState>()(
       notesByRow: {},
       descriptionsByRow: {},
       textOverrides: {},
+      showChannelRevenueByHotel: {},
+
+      setShowChannelRevenue: (hotelId, show) => {
+        set((state) => ({
+          showChannelRevenueByHotel: {
+            ...state.showChannelRevenueByHotel,
+            [hotelId]: show,
+          },
+        }));
+      },
+
+      getShowChannelRevenue: (hotelId) => {
+        return Boolean(get().showChannelRevenueByHotel[hotelId]);
+      },
 
       setNote: (hotelId, rowKey, note) => {
         const key = `${hotelId}:${rowKey}`;
@@ -159,19 +177,34 @@ export const useRevenueBookCustomStore = create<RevenueBookCustomState>()(
     }),
     {
       name: "vietsage_revenue_book_custom_columns",
-      version: 2,
+      version: 3,
       storage: createJSONStorage(() => safeStorage),
       partialize: (state) => ({
         notesByRow: state.notesByRow,
         descriptionsByRow: state.descriptionsByRow,
         textOverrides: state.textOverrides,
+        showChannelRevenueByHotel: state.showChannelRevenueByHotel,
       }),
       migrate: (persistedState) => {
         const legacy = (persistedState ?? {}) as {
           notesByRow?: Record<string, string>;
           descriptionsByRow?: Record<string, string>;
           textOverrides?: Record<string, string>;
+          showChannelRevenueByHotel?: Record<string, boolean>;
         };
+        const showChannelRevenueByHotel: Record<string, boolean> = {};
+        if (
+          legacy.showChannelRevenueByHotel &&
+          typeof legacy.showChannelRevenueByHotel === "object"
+        ) {
+          for (const [hotelId, enabled] of Object.entries(
+            legacy.showChannelRevenueByHotel,
+          )) {
+            if (typeof enabled === "boolean") {
+              showChannelRevenueByHotel[hotelId] = enabled;
+            }
+          }
+        }
         return {
           notesByRow:
             legacy.notesByRow && typeof legacy.notesByRow === "object"
@@ -183,6 +216,7 @@ export const useRevenueBookCustomStore = create<RevenueBookCustomState>()(
               ? legacy.descriptionsByRow
               : {},
           textOverrides: sanitizeTextOverrides(legacy.textOverrides),
+          showChannelRevenueByHotel,
         };
       },
     },

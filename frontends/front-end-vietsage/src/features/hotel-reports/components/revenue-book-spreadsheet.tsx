@@ -2,6 +2,7 @@
 
 import { Fragment, useMemo, useState } from "react";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
+import { useRevenueBookCustomStore } from "../store/revenue-book-custom-store";
 import type { RevenueBook } from "../types/revenue-book-contract";
 import {
   addMoney,
@@ -45,6 +46,7 @@ type DayGroup = {
   activities: Activity[];
   subtotal: {
     roomRevenue: number;
+    channelRevenue: number;
     laundryRevenue: number;
     otherRevenue: number;
     revenueTotal: number;
@@ -57,9 +59,14 @@ type DayGroup = {
   };
 };
 
-function resolveActivityAmounts(act: Activity) {
+function resolveActivityAmounts(act: Activity, showChannelRevenue: boolean) {
   const { revenue, collection, payment } = act;
-  const roomRevenue = revenue?.roomRevenue ?? 0;
+  const rawRoomRevenue = revenue?.roomRevenue ?? 0;
+  const rawChannelRevenue = revenue?.channelRevenue ?? 0;
+  const roomRevenue = showChannelRevenue
+    ? rawRoomRevenue
+    : addMoney(rawRoomRevenue, rawChannelRevenue);
+  const channelRevenue = showChannelRevenue ? rawChannelRevenue : 0;
   const laundryRevenue = revenue?.laundryRevenue ?? 0;
   // Fold minibar/beverage service charges into "Dịch vụ khác" so row totals always reconcile with backend revenueTotal.
   const otherRevenue = addMoney(
@@ -89,6 +96,7 @@ function resolveActivityAmounts(act: Activity) {
 
   return {
     roomRevenue,
+    channelRevenue,
     laundryRevenue,
     otherRevenue,
     revenueTotal,
@@ -107,6 +115,12 @@ export function RevenueBookSpreadsheet({
   onSelectEntry,
   onUpdateNote,
 }: RevenueBookSpreadsheetProps) {
+  const showChannelRevenue = useRevenueBookCustomStore((state) =>
+    Boolean(state.showChannelRevenueByHotel[book.hotelId]),
+  );
+  const setShowChannelRevenue = useRevenueBookCustomStore(
+    (state) => state.setShowChannelRevenue,
+  );
   const [visibleColumns, setVisibleColumns] = useState({
     docNumber: true,
     laundry: true,
@@ -146,6 +160,7 @@ export function RevenueBookSpreadsheet({
           activities: [],
           subtotal: {
             roomRevenue: 0,
+            channelRevenue: 0,
             laundryRevenue: 0,
             otherRevenue: 0,
             revenueTotal: 0,
@@ -161,10 +176,14 @@ export function RevenueBookSpreadsheet({
       }
       currentGroup.activities.push(act);
 
-      const amounts = resolveActivityAmounts(act);
+      const amounts = resolveActivityAmounts(act, showChannelRevenue);
       currentGroup.subtotal.roomRevenue = addMoney(
         currentGroup.subtotal.roomRevenue,
         amounts.roomRevenue,
+      );
+      currentGroup.subtotal.channelRevenue = addMoney(
+        currentGroup.subtotal.channelRevenue,
+        amounts.channelRevenue,
       );
       currentGroup.subtotal.laundryRevenue = addMoney(
         currentGroup.subtotal.laundryRevenue,
@@ -203,14 +222,17 @@ export function RevenueBookSpreadsheet({
       }
     }
     return groups;
-  }, [filteredActivities]);
+  }, [filteredActivities, showChannelRevenue]);
 
   // Period totals: authoritative backend summary when unfiltered; exact filtered sum when searching.
   const grandTotals = useMemo(() => {
     if (!filter.trim()) {
       const s = book.summary;
       return {
-        roomRevenue: s.roomRevenue,
+        roomRevenue: showChannelRevenue
+          ? s.roomRevenue
+          : addMoney(s.roomRevenue, s.channelRevenue),
+        channelRevenue: showChannelRevenue ? s.channelRevenue : 0,
         laundryRevenue: s.laundryRevenue,
         otherRevenue: addMoney(s.otherRevenue, s.minibarRevenue),
         revenueTotal: s.revenueTotal,
@@ -223,6 +245,7 @@ export function RevenueBookSpreadsheet({
     }
 
     let roomRevenue = 0;
+    let channelRevenue = 0;
     let laundryRevenue = 0;
     let otherRevenue = 0;
     let revenueTotal = 0;
@@ -234,6 +257,7 @@ export function RevenueBookSpreadsheet({
 
     for (const group of dayGroups) {
       roomRevenue = addMoney(roomRevenue, group.subtotal.roomRevenue);
+      channelRevenue = addMoney(channelRevenue, group.subtotal.channelRevenue);
       laundryRevenue = addMoney(laundryRevenue, group.subtotal.laundryRevenue);
       otherRevenue = addMoney(otherRevenue, group.subtotal.otherRevenue);
       revenueTotal = addMoney(revenueTotal, group.subtotal.revenueTotal);
@@ -246,6 +270,7 @@ export function RevenueBookSpreadsheet({
 
     return {
       roomRevenue,
+      channelRevenue,
       laundryRevenue,
       otherRevenue,
       revenueTotal,
@@ -255,10 +280,11 @@ export function RevenueBookSpreadsheet({
       otherPaidTotal,
       closingBalance,
     };
-  }, [filter, book.summary, dayGroups]);
+  }, [filter, book.summary, dayGroups, showChannelRevenue]);
 
   const revenueColSpan =
     1 +
+    (showChannelRevenue ? 1 : 0) +
     (visibleColumns.laundry ? 1 : 0) +
     (visibleColumns.otherRevenue ? 1 : 0) +
     1;
@@ -389,6 +415,22 @@ export function RevenueBookSpreadsheet({
           <span className="text-xs font-semibold text-[var(--on-surface-variant)] uppercase tracking-wide whitespace-nowrap">
             Hiển thị cột:
           </span>
+
+          <button
+            type="button"
+            onClick={() =>
+              setShowChannelRevenue(book.hotelId, !showChannelRevenue)
+            }
+            className={`inline-flex items-center gap-1 rounded-xl px-2.5 py-1 text-xs font-medium whitespace-nowrap transition-colors cursor-pointer ${
+              showChannelRevenue
+                ? "bg-sky-50 text-sky-800 border border-sky-200 shadow-xs"
+                : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50"
+            }`}
+            title="Bật/Tắt cột Doanh thu kênh bán (OTA, Đại lý)"
+          >
+            <span>{showChannelRevenue ? "✓" : "+"}</span>
+            <span>Doanh thu kênh bán</span>
+          </button>
 
           <button
             type="button"
@@ -550,6 +592,14 @@ export function RevenueBookSpreadsheet({
               >
                 Tiền phòng
               </th>
+              {showChannelRevenue && (
+                <th
+                  rowSpan={3}
+                  className="px-2 py-1.5 w-28 bg-sky-50/90 text-sky-900"
+                >
+                  Doanh thu kênh bán
+                </th>
+              )}
               {visibleColumns.laundry && (
                 <th
                   rowSpan={3}
@@ -610,41 +660,6 @@ export function RevenueBookSpreadsheet({
               <th className="px-2 py-1 w-24 bg-emerald-50/50 text-emerald-950 font-semibold">
                 Số tiền
               </th>
-            </tr>
-
-            {/* Opening Balance Row */}
-            <tr className="bg-amber-50/80 text-amber-950 font-medium border-b border-amber-200">
-              <td
-                colSpan={3 + (visibleColumns.docNumber ? 1 : 0) + 1}
-                className="px-3 py-1.5 font-semibold"
-              >
-                Công nợ đầu kỳ
-              </td>
-              <td
-                colSpan={revenueColSpan + 4}
-                className="px-3 py-1.5 text-right font-normal text-amber-800"
-              >
-                Số dư từ kỳ trước chuyển sang:
-              </td>
-              <td
-                colSpan={visibleColumns.otherPayment ? 2 : 1}
-                className="px-2 py-1.5 text-right font-bold tabular-nums"
-              >
-                —
-              </td>
-              <td
-                className={`px-2 py-1.5 text-right font-bold tabular-nums ${
-                  book.summary.openingBalance < 0 ? "text-rose-600" : ""
-                }`}
-              >
-                {money(book.summary.openingBalance, currency)}
-              </td>
-              <td
-                colSpan={1 + (visibleColumns.declaration ? 1 : 0)}
-                className="px-2 py-1.5 text-xs text-amber-800 text-right"
-              >
-                {book.currency}
-              </td>
             </tr>
 
             {/* Balance Adjustment Row */}
@@ -710,7 +725,10 @@ export function RevenueBookSpreadsheet({
                           ? localParts(collection.receivedAt, book.timeZone)
                           : null;
 
-                      const amounts = resolveActivityAmounts(act);
+                      const amounts = resolveActivityAmounts(
+                        act,
+                        showChannelRevenue,
+                      );
 
                       const bankLocal = payment?.bankTransferAt
                         ? localParts(payment.bankTransferAt, book.timeZone)
@@ -785,6 +803,13 @@ export function RevenueBookSpreadsheet({
                           <td className="px-2 py-2 text-right tabular-nums text-slate-800">
                             {renderReadOnlyMoney(amounts.roomRevenue)}
                           </td>
+
+                          {/* Doanh thu Kênh bán (OTA / Đại lý) */}
+                          {showChannelRevenue && (
+                            <td className="px-2 py-2 text-right tabular-nums text-slate-800">
+                              {renderReadOnlyMoney(amounts.channelRevenue)}
+                            </td>
+                          )}
 
                           {/* Doanh thu Giặt ủi (Read-only system value) */}
                           {visibleColumns.laundry && (
@@ -908,6 +933,11 @@ export function RevenueBookSpreadsheet({
                         <td className="px-2 py-1.5 text-right tabular-nums">
                           {money(sub.roomRevenue, currency)}
                         </td>
+                        {showChannelRevenue && (
+                          <td className="px-2 py-1.5 text-right tabular-nums">
+                            {money(sub.channelRevenue, currency)}
+                          </td>
+                        )}
                         {visibleColumns.laundry && (
                           <td className="px-2 py-1.5 text-right tabular-nums">
                             {money(sub.laundryRevenue, currency)}
@@ -978,6 +1008,11 @@ export function RevenueBookSpreadsheet({
               <td className="px-2 py-2.5 text-right tabular-nums">
                 {money(grandTotals.roomRevenue, currency)}
               </td>
+              {showChannelRevenue && (
+                <td className="px-2 py-2.5 text-right tabular-nums">
+                  {money(grandTotals.channelRevenue, currency)}
+                </td>
+              )}
               {visibleColumns.laundry && (
                 <td className="px-2 py-2.5 text-right tabular-nums">
                   {money(grandTotals.laundryRevenue, currency)}

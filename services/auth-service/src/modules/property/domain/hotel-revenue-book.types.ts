@@ -19,13 +19,13 @@ export interface RevenueBookEntry {
   category: RevenueBookCategory | null;
   amount: number | null;
   roomRevenue: number;
+  channelRevenue: number;
   minibarRevenue: number;
   laundryRevenue: number;
   otherRevenue: number;
   revenueTotal: number;
-  revenueLines: Array<{ date: string; roomRevenue: number; minibarRevenue: number; laundryRevenue: number; otherRevenue: number; revenueTotal: number }>;
+  revenueLines: Array<{ date: string; roomRevenue: number; channelRevenue: number; minibarRevenue: number; laundryRevenue: number; otherRevenue: number; revenueTotal: number }>;
   balanceAdjustment: number;
-  openingBalance: number;
   closingBalance: number;
   collections: RevenueBookCollection[];
   notes: string | null;
@@ -35,6 +35,7 @@ export interface RevenueBookEntry {
 }
 export interface RevenueBookTotals {
   roomRevenue: number;
+  channelRevenue: number;
   minibarRevenue: number;
   laundryRevenue: number;
   otherRevenue: number;
@@ -43,7 +44,6 @@ export interface RevenueBookTotals {
   cashTotal: number;
   bankTransferTotal: number;
   otherCollectedTotal: number;
-  openingBalance: number;
   closingBalance: number;
   balanceAdjustment: number;
 }

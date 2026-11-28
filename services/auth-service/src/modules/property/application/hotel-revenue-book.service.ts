@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { createHash } from "node:crypto";
 import { addDaysYmd, resolveTimeZone, startOfPlainDate, todayYmd, toYmd } from "../../../common/time/vietnam-temporal";
 import { PrismaService } from "../../../prisma/prisma.service";
-import { assertBookLimit, filterRevenueBookEntries, projectBookAccount, revenueCategory, totalRevenueBook, type BookAccount, type MoneyEvent } from "../domain/hotel-revenue-book";
+import { assertBookLimit, filterRevenueBookEntries, isSalesChannelBooking, projectBookAccount, revenueCategory, totalRevenueBook, type BookAccount, type MoneyEvent } from "../domain/hotel-revenue-book";
 import type { RevenueBook } from "../domain/hotel-revenue-book.types";
 import type { CollectRevenueEntry, CreateRevenueEntry, RevenueBookCategory, RevenueBookQuery, UpdateRevenueEntry, UpdateRevenueNote, VoidRevenueEntry } from "../domain/schemas/hotel-revenue-book.schema";
 import { HotelAccessService, type HotelRoomScope } from "./hotel-access.service";
@@ -67,38 +67,50 @@ export class HotelRevenueBookService {
             where: {
               hotelId, ...roomFilter, openedAt: { lt: end },
               OR: [
-                { status: { in: ["OPEN", "CHECKOUT_PENDING"] } },
                 { items: { some: { OR: [{ postedAt: instantWindow }, { voidedAt: instantWindow }] } } },
-                { payments: { some: { confirmedAt: { gte: start } } } },
-                { payments: { some: { transactions: { some: { status: "REFUNDED", createdAt: { gte: start } } } } } },
-                { bookingPaymentAllocations: { some: { allocatedAt: { gte: start } } } },
-                { hotelReceivables: { some: { OR: [{ outstandingAmount: { gt: 0 } }, { collections: { some: { collectedAt: { gte: start } } } }] } } },
+                { payments: { some: { confirmedAt: instantWindow, status: { in: ["SUCCEEDED", "REFUNDED"] } } } },
+                { payments: { some: { transactions: { some: { status: "REFUNDED", OR: [{ processedAt: instantWindow }, { processedAt: null, createdAt: instantWindow }] } } } } },
+                { bookingPaymentAllocations: { some: { allocatedAt: instantWindow, bookingPayment: { status: { in: ["COMPLETED", "ALLOCATED"] } } } } },
+                { hotelReceivables: { some: { collections: { some: { OR: [{ collectedAt: instantWindow }, { isVoided: true, voidedAt: instantWindow }] } } } } },
               ],
             },
             take: 10001,
             include: {
               room: { select: { roomNumber: true } },
-              stay: { select: { guestDisplayName: true, kbttGuestDeclarations: { select: { status: true }, take: 1, orderBy: { updatedAt: "desc" } } } },
-              items: { where: { postedAt: { lt: end } }, include: { serviceItem: { select: { category: { select: { name: true } } } } } },
-              payments: { where: { confirmedAt: { lt: end }, status: { in: ["SUCCEEDED", "REFUNDED"] } }, include: { transactions: { where: { status: "REFUNDED" } } } },
-              bookingPaymentAllocations: { where: { allocatedAt: { lt: end }, bookingPayment: { status: { in: ["COMPLETED", "ALLOCATED"] } } } },
-              hotelReceivables: { include: { collections: { where: { collectedAt: { lt: end } } } } },
+              stay: {
+                select: {
+                  guestDisplayName: true,
+                  kbttGuestDeclarations: { select: { status: true }, take: 1, orderBy: { updatedAt: "desc" } },
+                  reservation: {
+                    select: {
+                      sourceCategory: true,
+                      groupCode: true,
+                      group: { select: { sourceCategory: true, groupCode: true } },
+                    },
+                  },
+                },
+              },
+              items: { where: { OR: [{ postedAt: instantWindow }, { voidedAt: instantWindow }] }, include: { serviceItem: { select: { category: { select: { name: true } } } } } },
+              payments: { where: { confirmedAt: { lt: end }, status: { in: ["SUCCEEDED", "REFUNDED"] }, OR: [{ confirmedAt: instantWindow }, { transactions: { some: { status: "REFUNDED" } } }] }, include: { transactions: { where: { status: "REFUNDED" } } } },
+              bookingPaymentAllocations: { where: { allocatedAt: instantWindow, bookingPayment: { status: { in: ["COMPLETED", "ALLOCATED"] } } } },
+              hotelReceivables: { include: { collections: { where: { OR: [{ collectedAt: instantWindow }, { isVoided: true, voidedAt: instantWindow }] } } } },
             },
           }),
           tx.bookingPayment.findMany({
-            where: { hotelId, receivedAt: { lt: end }, status: { in: ["COMPLETED", "ALLOCATED", "REFUNDED"] }, ...(roomIds === null ? {} : { reservation: { roomId: { in: roomIds } } }) },
+            where: { hotelId, receivedAt: instantWindow, status: { in: ["COMPLETED", "ALLOCATED", "REFUNDED"] }, ...(roomIds === null ? {} : { reservation: { roomId: { in: roomIds } } }) },
             take: 10001,
-            include: { allocations: { where: { folioId: { not: null }, allocatedAt: { lt: end } } }, reservation: { select: { guestDisplayName: true, reservationCode: true, roomId: true, room: { select: { roomNumber: true } } } } },
+            include: { allocations: { where: { folioId: { not: null }, allocatedAt: instantWindow } }, reservation: { select: { guestDisplayName: true, reservationCode: true, roomId: true, room: { select: { roomNumber: true } } } } },
           }),
           tx.hotelRevenueEntry.findMany({
             where: {
               hotelId, ...roomFilter,
-              AND: [
-                { OR: [{ date: { lt: plainDate(addDaysYmd(to, 1)) } }, { collections: { some: { receivedAt: { lt: end } } } }] },
-                { OR: [{ voidedAt: null }, { voidedAt: { gte: start } }] },
+              OR: [
+                { date: { gte: plainDate(from), lt: plainDate(addDaysYmd(to, 1)) } },
+                { voidedAt: instantWindow },
+                { collections: { some: { receivedAt: instantWindow } } },
               ],
             },
-            take: 10001, include: { collections: { where: { receivedAt: { lt: end } }, orderBy: { receivedAt: "asc" } } },
+            take: 10001, include: { collections: { where: { receivedAt: instantWindow }, orderBy: { receivedAt: "asc" } } },
           }),
           tx.room.findMany({ where: { hotelId, ...(roomIds === null ? {} : { id: { in: roomIds } }) }, select: { id: true, roomNumber: true }, orderBy: { roomNumber: "asc" }, take: 10001 }),
           tx.hotelRevenueNote.findMany({ where: { hotelId, ...roomFilter }, select: { accountKey: true, notes: true } }),
@@ -119,9 +131,11 @@ export class HotelRevenueBookService {
       const accounts: BookAccount[] = [];
       for (const folio of data.folios) {
         if (folio.currency !== "VND") throw new BadRequestException("Báo cáo hiện hỗ trợ VND. Vui lòng đối soát riêng hồ sơ dùng loại tiền khác.");
+        const isChannelBooking = isSalesChannelBooking(folio.stay.reservation);
         const charges: MoneyEvent[] = [];
         for (const item of folio.items) {
-          const category = revenueCategory(item.itemType, item.serviceItem?.category.name ?? item.nameSnapshot, jsonText(item.metadataSnapshotJson, "reportCategory"));
+          const baseCategory = revenueCategory(item.itemType, item.serviceItem?.category.name ?? item.nameSnapshot, jsonText(item.metadataSnapshotJson, "reportCategory"));
+          const category = isChannelBooking && baseCategory === "ROOM" ? "CHANNEL" : baseCategory;
           const amount = item.itemType === "DISCOUNT" ? new Prisma.Decimal(item.discountAmountSnapshot.isZero() ? item.totalSnapshot : item.discountAmountSnapshot).abs().neg() : item.totalSnapshot;
           charges.push({ date: item.postedAt, amount, category });
           if (item.voidedAt && item.voidedAt < end) charges.push({ date: item.voidedAt, amount: amount.neg(), category });

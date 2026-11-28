@@ -10,9 +10,10 @@ import {
   showSuccessAlert,
 } from "@/libs/swal";
 import { useRevenueBook } from "../hooks/use-revenue-book";
+import { useRevenueBookCustomStore } from "../store/revenue-book-custom-store";
 import type {
   RevenueBook,
-  RevenueBookCategory,
+  RevenueBookCategoryFilter,
   RevenueBookEntry,
   RevenueBookQuery,
   RevenueBookSource,
@@ -63,11 +64,12 @@ const sourceLabels: Record<RevenueBookSource, string> = {
 };
 
 const CATEGORY_FILTER_OPTIONS: ReadonlyArray<{
-  value: "" | RevenueBookCategory;
+  value: "" | RevenueBookCategoryFilter;
   label: string;
 }> = [
   { value: "", label: "Tất cả" },
   { value: "ROOM", label: "Tiền phòng" },
+  { value: "CHANNEL", label: "Doanh thu kênh bán" },
   { value: "MINIBAR", label: "Minibar" },
   { value: "LAUNDRY", label: "Giặt ủi" },
   { value: "OTHER", label: "Dịch vụ khác" },
@@ -138,6 +140,9 @@ export function RevenueBookWorkspace({ hotelId }: { hotelId: string }) {
     [params],
   );
   const query = useRevenueBook(hotelId, queryInput);
+  const showChannelRevenue = useRevenueBookCustomStore((state) =>
+    Boolean(state.showChannelRevenueByHotel[hotelId]),
+  );
   const book = query.data;
   const [from, setFrom] = useState<string | null>(null);
   const [to, setTo] = useState<string | null>(null);
@@ -244,7 +249,7 @@ export function RevenueBookWorkspace({ hotelId }: { hotelId: string }) {
       setExporting(true);
       const { exportRevenueBook } =
         await import("../utils/revenue-book-export");
-      exportRevenueBook(book);
+      exportRevenueBook(book, { showChannelRevenue });
     } catch (error) {
       await showErrorAlert("Không thể xuất Excel", errorMessage(error));
     } finally {
@@ -681,12 +686,6 @@ export function RevenueBookWorkspace({ hotelId }: { hotelId: string }) {
           />
           <dl className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-[var(--on-surface-variant)]">
             <div>
-              <dt className="inline">Số dư đầu kỳ: </dt>
-              <dd className="inline tabular-nums">
-                {money(book.summary.openingBalance, currency)}
-              </dd>
-            </div>
-            <div>
               <dt className="inline">Tiền mặt: </dt>
               <dd className="inline tabular-nums">
                 {money(book.summary.cashTotal, currency)}
@@ -711,6 +710,7 @@ export function RevenueBookWorkspace({ hotelId }: { hotelId: string }) {
         <RevenueEntryDetail
           book={book}
           entry={selected}
+          showChannelRevenue={showChannelRevenue}
           busy={query.busy}
           onClose={() => setSelectedId(null)}
           onEdit={(mode) => {
@@ -740,6 +740,7 @@ export function RevenueBookWorkspace({ hotelId }: { hotelId: string }) {
 function RevenueEntryDetail({
   book,
   entry,
+  showChannelRevenue,
   busy,
   onClose,
   onEdit,
@@ -747,6 +748,7 @@ function RevenueEntryDetail({
 }: {
   book: RevenueBook;
   entry: RevenueBookEntry;
+  showChannelRevenue: boolean;
   busy: boolean;
   onClose: () => void;
   onEdit: (mode: "edit" | "collect") => void;
@@ -759,8 +761,10 @@ function RevenueEntryDetail({
     ["Phòng", entry.roomNumber || "Không gắn phòng"],
     ["Chứng từ", entry.documentNumber || "—"],
     ["Nguồn", sourceLabels[entry.source]],
-    ["Số dư đầu kỳ", money(entry.openingBalance, book.currency)],
     ["Tiền phòng", money(entry.roomRevenue, book.currency)],
+    ...(showChannelRevenue || entry.channelRevenue !== 0
+      ? [["Doanh thu kênh bán", money(entry.channelRevenue, book.currency)]]
+      : []),
     ["Giặt ủi", money(entry.laundryRevenue, book.currency)],
     [
       "Dịch vụ khác",

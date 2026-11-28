@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client";
-import { assertBookLimit, filterRevenueBookEntries, projectBookAccount, revenueCategory, totalRevenueBook, type BookAccount } from "../domain/hotel-revenue-book";
+import { assertBookLimit, filterRevenueBookEntries, isSalesChannelBooking, projectBookAccount, revenueCategory, totalRevenueBook, type BookAccount } from "../domain/hotel-revenue-book";
 import { collectRevenueEntrySchema, createRevenueEntrySchema, revenueBookQuerySchema } from "../domain/schemas/hotel-revenue-book.schema";
 
 const from = new Date("2026-11-12T17:00:00Z");
@@ -33,10 +33,13 @@ describe("hotel revenue book monetary projection", () => {
       ],
     }), from, end, zone)!;
     expect(result.revenueLines.map((line) => [line.date, line.revenueTotal])).toEqual([["2026-11-13", 30], ["2026-11-14", 40]]);
-    expect(result.openingBalance).toBe(90);
     expect(result.revenueTotal).toBe(70);
-    expect(result.closingBalance).toBe(130);
+    expect(result.closingBalance).toBe(40);
     expect(result.collections.map((payment) => payment.id)).toEqual(["cash"]);
+    expect(projectBookAccount(account({
+      charges: [{ date: new Date("2026-11-12T16:59:59Z"), amount: 100, category: "ROOM" }],
+      collections: [{ id: "old", date: new Date("2026-11-10T00:00:00Z"), amount: 10, method: "CASH" }],
+    }), from, end, zone)).toBeNull();
   });
 
   it("keeps dated voids and refunds in their own period instead of rewriting the original receipt", () => {
@@ -44,16 +47,15 @@ describe("hotel revenue book monetary projection", () => {
       charges: [{ date: new Date("2026-11-01T00:00:00Z"), amount: 100, category: "ROOM" }, { date: from, amount: -100, category: "ROOM" }],
       collections: [{ id: "receipt", date: new Date("2026-11-01T00:00:00Z"), amount: 100, method: "CASH" }, { id: "refund", date: from, amount: -40, method: "CASH" }],
     }), from, end, zone)!;
-    expect(result.openingBalance).toBe(0);
     expect(result.revenueTotal).toBe(-100);
     expect(result.closingBalance).toBe(-60);
     expect(totalRevenueBook([result])).toMatchObject({ collectedTotal: -40, cashTotal: -40, revenueTotal: -100, closingBalance: -60 });
   });
 
   it("cancels deposit credit transfers without counting allocation as another cash receipt", () => {
-    const deposit = projectBookAccount(account({ id: "deposit", source: "DEPOSIT", charges: [], collections: [{ id: "receipt", date: new Date("2026-11-01T00:00:00Z"), amount: 100, method: "BANK_TRANSFER" }], adjustments: [{ date: from, amount: 100 }] }), from, end, zone)!;
+    const deposit = projectBookAccount(account({ id: "deposit", source: "DEPOSIT", charges: [], collections: [{ id: "receipt", date: from, amount: 100, method: "BANK_TRANSFER" }], adjustments: [{ date: from, amount: 100 }] }), from, end, zone)!;
     const folio = projectBookAccount(account({ id: "folio", source: "FOLIO", charges: [{ date: from, amount: 200, category: "ROOM" }], adjustments: [{ date: from, amount: -100 }] }), from, end, zone)!;
-    expect(totalRevenueBook([deposit, folio])).toMatchObject({ openingBalance: -100, revenueTotal: 200, collectedTotal: 0, balanceAdjustment: 0, closingBalance: 100 });
+    expect(totalRevenueBook([deposit, folio])).toMatchObject({ revenueTotal: 200, collectedTotal: 100, balanceAdjustment: 0, closingBalance: 100 });
   });
 
   it("adds currency amounts exactly and fails instead of silently truncating an oversized book", () => {
@@ -184,7 +186,7 @@ describe("hotel revenue book monetary projection", () => {
     }).map((e) => e.id)).toEqual(["manual-advance"]);
   });
 
-  it("reconciles opening VND 3,070,000 balance, room charge, supplemental minibar, deposit and payment (Verification Case 1)", () => {
+  it("reconciles in-period room charge, supplemental minibar, deposit and payment without prior-period carryover (Verification Case 1)", () => {
     const priorDate = new Date("2026-10-25T01:00:00Z");
     const periodDate = new Date("2026-11-13T02:00:00Z");
     const laterDate = new Date("2026-11-14T03:00:00Z");
@@ -227,7 +229,6 @@ describe("hotel revenue book monetary projection", () => {
     const entries = [folioAccount, manualMinibar, depositEntry];
     const totals = totalRevenueBook(entries);
 
-    expect(totals.openingBalance).toBe(3070000);
     expect(totals.roomRevenue).toBe(1500000);
     expect(totals.minibarRevenue).toBe(250000);
     expect(totals.revenueTotal).toBe(1750000);
@@ -238,7 +239,52 @@ describe("hotel revenue book monetary projection", () => {
     expect(totals.cashTotal + totals.bankTransferTotal + totals.otherCollectedTotal).toBe(totals.collectedTotal);
 
     expect(totals.balanceAdjustment).toBe(0);
-    expect(totals.closingBalance).toBe(3070000);
-    expect(totals.closingBalance).toBe(totals.openingBalance + totals.revenueTotal - totals.collectedTotal + totals.balanceAdjustment);
+    expect(totals.closingBalance).toBe(0);
+    expect(totals.closingBalance).toBe(totals.revenueTotal - totals.collectedTotal + totals.balanceAdjustment);
+  });
+
+  it("classifies OTA, Travel Agency and Channex reservations as sales channels and supports CHANNEL filtering", () => {
+    expect(isSalesChannelBooking({ sourceCategory: "OTA" })).toBe(true);
+    expect(isSalesChannelBooking({ sourceCategory: "TRAVEL_AGENCY" })).toBe(true);
+    expect(isSalesChannelBooking({ sourceCategory: null, group: { sourceCategory: "OTA" } })).toBe(true);
+    expect(isSalesChannelBooking({ sourceCategory: null, groupCode: "CHANNEX:BK-100" })).toBe(true);
+    expect(isSalesChannelBooking({ sourceCategory: "DIRECT", groupCode: "CHANNEX:BK-100" })).toBe(false);
+    expect(isSalesChannelBooking({ sourceCategory: "CORPORATE" })).toBe(false);
+    expect(isSalesChannelBooking(null)).toBe(false);
+
+    expect(revenueBookQuerySchema.parse({ category: "CHANNEL" })).toEqual({ category: "CHANNEL" });
+
+    const channelEntry = projectBookAccount(account({
+      id: "folio:ota",
+      source: "FOLIO",
+      category: null,
+      amount: null,
+      charges: [
+        { date: from, amount: 1200000, category: "CHANNEL" },
+        { date: from, amount: 100000, category: "LAUNDRY" },
+      ],
+      collections: [],
+    }), from, end, zone)!;
+    const directEntry = projectBookAccount(account({
+      id: "folio:direct",
+      source: "FOLIO",
+      category: null,
+      amount: null,
+      charges: [{ date: from, amount: 800000, category: "ROOM" }],
+      collections: [],
+    }), from, end, zone)!;
+
+    expect(channelEntry.channelRevenue).toBe(1200000);
+    expect(channelEntry.roomRevenue).toBe(0);
+    expect(channelEntry.revenueTotal).toBe(1300000);
+    expect(channelEntry.revenueLines[0].channelRevenue).toBe(1200000);
+    expect(filterRevenueBookEntries([channelEntry, directEntry], { category: "CHANNEL" }).map((e) => e.id)).toEqual(["folio:ota"]);
+    expect(filterRevenueBookEntries([channelEntry, directEntry], { category: "ROOM" }).map((e) => e.id)).toEqual(["folio:direct"]);
+    expect(totalRevenueBook([channelEntry, directEntry])).toMatchObject({
+      roomRevenue: 800000,
+      channelRevenue: 1200000,
+      laundryRevenue: 100000,
+      revenueTotal: 2100000,
+    });
   });
 });

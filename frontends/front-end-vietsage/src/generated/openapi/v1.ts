@@ -8385,7 +8385,7 @@ export interface operations {
                 /** @description Lọc theo phương thức thanh toán đã thu trong kỳ */
                 paymentMethod?: "CASH" | "BANK_TRANSFER" | "CARD" | "OTHER";
                 /** @description Lọc theo nhóm doanh thu */
-                category?: "ROOM" | "MINIBAR" | "LAUNDRY" | "OTHER";
+                category?: "ROOM" | "CHANNEL" | "MINIBAR" | "LAUNDRY" | "OTHER";
                 /** @description Ngày kết thúc YYYY-MM-DD, bao gồm ngày này; tối đa 366 ngày */
                 to?: string;
                 /** @description Ngày bắt đầu YYYY-MM-DD; bỏ cả hai ngày để xem tháng hiện tại theo giờ khách sạn */
@@ -8430,11 +8430,11 @@ export interface operations {
                             }[];
                             summary: {
                                 roomRevenue: number;
+                                channelRevenue: number;
                                 minibarRevenue: number;
                                 laundryRevenue: number;
                                 otherRevenue: number;
                                 revenueTotal: number;
-                                openingBalance: number;
                                 closingBalance: number;
                                 balanceAdjustment: number;
                                 collectedTotal: number;
@@ -8444,11 +8444,11 @@ export interface operations {
                             };
                             entries: {
                                 roomRevenue: number;
+                                channelRevenue: number;
                                 minibarRevenue: number;
                                 laundryRevenue: number;
                                 otherRevenue: number;
                                 revenueTotal: number;
-                                openingBalance: number;
                                 closingBalance: number;
                                 balanceAdjustment: number;
                                 /** Format: date */
@@ -8472,6 +8472,7 @@ export interface operations {
                                     /** Format: date */
                                     date: string;
                                     roomRevenue: number;
+                                    channelRevenue: number;
                                     minibarRevenue: number;
                                     laundryRevenue: number;
                                     otherRevenue: number;
