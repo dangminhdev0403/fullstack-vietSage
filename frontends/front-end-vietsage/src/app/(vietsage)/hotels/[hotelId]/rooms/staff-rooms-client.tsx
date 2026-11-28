@@ -129,6 +129,7 @@ export type StaffRoomsClientProps = {
   hotelId: string;
   initialRoomsPage: HotelOpsPage<HotelRoomSummary>;
   canManageRooms: boolean;
+  hasFullRoomScope: boolean;
   canManageReservations?: boolean;
   canManageStays: boolean;
   canViewBilling?: boolean;
@@ -703,6 +704,7 @@ export function StaffRoomsClient({
   hotelId,
   initialRoomsPage,
   canManageRooms,
+  hasFullRoomScope,
   canManageReservations = false,
   canManageStays,
   canViewBilling = false,
@@ -1921,6 +1923,7 @@ export function StaffRoomsClient({
   const {
     data: roomsPage,
     isFetching: isRoomsFetching,
+    isPlaceholderData: isRoomPagePlaceholder,
     refetch,
     isError,
     error,
@@ -4710,6 +4713,35 @@ export function StaffRoomsClient({
     };
   }, [roomsPage?.byStatus, initialRoomsPage.byStatus]);
 
+  const unfilteredRoomsTotal =
+    !isRoomPagePlaceholder &&
+    !query &&
+    status === "all" &&
+    floor === "all" &&
+    zone === "all" &&
+    type === "all" &&
+    !isFutureDate
+      ? roomsPage?.total
+      : undefined;
+  const { data: roomInventoryPage } = useQuery({
+    ...staffRoomsResource.bind({ hotelId }).queries.list.options({ page: 1, limit: 1 }),
+    enabled: !isHousekeeping && operationalViewMode === "grid" && unfilteredRoomsTotal === undefined,
+    staleTime: 60_000,
+  });
+  const initialInventoryTotal =
+    !initialStatus || initialStatus.toLowerCase() === "all"
+      ? initialRoomsPage.total
+      : undefined;
+  const listedInventoryTotal = unfilteredRoomsTotal ?? roomInventoryPage?.total ?? initialInventoryTotal;
+  // An exclusive staff assignment can only return one room. Never infer the property
+  // size from that result unless the server confirmed that the actor has full scope.
+  const isCompactRoomGrid =
+    !isHousekeeping &&
+    listedInventoryTotal !== undefined &&
+    listedInventoryTotal > 0 &&
+    listedInventoryTotal <= 70 &&
+    (hasFullRoomScope || listedInventoryTotal > 1);
+
   function printActiveStayList() {
     const printedAt = new Date();
     const midnight = new Date(printedAt);
@@ -5806,7 +5838,7 @@ export function StaffRoomsClient({
       .trim();
   }
 
-  function renderRoomCard(room: HotelRoomSummary) {
+  function getRoomCardState(room: HotelRoomSummary, compact = false) {
     const rawEffectiveStatus = getEffectiveRoomStatus(room, isFutureDate);
     const effectiveStatus: RoomStatusFilter = rawEffectiveStatus;
     const physicalStatus = getRoomStatus(room);
@@ -5817,10 +5849,9 @@ export function StaffRoomsClient({
     const isOverdue =
       !isFutureDate &&
       (isOverdueCheckOut(room) || rawEffectiveStatus === "overdue");
-    const incomingOta = incomingOtaByRoomNumber.get(
-      getRoomNumber(room).toUpperCase(),
-    );
-    const isVip = /suite|vip|premium|penthouse/i.test(room.type ?? "");
+    const incomingOta = compact && isFutureDate
+      ? undefined
+      : incomingOtaByRoomNumber.get(getRoomNumber(room).toUpperCase());
     const resDetails = getRoomReservationDetails(room);
 
     const targetYmd = businessDate || todayYmd;
@@ -5856,25 +5887,6 @@ export function StaffRoomsClient({
       incomingOta?.checkInDate ||
       room.upcomingReservation?.plannedCheckInAt;
 
-    const incomingPhone =
-      todayArrival?.guestPhone ||
-      resDetails?.guestPhone ||
-      (arrivalCheckInYmd === targetYmd
-        ? room.upcomingReservation?.guestPhone
-        : null) ||
-      room.upcomingReservation?.guestPhone ||
-      null;
-
-    const incomingCheckOutAt =
-      todayArrival?.plannedCheckOutAt ||
-      resDetails?.plannedCheckOutAt ||
-      incomingOta?.checkOutDate ||
-      room.upcomingReservation?.plannedCheckOutAt;
-
-    const incomingSource = incomingOta
-      ? `OTA · ${incomingOta.otaName}`
-      : null;
-
     const incomingGroupCode =
       todayArrival?.groupCode ||
       resDetails?.arrival?.groupCode ||
@@ -5900,7 +5912,7 @@ export function StaffRoomsClient({
       stateCategory = "turnaround";
     } else if (hasActiveStay && isOutToday) {
       stateCategory = "departing_today";
-    } else if (hasActiveStay) {
+    } else if (hasActiveStay || (compact && effectiveStatus === "occupied")) {
       stateCategory = "occupied";
     } else if (physicalStatus === "blocked" || physicalStatus === "maintenance") {
       stateCategory = physicalStatus;
@@ -5917,6 +5929,39 @@ export function StaffRoomsClient({
     } else {
       stateCategory = "available";
     }
+
+    return {
+      effectiveStatus, physicalStatus, stay, isOverdue, isInToday, todayArrival,
+      arrivalCheckInYmd, targetYmd, incomingOta, resDetails, incomingGuestName,
+      incomingCheckInAt, incomingGroupCode, stateCategory,
+    };
+  }
+
+  function renderRoomCard(room: HotelRoomSummary) {
+    const {
+      effectiveStatus, physicalStatus, stay, isOverdue, isInToday, todayArrival,
+      arrivalCheckInYmd, targetYmd, incomingOta, resDetails, incomingGuestName,
+      incomingCheckInAt, incomingGroupCode, stateCategory,
+    } = getRoomCardState(room);
+    const isVip = /suite|vip|premium|penthouse/i.test(room.type ?? "");
+    const incomingPhone =
+      todayArrival?.guestPhone ||
+      resDetails?.guestPhone ||
+      (arrivalCheckInYmd === targetYmd
+        ? room.upcomingReservation?.guestPhone
+        : null) ||
+      room.upcomingReservation?.guestPhone ||
+      null;
+
+    const incomingCheckOutAt =
+      todayArrival?.plannedCheckOutAt ||
+      resDetails?.plannedCheckOutAt ||
+      incomingOta?.checkOutDate ||
+      room.upcomingReservation?.plannedCheckOutAt;
+
+    const incomingSource = incomingOta
+      ? `OTA · ${incomingOta.otaName}`
+      : null;
 
     const matchedOccupant =
       !isFutureDate && inputQuery.trim()
@@ -6561,6 +6606,122 @@ export function StaffRoomsClient({
     if (activeFloorTab === "all") return roomsByFloor;
     return roomsByFloor.filter(([floorTitle]) => floorTitle === activeFloorTab);
   }, [roomsByFloor, activeFloorTab]);
+
+  function renderCompactRoomCard(room: HotelRoomSummary, floorLabel?: string) {
+    const {
+      stay, isInToday, incomingOta, resDetails, incomingCheckInAt,
+      incomingGroupCode, stateCategory, targetYmd,
+    } = getRoomCardState(room, true);
+    const roomNumber = getRoomNumber(room);
+    const clock = (value: string | null | undefined, includeDate = false) => {
+      const date = toVietnamDateString(value);
+      return date && (includeDate || date !== targetYmd)
+        ? formatDateTime(value)
+        : formatTimeOnly(value);
+    };
+    const departure = clock(stay?.plannedCheckOutAt, stateCategory === "overdue");
+    const arrival = clock(incomingCheckInAt);
+    const nextArrival = clock(room.upcomingReservation?.plannedCheckInAt);
+    const status: Record<typeof stateCategory, [string, string, string?]> = {
+      available: ["Sẵn sàng", "border-emerald-200 bg-white text-emerald-900", nextArrival ? `Đặt ${nextArrival}` : undefined],
+      occupied: ["Đang ở", "border-sky-200 bg-sky-50/70 text-sky-950"],
+      overdue: ["Quá hạn", "border-rose-400 bg-rose-50 text-rose-950", departure],
+      departing_today: ["Trả hôm nay", "border-amber-300 bg-amber-50 text-amber-950", departure],
+      arriving_today: ["Nhận hôm nay", "border-violet-300 bg-violet-50 text-violet-950", arrival],
+      turnaround: ["Trả và nhận", "border-amber-400 bg-amber-50 text-amber-950", [departure && `Trả ${departure}`, arrival && `Nhận ${arrival}`].filter(Boolean).join(" · ")],
+      processing: ["Chờ dọn", "border-amber-200 bg-amber-50/70 text-amber-950", isInToday && arrival ? `Nhận ${arrival}` : undefined],
+      blocked: ["Đã khóa", "border-slate-300 bg-slate-100 text-slate-800"],
+      maintenance: ["Bảo trì", "border-slate-300 bg-slate-100 text-slate-800"],
+    };
+    const [label, tone, timing] = status[stateCategory];
+    const canWalkIn =
+      !isFutureDate && stateCategory === "available" &&
+      canCheckInStay && canManageStays && isAvailable(room);
+
+    function openRoom(trigger: HTMLButtonElement) {
+      if (stateCategory === "available") {
+        if (isFutureDate) {
+          if (canManageReservations) openFutureReservationModal(room);
+          else openRoomContextPanel(room, trigger);
+        } else {
+          handleCardClick(room, trigger);
+        }
+        return;
+      }
+      if (stateCategory === "arriving_today" && !isFutureDate && canCheckInStay) {
+        if (incomingGroupCode) {
+          openGroupCheckIn(incomingGroupCode);
+          return;
+        }
+        if (incomingOta && canManageStays) {
+          void handleOtaFastCheckIn(incomingOta, room);
+          return;
+        }
+        if (resDetails?.arrival) {
+          handleCheckInArrival(resDetails.arrival);
+          return;
+        }
+        if (resDetails) {
+          handleCheckInReservationGeneric(room, resDetails);
+          return;
+        }
+      }
+      openRoomContextPanel(room, trigger);
+    }
+
+    return (
+      <div key={room.id} className="flex min-w-0 flex-col justify-end">
+        {floorLabel ? <h3 className="mb-0.5 hidden truncate text-xs font-semibold leading-4 text-slate-700 2xl:block" title={floorLabel}>{floorLabel}</h3> : null}
+        <div className={`flex min-h-11 min-w-0 grow flex-col rounded-lg border ${tone}`}>
+          <button
+            ref={(el) => {
+              if (el) cardTriggerRefMap.current.set(room.id, el);
+              else cardTriggerRefMap.current.delete(room.id);
+            }}
+            type="button"
+            onClick={(e) => openRoom(e.currentTarget)}
+            className="min-w-0 grow cursor-pointer rounded-lg px-1.5 text-left hover:bg-slate-900/5 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-sky-700 pointer-coarse:min-h-11"
+          >
+            <span className="flex flex-wrap items-baseline justify-between gap-x-1">
+              <span className="text-base font-extrabold leading-5 text-slate-950 [overflow-wrap:anywhere]">{roomNumber}</span>
+              <span className="text-xs font-semibold leading-4">{label}</span>
+            </span>
+            {timing ? <span className="block text-xs tabular-nums leading-4">{timing}</span> : null}
+          </button>
+          {canWalkIn ? (
+            <button
+              type="button"
+              aria-label={`Nhận phòng ${roomNumber}`}
+              onClick={() => openWalkIn(room)}
+              className="min-h-6 cursor-pointer rounded-b-lg border-t border-emerald-100 px-1.5 text-left text-sm font-semibold leading-5 text-emerald-900 hover:bg-emerald-100 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-sky-700 pointer-coarse:min-h-11"
+            >
+              Nhận phòng
+            </button>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
+
+  function renderCompactFloorGroup(floorTitle: string, floorRooms: HotelRoomSummary[]) {
+    return (
+      <section
+        key={floorTitle}
+        id={`floor-group-${encodeURIComponent(floorTitle)}`}
+        aria-label={floorTitle}
+        className="min-w-0 2xl:contents"
+      >
+        <h3 className="mb-1 text-sm font-semibold text-slate-800 2xl:hidden">
+          {floorTitle} <span className="font-normal text-slate-600">· {floorRooms.length} phòng</span>
+        </h3>
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,8rem),1fr))] gap-1 2xl:contents">
+          {floorRooms.map((room, index) =>
+            renderCompactRoomCard(room, index === 0 ? floorTitle : undefined),
+          )}
+        </div>
+      </section>
+    );
+  }
 
   function renderHousekeepingTaskCard(room: HotelRoomSummary) {
     const effectiveStatus = getEffectiveRoomStatus(room, false);
@@ -7451,7 +7612,7 @@ export function StaffRoomsClient({
 
           {/* Floor Navigation & Horizontal Layout Toolbar */}
           {roomsByFloor.length > 0 && (
-            <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/90 bg-white/90 p-2.5 sm:px-4 shadow-2xs backdrop-blur-xs">
+            <div className={`${isCompactRoomGrid ? "mb-2" : "mb-5"} flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/90 bg-white/90 p-2.5 sm:px-4 shadow-2xs backdrop-blur-xs`}>
               {/* Left: Quick Floor Jump Pills */}
               <div className="flex flex-wrap items-center gap-2">
                 <span className="flex items-center gap-1.5 text-xs font-black text-slate-700 mr-1 pl-1 whitespace-nowrap">
@@ -7523,6 +7684,7 @@ export function StaffRoomsClient({
                   );
                 })}
               </div>
+
             </div>
           )}
 
@@ -7601,6 +7763,12 @@ export function StaffRoomsClient({
                   </div>
                 );
               })}
+            </div>
+          ) : isCompactRoomGrid ? (
+            <div aria-label="Lưới phòng gọn" className="grid grid-cols-1 gap-2 2xl:grid-cols-10 2xl:gap-1">
+              {displayedRoomsByFloor.map(([floorTitle, floorRooms]) =>
+                renderCompactFloorGroup(floorTitle, floorRooms),
+              )}
             </div>
           ) : (
             <div className="space-y-5">
