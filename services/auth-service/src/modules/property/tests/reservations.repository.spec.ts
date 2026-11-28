@@ -208,6 +208,38 @@ describe("ReservationsRepository arrival reads", () => {
       expect(countArg.where.status).toBeUndefined();
     });
 
+    it("filters to only individual bookings with groupCode null when view is individual-bookings", async () => {
+      const prisma = {
+        reservation: {
+          count: jest.fn().mockResolvedValue(1),
+          findMany: jest.fn().mockResolvedValue([
+            { id: "res-ind", groupCode: null, reservationCode: "VS-I01" },
+          ]),
+        },
+      };
+      const repository = new ReservationsRepository(prisma as never);
+
+      await repository.listArrivals({
+        hotelId: "hotel-1",
+        view: "individual-bookings",
+        q: "VS-I01",
+        roomIds: ["room-1"],
+        skip: 0,
+        take: 20,
+      });
+
+      const countArg = (prisma.reservation.count as jest.Mock).mock.calls[0][0];
+      expect(countArg.where.groupCode).toBeNull();
+      expect(countArg.where.status).toBeUndefined();
+      expect(countArg.where.hotelId).toBe("hotel-1");
+      expect(countArg.where.roomId).toEqual({ in: ["room-1"] });
+      expect(countArg.where.OR).toContainEqual({
+        reservationCode: { contains: "VS-I01", mode: "insensitive" },
+      });
+      const findArg = (prisma.reservation.findMany as jest.Mock).mock.calls[0][0];
+      expect(findArg.where).toEqual(countArg.where);
+    });
+
     it("enforces room scope without leak: roomIds empty array queries roomId in [] matching 0 rows", async () => {
       const prisma = {
         reservation: {

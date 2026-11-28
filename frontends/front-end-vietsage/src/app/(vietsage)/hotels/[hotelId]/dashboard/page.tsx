@@ -91,305 +91,295 @@ export default async function StaffHotelDashboardPage({
     arrivalsTomorrow: tomorrowArrivals.length,
   };
 
-  const roomCards = [
-    { label: "Đang ở", value: dashboard.rooms.byStatus.occupied, icon: "hotel", tone: "text-[var(--primary)]", progress: dashboard.rooms.occupancyRate },
-    { label: "Sẵn sàng", value: dashboard.rooms.byStatus.available, icon: "check_circle", tone: "text-[var(--secondary)]", progress: dashboard.rooms.total ? (dashboard.rooms.byStatus.available / dashboard.rooms.total) * 100 : 0 },
-    { label: "Khách đặt trước hôm nay", value: dashboard.stays.todayCheckIns, icon: "event_available", tone: "text-[var(--on-tertiary-container)]", progress: undefined },
-    { label: "Đang dọn", value: dashboard.rooms.byStatus.processing, icon: "cleaning_services", tone: "text-[var(--primary)]", progress: undefined },
-    { label: "Bảo trì", value: dashboard.rooms.byStatus.maintenance, icon: "build", tone: "text-[var(--error)]", progress: undefined },
+  const roomMetrics = [
+    {
+      label: "Sẵn sàng",
+      value: dashboard.rooms.byStatus.available,
+      dot: "bg-emerald-500",
+      tone: "text-emerald-800",
+      border: "border-emerald-200/80 bg-emerald-50/40",
+      percent: dashboard.rooms.total ? percent((dashboard.rooms.byStatus.available / dashboard.rooms.total) * 100) : undefined,
+      href: `${baseRoutePrefix}/${hotelId}/rooms?status=available`,
+    },
+    {
+      label: "Đang ở",
+      value: dashboard.rooms.byStatus.occupied,
+      dot: "bg-sky-500",
+      tone: "text-sky-800",
+      border: "border-sky-200/80 bg-sky-50/40",
+      percent: percent(dashboard.rooms.occupancyRate),
+      href: `${baseRoutePrefix}/${hotelId}/rooms?status=occupied`,
+    },
+    {
+      label: "Đang dọn",
+      value: dashboard.rooms.byStatus.processing,
+      dot: "bg-amber-500",
+      tone: "text-amber-800",
+      border: "border-amber-200/80 bg-amber-50/40",
+      percent: undefined,
+      href: `${baseRoutePrefix}/${hotelId}/rooms?status=processing`,
+    },
+    {
+      label: "Bảo trì",
+      value: dashboard.rooms.byStatus.maintenance,
+      dot: "bg-rose-500",
+      tone: "text-rose-800",
+      border: "border-rose-200/80 bg-rose-50/40",
+      percent: undefined,
+      href: `${baseRoutePrefix}/${hotelId}/rooms?status=maintenance`,
+    },
   ] as const;
 
-  const operations = [
-    { label: "Nhận phòng", value: dashboard.stays.todayCheckIns, icon: "login", tone: "border-[var(--primary)]", iconTone: "bg-[var(--primary-fixed)] text-[var(--on-primary-fixed)]" },
-    { label: "Trả phòng", value: dashboard.stays.todayCheckOuts, icon: "logout", tone: "border-[var(--secondary)]", iconTone: "bg-[var(--secondary-fixed)] text-[var(--on-secondary-fixed)]" },
-    { label: "Thanh toán chờ", value: dashboard.stays.pendingCheckOuts, icon: "payments", tone: "border-[var(--error)]", iconTone: "bg-[var(--error-container)] text-[var(--on-error-container)]" },
-    { label: "Yêu cầu mới", value: dashboard.requests.byStatus.sent, icon: "notifications_active", tone: "border-[var(--primary-fixed-dim)]", iconTone: "bg-[var(--surface-container-highest)] text-[var(--primary)]" },
+  const operationMetrics = [
+    {
+      label: "Nhận phòng",
+      value: dashboard.stays.todayCheckIns,
+      icon: "login",
+      tone: "text-emerald-800",
+      iconTone: "text-emerald-700",
+      href: `${baseRoutePrefix}/${hotelId}/front-desk?tab=arrivals&range=today`,
+    },
+    {
+      label: "Trả phòng",
+      value: dashboard.stays.todayCheckOuts,
+      icon: "logout",
+      tone: "text-amber-800",
+      iconTone: "text-amber-700",
+      href: `${baseRoutePrefix}/${hotelId}/rooms`,
+    },
+    {
+      label: "Đang lưu trú",
+      value: guests.inHouse,
+      icon: "group",
+      tone: "text-blue-800",
+      iconTone: "text-blue-700",
+      href: `${baseRoutePrefix}/${hotelId}/front-desk?tab=in-house`,
+    },
+    {
+      label: "Đặt trước",
+      value: guests.advanceReservations,
+      icon: "calendar_month",
+      tone: "text-purple-800",
+      iconTone: "text-purple-700",
+      href: `${baseRoutePrefix}/${hotelId}/front-desk?tab=arrivals&range=week`,
+    },
+    {
+      label: "Đến ngày mai",
+      value: guests.arrivalsTomorrow,
+      icon: "next_plan",
+      tone: "text-amber-900",
+      iconTone: "text-amber-700",
+      href: `${baseRoutePrefix}/${hotelId}/rooms?businessDate=${tomorrowYmd}`,
+    },
+    {
+      label: "Yêu cầu mới",
+      value: dashboard.requests.byStatus.sent,
+      icon: "notifications_active",
+      tone: "text-[var(--primary)]",
+      iconTone: "text-[var(--primary)]",
+      href: `${baseRoutePrefix}/${hotelId}/requests`,
+    },
   ] as const;
 
   return (
-    <main className="space-y-8">
-      <header className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
-        <div>
-          <h1 className="vs-display text-4xl font-bold text-[var(--primary)]">Tổng quan điều hành &amp; Tài chính</h1>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
+    <main className="space-y-4">
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="vs-display text-2xl sm:text-3xl font-bold text-[var(--primary)] text-balance">
+          Tổng quan điều hành &amp; Tài chính
+        </h1>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <span className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[var(--outline-variant)]/40 bg-white px-3 text-xs font-bold text-[var(--primary)] whitespace-nowrap shadow-2xs">
+            <VsIcon name="calendar_today" className="text-sm text-[var(--secondary)]" />
+            <span>Hôm nay: {formatDayMonth(dashboard.generatedAt)}</span>
+          </span>
           <Link
-            href={`/hotels/${hotelId}/billing`}
+            href={`${baseRoutePrefix}/${hotelId}/billing`}
             prefetch={true}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--primary)] px-3.5 py-2 text-xs font-bold text-white shadow-sm transition hover:opacity-90 active:scale-95"
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[var(--primary)] px-3 text-xs font-bold text-white shadow-2xs transition hover:opacity-90 active:scale-95 whitespace-nowrap"
           >
-            <VsIcon name="payments" className="text-base" />
+            <VsIcon name="payments" className="text-sm" />
             <span>Sổ thu ngân &amp; Hóa đơn</span>
           </Link>
-          <div className="text-left md:text-right">
-            <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--primary)]/60">Ngày hôm nay</p>
-            <p className="vs-display mt-0.5 text-xl font-semibold text-[var(--primary)]">{formatDayMonth(dashboard.generatedAt)}</p>
-          </div>
         </div>
       </header>
 
+      {/* Tình trạng phòng & Biến động Check-in / Check-out (Compact Mini-Boxes) */}
+      <section
+        aria-label="Tình trạng phòng và biến động trong ngày"
+        className="rounded-xl border border-[var(--outline-variant)]/30 bg-white p-3.5 shadow-2xs space-y-2.5"
+      >
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {roomMetrics.map((metric) => (
+            <Link
+              key={metric.label}
+              href={metric.href}
+              prefetch={true}
+              className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2 transition hover:brightness-95 ${metric.border}`}
+            >
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 whitespace-nowrap">
+                <span className={`size-2 shrink-0 rounded-full ${metric.dot}`} aria-hidden="true" />
+                <span>{metric.label}</span>
+              </span>
+              <span className="inline-flex items-baseline gap-1.5 whitespace-nowrap">
+                <strong className={`text-lg font-extrabold tabular-nums leading-none ${metric.tone}`}>
+                  {formatDashboardCount(metric.value)}
+                </strong>
+                {metric.percent !== undefined ? (
+                  <span className="text-xs font-medium text-slate-500 tabular-nums">
+                    {metric.percent}%
+                  </span>
+                ) : null}
+              </span>
+            </Link>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 border-t border-slate-100 pt-2.5 sm:grid-cols-3 lg:grid-cols-6">
+          {operationMetrics.map((metric) => (
+            <Link
+              key={metric.label}
+              href={metric.href}
+              prefetch={true}
+              className="flex items-center justify-between gap-2 rounded-lg border border-slate-200/80 bg-slate-50/70 px-2.5 py-1.5 transition hover:border-slate-300 hover:bg-slate-50"
+            >
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 whitespace-nowrap min-w-0">
+                <VsIcon name={metric.icon} className={`text-sm shrink-0 ${metric.iconTone}`} />
+                <span className="truncate">{metric.label}</span>
+              </span>
+              <strong className={`text-base font-extrabold tabular-nums leading-none shrink-0 ${metric.tone}`}>
+                {formatDashboardCount(metric.value)}
+              </strong>
+            </Link>
+          ))}
+        </div>
+      </section>
+
       {/* Trung tâm Tài chính & Doanh thu Khách sạn */}
-      <section className="rounded-xl border border-[var(--outline-variant)]/30 bg-white p-5 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 border-b border-[var(--outline-variant)]/20 pb-3">
-          <div className="flex items-center gap-2.5">
-            <span className="grid size-9 place-items-center rounded-lg bg-[#e6efe9] text-[var(--primary)]">
-              <VsIcon name="account_balance_wallet" className="text-xl" />
+      <section className="rounded-xl border border-[var(--outline-variant)]/30 bg-white p-3.5 shadow-2xs">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3 border-b border-[var(--outline-variant)]/20 pb-2.5">
+          <div className="flex items-center gap-2">
+            <span className="grid size-7 place-items-center rounded-lg bg-[#e6efe9] text-[var(--primary)]">
+              <VsIcon name="account_balance_wallet" className="text-base" />
             </span>
-            <div>
-              <h2 className="text-base font-bold text-[var(--primary)]">Các khoản tiền &amp; Doanh thu vận hành</h2>
-              <p className="text-xs text-[var(--on-surface-variant)]">Ghi nhận doanh thu từ tiền phòng, dịch vụ đã thanh toán và các khoản chờ thu.</p>
-            </div>
+            <h2 className="text-sm sm:text-base font-bold text-[var(--primary)] text-balance">
+              Doanh thu &amp; Công nợ vận hành
+            </h2>
           </div>
           <Link
-            href={`/hotels/${hotelId}/billing`}
+            href={`${baseRoutePrefix}/${hotelId}/billing`}
             prefetch={true}
-            className="text-xs font-bold text-[var(--primary)] hover:underline flex items-center gap-1 shrink-0"
+            className="text-xs font-bold text-[var(--primary)] hover:underline inline-flex items-center gap-1 shrink-0 whitespace-nowrap"
           >
             <span>Chi tiết thu ngân</span>
             <VsIcon name="arrow_forward" className="text-xs" />
           </Link>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-xl border border-[#bbf7d0] bg-[#f0fdf4] p-4">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-bold uppercase tracking-wider text-[#166534]">Doanh thu hôm nay</p>
-              <span className="grid size-7 place-items-center rounded-md bg-white text-[#15803d] shadow-2xs">
-                <VsIcon name="payments" className="text-base" />
-              </span>
-            </div>
-            <p className="vs-display mt-2 text-2xl lg:text-3xl font-bold text-[#14532d]">
+        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-lg border border-[#bbf7d0] bg-[#f0fdf4] px-3 py-2.5">
+            <p className="text-xs font-bold uppercase tracking-wider text-[#166534]">Doanh thu hôm nay</p>
+            <p className="vs-display mt-1 text-xl lg:text-2xl font-bold tabular-nums text-[#14532d]">
               {formatMoney(dashboard.revenue.today, dashboard.revenue.currency)}
             </p>
-            <p className="mt-1 text-xs text-[#166534] font-medium">Phát sinh thực thu trong ngày</p>
           </div>
 
-          <div className="rounded-xl border border-[var(--outline-variant)]/40 bg-[var(--surface-container-low)] p-4">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-bold uppercase tracking-wider text-[var(--on-surface-variant)]">7 ngày gần nhất</p>
-              <span className="grid size-7 place-items-center rounded-md bg-white text-[var(--primary)] shadow-2xs">
-                <VsIcon name="trending_up" className="text-base" />
-              </span>
-            </div>
-            <p className="vs-display mt-2 text-2xl lg:text-3xl font-bold text-[var(--primary)]">
+          <div className="rounded-lg border border-[var(--outline-variant)]/40 bg-[var(--surface-container-low)] px-3 py-2.5">
+            <p className="text-xs font-bold uppercase tracking-wider text-[var(--on-surface-variant)]">7 ngày gần nhất</p>
+            <p className="vs-display mt-1 text-xl lg:text-2xl font-bold tabular-nums text-[var(--primary)]">
               {formatMoney(dashboard.revenue.last7Days, dashboard.revenue.currency)}
             </p>
-            <p className="mt-1 text-xs text-[var(--on-surface-variant)] font-medium">Xu hướng tuần hiện tại</p>
           </div>
 
-          <div className="rounded-xl border border-[#fed7aa] bg-[#fffaf5] p-4">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-bold uppercase tracking-wider text-[#9a3412]">Doanh thu tháng này</p>
-              <span className="grid size-7 place-items-center rounded-md bg-white text-[#c2410c] shadow-2xs">
-                <VsIcon name="calendar_month" className="text-base" />
-              </span>
-            </div>
-            <p className="vs-display mt-2 text-2xl lg:text-3xl font-bold text-[#9a3412]">
+          <div className="rounded-lg border border-[#fed7aa] bg-[#fffaf5] px-3 py-2.5">
+            <p className="text-xs font-bold uppercase tracking-wider text-[#9a3412]">Doanh thu tháng này</p>
+            <p className="vs-display mt-1 text-xl lg:text-2xl font-bold tabular-nums text-[#9a3412]">
               {formatMoney(dashboard.revenue.currentMonth, dashboard.revenue.currency)}
             </p>
-            <p className="mt-1 text-xs text-[#9a3412] font-medium">Lũy kế tháng hiện hành</p>
           </div>
 
-          <div className="rounded-xl border border-[#fecaca] bg-[#fff5f5] p-4">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-bold uppercase tracking-wider text-[#991b1b]">Chờ thanh toán / Trả phòng</p>
-              <span className="grid size-7 place-items-center rounded-md bg-white text-[#b91c1c] shadow-2xs">
-                <VsIcon name="logout" className="text-base" />
-              </span>
-            </div>
-            <p className="vs-display mt-2 text-2xl lg:text-3xl font-bold text-[#991b1b]">
-              {formatDashboardCount(dashboard.stays.pendingCheckOuts)} <span className="text-sm font-normal">lượt</span>
-            </p>
-            <div className="mt-1 flex items-center justify-between text-xs">
-              <span className="text-[#991b1b] font-medium">Chưa chốt hóa đơn</span>
+          <div className="rounded-lg border border-[#fecaca] bg-[#fff5f5] px-3 py-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-bold uppercase tracking-wider text-[#991b1b]">Chờ thanh toán</p>
               <Link
                 href={`${baseRoutePrefix}/${hotelId}/billing`}
                 prefetch={true}
-                className="font-bold text-[#b91c1c] hover:underline"
+                className="text-xs font-bold text-[#b91c1c] hover:underline whitespace-nowrap"
               >
                 Thu tiền &rarr;
               </Link>
             </div>
+            <p className="vs-display mt-1 text-xl lg:text-2xl font-bold tabular-nums text-[#991b1b]">
+              {formatDashboardCount(dashboard.stays.pendingCheckOuts)}{" "}
+              <span className="text-xs font-semibold">lượt chưa chốt</span>
+            </p>
           </div>
         </div>
       </section>
 
-      {/* 4 Chỉ số Điều hành Trọng tâm: Lưu trú, Đặt trước, Phòng trống, Đến ngày mai */}
-      <section className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-        <article className="flex flex-col justify-between rounded-xl border border-blue-200 bg-blue-50/70 p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-blue-900">Khách đang lưu trú</span>
-            <span className="grid size-8 place-items-center rounded-lg bg-blue-100 text-blue-800 shadow-2xs">
-              <VsIcon name="group" className="text-lg" />
+      {/* Kế hoạch Chuẩn bị đón tiếp ngày mai */}
+      <section className="rounded-xl border border-amber-300/80 bg-amber-50/45 p-3.5 shadow-2xs space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-amber-100 text-amber-900">
+              <VsIcon name="assignment_turned_in" className="text-base" />
             </span>
+            <h2 className="text-sm sm:text-base font-bold text-amber-950 text-balance">
+              Chuẩn bị đón khách ngày mai ({tomorrowYmd})
+            </h2>
           </div>
-          <p className="vs-display mt-2 text-2xl lg:text-3xl font-extrabold text-blue-950">
-            {formatDashboardCount(guests.inHouse)} <span className="text-sm font-normal text-blue-800">khách</span>
-          </p>
-          <p className="mt-1 text-xs text-blue-800 font-medium">Đang có mặt tại khách sạn</p>
-        </article>
-
-        <article className="flex flex-col justify-between rounded-xl border border-purple-200 bg-purple-50/70 p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-purple-900">Đặt phòng trước</span>
-            <span className="grid size-8 place-items-center rounded-lg bg-purple-100 text-purple-800 shadow-2xs">
-              <VsIcon name="calendar_month" className="text-lg" />
-            </span>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Link
+              href={`${baseRoutePrefix}/${hotelId}/rooms?businessDate=${tomorrowYmd}`}
+              prefetch={true}
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-amber-300 bg-white px-2.5 text-xs font-bold text-amber-950 shadow-2xs transition hover:bg-amber-50 whitespace-nowrap"
+            >
+              <VsIcon name="meeting_room" className="text-sm text-amber-800" />
+              <span>Sơ đồ ngày mai</span>
+            </Link>
+            <Link
+              href={`${baseRoutePrefix}/${hotelId}/rooms?status=processing`}
+              prefetch={true}
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-amber-300 bg-white px-2.5 text-xs font-bold text-amber-950 shadow-2xs transition hover:bg-amber-50 whitespace-nowrap"
+            >
+              <VsIcon name="cleaning_services" className="text-sm text-amber-800" />
+              <span>Chờ dọn ({dashboard.rooms.byStatus.processing})</span>
+            </Link>
+            <Link
+              href={`${baseRoutePrefix}/${hotelId}/rooms?flow=reservation`}
+              prefetch={true}
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-amber-300 bg-white px-2.5 text-xs font-bold text-amber-950 shadow-2xs transition hover:bg-amber-50 whitespace-nowrap"
+            >
+              <VsIcon name="edit_calendar" className="text-sm text-amber-800" />
+              <span>Đặt phòng tương lai</span>
+            </Link>
           </div>
-          <p className="vs-display mt-2 text-2xl lg:text-3xl font-extrabold text-purple-950">
-            {formatDashboardCount(guests.advanceReservations)} <span className="text-sm font-normal text-purple-800">lượt</span>
-          </p>
-          <p className="mt-1 text-xs text-purple-800 font-medium">Đặt trước các ngày tới</p>
-        </article>
-
-        <article className="flex flex-col justify-between rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-emerald-900">Phòng còn trống</span>
-            <span className="grid size-8 place-items-center rounded-lg bg-emerald-100 text-emerald-800 shadow-2xs">
-              <VsIcon name="check_circle" className="text-lg" />
-            </span>
-          </div>
-          <p className="vs-display mt-2 text-2xl lg:text-3xl font-extrabold text-emerald-950">
-            {formatDashboardCount(dashboard.rooms.byStatus.available)} <span className="text-sm font-normal text-emerald-800">phòng</span>
-          </p>
-          <p className="mt-1 text-xs text-emerald-800 font-medium">Sẵn sàng đón khách mới</p>
-        </article>
-
-        <article className="flex flex-col justify-between rounded-xl border border-amber-200 bg-amber-50/70 p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-amber-900">Khách đặt trước ngày mai</span>
-            <span className="grid size-8 place-items-center rounded-lg bg-amber-100 text-amber-800 shadow-2xs">
-              <VsIcon name="next_plan" className="text-lg" />
-            </span>
-          </div>
-          <p className="vs-display mt-2 text-2xl lg:text-3xl font-extrabold text-amber-950">
-            {formatDashboardCount(guests.arrivalsTomorrow)} <span className="text-sm font-normal text-amber-800">lượt</span>
-          </p>
-          <p className="mt-1 text-xs text-amber-800 font-medium">Cần chuẩn bị phòng trước</p>
-        </article>
-      </section>
-
-      <section className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
-        {roomCards.map((card) => (
-          <article key={card.label} className="group flex min-h-40 flex-col justify-between rounded-xl border border-[var(--outline-variant)]/30 bg-[var(--surface-container-low)] p-5 transition hover:-translate-y-1 hover:shadow-lg">
-            <div className="flex items-start justify-between">
-              <VsIcon name={card.icon} className={`text-3xl ${card.tone}`} />
-              {card.progress !== undefined ? (
-                <span className="relative flex size-12 items-center justify-center rounded-full border-4 border-[var(--outline-variant)]/25 text-xs font-semibold text-[var(--on-surface-variant)]">
-                  <span className={`absolute inset-[-4px] rounded-full border-4 border-transparent border-t-current ${card.tone}`} style={{ transform: `rotate(${percent(card.progress) * 3.6 - 45}deg)` }} />
-                  {percent(card.progress)}%
-                </span>
-              ) : null}
-            </div>
-            <div>
-              <p className="text-sm font-bold uppercase tracking-[0.12em] text-[var(--on-surface-variant)]">{card.label}</p>
-              <p className={`vs-display mt-1 text-4xl font-bold ${card.tone}`}>{formatDashboardCount(card.value)}</p>
-            </div>
-          </article>
-        ))}
-      </section>
-
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {operations.map((operation) => (
-          <article key={operation.label} className={`flex items-center gap-4 rounded-xl border-l-4 bg-white p-5 shadow-sm ${operation.tone}`}>
-            <span className={`flex size-12 items-center justify-center rounded-lg ${operation.iconTone}`}><VsIcon name={operation.icon} className="text-2xl" /></span>
-            <div>
-              <p className="text-sm font-semibold text-[var(--on-surface-variant)]">{operation.label}</p>
-              <p className="vs-display mt-1 text-2xl font-semibold text-[var(--primary)]">{formatDashboardCount(operation.value)}</p>
-            </div>
-          </article>
-        ))}
-      </section>
-
-      {/* Kế hoạch Chuẩn bị đón tiếp ngày mai (Không nhận phòng sớm) */}
-      <section className="rounded-2xl border-2 border-amber-300/80 bg-gradient-to-br from-amber-50/70 via-white to-amber-50/40 p-6 sm:p-7 md:p-8 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 border-b border-amber-200/60 pb-5">
-          <div className="flex items-start sm:items-center gap-3.5 sm:gap-4">
-            <span className="grid size-12 sm:size-14 shrink-0 place-items-center rounded-xl bg-amber-100/90 text-amber-900 shadow-xs">
-              <VsIcon name="assignment_turned_in" className="text-2xl sm:text-3xl" />
-            </span>
-            <div>
-              <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-amber-950">Công tác chuẩn bị đón khách ngày mai</h2>
-              <p className="mt-1 text-sm sm:text-base text-amber-900/85 leading-relaxed">
-                Kiểm tra sơ đồ buồng phòng dự kiến và xếp trước phòng cho khách đặt trước ngày mai. Không thực hiện nhận phòng sớm trước ngày nhận phòng.
-              </p>
-            </div>
-          </div>
-          <span className="inline-flex items-center gap-2 self-start sm:self-center text-sm sm:text-base font-bold text-amber-900 bg-amber-100 border border-amber-300 px-4 py-2 rounded-xl shadow-2xs shrink-0">
-            <VsIcon name="event" className="text-base sm:text-lg" />
-            <span>Ngày mai: {tomorrowYmd}</span>
-          </span>
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Link
-            href={`${baseRoutePrefix}/${hotelId}/rooms?businessDate=${tomorrowYmd}`}
-            prefetch={true}
-            className="group flex min-h-[96px] items-center gap-4 rounded-xl border-2 border-amber-200/80 bg-white p-4.5 sm:p-5 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-amber-500 hover:shadow-md active:scale-[0.98]"
-          >
-            <span className="grid size-12 sm:size-14 shrink-0 place-items-center rounded-xl bg-amber-100/80 text-amber-900 transition-colors group-hover:bg-amber-200/90">
-              <VsIcon name="meeting_room" className="text-2xl sm:text-3xl" />
-            </span>
-            <div className="min-w-0">
-              <p className="text-base sm:text-lg font-bold text-amber-950 group-hover:text-amber-900">Sơ đồ phòng ngày mai</p>
-              <p className="mt-1 text-xs sm:text-sm text-amber-800/85 leading-snug">Xem trạng thái dự kiến &amp; gán phòng trước</p>
-            </div>
-          </Link>
-
-          <Link
-            href={`${baseRoutePrefix}/${hotelId}/rooms?status=processing`}
-            prefetch={true}
-            className="group flex min-h-[96px] items-center gap-4 rounded-xl border-2 border-amber-200/80 bg-white p-4.5 sm:p-5 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-amber-500 hover:shadow-md active:scale-[0.98]"
-          >
-            <span className="grid size-12 sm:size-14 shrink-0 place-items-center rounded-xl bg-amber-100/80 text-amber-900 transition-colors group-hover:bg-amber-200/90">
-              <VsIcon name="cleaning_services" className="text-2xl sm:text-3xl" />
-            </span>
-            <div className="min-w-0">
-              <p className="text-base sm:text-lg font-bold text-amber-950 group-hover:text-amber-900">Phòng chờ dọn ({dashboard.rooms.byStatus.processing})</p>
-              <p className="mt-1 text-xs sm:text-sm text-amber-800/85 leading-snug">Đôn đốc buồng phòng hoàn tất sẵn sàng</p>
-            </div>
-          </Link>
-
-          <Link
-            href={`${baseRoutePrefix}/${hotelId}/rooms?flow=reservation`}
-            prefetch={true}
-            className="group flex min-h-[96px] items-center gap-4 rounded-xl border-2 border-amber-200/80 bg-white p-4.5 sm:p-5 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-amber-500 hover:shadow-md active:scale-[0.98]"
-          >
-            <span className="grid size-12 sm:size-14 shrink-0 place-items-center rounded-xl bg-amber-100/80 text-amber-900 transition-colors group-hover:bg-amber-200/90">
-              <VsIcon name="edit_calendar" className="text-2xl sm:text-3xl" />
-            </span>
-            <div className="min-w-0">
-              <p className="text-base sm:text-lg font-bold text-amber-950 group-hover:text-amber-900">Đặt phòng tương lai</p>
-              <p className="mt-1 text-xs sm:text-sm text-amber-800/85 leading-snug">Tạo đặt trước có chọn phòng &amp; giá đêm</p>
-            </div>
-          </Link>
         </div>
 
         {tomorrowArrivals.length > 0 ? (
-          <div className="mt-6 rounded-xl border border-amber-200/80 bg-white/95 p-4 sm:p-5 shadow-2xs">
-            <p className="text-sm sm:text-base font-bold uppercase tracking-wider text-amber-950 mb-3 flex items-center gap-2">
-              <VsIcon name="list_alt" className="text-lg text-amber-800" />
-              <span>Danh sách khách đặt trước ngày mai ({tomorrowArrivals.length} lượt)</span>
+          <div className="rounded-lg border border-amber-200/80 bg-white/95 p-3 shadow-2xs">
+            <p className="text-xs font-bold uppercase tracking-wider text-amber-950 mb-2 flex items-center gap-1.5">
+              <VsIcon name="list_alt" className="text-sm text-amber-800" />
+              <span>Đặt trước ngày mai ({tomorrowArrivals.length} lượt)</span>
             </p>
-            <div className="space-y-2.5">
+            <div className="space-y-1.5">
               {tomorrowArrivals.slice(0, 5).map((arrival) => (
                 <div
                   key={arrival.id}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-amber-100 bg-amber-50/50 p-3 sm:p-3.5 text-amber-950"
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-100 bg-amber-50/50 px-3 py-2 text-amber-950"
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm sm:text-base font-bold text-amber-950">{arrival.guestDisplayName}</p>
-                    <p className="mt-0.5 text-xs sm:text-sm text-amber-800/85">
-                      Mã: <span className="font-semibold text-amber-900">{arrival.reservationCode}</span> · {arrival.room?.roomNumber ? `Phòng ${arrival.room.roomNumber}` : arrival.roomId ? `Phòng ${arrival.roomId}` : "Chưa gán phòng"}
-                    </p>
+                    <span className="text-sm font-bold text-amber-950">{arrival.guestDisplayName}</span>
+                    <span className="ml-2 text-xs text-amber-800/90">
+                      #{arrival.reservationCode} · {arrival.room?.roomNumber ? `P.${arrival.room.roomNumber}` : arrival.roomId ? `P.${arrival.roomId}` : "Chưa gán phòng"}
+                    </span>
                   </div>
-                  <div className="flex items-center gap-2.5 shrink-0">
-                    <span className="rounded-lg bg-amber-100 px-3 py-1 text-xs sm:text-sm font-semibold text-amber-900 border border-amber-200/70">
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="rounded-md bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900 border border-amber-200/70 whitespace-nowrap">
                       Không nhận phòng sớm
                     </span>
                     <Link
                       href={`${baseRoutePrefix}/${hotelId}/rooms?businessDate=${tomorrowYmd}`}
-                      className="inline-flex min-h-[44px] items-center rounded-xl bg-amber-800 px-4 py-2 text-sm font-bold text-white shadow-2xs transition-colors hover:bg-amber-900"
+                      className="inline-flex h-8 items-center rounded-lg bg-amber-800 px-3 text-xs font-bold text-white shadow-2xs transition-colors hover:bg-amber-900 whitespace-nowrap"
                     >
                       Xem &amp; Gán phòng
                     </Link>
@@ -401,31 +391,31 @@ export default async function StaffHotelDashboardPage({
         ) : null}
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[1.6fr_0.8fr]">
+      <section className="grid gap-4 xl:grid-cols-[1.6fr_0.8fr]">
         <article>
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="vs-display text-2xl font-semibold text-[var(--primary)]">Yêu cầu của khách <span className="text-[var(--error)]">•</span></h2>
-            <Link href={`${baseRoutePrefix}/${hotelId}/requests`} prefetch={true} className="text-sm font-bold text-[var(--primary)]">Xem tất cả</Link>
+          <div className="mb-2.5 flex items-center justify-between">
+            <h2 className="vs-display text-lg font-bold text-[var(--primary)] text-balance">Yêu cầu của khách <span className="text-[var(--error)]">•</span></h2>
+            <Link href={`${baseRoutePrefix}/${hotelId}/requests`} prefetch={true} className="text-xs font-bold text-[var(--primary)] hover:underline whitespace-nowrap">Xem tất cả</Link>
           </div>
-          <div className="overflow-hidden rounded-xl bg-white shadow-sm">
-            <div className="grid grid-cols-[0.5fr_1.5fr_0.8fr_0.8fr] border-b border-[var(--outline-variant)] bg-[var(--surface-container-low)] px-5 py-4 text-sm font-semibold uppercase tracking-[0.08em] text-[var(--on-surface-variant)]"><span>Phòng</span><span>Loại yêu cầu</span><span>Thời gian</span><span>Trạng thái</span></div>
+          <div className="overflow-hidden rounded-xl bg-white shadow-2xs border border-[var(--outline-variant)]/30">
+            <div className="grid grid-cols-[0.5fr_1.5fr_0.8fr_0.8fr] border-b border-[var(--outline-variant)] bg-[var(--surface-container-low)] px-4 py-2.5 text-xs font-bold uppercase tracking-[0.06em] text-[var(--on-surface-variant)]"><span>Phòng</span><span>Loại yêu cầu</span><span>Thời gian</span><span>Trạng thái</span></div>
             {dashboard.attention.slice(0, 5).map((item) => (
-              <Link key={`${item.type}-${item.id}`} href={attentionRoute(hotelId, item, baseRoutePrefix)} prefetch={true} className="grid grid-cols-[0.5fr_1.5fr_0.8fr_0.8fr] items-center border-b border-[var(--outline-variant)]/50 px-5 py-4 text-sm transition hover:bg-[var(--surface-container-low)]">
-                <span className="font-bold text-[var(--primary)]">{item.title.match(/\d+/)?.[0] ?? "-"}</span><span className="font-semibold text-[var(--on-surface)]">{item.title}</span><span className="text-sm text-[var(--on-surface-variant)]">{formatTime(item.createdAt)}</span><span className="w-fit rounded-full bg-[var(--primary-fixed)] px-2.5 py-1 text-xs font-bold uppercase text-[var(--on-primary-fixed-variant)]">{item.priority}</span>
+              <Link key={`${item.type}-${item.id}`} href={attentionRoute(hotelId, item, baseRoutePrefix)} prefetch={true} className="grid grid-cols-[0.5fr_1.5fr_0.8fr_0.8fr] items-center border-b border-[var(--outline-variant)]/50 px-4 py-2.5 text-sm transition hover:bg-[var(--surface-container-low)]">
+                <span className="font-bold text-[var(--primary)]">{item.title.match(/\d+/)?.[0] ?? "-"}</span><span className="font-semibold text-[var(--on-surface)] truncate pr-2">{item.title}</span><span className="text-xs text-[var(--on-surface-variant)] tabular-nums">{formatTime(item.createdAt)}</span><span className="w-fit rounded-full bg-[var(--primary-fixed)] px-2 py-0.5 text-xs font-bold uppercase text-[var(--on-primary-fixed-variant)] whitespace-nowrap">{item.priority}</span>
               </Link>
             ))}
-            {dashboard.attention.length === 0 ? <p className="p-8 text-center text-sm text-[var(--on-surface-variant)]">Chưa có yêu cầu cần chú ý.</p> : null}
+            {dashboard.attention.length === 0 ? <p className="p-5 text-center text-sm text-[var(--on-surface-variant)]">Chưa có yêu cầu cần chú ý.</p> : null}
           </div>
         </article>
 
         <aside>
-          <h2 className="vs-display mb-4 text-2xl font-semibold text-[var(--primary)]">Nhật ký hoạt động</h2>
-          <div className="rounded-xl bg-white p-5 shadow-sm">
-            <div className="space-y-5">
+          <h2 className="vs-display mb-2.5 text-lg font-bold text-[var(--primary)] text-balance">Nhật ký hoạt động</h2>
+          <div className="rounded-xl bg-white p-4 shadow-2xs border border-[var(--outline-variant)]/30">
+            <div className="space-y-3.5">
               {dashboard.activities.slice(0, 6).map((activity) => (
-                <div key={activity.id} className="relative flex gap-3 border-l border-[var(--outline-variant)] pl-5 last:border-transparent">
+                <div key={activity.id} className="relative flex gap-3 border-l border-[var(--outline-variant)] pl-4 last:border-transparent">
                   <span className="absolute -left-2 top-0 flex size-4 items-center justify-center rounded-full bg-[var(--primary)] text-white"><VsIcon name="arrow_forward" className="text-xs" /></span>
-                  <div><p className="text-sm font-bold text-[var(--primary)]">{activity.title}</p><p className="mt-1 text-sm text-[var(--on-surface-variant)]">{activity.description} · {formatTime(activity.createdAt)}</p></div>
+                  <div><p className="text-sm font-bold text-[var(--primary)]">{activity.title}</p><p className="mt-0.5 text-xs text-[var(--on-surface-variant)] text-pretty">{activity.description} · {formatTime(activity.createdAt)}</p></div>
                 </div>
               ))}
               {dashboard.activities.length === 0 ? <p className="text-sm text-[var(--on-surface-variant)]">Chưa có hoạt động trong ca.</p> : null}

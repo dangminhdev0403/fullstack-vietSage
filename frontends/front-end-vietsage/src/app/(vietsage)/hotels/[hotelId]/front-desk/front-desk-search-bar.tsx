@@ -76,10 +76,10 @@ export function FrontDeskSearchBar({
 
   const placeholderText =
     tab === "groups"
-      ? "Tìm mã đoàn, mã đặt phòng hoặc tên khách..."
+      ? "Tìm mã đoàn, trưởng đoàn, số điện thoại hoặc phòng..."
       : tab === "in-house"
         ? "Tìm theo tên khách, số điện thoại hoặc số phòng..."
-        : "Tìm mã đặt phòng, mã đoàn, tên khách, số điện thoại hoặc phòng...";
+        : "Tìm mã đặt phòng, tên khách, số điện thoại hoặc phòng...";
 
   const hasSearch = Boolean(value.trim() || initialQuery);
 

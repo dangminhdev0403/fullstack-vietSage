@@ -26,6 +26,7 @@ export type FrontDeskGroupsTableProps = {
   canOperateArrivals: boolean;
   canCheckInStay?: boolean;
   canManageReservations?: boolean;
+  canCheckOutStay?: boolean;
   initialSelectedGroupCode?: string | null;
 };
 
@@ -62,6 +63,7 @@ export function FrontDeskGroupsTable({
   canOperateArrivals,
   canCheckInStay = false,
   canManageReservations = false,
+  canCheckOutStay,
   initialSelectedGroupCode = null,
 }: FrontDeskGroupsTableProps) {
   const [activeGroupCode, setActiveGroupCode] = useState<string | null>(initialSelectedGroupCode);
@@ -278,7 +280,7 @@ export function FrontDeskGroupsTable({
         todayYmd={todayYmd}
         canOperateArrivals={canOperateArrivals}
         canCheckInStay={canCheckInStay}
-        canCheckOutStay={Boolean(canManageReservations || canOperateArrivals)}
+        canCheckOutStay={canCheckOutStay ?? Boolean(canManageReservations || canOperateArrivals)}
         triggerElementRef={lastFocusedTriggerRef}
       />
     </>

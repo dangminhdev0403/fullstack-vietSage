@@ -382,7 +382,7 @@ export class ReservationsController {
   @ApiParam({ name: "hotelId", type: String })
   @ApiQuery({ name: "from", required: false, type: String })
   @ApiQuery({ name: "to", required: false, type: String })
-  @ApiQuery({ name: "view", required: false, enum: ["bookings", "group-bookings"], description: "Danh sách đặt phòng mọi trạng thái. group-bookings chỉ lấy các thành viên đoàn." })
+  @ApiQuery({ name: "view", required: false, enum: ["bookings", "individual-bookings", "group-bookings"], description: "Danh sách đặt phòng mọi trạng thái. individual-bookings chỉ lấy khách lẻ (groupCode null), group-bookings chỉ lấy thành viên đoàn." })
   @ApiQuery({ name: "includeOverdue", required: false, type: Boolean })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "limit", required: false, type: Number })

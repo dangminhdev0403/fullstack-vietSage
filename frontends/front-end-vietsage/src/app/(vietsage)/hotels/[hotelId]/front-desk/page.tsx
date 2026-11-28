@@ -73,6 +73,7 @@ function Pagination({
   q,
   page,
   total,
+  pageSize = PAGE_SIZE,
   baseRoutePrefix = "/hotels",
 }: {
   hotelId: string;
@@ -81,9 +82,10 @@ function Pagination({
   q: string;
   page: number;
   total: number;
+  pageSize?: number;
   baseRoutePrefix?: `/${string}`;
 }) {
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
   if (totalPages === 1) return null;
 
   return (
@@ -191,10 +193,11 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
 
   try {
     if (tab === "arrivals" || tab === "groups") {
+      const isGroupTab = tab === "groups";
       arrivalsPage = await authorizedApi("load front desk bookings", (accessToken) =>
         hotelOpsService.listArrivals(hotelId, {
           query: {
-            view: tab === "groups" ? "group-bookings" : "bookings",
+            view: isGroupTab ? "group-bookings" : "individual-bookings",
             ...(q ? {} : dateRange),
             ...(q ? { q } : {}),
             page,
@@ -232,6 +235,7 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
   }
 
   const total = arrivalsPage?.total ?? inHousePage?.total ?? 0;
+  const isBookingTab = tab === "arrivals" || tab === "groups";
   const canOperateArrivals =
     canViewInHouse &&
     (context.permissions.includes("hotel.reservations.manage") ||
@@ -272,7 +276,7 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
         </div>
       </header>
 
-      {/* Tabs and Date Range Bar */}
+      {/* Primary Navigation & Booking Type Switcher */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <nav
           className="inline-flex flex-wrap gap-1.5 rounded-2xl border border-slate-200 bg-slate-100/80 p-1 shadow-2xs md:hidden"
@@ -281,7 +285,7 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
           {canViewInHouse || canViewKbtt ? (
             <Link
               aria-current={tab === "in-house" ? "page" : undefined}
-              className={`inline-flex min-h-10 items-center gap-2 rounded-xl px-4 text-sm font-bold transition-all ${
+              className={`inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-sm font-bold whitespace-nowrap transition-all ${
                 tab === "in-house"
                   ? "border border-slate-200 bg-white text-blue-700 shadow-xs"
                   : "text-slate-600 hover:bg-white/60 hover:text-slate-900"
@@ -291,7 +295,7 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
               <VsIcon name="person" className="h-4 w-4" />
               <span>Khách đang lưu trú</span>
               {tab === "in-house" && !loadFailed && inHousePage?.total !== undefined ? (
-                <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-bold text-blue-800">
+                <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-bold text-blue-800 whitespace-nowrap">
                   {inHousePage.total}
                 </span>
               ) : null}
@@ -299,9 +303,9 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
           ) : null}
           {canViewArrivals ? (
             <Link
-              aria-current={(tab === "arrivals" || tab === "groups") ? "page" : undefined}
-              className={`inline-flex min-h-10 items-center gap-2 rounded-xl px-4 text-sm font-bold transition-all ${
-                (tab === "arrivals" || tab === "groups")
+              aria-current={isBookingTab ? "page" : undefined}
+              className={`inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-sm font-bold whitespace-nowrap transition-all ${
+                isBookingTab
                   ? "border border-slate-200 bg-white text-blue-700 shadow-xs"
                   : "text-slate-600 hover:bg-white/60 hover:text-slate-900"
               }`}
@@ -309,8 +313,8 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
             >
               <VsIcon name="calendar_today" className="h-4 w-4" />
               <span>Khách hàng đặt phòng</span>
-              {(tab === "arrivals" || tab === "groups") && !loadFailed && arrivalsPage?.total !== undefined ? (
-                <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-bold text-blue-800">
+              {isBookingTab && !loadFailed && arrivalsPage?.total !== undefined ? (
+                <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-bold text-blue-800 whitespace-nowrap">
                   {arrivalsPage.total}
                 </span>
               ) : null}
@@ -318,53 +322,35 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
           ) : null}
         </nav>
 
-        {tab === "arrivals" || tab === "groups" ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <nav className="flex gap-1" aria-label="Loại đặt phòng">
-              {([["arrivals", "Tất cả"], ["groups", "Theo đoàn"]] as const).map(([value, label]) => (
+        {isBookingTab ? (
+          <nav
+            className="inline-flex w-fit items-center gap-1 rounded-2xl border border-slate-200 bg-slate-100/90 p-1 shadow-2xs"
+            aria-label="Phân loại đặt phòng"
+          >
+            {(
+              [
+                ["arrivals", "Khách lẻ", "person"],
+                ["groups", "Đoàn", "groups"],
+              ] as const
+            ).map(([value, label, iconName]) => {
+              const isActive = tab === value;
+              return (
                 <Link
                   key={value}
-                  aria-current={tab === value ? "page" : undefined}
-                  className={`inline-flex min-h-11 items-center rounded-xl border px-3 text-sm font-semibold focus-visible:outline-2 ${tab === value ? "border-blue-600 bg-blue-50 text-blue-800" : "border-slate-300 text-slate-700"}`}
+                  aria-current={isActive ? "page" : undefined}
+                  className={`inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-sm font-bold whitespace-nowrap transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 ${
+                    isActive
+                      ? "border border-slate-200 bg-white text-blue-700 shadow-xs"
+                      : "text-slate-600 hover:bg-white/60 hover:text-slate-900"
+                  }`}
                   href={frontDeskHref(hotelId, { tab: value, q, range }, baseRoutePrefix)}
                 >
-                  {label}
+                  <VsIcon name={iconName} className="h-4 w-4" />
+                  <span>{label}</span>
                 </Link>
-              ))}
-            </nav>
-            {q ? (
-              <span className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50/70 px-3.5 text-xs font-semibold text-blue-700 whitespace-nowrap">
-                <VsIcon name="search" className="h-3.5 w-3.5" />
-                <span>Tìm kiếm trên tất cả ngày</span>
-              </span>
-            ) : null}
-            <div className="flex flex-wrap items-center gap-1.5" aria-label="Khoảng ngày lọc">
-              {([
-                ["today", "Hôm nay"],
-                ["tomorrow", "Ngày mai"],
-                ["week", "7 ngày tới"],
-              ] as const).map(([value, label]) => {
-                const isActive = !q && range === value;
-                return (
-                  <Link
-                    key={value}
-                    aria-current={isActive ? "page" : undefined}
-                    className={`inline-flex min-h-10 items-center gap-1.5 rounded-xl px-3.5 text-sm font-bold transition-all ${
-                      isActive
-                        ? "border-2 border-blue-600 bg-blue-50 text-blue-800 shadow-2xs"
-                        : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900"
-                    }`}
-                    href={frontDeskHref(hotelId, { tab, range: value }, baseRoutePrefix)}
-                  >
-                    {isActive ? (
-                      <span className="h-1.5 w-1.5 rounded-full bg-blue-600" />
-                    ) : null}
-                    <span>{label}</span>
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
+              );
+            })}
+          </nav>
         ) : null}
       </div>
 
@@ -378,47 +364,98 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
         />
       ) : (
         <>
-          {(tab === "arrivals" || tab === "groups") ? (
-            <FrontDeskLiveRefresh hotelId={hotelId} />
-          ) : null}
-          {/* Realtime Search Bar */}
-          <FrontDeskSearchBar
-            initialQuery={q}
-            tab={tab}
-            range={range}
-          />
+          {isBookingTab ? <FrontDeskLiveRefresh hotelId={hotelId} /> : null}
 
       {/* Main Content Section */}
       <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-4">
           <div>
-            <div className="flex items-center gap-2.5">
-              <h2 className="text-xl font-bold text-slate-900">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h2 className="text-xl font-bold text-slate-900 text-balance">
                 {tab === "groups"
                   ? "Đặt phòng theo đoàn"
                   : tab === "arrivals"
-                    ? "Khách hàng đặt phòng"
+                    ? "Đặt phòng khách lẻ"
                     : "Khách đang lưu trú"}
               </h2>
               {!loadFailed ? (
-                <span className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-xs font-bold text-blue-800">
-                  {total} kết quả
-                  {q && (tab === "arrivals" || tab === "groups") ? " (tất cả ngày)" : ""}
+                <span className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-xs font-bold text-blue-800 whitespace-nowrap">
+                  {tab === "groups"
+                    ? `${total} đặt phòng thuộc đoàn${q ? " (tất cả ngày)" : ""}`
+                    : `${total} kết quả${q && isBookingTab ? " (tất cả ngày)" : ""}`}
                 </span>
               ) : null}
             </div>
             {loadFailed ? (
-              <p className="mt-1 text-xs text-red-600">Dữ liệu chưa tải được — vui lòng kiểm tra kết nối</p>
+              <p className="mt-1 text-xs text-red-600 text-pretty">Dữ liệu chưa tải được — vui lòng kiểm tra kết nối</p>
             ) : null}
           </div>
-          {tab === "arrivals" && canOperateArrivals ? (
+          {isBookingTab && canOperateArrivals ? (
             <Link
-              className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 text-xs font-semibold text-slate-700 shadow-2xs transition-all hover:bg-slate-50 hover:text-slate-900"
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 text-sm font-semibold text-slate-700 shadow-2xs whitespace-nowrap transition-all hover:bg-slate-50 hover:text-slate-900"
               href={`${baseRoutePrefix}/${encodeURIComponent(hotelId)}/rooms?flow=arrivals&range=${range}`}
             >
               <VsIcon name="grid_view" className="h-4 w-4 text-slate-500" />
               <span>Xem trên sơ đồ phòng</span>
             </Link>
+          ) : null}
+        </div>
+
+        {/* Unified Filter Bar (Search + Date Range Filter) */}
+        <div className="flex flex-col gap-3 border-b border-slate-100 py-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0 flex-1">
+            <FrontDeskSearchBar
+              initialQuery={q}
+              tab={tab}
+              range={range}
+            />
+          </div>
+
+          {isBookingTab ? (
+            <div
+              className="flex flex-wrap items-center gap-2 lg:shrink-0"
+              role="group"
+              aria-label="Bộ lọc thời gian nhận phòng"
+            >
+              <span className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 whitespace-nowrap">
+                <VsIcon name="calendar_today" className="h-4 w-4 text-slate-400" />
+                <span>Ngày đến:</span>
+              </span>
+              <div className="inline-flex flex-wrap items-center gap-1.5">
+                {(
+                  [
+                    ["today", "Hôm nay"],
+                    ["tomorrow", "Ngày mai"],
+                    ["week", "7 ngày tới"],
+                  ] as const
+                ).map(([value, label]) => {
+                  const isActive = !q && range === value;
+                  return (
+                    <Link
+                      key={value}
+                      aria-current={isActive ? "page" : undefined}
+                      className={`inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3.5 text-sm font-semibold whitespace-nowrap transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 ${
+                        isActive
+                          ? "border border-blue-600 bg-blue-50 text-blue-800 shadow-2xs"
+                          : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                      }`}
+                      href={frontDeskHref(hotelId, { tab, range: value }, baseRoutePrefix)}
+                    >
+                      {isActive ? (
+                        <span className="h-1.5 w-1.5 rounded-full bg-blue-600" />
+                      ) : null}
+                      <span>{label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+              {q ? (
+                <span className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50/70 px-3 text-xs font-semibold text-blue-700 whitespace-nowrap">
+                  <VsIcon name="search" className="h-3.5 w-3.5" />
+                  <span>Tìm trên tất cả ngày</span>
+                </span>
+              ) : null}
+            </div>
           ) : null}
         </div>
 
@@ -428,29 +465,29 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 text-rose-600 shadow-xs">
               <VsIcon name="refresh" className="h-8 w-8" />
             </div>
-            <h3 className="text-xl font-bold text-slate-900">
+            <h3 className="text-xl font-bold text-slate-900 text-balance">
               Không thể tải dữ liệu lễ tân
             </h3>
-            <p className="mx-auto mt-1.5 max-w-md text-sm leading-relaxed text-slate-600">
+            <p className="mx-auto mt-1.5 max-w-md text-sm leading-relaxed text-slate-600 text-pretty">
               Hệ thống tạm thời không thể kết nối tới máy chủ hoặc tài khoản chưa có đủ quyền xem danh sách này. Vui lòng thử tải lại hoặc liên hệ quản trị viên.
             </p>
             <div className="mt-5 flex flex-wrap items-center justify-center gap-2.5">
               <Link
-                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-bold text-white shadow-xs transition-all hover:bg-blue-700"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-bold text-white shadow-xs whitespace-nowrap transition-all hover:bg-blue-700"
                 href={frontDeskHref(hotelId, { tab, range, q, page }, baseRoutePrefix)}
               >
                 <VsIcon name="refresh" className="h-4 w-4" />
                 <span>Thử lại ngay</span>
               </Link>
               <Link
-                className="inline-flex min-h-10 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition-all hover:bg-slate-50 hover:text-slate-900"
+                className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 whitespace-nowrap transition-all hover:bg-slate-50 hover:text-slate-900"
                 href={`${baseRoutePrefix}/${encodeURIComponent(hotelId)}/rooms`}
               >
                 <span>Về sơ đồ phòng</span>
               </Link>
             </div>
           </div>
-        ) : tab === "arrivals" || tab === "groups" ? (
+        ) : tab === "groups" ? (
           arrivalsPage?.items.length ? (
             <FrontDeskArrivalsTable
               hotelId={hotelId}
@@ -465,25 +502,25 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
               canCheckOutStay={canCheckOutStay}
             />
           ) : (
-            /* Empty State for Arrivals */
+            /* Empty State for Groups */
             <div className="mx-auto max-w-lg px-4 py-12 text-center">
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-blue-200 bg-blue-50 text-blue-600 shadow-xs">
-                <VsIcon name="calendar_today" className="h-8 w-8 text-blue-600" />
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-purple-200 bg-purple-50 text-purple-600 shadow-xs">
+                <VsIcon name="groups" className="h-8 w-8 text-purple-600" />
               </div>
-              <h3 className="text-xl font-bold text-slate-900">
-                {q ? "Không tìm thấy đặt phòng phù hợp" : "Không có đặt phòng trong khoảng thời gian này"}
+              <h3 className="text-xl font-bold text-slate-900 text-balance">
+                {q ? "Không tìm thấy đoàn đặt phòng phù hợp" : "Không có đoàn đặt phòng trong khoảng thời gian này"}
               </h3>
-              <p className="mx-auto mt-1.5 max-w-md text-sm leading-relaxed text-slate-600">
+              <p className="mx-auto mt-1.5 max-w-md text-sm leading-relaxed text-slate-600 text-pretty">
                 {q
-                  ? `Không có kết quả nào trùng khớp với từ khóa "${q}". Bạn có thể tìm theo mã đặt phòng, mã đoàn hoặc tên khách.`
+                  ? `Không có đoàn nào trùng khớp với từ khóa "${q}". Bạn có thể tìm theo mã đoàn, tên trưởng đoàn hoặc số phòng.`
                   : range === "today"
-                    ? "Hôm nay chưa có lượt khách đặt trước nào. Bạn có thể kiểm tra danh sách khách ngày mai hoặc 7 ngày tới."
-                    : "Chưa ghi nhận thông tin khách đặt trước trong khoảng thời gian hoặc bộ lọc đã chọn."}
+                    ? "Hôm nay chưa có đoàn đặt trước nào. Bạn có thể chuyển bộ lọc sang ngày mai hoặc 7 ngày tới."
+                    : "Chưa ghi nhận đoàn đặt trước nào trong khoảng thời gian đã chọn."}
               </p>
               <div className="mt-5 flex flex-wrap items-center justify-center gap-2.5">
                 {q ? (
                   <Link
-                    className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-bold text-white shadow-xs transition-all hover:bg-blue-700"
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-bold text-white shadow-xs whitespace-nowrap transition-all hover:bg-blue-700"
                     href={frontDeskHref(hotelId, { tab, range }, baseRoutePrefix)}
                   >
                     <VsIcon name="close" className="h-4 w-4" />
@@ -493,7 +530,71 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
                   <>
                     {range === "today" ? (
                       <Link
-                        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border-2 border-blue-600 bg-white px-4 text-sm font-bold text-blue-700 transition-all hover:bg-blue-50"
+                        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border-2 border-blue-600 bg-white px-4 text-sm font-bold text-blue-700 whitespace-nowrap transition-all hover:bg-blue-50"
+                        href={frontDeskHref(hotelId, { tab, range: "tomorrow" }, baseRoutePrefix)}
+                      >
+                        <span>Xem đoàn ngày mai</span>
+                        <VsIcon name="arrow_forward" className="h-4 w-4" />
+                      </Link>
+                    ) : null}
+                    {context.permissions.includes("hotel.reservations.manage") ? (
+                      <Link
+                        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-bold text-white shadow-xs whitespace-nowrap transition-all hover:bg-blue-700"
+                        href={`${baseRoutePrefix}/${encodeURIComponent(hotelId)}/rooms?flow=reservation&businessDate=${encodeURIComponent(dateRange.from)}`}
+                      >
+                        <VsIcon name="calendar_today" className="h-4 w-4" />
+                        <span>Tạo đặt phòng mới</span>
+                      </Link>
+                    ) : null}
+                  </>
+                )}
+              </div>
+            </div>
+          )
+        ) : tab === "arrivals" ? (
+          arrivalsPage?.items.length ? (
+            <FrontDeskArrivalsTable
+              hotelId={hotelId}
+              arrivals={arrivalsPage.items}
+              range={range}
+              todayYmd={todayYmd}
+              canOperateArrivals={canOperateArrivals}
+              canCheckInStay={canCheckInStay}
+              canManageReservations={canManageReservations}
+              canViewBilling={canViewBilling}
+              canCheckoutBilling={canCheckoutBilling}
+              canCheckOutStay={canCheckOutStay}
+            />
+          ) : (
+            /* Empty State for Individual Bookings */
+            <div className="mx-auto max-w-lg px-4 py-12 text-center">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-blue-200 bg-blue-50 text-blue-600 shadow-xs">
+                <VsIcon name="calendar_today" className="h-8 w-8 text-blue-600" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 text-balance">
+                {q ? "Không tìm thấy đặt phòng khách lẻ phù hợp" : "Không có khách lẻ đặt phòng trong khoảng thời gian này"}
+              </h3>
+              <p className="mx-auto mt-1.5 max-w-md text-sm leading-relaxed text-slate-600 text-pretty">
+                {q
+                  ? `Không có kết quả nào trùng khớp với từ khóa "${q}". Bạn có thể tìm theo mã đặt phòng, tên khách hoặc số phòng.`
+                  : range === "today"
+                    ? "Hôm nay chưa có lượt khách lẻ đặt trước nào. Bạn có thể chuyển bộ lọc sang ngày mai hoặc 7 ngày tới."
+                    : "Chưa ghi nhận lượt khách lẻ đặt trước nào trong khoảng thời gian đã chọn."}
+              </p>
+              <div className="mt-5 flex flex-wrap items-center justify-center gap-2.5">
+                {q ? (
+                  <Link
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-bold text-white shadow-xs whitespace-nowrap transition-all hover:bg-blue-700"
+                    href={frontDeskHref(hotelId, { tab, range }, baseRoutePrefix)}
+                  >
+                    <VsIcon name="close" className="h-4 w-4" />
+                    <span>Xóa bộ lọc tìm kiếm</span>
+                  </Link>
+                ) : (
+                  <>
+                    {range === "today" ? (
+                      <Link
+                        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border-2 border-blue-600 bg-white px-4 text-sm font-bold text-blue-700 whitespace-nowrap transition-all hover:bg-blue-50"
                         href={frontDeskHref(hotelId, { tab, range: "tomorrow" }, baseRoutePrefix)}
                       >
                         <span>Xem khách ngày mai</span>
@@ -502,7 +603,7 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
                     ) : null}
                     {context.permissions.includes("hotel.reservations.manage") ? (
                       <Link
-                        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-bold text-white shadow-xs transition-all hover:bg-blue-700"
+                        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-bold text-white shadow-xs whitespace-nowrap transition-all hover:bg-blue-700"
                         href={`${baseRoutePrefix}/${encodeURIComponent(hotelId)}/rooms?flow=reservation&businessDate=${encodeURIComponent(dateRange.from)}`}
                       >
                         <VsIcon name="calendar_today" className="h-4 w-4" />
@@ -535,10 +636,10 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-blue-200 bg-blue-50 text-blue-600 shadow-xs">
               <VsIcon name="bed" className="h-8 w-8 text-blue-600" />
             </div>
-            <h3 className="text-xl font-bold text-slate-900">
+            <h3 className="text-xl font-bold text-slate-900 text-balance">
               {q ? "Không tìm thấy khách đang lưu trú phù hợp" : "Hiện tại không có phòng nào có khách lưu trú"}
             </h3>
-            <p className="mx-auto mt-1.5 max-w-md text-sm leading-relaxed text-slate-600">
+            <p className="mx-auto mt-1.5 max-w-md text-sm leading-relaxed text-slate-600 text-pretty">
               {q
                 ? `Không có khách lưu trú nào phù hợp với từ khóa "${q}". Bạn hãy kiểm tra lại số phòng hoặc tên khách.`
                 : "Tất cả các phòng trong khách sạn hiện đang trống hoặc đang trong quy trình dọn dẹp, chưa có khách làm thủ tục nhận phòng."}
@@ -546,7 +647,7 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
             {q ? (
               <div className="mt-5">
                 <Link
-                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-bold text-white shadow-xs transition-all hover:bg-blue-700"
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-bold text-white shadow-xs whitespace-nowrap transition-all hover:bg-blue-700"
                   href={frontDeskHref(hotelId, { tab, range }, baseRoutePrefix)}
                 >
                   <VsIcon name="close" className="h-4 w-4" />
@@ -561,6 +662,7 @@ export default async function FrontDeskPage({ params, searchParams, baseRoutePre
           <Pagination
             hotelId={hotelId}
             page={page}
+            pageSize={PAGE_SIZE}
             q={q}
             range={range}
             tab={tab}

@@ -5512,6 +5512,8 @@ export function StaffRoomsClient({
       // If payment query fails, proceed with 0
     }
 
+    const defaultReasonKind = item.bucket === "overdue" ? "NO_SHOW" : "GUEST_CANCELLED";
+
     const summaryHtml = `
       <div class="space-y-2 text-left text-sm text-pretty">
         <div><span class="font-semibold text-slate-600">Đặt phòng:</span> <span class="font-bold text-slate-900">${escapeHtml(guestName)}${reservationCode ? ` · #${escapeHtml(reservationCode)}` : ""}</span></div>
@@ -5524,8 +5526,18 @@ export function StaffRoomsClient({
             <li>Khoản tiền cọc ${depositPaidAmount > 0 ? `(${escapeHtml(formatMoney({ price: depositPaidAmount, currency: "VND" }))}) ` : ""}<strong class="text-emerald-800">vẫn được tính</strong> và bảo toàn trong báo cáo doanh thu / sổ thu chi (không hoàn cọc).</li>
           </ul>
         </div>
-        <label for="priority-cancel-reason" class="mt-3 block text-left text-sm font-semibold text-pretty text-slate-800">Chi tiết lý do</label>
-        <textarea id="priority-cancel-reason" data-cancel-reason maxlength="470" class="mt-1 w-full rounded-lg border border-slate-300 p-2.5 text-sm text-pretty focus:border-slate-500 focus:outline-none" rows="2" placeholder="Nhập ghi chú hoặc lý do hủy..."></textarea>
+        <div class="pt-2 px-0.5 pb-0.5">
+          <label for="priority-cancel-reason" class="block text-left text-sm font-semibold text-slate-800">Lý do hủy <span class="text-rose-600">*</span></label>
+          <div class="relative mt-1.5">
+            <select id="priority-cancel-reason" data-cancel-reason-select class="block h-12 min-h-[44px] w-full appearance-none rounded-xl border-2 border-slate-300 bg-white px-3.5 pr-10 text-base font-medium text-slate-900 shadow-xs transition-colors hover:border-slate-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 cursor-pointer">
+              <option value="NO_SHOW" ${defaultReasonKind === "NO_SHOW" ? "selected" : ""}>Khách không đến (No-show)</option>
+              <option value="GUEST_CANCELLED" ${defaultReasonKind === "GUEST_CANCELLED" ? "selected" : ""}>Khách báo hủy</option>
+            </select>
+            <svg class="pointer-events-none absolute right-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.168l3.71-3.938a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06Z" clip-rule="evenodd" />
+            </svg>
+          </div>
+        </div>
       </div>
     `;
 
@@ -5533,14 +5545,6 @@ export function StaffRoomsClient({
       icon: "warning",
       title: "Hủy đặt phòng & Trả phòng trống",
       html: summaryHtml,
-      input: "select",
-      inputLabel: "Lý do hủy",
-      inputOptions: {
-        NO_SHOW: "Khách không đến (No-show)",
-        GUEST_CANCELLED: "Khách báo hủy",
-      },
-      inputValue: item.bucket === "overdue" ? "NO_SHOW" : "GUEST_CANCELLED",
-      inputPlaceholder: "Chọn lý do hủy",
       position: "center",
       showCancelButton: true,
       confirmButtonText: "Hủy đặt phòng & Về trống",
@@ -5550,19 +5554,15 @@ export function StaffRoomsClient({
         confirmButton: `${SWAL_DANGER_BTN_CLASS} whitespace-nowrap`,
         cancelButton: `${SWAL_CANCEL_BTN_CLASS} whitespace-nowrap`,
       },
-      preConfirm: (reasonKind: string) => {
+      preConfirm: () => {
+        const reasonKind = SwalVietSage.getPopup()
+          ?.querySelector<HTMLSelectElement>("[data-cancel-reason-select]")
+          ?.value;
         if (reasonKind !== "NO_SHOW" && reasonKind !== "GUEST_CANCELLED") {
           SwalVietSage.showValidationMessage("Chọn lý do hủy đặt phòng.");
           return false;
         }
-        const details = SwalVietSage.getPopup()
-          ?.querySelector<HTMLTextAreaElement>("[data-cancel-reason]")?.value.trim();
-        const label = reasonKind === "NO_SHOW" ? "Khách không đến" : "Khách báo hủy";
-        const reason = details ? `${label}: ${details}` : label;
-        if (reason.length > 500) {
-          SwalVietSage.showValidationMessage("Lý do hủy tối đa 500 ký tự.");
-          return false;
-        }
+        const reason = reasonKind === "NO_SHOW" ? "Khách không đến" : "Khách báo hủy";
         return { reasonKind, reason };
       },
     });
@@ -6857,28 +6857,22 @@ export function StaffRoomsClient({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       {isHousekeeping ? (
-        <div className="rounded-2xl border border-emerald-300 bg-emerald-50/90 p-4 text-emerald-950 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
-          <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-700 text-white">
-              <VsIcon name="cleaning_services" className="text-xl" />
+        <div className="rounded-xl border border-emerald-300 bg-emerald-50/90 px-3 py-2 text-emerald-950 flex flex-wrap items-center justify-between gap-2 shadow-2xs">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-700 text-white">
+              <VsIcon name="cleaning_services" className="text-base" />
             </span>
-            <div>
-              <p className="font-extrabold text-sm text-emerald-950">
-                Vận hành buồng phòng &amp; Dọn dẹp
-              </p>
-              <p className="text-xs text-emerald-800 mt-0.5">
-                Theo dõi các phòng cần dọn dẹp theo ca trực và xác nhận phòng
-                sẵn sàng đón khách mới.
-              </p>
-            </div>
+            <p className="font-extrabold text-sm text-emerald-950 text-balance">
+              Vận hành buồng phòng
+            </p>
           </div>
-          <div className="inline-flex h-10 items-center rounded-xl border border-emerald-300/80 bg-white/90 p-1 shadow-2xs self-start sm:self-auto shrink-0">
+          <div className="inline-flex h-9 items-center rounded-lg border border-emerald-300/80 bg-white/90 p-0.5 shadow-2xs shrink-0">
             <button
               type="button"
               onClick={() => setHousekeepingViewMode("tasklist")}
-              className={`inline-flex h-full items-center gap-1.5 rounded-lg px-3 text-xs font-bold transition cursor-pointer ${
+              className={`inline-flex h-full items-center gap-1.5 rounded-md px-2.5 text-xs font-bold transition cursor-pointer whitespace-nowrap ${
                 housekeepingViewMode === "tasklist"
                   ? "bg-emerald-700 text-white shadow-xs font-extrabold"
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
@@ -6891,7 +6885,7 @@ export function StaffRoomsClient({
             <button
               type="button"
               onClick={() => setHousekeepingViewMode("grid")}
-              className={`inline-flex h-full items-center gap-1.5 rounded-lg px-3 text-xs font-bold transition cursor-pointer ${
+              className={`inline-flex h-full items-center gap-1.5 rounded-md px-2.5 text-xs font-bold transition cursor-pointer whitespace-nowrap ${
                 housekeepingViewMode === "grid"
                   ? "bg-emerald-700 text-white shadow-xs font-extrabold"
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
@@ -6906,319 +6900,266 @@ export function StaffRoomsClient({
       ) : null}
 
       {isFutureDate ? (
-        <div className="rounded-2xl border border-sky-300 bg-sky-50/90 p-4 text-sky-950 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
-          <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-700 text-white">
-              <VsIcon name="calendar_today" className="text-xl" />
-            </span>
-            <div>
-              <p className="font-extrabold text-sm text-sky-950">
-                Đang xem sơ đồ dự kiến ngày:{" "}
-                {formatVnDateStr(businessDate)}
-              </p>
-              <p className="text-xs text-sky-800 mt-0.5 text-pretty">
-                Trạng thái phòng hiển thị theo lịch đặt phòng tương lai. Trạng
-                thái vật lý hiện tại của phòng không bị thay đổi.
-              </p>
-            </div>
+        <div className="rounded-xl border border-sky-300 bg-sky-50/90 px-3 py-2 text-sky-950 flex flex-wrap items-center justify-between gap-2 shadow-2xs">
+          <div className="flex items-center gap-2 min-w-0">
+            <VsIcon name="calendar_today" className="text-base text-sky-700 shrink-0" />
+            <p className="text-xs sm:text-sm font-bold text-sky-950 truncate">
+              Sơ đồ dự kiến {formatVnDateStr(businessDate)}
+              <span className="font-medium text-sky-800 hidden md:inline">
+                {" "}· Không đổi trạng thái vật lý hiện tại
+              </span>
+            </p>
           </div>
           <button
             type="button"
             onClick={() => handleBusinessDateChange(todayYmd)}
-            className="self-start sm:self-auto shrink-0 inline-flex min-h-[44px] items-center justify-center rounded-xl bg-sky-700 hover:bg-sky-800 px-4 text-xs font-bold text-white transition cursor-pointer shadow-2xs"
+            className="shrink-0 inline-flex h-8 items-center justify-center rounded-lg bg-sky-700 hover:bg-sky-800 px-3 text-xs font-bold text-white transition cursor-pointer whitespace-nowrap shadow-2xs"
           >
-            Quay lại Hôm nay
+            Về hôm nay
           </button>
         </div>
       ) : null}
 
-        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {[
-          {
-            key: "available" as RoomStatusFilter,
-            label: "Sẵn sàng",
-            value: currentByStatus.available,
-            tone: "text-emerald-700",
-            dotColor: "bg-emerald-500",
-            icon: "check_circle",
-            iconStyle: "bg-emerald-50 text-emerald-600 border-emerald-100/80",
-            iconActiveStyle:
-              "bg-emerald-100 text-emerald-700 border-emerald-200",
-            description: "Sẵn sàng đón khách",
-            borderActive:
-              "border-emerald-600 bg-emerald-50/50 ring-2 ring-emerald-500/20 shadow-xs",
-          },
-          {
-            key: "occupied" as RoomStatusFilter,
-            label: "Đang ở",
-            value: currentByStatus.occupied,
-            tone: "text-blue-700",
-            dotColor: "bg-blue-500",
-            icon: "hotel",
-            iconStyle: "bg-blue-50 text-blue-600 border-blue-100/80",
-            iconActiveStyle: "bg-blue-100 text-blue-700 border-blue-200",
-            description: "Đang có khách lưu trú",
-            borderActive:
-              "border-blue-600 bg-blue-50/50 ring-2 ring-blue-500/20 shadow-xs",
-          },
-          {
-            key: "processing" as RoomStatusFilter,
-            label: "Chờ dọn",
-            value: currentByStatus.processing,
-            tone: "text-amber-700",
-            dotColor: "bg-amber-500",
-            icon: "cleaning_services",
-            iconStyle: "bg-amber-50 text-amber-600 border-amber-100/80",
-            iconActiveStyle: "bg-amber-100 text-amber-700 border-amber-200",
-            description: "Chờ dọn dẹp buồng",
-            borderActive:
-              "border-amber-600 bg-amber-50/50 ring-2 ring-amber-500/20 shadow-xs",
-          },
-          {
-            key: "maintenance" as RoomStatusFilter,
-            label: "Bảo trì",
-            value: currentByStatus.maintenance,
-            tone: "text-red-700",
-            dotColor: "bg-red-500",
-            icon: "build",
-            iconStyle: "bg-red-50 text-red-600 border-red-100/80",
-            iconActiveStyle: "bg-red-100 text-red-700 border-red-200",
-            description: "Tạm ngưng đón khách",
-            borderActive:
-              "border-red-600 bg-red-50/50 ring-2 ring-red-500/20 shadow-xs",
-          },
-        ].map((item) => {
-          const isActive = status === item.key;
-          const totalRooms =
-            currentByStatus.available +
-            currentByStatus.occupied +
-            currentByStatus.processing +
-            currentByStatus.maintenance;
-          const percent =
-            totalRooms > 0 ? Math.round((item.value / totalRooms) * 100) : 0;
+      <section
+        aria-label="Tổng quan trạng thái phòng và biến động trong ngày"
+        className="flex flex-wrap items-center justify-between gap-2"
+      >
+        <div
+          className="flex flex-wrap items-center gap-1.5"
+          role="group"
+          aria-label="Lọc theo trạng thái phòng"
+        >
+          {[
+            {
+              key: "available" as RoomStatusFilter,
+              label: "Sẵn sàng",
+              value: currentByStatus.available,
+              tone: "text-emerald-700",
+              dotColor: "bg-emerald-500",
+              borderActive:
+                "border-emerald-600 bg-emerald-50 ring-2 ring-emerald-500/20 shadow-xs",
+            },
+            {
+              key: "occupied" as RoomStatusFilter,
+              label: "Đang ở",
+              value: currentByStatus.occupied,
+              tone: "text-blue-700",
+              dotColor: "bg-blue-500",
+              borderActive:
+                "border-blue-600 bg-blue-50 ring-2 ring-blue-500/20 shadow-xs",
+            },
+            {
+              key: "processing" as RoomStatusFilter,
+              label: "Chờ dọn",
+              value: currentByStatus.processing,
+              tone: "text-amber-700",
+              dotColor: "bg-amber-500",
+              borderActive:
+                "border-amber-600 bg-amber-50 ring-2 ring-amber-500/20 shadow-xs",
+            },
+            {
+              key: "maintenance" as RoomStatusFilter,
+              label: "Bảo trì",
+              value: currentByStatus.maintenance,
+              tone: "text-red-700",
+              dotColor: "bg-red-500",
+              borderActive:
+                "border-red-600 bg-red-50 ring-2 ring-red-500/20 shadow-xs",
+            },
+          ].map((item) => {
+            const isActive = status === item.key;
+            const totalRooms =
+              currentByStatus.available +
+              currentByStatus.occupied +
+              currentByStatus.processing +
+              currentByStatus.maintenance;
+            const percent =
+              totalRooms > 0 ? Math.round((item.value / totalRooms) * 100) : 0;
 
-          return (
-            <article
-              key={item.label}
-              onClick={() => {
-                setStatus((prev) => (prev === item.key ? "all" : item.key));
-                setPage(1);
-              }}
-              className={`group cursor-pointer rounded-2xl border p-4 transition-all duration-200 select-none ${
-                isActive
-                  ? item.borderActive
-                  : "border-slate-200/90 bg-white hover:border-slate-300 hover:shadow-md shadow-2xs"
-              }`}
-              title={`Lọc phòng: ${item.label}`}
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`inline-block size-2 rounded-full ${item.dotColor}`}
-                  />
-                  <p className="text-sm font-bold text-slate-700">
-                    {item.label}
-                  </p>
-                </div>
+            return (
+              <button
+                key={item.key}
+                type="button"
+                aria-pressed={isActive}
+                onClick={() => {
+                  setStatus((prev) => (prev === item.key ? "all" : item.key));
+                  setPage(1);
+                }}
+                className={`inline-flex min-h-9 items-center gap-2 rounded-xl border px-2.5 py-1 text-left transition-all cursor-pointer select-none whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/20 ${
+                  isActive
+                    ? item.borderActive
+                    : "border-slate-200/90 bg-white hover:border-slate-300 hover:bg-slate-50/70 shadow-2xs"
+                }`}
+                title={`Lọc phòng: ${item.label} (${item.value}/${totalRooms})`}
+              >
                 <span
-                  className={`flex size-9 shrink-0 items-center justify-center rounded-xl border transition-colors ${
-                    isActive ? item.iconActiveStyle : item.iconStyle
-                  }`}
-                >
-                  <VsIcon name={item.icon} className="text-lg" />
+                  className={`inline-block size-2 shrink-0 rounded-full ${item.dotColor}`}
+                  aria-hidden="true"
+                />
+                <span className="text-xs font-semibold text-slate-700">
+                  {item.label}
                 </span>
-              </div>
-
-              <div className="mt-2.5 flex items-baseline gap-1.5">
-                <p
-                  className={`text-3xl font-black tracking-tight ${item.tone}`}
+                <strong
+                  className={`text-sm font-black tabular-nums leading-none ${item.tone}`}
                 >
                   {item.value}
-                </p>
-                <span className="text-xs font-semibold text-slate-400">
-                  phòng
-                </span>
-              </div>
-
-              <div
-                className={`mt-3 flex items-center justify-between border-t pt-2 text-xs transition-colors ${
-                  isActive ? "border-slate-200/60" : "border-slate-100"
-                }`}
-              >
-                <span className="font-medium text-slate-500">
-                  {item.description}
-                </span>
+                </strong>
                 {totalRooms > 0 ? (
-                  <span className="font-semibold text-slate-400">
+                  <span className="hidden sm:inline text-xs font-medium text-slate-400 tabular-nums">
                     {percent}%
                   </span>
                 ) : null}
-              </div>
-            </article>
-          );
-        })}
+              </button>
+            );
+          })}
+        </div>
+
+        {!isHousekeeping ? (
+          <div
+            className="inline-flex flex-wrap items-center gap-1 rounded-xl border border-slate-200/90 bg-white p-0.5 shadow-2xs"
+            role="group"
+            aria-label="Biến động khách trong ngày"
+          >
+            {(
+              [
+                {
+                  tab: "arrivals" as const,
+                  icon: "login",
+                  label: "Khách đến",
+                  count: todayArrivalsList.length,
+                  title: "Danh sách khách đến trong ngày",
+                  tone: "text-emerald-800 hover:bg-emerald-50",
+                  iconTone: "text-emerald-600",
+                  badgeTone: "bg-emerald-100 text-emerald-800",
+                },
+                {
+                  tab: "departures" as const,
+                  icon: "logout",
+                  label: "Khách đi",
+                  count: todayDeparturesList.length,
+                  title: "Danh sách khách đi trong ngày",
+                  tone: "text-amber-800 hover:bg-amber-50",
+                  iconTone: "text-amber-600",
+                  badgeTone: "bg-amber-100 text-amber-800",
+                },
+                {
+                  tab: "groups" as const,
+                  icon: "groups",
+                  label: "Đoàn khách",
+                  count: groupSummaryCount,
+                  title: "Danh sách đoàn khách đặt trước",
+                  tone: "text-purple-800 hover:bg-purple-50",
+                  iconTone: "text-purple-600",
+                  badgeTone: "bg-purple-100 text-purple-800",
+                },
+              ]
+            ).map((item, index) => (
+              <Fragment key={item.tab}>
+                {index > 0 ? (
+                  <span aria-hidden className="h-4 w-px bg-slate-200" />
+                ) : null}
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setDailyMovementsTab(item.tab);
+                    await loadArrivals("week");
+                    setIsDailyMovementsOpen(true);
+                  }}
+                  className={`inline-flex min-h-8 items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-bold whitespace-nowrap transition cursor-pointer ${item.tone}`}
+                  title={item.title}
+                >
+                  <VsIcon name={item.icon} className={`text-sm ${item.iconTone}`} />
+                  <span>{item.label}</span>
+                  <span
+                    className={`inline-flex min-w-5 justify-center rounded-full px-1.5 py-0.5 text-xs font-black tabular-nums leading-none ${item.badgeTone}`}
+                  >
+                    {item.count}
+                  </span>
+                </button>
+              </Fragment>
+            ))}
+          </div>
+        ) : null}
       </section>
 
-      <section aria-label="Điều hành phòng" className="sticky top-0 z-20 -mx-2 rounded-2xl border border-slate-200/90 bg-white/95 p-3.5 shadow-sm backdrop-blur-md md:top-2 space-y-3 transition-shadow hover:shadow-md">
+      <section aria-label="Điều hành phòng" className="sticky top-0 z-20 -mx-2 rounded-2xl border border-slate-200/90 bg-white/95 px-3 py-2 shadow-sm backdrop-blur-md md:top-2 space-y-2 transition-shadow hover:shadow-md">
         {!isHousekeeping ? (
-          <div className="grid gap-2.5 2xl:grid-cols-[auto_auto] 2xl:items-center 2xl:justify-between">
-            {/* Row 1: Business date + daily movements */}
-            <div className="flex flex-wrap items-center justify-between gap-2.5 2xl:justify-start">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <div className="inline-flex h-10 items-center rounded-xl border border-slate-200 bg-white p-1 shadow-2xs transition-all hover:border-slate-300">
-                <div
-                  className="flex items-center gap-1.5 px-2 text-slate-600 select-none"
-                  title="Ngày vận hành khách sạn"
-                >
-                  <VsIcon
-                    name="calendar"
-                    className="text-base text-slate-500"
-                  />
-                  <span className="text-xs font-bold text-slate-600 hidden sm:inline whitespace-nowrap">
-                    Ngày vận hành:
-                  </span>
-                </div>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            {/* Left: Business date selector */}
+            <div className="inline-flex h-9 items-center rounded-xl border border-slate-200 bg-white p-0.5 shadow-2xs transition-all hover:border-slate-300">
+              <span
+                className="flex items-center px-1.5 text-slate-500 select-none"
+                title="Ngày vận hành khách sạn"
+                aria-hidden="true"
+              >
+                <VsIcon name="calendar" className="text-base" />
+              </span>
 
+              <button
+                type="button"
+                onClick={() => stepBusinessDate(-1)}
+                className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-800 transition cursor-pointer"
+                title="Ngày trước"
+                aria-label="Ngày trước"
+              >
+                <VsIcon name="chevron_left" className="text-base" />
+              </button>
+
+              <input
+                id="rooms-business-date"
+                name="businessDate"
+                aria-label="Chọn ngày vận hành khách sạn"
+                type="date"
+                value={businessDate}
+                onChange={(e) => handleBusinessDateChange(e.target.value)}
+                className="h-7 rounded-lg bg-slate-50 hover:bg-white px-2 text-xs sm:text-sm font-bold text-slate-800 border border-slate-200/90 outline-none cursor-pointer hover:border-slate-300 focus:border-sky-600 focus:bg-white focus:ring-2 focus:ring-sky-500/15 transition"
+                title="Chọn ngày vận hành khách sạn"
+              />
+
+              <button
+                type="button"
+                onClick={() => stepBusinessDate(1)}
+                className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-800 transition cursor-pointer"
+                title="Ngày sau"
+                aria-label="Ngày sau"
+              >
+                <VsIcon name="chevron_right" className="text-base" />
+              </button>
+
+              <div className="ml-1 flex h-7 items-center gap-0.5 rounded-lg bg-slate-100 p-0.5 border border-slate-200/70">
                 <button
                   type="button"
-                  onClick={() => stepBusinessDate(-1)}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-800 transition cursor-pointer"
-                  title="Ngày trước"
-                  aria-label="Ngày trước"
+                  onClick={() => handleBusinessDateChange(todayYmd)}
+                  className={`h-full whitespace-nowrap rounded-md px-2.5 text-xs font-bold transition cursor-pointer ${
+                    businessDate === todayYmd
+                      ? "bg-sky-600 text-white shadow-xs font-black"
+                      : "text-slate-600 hover:text-slate-950 hover:bg-white/80"
+                  }`}
                 >
-                  <VsIcon name="chevron_left" className="text-base" />
+                  Hôm nay
                 </button>
-
-                <input
-                  id="rooms-business-date"
-                  name="businessDate"
-                  aria-label="Chọn ngày vận hành khách sạn"
-                  type="date"
-                  value={businessDate}
-                  onChange={(e) => handleBusinessDateChange(e.target.value)}
-                  className="h-8 rounded-lg bg-slate-50 hover:bg-white px-2 text-xs sm:text-sm font-bold text-slate-800 border border-slate-200/90 outline-none cursor-pointer hover:border-slate-300 focus:border-sky-600 focus:bg-white focus:ring-2 focus:ring-sky-500/15 transition"
-                  title="Chọn ngày vận hành khách sạn (Xem sơ đồ phòng & lịch lưu trú)"
-                />
-
                 <button
                   type="button"
-                  onClick={() => stepBusinessDate(1)}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-800 transition cursor-pointer"
-                  title="Ngày sau"
-                  aria-label="Ngày sau"
+                  onClick={() => handleBusinessDateChange(tomorrowYmd)}
+                  className={`h-full whitespace-nowrap rounded-md px-2.5 text-xs font-bold transition cursor-pointer ${
+                    businessDate === tomorrowYmd
+                      ? "bg-sky-600 text-white shadow-xs font-black"
+                      : "text-slate-600 hover:text-slate-950 hover:bg-white/80"
+                  }`}
                 >
-                  <VsIcon name="chevron_right" className="text-base" />
+                  Ngày mai
                 </button>
-
-                <div className="ml-1 flex h-8 items-center gap-0.5 rounded-lg bg-slate-100 p-0.5 border border-slate-200/70">
-                  <button
-                    type="button"
-                    onClick={() => handleBusinessDateChange(todayYmd)}
-                    className={`h-full whitespace-nowrap rounded-md px-3 text-xs font-bold transition cursor-pointer ${
-                      businessDate === todayYmd
-                        ? "bg-sky-600 text-white shadow-xs font-black"
-                        : "text-slate-600 hover:text-slate-950 hover:bg-white/80"
-                    }`}
-                  >
-                    Hôm nay
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleBusinessDateChange(tomorrowYmd)}
-                    className={`h-full whitespace-nowrap rounded-md px-3 text-xs font-bold transition cursor-pointer ${
-                      businessDate === tomorrowYmd
-                        ? "bg-sky-600 text-white shadow-xs font-black"
-                        : "text-slate-600 hover:text-slate-950 hover:bg-white/80"
-                    }`}
-                  >
-                    Ngày mai
-                  </button>
-                </div>
-              </div>
-
-              {isFutureDate ? (
-                <span className="inline-flex items-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50/90 px-3 py-2 text-xs font-bold text-amber-900 shadow-2xs">
-                  <VsIcon
-                    name="schedule"
-                    className="text-sm text-amber-700 shrink-0"
-                  />
-                  <span>Sơ đồ phòng dự kiến tương lai</span>
-                </span>
-              ) : null}
-            </div>
-
-              {/* Daily Movements: Khách đến | Khách đi | Đoàn khách */}
-              <div className="inline-flex h-10 items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-2xs">
-                {(
-                  [
-                    {
-                      tab: "arrivals" as const,
-                      icon: "login",
-                      label: "Khách đến",
-                      count: todayArrivalsList.length,
-                      title: "Danh sách khách đến trong ngày",
-                      tone: "text-emerald-800 hover:bg-emerald-50",
-                      iconTone: "text-emerald-600",
-                      badgeTone: "bg-emerald-100 text-emerald-800",
-                    },
-                    {
-                      tab: "departures" as const,
-                      icon: "logout",
-                      label: "Khách đi",
-                      count: todayDeparturesList.length,
-                      title: "Danh sách khách đi trong ngày",
-                      tone: "text-amber-800 hover:bg-amber-50",
-                      iconTone: "text-amber-600",
-                      badgeTone: "bg-amber-100 text-amber-800",
-                    },
-                    {
-                      tab: "groups" as const,
-                      icon: "groups",
-                      label: "Đoàn khách",
-                      count: groupSummaryCount,
-                      title: "Danh sách đoàn khách đặt trước",
-                      tone: "text-purple-800 hover:bg-purple-50",
-                      iconTone: "text-purple-600",
-                      badgeTone: "bg-purple-100 text-purple-800",
-                    },
-                  ]
-                ).map((item, index) => (
-                  <Fragment key={item.tab}>
-                    {index > 0 ? (
-                      <span aria-hidden className="h-4 w-px bg-slate-200" />
-                    ) : null}
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        setDailyMovementsTab(item.tab);
-                        await loadArrivals("week");
-                        setIsDailyMovementsOpen(true);
-                      }}
-                      className={`inline-flex h-full items-center gap-1.5 rounded-lg px-2.5 text-xs font-bold whitespace-nowrap transition cursor-pointer ${item.tone}`}
-                      title={item.title}
-                    >
-                      <VsIcon name={item.icon} className={`text-sm ${item.iconTone}`} />
-                      <span>{item.label}</span>
-                      <span
-                        className={`inline-flex min-w-5 justify-center rounded-full px-1.5 py-0.5 text-xs font-black leading-none ${item.badgeTone}`}
-                      >
-                        {item.count}
-                      </span>
-                    </button>
-                  </Fragment>
-                ))}
               </div>
             </div>
 
-            {/* Row 2: View mode + creation actions */}
-            <div className="flex flex-wrap items-center justify-between gap-2.5 2xl:justify-end">
-              {/* Layout Switcher: Sơ đồ phòng vs Kế hoạch phòng (Tape Chart) */}
-              <div className="inline-flex h-10 items-center rounded-xl border border-slate-300 bg-slate-100 p-1 shadow-2xs">
+            {/* Right: View mode + creation actions */}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex h-9 items-center rounded-xl border border-slate-300 bg-slate-100 p-0.5 shadow-2xs">
                 <button
                   type="button"
                   onClick={() => handleOperationalViewModeChange("grid")}
                   aria-pressed={operationalViewMode === "grid"}
-                  className={`inline-flex h-full items-center gap-1.5 rounded-lg border px-3 text-xs font-bold transition cursor-pointer ${
+                  className={`inline-flex h-full items-center gap-1.5 rounded-lg border px-2.5 text-xs font-bold transition cursor-pointer ${
                     operationalViewMode === "grid"
                       ? "bg-white text-sky-800 shadow-xs font-black border border-slate-200"
                       : "border-transparent text-slate-600 hover:text-slate-900 hover:bg-white/60"
@@ -7232,7 +7173,7 @@ export function StaffRoomsClient({
                   type="button"
                   onClick={() => handleOperationalViewModeChange("tape-chart")}
                   aria-pressed={operationalViewMode === "tape-chart"}
-                  className={`inline-flex h-full items-center gap-1.5 rounded-lg border px-3 text-xs font-bold transition cursor-pointer ${
+                  className={`inline-flex h-full items-center gap-1.5 rounded-lg border px-2.5 text-xs font-bold transition cursor-pointer ${
                     (operationalViewMode as string) === "tape-chart"
                       ? "bg-white text-purple-800 shadow-xs font-black border border-slate-200"
                       : "border-transparent text-slate-600 hover:text-slate-900 hover:bg-white/60"
@@ -7244,11 +7185,10 @@ export function StaffRoomsClient({
                 </button>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={() => openBulkReservationModal()}
-                className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-purple-700 hover:bg-purple-800 active:bg-purple-900 px-3.5 text-sm font-bold text-white whitespace-nowrap shadow-xs border border-purple-800/40 transition cursor-pointer min-h-[40px]"
+                className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-purple-700 hover:bg-purple-800 active:bg-purple-900 px-3 text-xs sm:text-sm font-bold text-white whitespace-nowrap shadow-xs border border-purple-800/40 transition cursor-pointer"
                 title="Đặt trước nhanh theo số lượng loại phòng hoặc chọn phòng theo đoàn"
               >
                 <VsIcon name="group_add" className="text-base" />
@@ -7259,30 +7199,29 @@ export function StaffRoomsClient({
                 type="button"
                 onClick={() => openGroupCheckIn()}
                 disabled={!canCheckInStay}
-                className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-300 text-purple-900 px-3.5 text-sm font-bold shadow-xs transition cursor-pointer min-h-[40px] whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-300 text-purple-900 px-3 text-xs sm:text-sm font-bold shadow-xs transition cursor-pointer whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50"
                 title="Quản lý và làm thủ tục nhận phòng theo đoàn"
               >
                 <VsIcon name="groups" className="text-base text-purple-700" />
                 <span>Nhận phòng đoàn</span>
               </button>
-              </div>
             </div>
           </div>
         ) : null}
 
         {/* Shared search and room filters */}
           <div
-            className={`flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2.5 sm:gap-3 ${
-              !isHousekeeping ? "border-t border-slate-200 pt-3" : ""
+            className={`flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2 ${
+              !isHousekeeping ? "border-t border-slate-200/80 pt-2" : ""
             }`}
           >
             {/* Left: Search Input + Filter Selects + Reset Button */}
-            <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 flex-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
               {/* Search Input */}
-              <div className="relative w-full sm:w-64 md:w-80 lg:w-96 min-w-0">
+              <div className="relative w-full sm:w-64 md:w-72 lg:w-80 min-w-0">
                 <VsIcon
                   name="search"
-                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-lg text-slate-500"
+                  className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-base text-slate-500"
                 />
                 <input
                   id="rooms-search-query"
@@ -7290,14 +7229,14 @@ export function StaffRoomsClient({
                   aria-label="Tìm số phòng, tên khách, SĐT"
                   value={inputQuery}
                   onChange={(event) => setInputQuery(event.target.value)}
-                  className="h-10 w-full rounded-xl border border-slate-300 hover:border-slate-400 bg-white pl-9.5 pr-8 text-sm font-semibold text-slate-900 outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-500/20 shadow-2xs min-h-[40px] placeholder:text-slate-400 transition"
-                  placeholder="Tìm số phòng, tên khách, SĐT, mã đặt phòng / đoàn..."
+                  className="h-9 w-full rounded-xl border border-slate-300 hover:border-slate-400 bg-white pl-8.5 pr-8 text-sm font-semibold text-slate-900 outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-500/20 shadow-2xs placeholder:text-slate-400 transition"
+                  placeholder="Tìm số phòng, tên khách, SĐT, mã đặt..."
                 />
                 {inputQuery ? (
                   <button
                     type="button"
                     onClick={() => setInputQuery("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-0.5 rounded-full hover:bg-slate-100 cursor-pointer transition"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-0.5 rounded-full hover:bg-slate-100 cursor-pointer transition"
                     title="Xóa tìm kiếm"
                   >
                     <VsIcon name="close" className="text-sm" />
@@ -7315,7 +7254,7 @@ export function StaffRoomsClient({
                   setType(event.target.value);
                   setPage(1);
                 }}
-                className="h-10 shrink-0 rounded-xl border border-slate-300 hover:border-slate-400 bg-white px-3 text-sm font-bold text-slate-800 focus:border-sky-600 focus:ring-2 focus:ring-sky-500/20 shadow-2xs min-w-[155px] cursor-pointer transition min-h-[40px]"
+                className="h-9 shrink-0 rounded-xl border border-slate-300 hover:border-slate-400 bg-white px-2.5 text-xs sm:text-sm font-bold text-slate-800 focus:border-sky-600 focus:ring-2 focus:ring-sky-500/20 shadow-2xs min-w-[140px] cursor-pointer transition"
               >
                 <option value="all">Loại phòng: Tất cả</option>
                 {types.map((value) => (
@@ -7335,7 +7274,7 @@ export function StaffRoomsClient({
                   setZone(event.target.value);
                   setPage(1);
                 }}
-                className="h-10 shrink-0 rounded-xl border border-slate-300 hover:border-slate-400 bg-white px-3 text-sm font-bold text-slate-800 focus:border-sky-600 focus:ring-2 focus:ring-sky-500/20 shadow-2xs min-w-[145px] cursor-pointer transition min-h-[40px]"
+                className="h-9 shrink-0 rounded-xl border border-slate-300 hover:border-slate-400 bg-white px-2.5 text-xs sm:text-sm font-bold text-slate-800 focus:border-sky-600 focus:ring-2 focus:ring-sky-500/20 shadow-2xs min-w-[130px] cursor-pointer transition"
               >
                 <option value="all">Phân khu: Tất cả</option>
                 {zones.map((value) => (
@@ -7350,7 +7289,7 @@ export function StaffRoomsClient({
                 <button
                   type="button"
                   onClick={resetFilters}
-                  className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-rose-300 hover:border-rose-400 bg-rose-50 hover:bg-rose-100 px-3.5 text-xs font-bold text-rose-800 shadow-2xs transition cursor-pointer min-h-[40px]"
+                  className="inline-flex h-9 items-center justify-center gap-1 rounded-xl border border-rose-300 hover:border-rose-400 bg-rose-50 hover:bg-rose-100 px-3 text-xs font-bold text-rose-800 shadow-2xs transition cursor-pointer whitespace-nowrap"
                   title="Đặt lại toàn bộ bộ lọc"
                 >
                   <VsIcon name="restart_alt" className="text-sm shrink-0" />
@@ -7361,7 +7300,7 @@ export function StaffRoomsClient({
 
             {/* Right: Room counter badge & Quick Refresh button */}
             <div className="flex items-center gap-2 shrink-0 self-end lg:self-auto">
-              <div className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-bold text-slate-700 shadow-2xs min-h-[40px]">
+              <div className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 shadow-2xs whitespace-nowrap">
                 <VsIcon
                   name={hasActiveFilters ? "filter_alt" : "meeting_room"}
                   className={`text-sm ${hasActiveFilters ? "text-sky-600" : "text-slate-400"}`}
@@ -7369,16 +7308,14 @@ export function StaffRoomsClient({
                 <span>
                   {hasActiveFilters ? (
                     <>
-                      Kết quả:{" "}
-                      <strong className="font-black text-sky-900">
+                      <strong className="font-black text-sky-900 tabular-nums">
                         {operationalViewMode === "tape-chart" ? tapeRoomCount ?? filteredRooms.length : filteredRooms.length}
                       </strong>
                       /{totalItems} phòng
                     </>
                   ) : (
                     <>
-                      Tổng:{" "}
-                      <strong className="font-black text-slate-950">
+                      <strong className="font-black text-slate-950 tabular-nums">
                         {totalItems}
                       </strong>{" "}
                       phòng
@@ -7394,7 +7331,7 @@ export function StaffRoomsClient({
                   await refetch();
                 }}
                 disabled={isFetching}
-                className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 px-3.5 text-xs font-bold text-slate-700 hover:text-slate-950 shadow-2xs transition cursor-pointer min-h-[40px] disabled:opacity-50"
+                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 px-3 text-xs font-bold text-slate-700 hover:text-slate-950 shadow-2xs transition cursor-pointer whitespace-nowrap disabled:opacity-50"
                 title="Cập nhật trạng thái phòng tức thời"
               >
                 <VsIcon
@@ -7612,12 +7549,12 @@ export function StaffRoomsClient({
 
           {/* Floor Navigation & Horizontal Layout Toolbar */}
           {roomsByFloor.length > 0 && (
-            <div className={`${isCompactRoomGrid ? "mb-2" : "mb-5"} flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/90 bg-white/90 p-2.5 sm:px-4 shadow-2xs backdrop-blur-xs`}>
+            <div className={`${isCompactRoomGrid ? "mb-2" : "mb-3"} flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200/90 bg-white/90 px-3 py-1.5 shadow-2xs backdrop-blur-xs`}>
               {/* Left: Quick Floor Jump Pills */}
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="flex items-center gap-1.5 text-xs font-black text-slate-700 mr-1 pl-1 whitespace-nowrap">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="flex items-center gap-1 text-xs font-black text-slate-700 mr-0.5 whitespace-nowrap">
                   <VsIcon name="apartment" className="text-sm text-sky-600" />
-                  <span>Xem nhanh tầng:</span>
+                  <span>Tầng:</span>
                 </span>
 
                 <button
@@ -7628,7 +7565,7 @@ export function StaffRoomsClient({
                     }
                     setSelectedFloorTab("all");
                   }}
-                  className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                     activeFloorTab === "all"
                       ? "bg-primary text-on-primary shadow-xs"
                       : "bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900"
@@ -7637,7 +7574,7 @@ export function StaffRoomsClient({
                 >
                   <span>Tất cả</span>
                   <span
-                    className={`rounded-full px-1.5 py-0.2 text-xs font-black ${
+                    className={`rounded-full px-1.5 py-0.2 text-xs font-black tabular-nums ${
                       activeFloorTab === "all"
                         ? "bg-white/20 text-white"
                         : "bg-slate-200 text-slate-700"
@@ -7659,7 +7596,7 @@ export function StaffRoomsClient({
                         }
                         setSelectedFloorTab(isActive ? "all" : floorTitle);
                       }}
-                      className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs font-bold transition-all cursor-pointer whitespace-nowrap shadow-2xs ${
+                      className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-bold transition-all cursor-pointer whitespace-nowrap shadow-2xs ${
                         isActive
                           ? "bg-sky-700 text-white border border-sky-700 shadow-xs"
                           : "bg-sky-50 text-sky-800 hover:bg-sky-100 border border-sky-200/80"
@@ -7672,7 +7609,7 @@ export function StaffRoomsClient({
                     >
                       <span>{floorTitle}</span>
                       <span
-                        className={`rounded-full px-1.5 py-0.2 text-xs font-black ${
+                        className={`rounded-full px-1.5 py-0.2 text-xs font-black tabular-nums ${
                           isActive
                             ? "bg-white/25 text-white"
                             : "bg-white text-sky-900 border border-sky-200"
@@ -7771,7 +7708,7 @@ export function StaffRoomsClient({
               )}
             </div>
           ) : (
-            <div className="space-y-5">
+            <div className="space-y-3">
               {displayedRoomsByFloor.map(([floorTitle, floorRooms]) => {
                 const availableCount = floorRooms.filter(
                   (r) => getEffectiveRoomStatus(r, isFutureDate) === "available",
@@ -7797,10 +7734,10 @@ export function StaffRoomsClient({
                   <div
                     key={floorTitle}
                     id={`floor-group-${encodeURIComponent(floorTitle)}`}
-                    className="scroll-mt-36 rounded-2xl border border-slate-200/90 bg-white/80 p-3 sm:p-4 shadow-2xs backdrop-blur-xs"
+                    className="scroll-mt-36 rounded-2xl border border-slate-200/90 bg-white/80 p-2.5 sm:p-3 shadow-2xs backdrop-blur-xs"
                   >
                     {/* Floor Header Bar (1 Hàng 1 Tầng - Bỏ accordion/dropdown) */}
-                    <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                    <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-100">
                       {/* Left: Floor Badge & Title & Status Breakdown Pills */}
                       <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                         <div className="flex items-center gap-2">
@@ -7889,7 +7826,7 @@ export function StaffRoomsClient({
                         if (el) floorScrollRefMap.current.set(floorTitle, el);
                         else floorScrollRefMap.current.delete(floorTitle);
                       }}
-                      className="mt-3.5 flex gap-3.5 overflow-x-auto overflow-y-hidden pb-3 pt-1 scroll-smooth snap-x"
+                      className="mt-2.5 flex gap-3 overflow-x-auto overflow-y-hidden pb-2 pt-0.5 scroll-smooth snap-x"
                     >
                       {floorRooms.map((room) => (
                         <div

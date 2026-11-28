@@ -486,7 +486,7 @@ export type UpdateReservationInput = {
 };
 
 export type ListHotelArrivalsQuery = {
-  view?: "bookings" | "group-bookings";
+  view?: "bookings" | "individual-bookings" | "group-bookings";
   from?: string;
   to?: string;
   includeOverdue?: boolean;

@@ -1028,13 +1028,17 @@ export class ReservationsRepository {
     roomId?: string;
     roomIds?: string[];
     q?: string;
-    view?: "bookings" | "group-bookings";
+    view?: "bookings" | "individual-bookings" | "group-bookings";
   }) {
     const q = input.q?.trim();
     const where: Prisma.ReservationWhereInput = {
       hotelId: input.hotelId,
       ...(input.view ? {} : { status: { in: ACTIVE_RESERVATION_STATUSES } }),
-      ...(input.view === "group-bookings" ? { groupCode: { not: null } } : {}),
+      ...(input.view === "group-bookings"
+        ? { groupCode: { not: null } }
+        : input.view === "individual-bookings"
+          ? { groupCode: null }
+          : {}),
       ...(input.from && input.to
         ? { plannedCheckInAt: { gte: input.from, lt: input.to } }
         : input.from

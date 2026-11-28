@@ -121,12 +121,15 @@ test("GroupOperationsDrawer satisfies UI Design Gate standards", () => {
   assert.doesNotMatch(drawerSource, /02\s*\/\s*/);
 });
 
-test("FrontDeskPage unifies bookings and groups under 'Khách hàng đặt phòng' with member and group operations", () => {
-  // Unified single entrance for individual and group bookings under 'Khách hàng đặt phòng'
+test("FrontDeskPage separates individual and group bookings cleanly under 'Khách hàng đặt phòng'", () => {
+  // Clean 2-case separation: individual bookings vs group bookings
   assert.match(frontDeskPageSource, /<span>Khách hàng đặt phòng<\/span>/);
+  assert.match(frontDeskPageSource, /Khách lẻ/);
   assert.match(frontDeskPageSource, /tab === "groups"/);
-  assert.match(frontDeskPageSource, /view: tab === "groups" \? "group-bookings" : "bookings"/);
+  assert.match(frontDeskPageSource, /view: isGroupTab \? "group-bookings" : "individual-bookings"/);
   assert.match(frontDeskPageSource, /<FrontDeskArrivalsTable/);
+  assert.doesNotMatch(frontDeskPageSource, /buildFrontDeskGroupSummaries\(arrivalsPage\.items\)/);
+  assert.match(frontDeskPageSource, /\$\{total\} đặt phòng thuộc đoàn/);
 
   // Group operations remain accessible through FrontDeskGroupsTable and FrontDeskArrivalDetailPanel
   assert.match(groupsTableSource, /export function FrontDeskGroupsTable/);

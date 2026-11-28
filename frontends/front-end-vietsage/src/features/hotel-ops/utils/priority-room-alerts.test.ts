@@ -282,7 +282,7 @@ for (const roomId of ["room-1", null]) {
   });
 }
 
-test("resolution opens details with either reservation-management or check-in permission", () => {
+test("resolution dispatches only with reservation-management or check-in permission", () => {
   const controlSource = readFileSync(new URL("../components/priority-rooms-control-section.tsx", import.meta.url), "utf8");
   const helperSource = controlSource.slice(controlSource.indexOf("function getPrimaryActionButtonClass"), controlSource.indexOf("/**"));
   const { outputText } = ts.transpileModule(helperSource, {
@@ -291,18 +291,21 @@ test("resolution opens details with either reservation-management or check-in pe
   const react = { createElement: (type: string, props: Record<string, unknown>, ...children: unknown[]) => ({ type, props, children }) };
   const { PriorityRowActions } = vm.runInNewContext(`${outputText}\n({ PriorityRowActions })`, { React: react });
   for (const [canManageReservations, canCheckInStay, expectedLabel] of [
-    [true, false, "Xử lý quá hạn"], [false, true, "Xử lý quá hạn"], [false, false, "Chi tiết"],
+    [true, false, "Xử lý quá hạn"], [false, true, "Xử lý quá hạn"], [false, false, null],
   ]) {
-    let inspected = 0;
     let mutated = 0;
-    const button = PriorityRowActions({
+    const actions = PriorityRowActions({
       item: { bucket: "overdue", actionKind: "resolve-overdue", actionLabel: "Xử lý quá hạn" },
       permissions: { canManageReservations, canCheckInStay, canManageRooms: false },
-      onInspectItem: () => inspected++, onPrimaryAction: () => mutated++,
+      onPrimaryAction: () => mutated++,
     });
+    if (expectedLabel === null) {
+      assert.equal(actions, null);
+      continue;
+    }
+    const button = actions.children[0];
     assert.equal(button.children[0], expectedLabel);
     button.props.onClick({ stopPropagation() {}, currentTarget: null });
-    assert.equal(inspected, 1);
-    assert.equal(mutated, 0);
+    assert.equal(mutated, 1);
   }
 });

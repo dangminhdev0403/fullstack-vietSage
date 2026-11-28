@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { VsIcon } from "@/app/(vietsage)/_components/vs-icon";
 import type {
   PriorityRoomAlertItem,
@@ -171,9 +171,26 @@ export function PriorityRoomsControlSection({
     () => ({ canCheckInStay, canManageRooms, canManageReservations }),
     [canCheckInStay, canManageRooms, canManageReservations],
   );
+  const panelId = useId();
   const [selectedBucket, setSelectedBucket] = useState<FilterBucket>("all");
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
   const [showAll, setShowAll] = useState(false);
+
+  const handleToggleCollapsed = () => {
+    setIsCollapsed((prev) => {
+      const next = !prev;
+      if (next) {
+        setShowAll(false);
+      }
+      return next;
+    });
+  };
+
+  const handleExpandBucket = (bucket: FilterBucket) => {
+    setSelectedBucket(bucket);
+    setShowAll(false);
+    setIsCollapsed(false);
+  };
 
   const counts = useMemo(() => {
     let overdue = 0;
@@ -206,13 +223,12 @@ export function PriorityRoomsControlSection({
     ? `Kế hoạch đặt trước & Cần xử lý (${targetDateLabel})`
     : "Cần xử lý trước & Đặt trước đến ngày";
 
-  const filterTabs: Array<{ id: FilterBucket; label: string; count: number; badgeClass: string }> = [
-    {
-      id: "all",
-      label: "Tất cả",
-      count: items.length,
-      badgeClass: "bg-slate-900 text-white",
-    },
+  const summaryBuckets: Array<{
+    id: PriorityRoomBucket;
+    label: string;
+    count: number;
+    badgeClass: string;
+  }> = [
     ...(counts.overdue > 0
       ? [
           {
@@ -245,39 +261,81 @@ export function PriorityRoomsControlSection({
       : []),
   ];
 
+  const filterTabs: Array<{ id: FilterBucket; label: string; count: number; badgeClass: string }> = [
+    {
+      id: "all",
+      label: "Tất cả",
+      count: items.length,
+      badgeClass: "bg-slate-900 text-white",
+    },
+    ...summaryBuckets,
+  ];
+
   return (
     <section
       aria-label={sectionTitle}
-      className={`mb-5 overflow-hidden rounded-2xl border bg-white shadow-sm ${
+      className={`overflow-hidden rounded-xl border bg-white shadow-2xs ${
         hasOverdue ? "border-rose-200/90" : "border-amber-200/90"
       }`}
     >
       <div
-        className={`flex flex-wrap items-center justify-between gap-3 px-4 py-3 ${
-          hasOverdue
-            ? "border-b border-rose-100 bg-rose-50/45"
-            : "border-b border-amber-100 bg-amber-50/45"
+        className={`flex flex-wrap items-center justify-between gap-2 px-3 py-2 ${
+          hasOverdue ? "bg-rose-50/45" : "bg-amber-50/45"
+        } ${
+          !isCollapsed
+            ? hasOverdue
+              ? "border-b border-rose-100"
+              : "border-b border-amber-100"
+            : ""
         }`}
       >
-        <div className="flex flex-wrap items-center gap-2.5 min-w-0">
-          <span
-            className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${
-              hasOverdue ? "bg-rose-100 text-rose-700" : "bg-amber-100 text-amber-800"
-            }`}
-            aria-hidden="true"
+        <h2 className="min-w-0 text-sm font-bold text-slate-900 text-balance">
+          <button
+            type="button"
+            onClick={handleToggleCollapsed}
+            aria-expanded={!isCollapsed}
+            aria-controls={panelId}
+            className="flex flex-wrap items-center gap-2 text-left rounded-lg cursor-pointer transition hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/20"
           >
-            <VsIcon name={hasOverdue ? "schedule" : "bolt"} className="text-base" />
-          </span>
-          <h2 className="text-sm sm:text-base font-bold text-slate-900 text-balance">
-            {sectionTitle}
-          </h2>
-          <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-bold text-slate-700 whitespace-nowrap">
-            {items.length} mục
-          </span>
-        </div>
+            <span
+              className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${
+                hasOverdue ? "bg-rose-100 text-rose-700" : "bg-amber-100 text-amber-800"
+              }`}
+              aria-hidden="true"
+            >
+              <VsIcon name={hasOverdue ? "schedule" : "bolt"} className="text-sm" />
+            </span>
+            <span className="text-balance">{sectionTitle}</span>
+            <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2 py-0.5 text-xs font-bold text-slate-700 whitespace-nowrap tabular-nums">
+              {items.length} mục
+            </span>
+          </button>
+        </h2>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {!isCollapsed ? (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {isCollapsed ? (
+            <div className="flex flex-wrap items-center gap-1.5" aria-label="Tóm tắt ưu tiên">
+              {summaryBuckets.map((bucket) => {
+                const style = BUCKET_STYLES[bucket.id] ?? DEFAULT_BUCKET_STYLE;
+                return (
+                  <button
+                    key={bucket.id}
+                    type="button"
+                    onClick={() => handleExpandBucket(bucket.id)}
+                    className={`inline-flex min-h-8 items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold transition cursor-pointer whitespace-nowrap hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/20 ${style.pillClass}`}
+                  >
+                    <span className={`h-1.5 w-1.5 rounded-full ${style.dotClass}`} aria-hidden="true" />
+                    <span>{bucket.label}</span>
+                    <span
+                      className={`inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-xs font-bold tabular-nums leading-none whitespace-nowrap ${bucket.badgeClass}`}
+                    >
+                      {bucket.count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
             <div className="flex flex-wrap items-center gap-1.5" role="tablist" aria-label="Lọc danh sách ưu tiên">
               {filterTabs.map((tab) => {
                 const active = effectiveBucket === tab.id;
@@ -291,7 +349,7 @@ export function PriorityRoomsControlSection({
                       setSelectedBucket(tab.id);
                       setShowAll(false);
                     }}
-                    className={`inline-flex min-h-[36px] items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/20 ${
+                    className={`inline-flex min-h-8 items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold transition cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/20 ${
                       active
                         ? "border-slate-900 bg-slate-900 text-white shadow-2xs"
                         : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
@@ -299,7 +357,7 @@ export function PriorityRoomsControlSection({
                   >
                     <span>{tab.label}</span>
                     <span
-                      className={`inline-flex min-w-[20px] items-center justify-center rounded-full px-1.5 py-0.5 text-xs font-bold leading-none whitespace-nowrap ${
+                      className={`inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-xs font-bold tabular-nums leading-none whitespace-nowrap ${
                         active ? "bg-white/20 text-white" : tab.badgeClass
                       }`}
                     >
@@ -309,13 +367,14 @@ export function PriorityRoomsControlSection({
                 );
               })}
             </div>
-          ) : null}
+          )}
 
           <button
             type="button"
-            onClick={() => setIsCollapsed((prev) => !prev)}
+            onClick={handleToggleCollapsed}
             aria-expanded={!isCollapsed}
-            className="inline-flex min-h-[36px] items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-950 transition cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/20"
+            aria-controls={panelId}
+            className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-950 transition cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/20"
           >
             <VsIcon name={isCollapsed ? "expand_more" : "expand_less"} className="text-sm" />
             <span>{isCollapsed ? "Mở danh sách" : "Thu gọn"}</span>
@@ -324,7 +383,7 @@ export function PriorityRoomsControlSection({
       </div>
 
       {!isCollapsed ? (
-        <>
+        <div id={panelId}>
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full border-collapse text-left">
               <thead>
@@ -502,7 +561,7 @@ export function PriorityRoomsControlSection({
               </button>
             </div>
           ) : null}
-        </>
+        </div>
       ) : null}
     </section>
   );
